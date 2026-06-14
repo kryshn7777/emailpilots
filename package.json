@@ -1,0 +1,53 @@
+{
+  "name": "email-pilots",
+  "version": "1.0.0",
+  "description": "Email Pilots Tool",
+  "author": {
+    "name": "Email Pilots",
+    "email": "kittuhacks@gmail.com"
+  },
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && electron-builder",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test-send": "ts-node src/index.ts --test"
+  },
+  "build": {
+    "appId": "com.mailauto.app",
+    "productName": "Email Pilots",
+    "directories": {
+      "output": "release/"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
+  },
+  "dependencies": {
+    "csv-parse": "^6.1.0",
+    "dotenv": "^17.3.1",
+    "mustache": "^4.2.0",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.2"
+  },
+  "devDependencies": {
+    "@types/mustache": "^4.2.6",
+    "@types/node": "^25.4.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^7.0.11",
+    "concurrently": "^9.2.1",
+    "electron": "^41.0.0",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.27.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-electron": "^0.29.0",
+    "vitest": "^4.1.8"
+  }
+}

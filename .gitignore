@@ -1,0 +1,21 @@
+node_modules/
+release/
+dist/
+build/
+*.rar
+*.zip
+*.exe
+.playwright-mcp/
+website/.playwright-mcp/
+*.log
+
+# Secrets & per-user runtime data — never commit (contains credentials / recipient PII / send state)
+.env
+recipients.json
+recipients.csv
+accounts.json
+limits.json
+limits.*.json
+stats.json
+suppression.json
+scheduler.json

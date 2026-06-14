@@ -1,0 +1,41 @@
+# Email Pilots - Procedures & Architecture
+
+## Architecture
+The application follows a standard Electron architecture:
+- **Main Process (Node.js)**: Manages file system, SQLite/JSON storage, SMTP communication (`nodemailer`), and scheduled tasks (`node-cron`).
+- **Renderer Process (React/Vite)**: Material Design 3 UI that communicates with the main process via IPC channels (`ipcMain` and `ipcRenderer`).
+
+## Core Procedures
+
+### 1. Mail Processing Flow (`mailProcessor.ts`)
+1. **Validation**: Reads the active recipients from `recipients.json`.
+2. **Suppression Check**: Skips any email present in the suppression list (e.g., previous hard bounces).
+3. **Template Rendering**: Merges the global `template.html` with per-recipient messages using `Mustache`. Strips HTML if sending in `primary` inbox placement mode.
+4. **Rate Limiting**: Requests an allocation from the `RateLimiter`. If the limit is exceeded, the email is skipped for the current run.
+5. **Sending**: Dispatches the email via `EmailService` (Nodemailer).
+6. **Result Handling**: Evaluates the SMTP response. If a permanent bounce (5xx) occurs, the address is added to the suppression list.
+
+### 2. Scheduler Engine (`scheduler.ts`)
+- Instead of a single bulk job, the scheduler parses `recipients.json` and creates individual `node-cron` tasks per recipient based on `scheduledDays` and `scheduledTimes`.
+- **Entropy Handling**: Before executing the `processRecipient` call, the scheduler applies an `entropyMinutes` jitter, deferring the actual send by a random `setTimeout` delay to mimic manual sending.
+
+### 3. Application Lifecycle (`electron/main.ts`)
+- **Boot**: Checks for `.env` credentials in the `MAIL_DATA_DIR` (or creates a user data dir in packaged mode).
+- **Single Instance**: Requests a single instance lock. If a second instance is opened, it focuses the existing window.
+- **Tray & Background**: Closing the window hides it to the tray, allowing cron tasks to continue.
+- **Quit Confirmation**: A real quit (tray **Quit** item, taskbar/OS quit, `Cmd/Ctrl+Q`) is gated behind a `before-quit` warning, because quitting stops the background scheduler and any in-progress sending. Window close does not trigger it — it only minimises to the tray.
+- **Auto Launch**: Registers itself (packaged builds only) to launch silently (`--hidden`) on system startup; the scheduler resumes if it was enabled at last exit (`scheduler.json`).
+
+### 5. Build & Distribution (`electron-builder`)
+- **Targets**: NSIS installer + portable, output to `release/`. Publisher name comes from the `author` field in `package.json`.
+- **Code Signing**: The build is currently **unsigned**. Windows SmartScreen therefore shows a "Windows protected your PC" / "can't scan this app" warning on first run (see `onboarding.md` for the user-facing "Run anyway" steps). This is a reputation/identity gap, not a malware detection.
+- **Removing the warning** requires an Authenticode signature. Drop-in options for `build.win` once a certificate exists:
+  - **EV certificate** (hardware token / cloud HSM) — grants SmartScreen reputation immediately.
+  - **OV certificate** — reputation accrues gradually after enough downloads.
+  - **Azure Trusted Signing** (~$10/mo) — cheapest route to SmartScreen reputation without a physical token.
+  - electron-builder reads a `.pfx` via `CSC_LINK` + `CSC_KEY_PASSWORD` env vars, or use `win.azureSignOptions` for Azure Trusted Signing. No code changes are needed beyond config + secrets.
+- **False positives**: report a wrongly-flagged build at <https://www.microsoft.com/wdsi/filesubmission> ("Software developer") to clear it faster.
+
+### 4. Configuration Management
+- Configuration is loaded via `dotenv` and merged into a strongly-typed `Config` object.
+- Modifying settings through the UI invokes the `save-config` IPC channel, which overwrites `.env` and hot-reloads the internal services (Scheduler, MailProcessor, EmailService) without requiring an app restart.

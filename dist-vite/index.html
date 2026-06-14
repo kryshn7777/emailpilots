@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
+    <title>Email Pilots</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <script type="module" crossorigin src="./assets/index-BBw5hg8O.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BqEnYF6T.css">
+  </head>
+  <body>
+    <div class="noise-overlay"></div>
+    <div id="app">
+      <nav class="sidebar">
+        <div class="logo">
+          <img src="./assets/logo.png" alt="Email Pilots logo" style="max-height: 56px; width: auto; object-fit: contain;">
+        </div>
+        <ul class="nav-links" role="tablist" aria-label="Main navigation" aria-orientation="vertical">
+          <li class="active" data-view="dashboard">
+            <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
+            Dashboard
+          </li>
+          <li data-view="recipients">
+            <span class="material-symbols-outlined" aria-hidden="true">group</span>
+            Recipients
+          </li>
+          <li data-view="accounts">
+            <span class="material-symbols-outlined" aria-hidden="true">alternate_email</span>
+            Accounts
+          </li>
+          <li data-view="settings">
+            <span class="material-symbols-outlined" aria-hidden="true">settings</span>
+            Settings
+          </li>
+          <li data-view="logs">
+            <span class="material-symbols-outlined" aria-hidden="true">list_alt</span>
+            System Logs
+          </li>
+        </ul>
+      </nav>
+      
+      <main class="content">
+        <!-- Dashboard View -->
+        <div id="dashboard" class="view active">
+          <div class="hero-banner">
+            <div class="hero-content">
+              <header>
+                <h1 id="welcome-title">Welcome</h1>
+                <p id="welcome-subtitle">Email Pilots is ready. Your outreach is scheduled and standing by.</p>
+              </header>
+              
+              <div class="hero-stats">
+                <div class="stat">
+                  <span class="material-symbols-outlined">schedule</span>
+                  <div class="stat-info">
+                    <strong>Next Run</strong>
+                    <span id="schedule-display">Daily at 09:00</span>
+                  </div>
+                </div>
+                <div class="stat" id="status-stat-container" style="cursor: pointer;" onclick="document.getElementById('toggle-scheduler-btn').click()">
+                  <div class="icon-box">
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="status-toggle-checkbox">
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                  <div class="stat-info">
+                    <strong>Status</strong>
+                    <span id="service-status-text">Checking…</span>
+                  </div>
+                </div>
+                <div class="stat">
+                  <span class="material-symbols-outlined">send</span>
+                  <div class="stat-info">
+                    <strong>Total Sent</strong>
+                    <span id="total-sent-display">0</span>
+                  </div>
+                </div>
+                <div class="stat">
+                  <span class="material-symbols-outlined">group</span>
+                  <div class="stat-info">
+                    <strong>Active Recips</strong>
+                    <span id="active-recips-display">0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="setup-banner" style="display: none; align-items: center; gap: 12px; margin-bottom: 24px; padding: 14px 18px; border-radius: var(--radius); background: rgba(245,158,11,0.1); border: 1px solid #f59e0b;">
+            <span class="material-symbols-outlined" style="color: #f59e0b;">warning</span>
+            <div style="flex: 1;">
+              <strong>Almost there — add your email login.</strong>
+              <div style="font-size: 0.85em; color: var(--muted-foreground);">No emails can be sent until you enter your SMTP credentials.</div>
+            </div>
+            <button type="button" id="setup-banner-btn" class="btn primary">Open Settings</button>
+          </div>
+
+          <div class="cards-grid">
+            <div class="card quick-actions" style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; padding: 32px;">
+              <button id="test-run-btn" class="btn primary btn-lg" style="width: 100%; max-width: 400px; padding: 16px; font-size: 1.1rem; height: auto; margin-bottom: 12px;">
+                <span class="material-symbols-outlined" style="font-size: 24px;">play_arrow</span>
+                Send to All Now
+              </button>
+              <label id="test-mode-wrap" style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 0.85rem; color: var(--muted-foreground); cursor: pointer;" title="Try a full run safely: every email is delivered to your own inbox instead of the real recipients.">
+                <input type="checkbox" id="test-mode-checkbox" style="width: auto; height: auto;">
+                Practice mode — send every email to my own inbox instead
+              </label>
+              <div class="action-buttons" style="display: flex; gap: 16px; width: 100%; max-width: 400px;">
+                <button id="toggle-scheduler-btn" class="btn ghost full-width" style="color: var(--text-muted); border: 1px dashed rgba(0,0,0,0.2); background: transparent; box-shadow: none;">
+                  <span class="material-symbols-outlined">pause</span>
+                  Pause Schedule
+                </button>
+                <button id="open-json-btn" class="btn ghost full-width" style="color: var(--text-muted); border: 1px dashed rgba(0,0,0,0.2); background: transparent; box-shadow: none;">
+                  <span class="material-symbols-outlined">data_object</span>
+                  Recipients File
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card usage-card" style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h3>Today's Usage</h3>
+              <span id="usage-date-display" style="color: var(--muted-foreground); font-size: 0.9em;"></span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 6px;">
+                  <span>Emails sent</span><span id="usage-emails">0 / 50</span>
+                </div>
+                <div style="height: 8px; background: #e5e5e5; border-radius: 4px; overflow: hidden;">
+                  <div id="usage-emails-bar" style="height: 100%; width: 0%; background: var(--primary); transition: width .3s, background .3s;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 6px;">
+                  <span title="A batch is a burst of up to 10 emails; a few batches are spread across the day.">Send batches today</span><span id="usage-windows">0 / 5</span>
+                </div>
+                <div style="height: 8px; background: #e5e5e5; border-radius: 4px; overflow: hidden;">
+                  <div id="usage-windows-bar" style="height: 100%; width: 0%; background: var(--primary); transition: width .3s, background .3s;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 6px;">
+                  <span title="Emails sent in the current batch before a longer pause.">Current batch</span><span id="usage-window">0 / 10</span>
+                </div>
+                <div style="height: 8px; background: #e5e5e5; border-radius: 4px; overflow: hidden;">
+                  <div id="usage-window-bar" style="height: 100%; width: 0%; background: var(--primary); transition: width .3s, background .3s;"></div>
+                </div>
+              </div>
+              <div id="usage-note" style="font-size: 0.75em; color: var(--muted-foreground);">Resets at midnight. Max 3 emails per recipient per day.</div>
+            </div>
+          </div>
+
+          <div class="card preflight-card" style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined">flight_takeoff</span> Pre-flight Check
+              </h3>
+              <button type="button" id="preflight-recheck" class="btn outline" style="height: 32px; padding: 0 12px; font-size: 0.8rem;">Re-check</button>
+            </div>
+            <div id="preflight-summary" style="margin-bottom: 12px; font-size: 0.9rem;"></div>
+            <div id="preflight-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+          </div>
+
+          <div class="card schedule-card" style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h3>Today's Schedule</h3>
+              <span id="today-date-display" style="color: var(--muted-foreground); font-size: 0.9em;"></span>
+            </div>
+            <div id="today-schedule-list" style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- Dynamic schedule items will be injected here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Recipients View -->
+        <div id="recipients" class="view">
+          <header>
+            <h1>Recipients</h1>
+            <p>Manage your email recipients and toggle their active status</p>
+            <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+              <button id="add-recipient-btn" class="btn primary">
+                <span class="material-symbols-outlined">add</span>
+                Add Recipient
+              </button>
+              <button id="import-csv-btn" class="btn outline">
+                <span class="material-symbols-outlined">upload_file</span>
+                Import CSV
+              </button>
+              <button id="distribute-btn" class="btn outline" style="display: none;" title="Spread recipients that aren't assigned to an account evenly across your sending inboxes">
+                <span class="material-symbols-outlined">shuffle</span>
+                Distribute across accounts
+              </button>
+            </div>
+          </header>
+          
+          <div id="recipients-empty-state" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">
+              <span class="material-symbols-outlined">group_add</span>
+            </div>
+            <h3>No recipients yet</h3>
+            <p>Add people to your list so the pilots have somewhere to fly.</p>
+            <button id="empty-add-recipient-btn" class="btn primary" onclick="document.getElementById('add-recipient-btn').click()">
+              <span class="material-symbols-outlined">add</span>
+              Add Your First Recipient
+            </button>
+          </div>
+
+          <div class="table-container" id="recipients-table-container">
+            <table class="recipients-table">
+              <thead>
+                <tr>
+                  <th>Active</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Schedule</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="recipients-tbody">
+                <!-- Rows will be populated here -->
+              </tbody>
+            </table>
+          </div>
+
+          <div id="suppressed-section" class="card" style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h3 style="margin: 0;">Blocked Addresses (do-not-send)</h3>
+              <span id="suppressed-count" style="color: var(--muted-foreground); font-size: 0.85em;"></span>
+            </div>
+            <p class="help-text" style="margin-bottom: 12px;">These addresses are never emailed (bounced, unsubscribed, or blocked by you). When someone replies asking to unsubscribe, block them here — it sticks even if they're re-imported from a CSV.</p>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; max-width: 480px;">
+              <input type="email" id="suppress-add-input" placeholder="name@example.com" style="flex: 1;">
+              <button type="button" id="suppress-add-btn" class="btn outline">
+                <span class="material-symbols-outlined">block</span>
+                Block address
+              </button>
+            </div>
+            <div id="suppressed-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+          </div>
+        </div>
+
+        <!-- Accounts View -->
+        <div id="accounts" class="view">
+          <header>
+            <h1>Accounts</h1>
+            <p>Connect more sending inboxes. Each account sends to its own recipients in parallel, with its own daily limits. Your primary account is managed in Settings.</p>
+          </header>
+
+          <div id="fleet-strip" class="card" style="margin-bottom: 16px; display: none; gap: 20px; flex-wrap: wrap; align-items: center;"></div>
+
+          <div class="card" style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h3 style="margin: 0;">Connected accounts</h3>
+              <span id="accounts-count" style="color: var(--muted-foreground); font-size: 0.85em;"></span>
+            </div>
+
+            <div id="accounts-empty-state" class="empty-state" style="display: none;">
+              <div class="empty-state-icon">
+                <span class="material-symbols-outlined">mail</span>
+              </div>
+              <h3>No extra accounts</h3>
+              <p>Connect additional inboxes to increase your daily sending limits.</p>
+            </div>
+
+            <div id="accounts-bulk-bar" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; margin-top: 8px; background: #fafafa; border: 1px solid var(--border); border-radius: var(--radius);">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85em; cursor: pointer;">
+                <input type="checkbox" id="acct-select-all"> Select all
+              </label>
+              <span id="acct-selected-count" style="font-size: 0.85em; color: var(--muted-foreground);"></span>
+              <span style="flex: 1;"></span>
+              <button id="bulk-enable-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em;">Enable</button>
+              <button id="bulk-disable-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em;">Disable</button>
+              <button id="bulk-test-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em;">Test</button>
+              <button id="bulk-remove-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em; color: #ef4444;">Remove</button>
+            </div>
+
+            <div id="accounts-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;"></div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top: 0;">Add an account</h3>
+            <p class="help-text" style="margin-bottom: 16px;">Use an app password, not your normal login password. We verify the connection before saving.</p>
+            <p id="acct-cap-note" style="display: none; color: var(--muted-foreground); font-size: 0.85em; margin-bottom: 16px; padding: 10px 12px; background: #fafafa; border: 1px solid var(--border); border-radius: var(--radius);"></p>
+            <form id="add-account-form">
+              <div class="form-group">
+                <label for="acct-provider">Provider</label>
+                <select id="acct-provider" class="form-control">
+                  <option value="gmail">Gmail</option>
+                  <option value="outlook">Outlook / Office 365</option>
+                  <option value="other">Other (custom SMTP)</option>
+                </select>
+              </div>
+              <div id="acct-custom-fields" style="display: none; grid-template-columns: 2fr 1fr; gap: 16px;">
+                <div class="form-group">
+                  <label for="acct-host">SMTP Host</label>
+                  <input type="text" id="acct-host" placeholder="smtp.example.com">
+                </div>
+                <div class="form-group">
+                  <label for="acct-port">Port</label>
+                  <input type="number" id="acct-port" value="587">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="acct-label">Label <span style="color: var(--muted-foreground); font-weight: 400;">(optional)</span></label>
+                <input type="text" id="acct-label" placeholder="e.g. Marketing inbox">
+              </div>
+              <div class="form-group">
+                <label for="acct-user">Email Address</label>
+                <input type="email" id="acct-user" placeholder="you@gmail.com">
+              </div>
+              <div class="form-group">
+                <label for="acct-pass">App Password</label>
+                <input type="password" id="acct-pass" placeholder="16-character app password">
+              </div>
+              <p id="acct-error" style="display: none; color: #ef4444; font-size: 0.85em; margin-bottom: 12px;"></p>
+              <button type="submit" class="btn primary" id="acct-submit-btn">
+                <span class="material-symbols-outlined">add</span>
+                Verify &amp; add account
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settings" class="view">
+          <header>
+            <h1>Settings</h1>
+            <p>Configure your credentials and automation schedule</p>
+          </header>
+          
+          <div class="form-container" style="max-width: 100%; padding: 0;">
+            <form id="settings-form">
+              <div class="settings-grid">
+              <div class="card settings-chunk" style="margin-bottom: 24px;">
+                <h3 style="margin-top: 0; margin-bottom: 16px;">Primary Account</h3>
+                <div class="form-group">
+                  <label for="smtp-provider">Email Provider</label>
+                <select id="smtp-provider" class="form-control">
+                  <option value="gmail">Gmail</option>
+                  <option value="outlook">Outlook / Office 365</option>
+                  <option value="custom">Custom SMTP</option>
+                </select>
+              </div>
+              <div id="custom-smtp-fields" style="display: none; background: #fafafa; border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                <div class="form-group">
+                  <label for="smtp-host">SMTP Host</label>
+                  <input type="text" id="smtp-host" placeholder="smtp.office365.com or smtp.gmail.com">
+                </div>
+                <div class="form-group">
+                  <label for="smtp-port">SMTP Port</label>
+                  <input type="number" id="smtp-port" placeholder="587">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="outlook-user">SMTP Email Address</label>
+                <input type="email" id="outlook-user" placeholder="you@domain.com">
+                <p class="help-text">Authorized email for SMTP sending.</p>
+              </div>
+              <div class="form-group">
+                <label for="outlook-pass">SMTP / App Password</label>
+                <input type="password" id="outlook-pass" placeholder="••••••••••••••••">
+                <p class="help-text">Use an App Password if 2FA is enabled (required for Gmail/Outlook).</p>
+              </div>
+
+              <div class="form-group">
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                  <button type="button" id="test-connection-btn" class="btn outline">
+                    <span class="material-symbols-outlined">forward_to_inbox</span>
+                    Send Test Email to Myself
+                  </button>
+                  <button type="button" id="signout-btn" class="btn outline" style="color: #ef4444; border-color: rgba(239,68,68,0.3);">
+                    <span class="material-symbols-outlined">logout</span>
+                    Sign Out
+                  </button>
+                </div>
+                <p class="help-text">Save your settings first, then send a test to confirm they work. Sign out to clear your credentials from the environment.</p>
+              </div>
+
+              </div> <!-- End Primary Account Card -->
+
+              <div class="card settings-chunk" style="margin-bottom: 24px;">
+                <h3 style="margin-top: 0; margin-bottom: 16px;">Email Content</h3>
+                <div class="form-group">
+                  <label for="subject-line">Default Subject Line</label>
+                <input type="text" id="subject-line" placeholder="Application for Part-Time Opportunity">
+                <p class="help-text">Default subject — a recipient's own subject overrides it. Send times are set per recipient (Recipients tab).</p>
+              </div>
+              
+              <hr>
+              
+              <div class="form-group">
+                <label>CV Attachment</label>
+                <div class="file-input-group">
+                  <input type="text" id="cv-path" readonly placeholder="No file selected">
+                  <button type="button" id="select-cv-btn" class="btn outline">Select File</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Enrollment Letter Attachment</label>
+                <div class="file-input-group">
+                  <input type="text" id="enrollment-path" readonly placeholder="No file selected">
+                  <button type="button" id="select-enrollment-btn" class="btn outline">Select File</button>
+                </div>
+              </div>
+
+              </div> <!-- End Email Content Card -->
+
+              <div class="card settings-chunk" style="margin-bottom: 24px;">
+                <h3 style="margin-top: 0; color: var(--primary); margin-bottom: 16px;">Deliverability &amp; Compliance</h3>
+
+              <div class="form-group">
+                <label for="inbox-placement">Sending style</label>
+                <select id="inbox-placement" class="form-control">
+                  <option value="primary">Personal — reads like 1:1 mail (Primary tab, no footer)</option>
+                  <option value="bulk">Bulk — adds unsubscribe link + address footer (CAN-SPAM)</option>
+                </select>
+                <p class="help-text">Personal strips heavy styling and hides the footer so email lands in Gmail's Primary tab. The unsubscribe link and mailing address below are only included in <strong>Bulk</strong> mode — choose Bulk for cold outreach at volume.</p>
+              </div>
+
+              <div class="form-group">
+                <label for="physical-address">Physical Mailing Address</label>
+                <textarea id="physical-address" rows="2" placeholder="123 Main St, Suite 4, City, Country"></textarea>
+                <p class="help-text">Required by anti-spam law (CAN-SPAM). Appended to the footer in Bulk mode.</p>
+              </div>
+
+              <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                  <input type="checkbox" id="unsubscribe-enabled" checked style="width: auto; height: auto;">
+                  Add unsubscribe link + List-Unsubscribe header
+                </label>
+                <p class="help-text">One-click unsubscribe (mailto to your address). Improves inbox placement and is legally required for bulk mail. Applies in Bulk mode.</p>
+              </div>
+
+              <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                  <input type="checkbox" id="warmup-enabled" checked style="width: auto; height: auto;">
+                  Warm up new accounts gradually
+                </label>
+                <p class="help-text">Ramps the daily cap over the first days (5 → 50) to protect a fresh inbox from spam flags.</p>
+              </div>
+
+              </div> <!-- End Deliverability Card -->
+              </div> <!-- End Settings Grid -->
+
+              <div style="display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn primary btn-lg" id="save-settings-btn" style="min-width: 200px; height: 48px; font-size: 1rem;">
+                  <span class="material-symbols-outlined">save</span>
+                  Save Configuration
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Logs View -->
+        <div id="logs" class="view">
+          <header>
+            <h1>Flight Log</h1>
+            <p>Recent activity and flight history</p>
+            <button id="clear-logs-btn" class="btn outline" style="margin-top: 16px;">
+                <span class="material-symbols-outlined">delete</span>
+                Clear View
+            </button>
+          </header>
+          
+          <div class="timeline-container" id="log-output">
+            <!-- Logs appended here -->
+            <div class="timeline-item system">
+              <div class="timeline-icon">
+                <span class="material-symbols-outlined">settings</span>
+              </div>
+              <div class="timeline-content">
+                <span class="timeline-time">Just now</span>
+                <span class="timeline-message">Application initialized and cleared for takeoff.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Login Screen (shown until an email account is connected) -->
+    <div id="login-screen" class="login-screen" style="display: flex;">
+      <div class="login-card">
+        <span class="material-symbols-outlined login-plane" aria-hidden="true">flight</span>
+        <div class="login-brand" style="display: flex; justify-content: center; margin-bottom: 16px;">
+          <img src="./assets/logo.png" alt="Email Pilots logo" style="height: 64px; width: auto; object-fit: contain;">
+        </div>
+        <h1 class="login-title">Welcome aboard</h1>
+        <p class="login-subtitle">Connect your inbox and you're cleared for takeoff.</p>
+
+        <div class="login-providers" role="tablist" aria-label="Email provider">
+          <button type="button" class="login-provider active" data-provider="gmail" role="tab">
+            <svg class="login-provider-icon" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
+              <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>
+              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
+              <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
+              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+            </svg>
+            Gmail
+          </button>
+          <button type="button" class="login-provider" data-provider="outlook" role="tab">
+            <svg class="login-provider-icon" viewBox="0 0 21 21" width="18" height="18" aria-hidden="true">
+              <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+              <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+              <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+              <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+            </svg>
+            Outlook
+          </button>
+          <button type="button" class="login-provider" data-provider="other" role="tab">
+            <span class="material-symbols-outlined" style="font-size:18px;">mail</span>
+            Other
+          </button>
+        </div>
+
+        <form id="login-form" class="login-form" autocomplete="on">
+          <div id="login-custom-fields" class="login-custom" style="display:none;">
+            <div class="login-field">
+              <label for="login-host">SMTP Host</label>
+              <input id="login-host" type="text" placeholder="smtp.example.com">
+            </div>
+            <div class="login-field">
+              <label for="login-port">Port</label>
+              <input id="login-port" type="number" placeholder="587">
+            </div>
+          </div>
+
+          <div class="login-field">
+            <label for="login-email">Email address</label>
+            <input id="login-email" type="email" required placeholder="you@gmail.com" autocomplete="username">
+          </div>
+
+          <div class="login-field">
+            <label for="login-password">App password</label>
+            <div class="login-password-wrap">
+              <input id="login-password" type="password" required placeholder="••••••••••••••••" autocomplete="current-password">
+              <button type="button" id="login-toggle-pass" class="login-eye" aria-label="Show password">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
+            <a href="#" id="login-help" class="login-help" target="_blank" rel="noopener">Get an app password ↗</a>
+            <details class="login-steps-wrap" id="app-pw-help-link">
+              <summary>How do I get an app password?</summary>
+            </details>
+          </div>
+
+          <div id="login-error" class="login-error" role="alert" aria-live="assertive" style="display:none;"></div>
+
+          <button type="submit" class="login-submit" id="login-submit-btn">Sign in</button>
+        </form>
+
+        <p class="login-footnote">
+          <span class="material-symbols-outlined" style="font-size:16px;">lock</span>
+          Credentials are stored locally on this device. We never see them.
+        </p>
+      </div>
+    </div>
+
+    <!-- Onboarding Modal -->
+    <div id="onboarding-modal" class="modal" style="display: none; z-index: 2000;">
+      <div class="modal-content" style="max-width: 400px; text-align: center;">
+        <img src="./assets/logo.png" alt="Email Pilots logo" style="height: 64px; width: auto; object-fit: contain; margin-bottom: 16px;">
+        <h2 style="margin-top: 0;">Welcome!</h2>
+        <p style="color: var(--muted-foreground); margin-bottom: 24px;">Before we begin, what should we call you?</p>
+        <form id="onboarding-form">
+          <input type="text" id="onboard-name" required placeholder="Your Name" style="width: 100%; margin-bottom: 16px; padding: 12px; border-radius: var(--radius); border: 1px solid var(--border-strong);">
+          <button type="submit" class="btn primary" style="width: 100%; justify-content: center;">Continue</button>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Preview Modal -->
+    <div id="preview-modal" class="modal" style="display: none; z-index: 1500;">
+      <div class="modal-content">
+        <span class="close-modal" id="close-modal-btn" role="button" tabindex="0" aria-label="Close dialog">&times;</span>
+        <h2>Email Preview</h2>
+        <div class="preview-header" style="margin-bottom: 12px; font-size: 1.1rem;">
+          <strong>Subject:</strong> <span id="preview-subject"></span>
+        </div>
+        <div id="preview-spam"></div>
+        <div class="preview-body-container">
+          <iframe id="preview-frame" style="width: 100%; height: 400px; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: white;"></iframe>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Recipient Form Modal -->
+    <div id="recipient-modal" class="modal" style="display: none;">
+      <div class="modal-content" style="max-width: 850px;">
+        <span class="close-modal" id="close-recipient-modal-btn" role="button" tabindex="0" aria-label="Close dialog">&times;</span>
+        <h2 id="recipient-modal-title">Add Recipient</h2>
+        
+        <!-- Wizard Progress Tracker -->
+        <div class="wizard-progress">
+            <div class="wizard-step active" data-step="1">1. Who?</div>
+            <div class="wizard-step" data-step="2">2. What?</div>
+            <div class="wizard-step" data-step="3">3. When?</div>
+        </div>
+
+        <form id="recipient-form">
+          <input type="hidden" id="recipient-index" value="-1">
+          
+          <!-- Wizard Container -->
+          <div class="wizard-container">
+            
+            <!-- STEP 1: WHO -->
+            <div class="wizard-panel active" id="wizard-step-1">
+              <div class="form-group">
+                <label for="rec-name">Name</label>
+                <input type="text" id="rec-name" required placeholder="John Doe">
+              </div>
+              <div class="form-group">
+                <label for="rec-email">Email Address</label>
+                <input type="email" id="rec-email" required placeholder="john@example.com">
+              </div>
+              <div class="form-group">
+                <label for="rec-subject">Subject <span style="color: var(--muted-foreground); font-weight: 400;">(optional)</span></label>
+                <input type="text" id="rec-subject" placeholder="Leave blank to use the default subject">
+              </div>
+              <div class="form-group" id="rec-account-group" style="display: none;">
+                <label for="rec-account">Send from account</label>
+                <select id="rec-account" class="form-control"></select>
+              </div>
+            </div>
+
+            <!-- STEP 2: WHAT -->
+            <div class="wizard-panel" id="wizard-step-2" style="display: none;">
+              <div class="form-group">
+                <label>Message Type</label>
+                <select id="rec-msg-type" class="form-control">
+                    <option value="text">Direct Text</option>
+                    <option value="file">Text/HTML File</option>
+                </select>
+              </div>
+              <div class="form-group" id="rec-msg-text-group">
+                <label for="rec-msg-text">Message Content</label>
+                <textarea id="rec-msg-text" rows="5" placeholder="Hello {{name}}, ..."></textarea>
+                <p class="help-text">Wrapped in your email template (greeting + footer). Use {{name}} to personalize.</p>
+              </div>
+              <div class="form-group" id="rec-msg-file-group" style="display:none;">
+                <label>Message File</label>
+                <div class="file-input-group">
+                  <input type="text" id="rec-msg-file" readonly placeholder="No file selected">
+                  <button type="button" id="select-msg-file-btn" class="btn outline">Select File</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Attachments</label>
+                <div id="rec-attachments-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 140px; overflow-y: auto;">
+                    <!-- Attachment rows will be added here dynamically -->
+                </div>
+                <button type="button" id="add-attachment-btn" class="btn outline" style="margin-top: 8px; font-size: 0.8rem;">
+                  <span class="material-symbols-outlined">attach_file</span> Attach Document
+                </button>
+                <p class="help-text">If left empty, your default CV (Settings) is attached. The enrollment letter from Settings is always attached.</p>
+              </div>
+            </div>
+
+            <!-- STEP 3: WHEN -->
+            <div class="wizard-panel" id="wizard-step-3" style="display: none;">
+              <div class="form-group">
+                <label>Scheduled Days</label>
+                <div class="checkbox-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <label><input type="checkbox" name="rec-days" value="Mon"> Mon</label>
+                  <label><input type="checkbox" name="rec-days" value="Tue"> Tue</label>
+                  <label><input type="checkbox" name="rec-days" value="Wed"> Wed</label>
+                  <label><input type="checkbox" name="rec-days" value="Thu"> Thu</label>
+                  <label><input type="checkbox" name="rec-days" value="Fri"> Fri</label>
+                  <label><input type="checkbox" name="rec-days" value="Sat"> Sat</label>
+                  <label><input type="checkbox" name="rec-days" value="Sun"> Sun</label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Scheduled Times (HH:MM)</label>
+                <div id="rec-times-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 140px; overflow-y: auto;">
+                    <div class="time-input-row" style="display: flex; gap: 8px; align-items: center;">
+                        <input type="time" class="rec-time" required>
+                        <button type="button" class="btn outline remove-time-btn" style="padding: 0 8px;">&times;</button>
+                    </div>
+                </div>
+                <button type="button" id="add-time-btn" class="btn outline" style="margin-top: 8px; font-size: 0.8rem;">+ Add Time</button>
+                <p class="help-text" style="display: inline-block; margin-left: 8px;">Max 5 times.</p>
+              </div>
+              <div class="form-group">
+                <label for="rec-entropy">Randomize send time by ± minutes</label>
+                <input type="number" id="rec-entropy" min="0" max="120" value="0" placeholder="e.g. 15">
+                <p class="help-text">Adds a random delay of +/- this many minutes to each scheduled send time, so sends look less robotic.</p>
+              </div>
+            </div>
+            
+          </div>
+
+          <!-- Wizard Footer Controls -->
+          <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 16px;">
+            <div>
+              <button type="button" id="preview-recipient-btn" class="btn outline" style="font-size: 0.8rem; padding: 0 12px; height: 32px;"><span class="material-symbols-outlined" style="font-size: 16px; margin-right: 4px;">visibility</span> Preview Result</button>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" id="wizard-back-btn" class="btn outline" style="display: none;">Back</button>
+              <button type="button" id="wizard-next-btn" class="btn primary">Next Step</button>
+              <button type="submit" id="wizard-save-btn" class="btn primary" style="display: none;">Save Recipient</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- CSV Import Modal -->
+    <div id="import-modal" class="modal" style="display: none;">
+      <div class="modal-content" style="max-width: 850px;">
+        <span class="close-modal" id="close-import-modal-btn" role="button" tabindex="0" aria-label="Close dialog">&times;</span>
+        <h2>Import Recipients from CSV</h2>
+        <p id="import-file-label" class="help-text" style="margin-bottom: 16px;"></p>
+
+        <div class="form-group">
+          <label style="font-weight: 600;">Map columns</label>
+          <p class="help-text">Match your CSV columns to recipient fields. Email is required; any unmapped columns are kept as <code>{{column}}</code> merge variables.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-top: 8px;">
+            <div>
+              <label for="map-email">Email <span style="color: var(--muted-foreground);">(required)</span></label>
+              <select id="map-email" class="form-control"></select>
+            </div>
+            <div>
+              <label for="map-name">Name</label>
+              <select id="map-name" class="form-control"></select>
+            </div>
+            <div>
+              <label for="map-subject">Subject</label>
+              <select id="map-subject" class="form-control"></select>
+            </div>
+            <div>
+              <label for="map-message">Message</label>
+              <select id="map-message" class="form-control"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label style="font-weight: 600;">Preview</label>
+          <p id="import-counts" class="help-text" style="margin-bottom: 8px;"></p>
+          <div class="table-container" style="max-height: 260px; overflow: auto;">
+            <table class="recipients-table">
+              <thead>
+                <tr><th>Email</th><th>Name</th><th>Subject</th></tr>
+              </thead>
+              <tbody id="import-preview-tbody"></tbody>
+            </table>
+          </div>
+          <p class="help-text" style="margin-top: 8px;">Imported recipients are active but have no schedule — set days/times after import, or use "Send to All Now".</p>
+        </div>
+
+        <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" id="cancel-import-btn" class="btn outline">Cancel</button>
+          <button type="button" id="confirm-import-btn" class="btn primary">Import</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm dialog (styled replacement for native confirm()) -->
+    <div id="confirm-modal" class="modal" style="display: none; z-index: 2500;">
+      <div class="modal-content" style="max-width: 440px;">
+        <h2 id="confirm-title" style="margin-top: 0;">Are you sure?</h2>
+        <p id="confirm-message" style="color: var(--muted-foreground); white-space: pre-line; margin: 0;"></p>
+        <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" id="confirm-cancel-btn" class="btn outline">Cancel</button>
+          <button type="button" id="confirm-ok-btn" class="btn primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- App Password Help Modal -->
+    <div id="app-pw-modal" class="modal" style="display: none; z-index: 3100;">
+      <div class="modal-content" style="max-width: 520px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 id="app-pw-title" style="margin: 0; font-size: 1.25rem;">How to get an app password</h2>
+          <button type="button" id="app-pw-close" class="btn outline" style="padding: 4px; height: auto; border: none; background: transparent;">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div id="login-micro-guide" class="login-micro-guide" aria-hidden="true" style="margin-bottom: 16px;">
+
+          <!-- Google replica: myaccount.google.com/apppasswords (2026) -->
+          <div id="guide-google" class="gd-frame">
+            <div class="gd-chrome">
+              <div class="gd-dots"><span></span><span></span><span></span></div>
+              <div class="gd-url"><span class="material-symbols-outlined">lock</span>myaccount.google.com/apppasswords</div>
+            </div>
+            <div class="gd-body m3-body">
+              <div class="m3-topbar">
+                <div class="m3-logo-group">
+                  <svg class="m3-g-logo" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
+                    <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>
+                    <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
+                    <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
+                    <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+                  </svg>
+                  <div class="m3-logo-text">Account</div>
+                </div>
+                <div class="m3-avatar">E</div>
+              </div>
+              <div class="m3-main">
+                <div class="m3-page-title">App passwords</div>
+                <div class="m3-subtitle">Create a new app password for an app or device you use.</div>
+                <div class="m3-create-row">
+                  <div class="m3-input"><span class="m3-input-ph">App name</span><span class="m3-input-typed">Mail</span><span class="m3-caret"></span></div>
+                  <div class="m3-create-btn">Create</div>
+                </div>
+              </div>
+
+              <div class="m3-modal-overlay">
+                <div class="m3-modal">
+                  <div class="m3-modal-title">Generated app password</div>
+                  <div class="m3-modal-label">Your app password for your device</div>
+                  <div class="m3-pw-box">abcd efgh ijkl mnop</div>
+                  <div class="m3-modal-desc">You won't be shown this code again, so copy it now.</div>
+                  <div class="m3-modal-actions"><div class="m3-btn">Done</div></div>
+                </div>
+              </div>
+
+              <div class="m3-cursor">
+                <svg width="20" height="28" viewBox="0 0 16 22" fill="none">
+                  <path d="M1 1L6.5 19L9.5 12L15 10L1 1Z" fill="black" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Microsoft replica: account.microsoft.com security (2026) -->
+          <div id="guide-outlook" class="gd-frame" style="display:none;">
+            <div class="gd-chrome">
+              <div class="gd-dots"><span></span><span></span><span></span></div>
+              <div class="gd-url"><span class="material-symbols-outlined">lock</span>account.microsoft.com/security</div>
+            </div>
+            <div class="gd-body ms-body">
+              <div class="ms-topbar">
+                <div class="ms-logo-group">
+                  <div class="ms-logo">
+                    <span style="background:#F25022"></span><span style="background:#7FBA00"></span>
+                    <span style="background:#00A4EF"></span><span style="background:#FFB900"></span>
+                  </div>
+                  <div class="ms-logo-text">Microsoft</div>
+                </div>
+                <div class="ms-avatar">E</div>
+              </div>
+              <div class="ms-tabs">
+                <div class="ms-tab">Overview</div>
+                <div class="ms-tab active">Security</div>
+                <div class="ms-tab">Privacy</div>
+                <div class="ms-tab">Devices</div>
+              </div>
+              <div class="ms-main">
+                <div class="ms-page-title">Advanced security options</div>
+                <div class="ms-card">
+                  <div class="ms-card-title">App passwords</div>
+                  <div class="ms-card-sub">For apps that don't support two-step verification.</div>
+                  <div class="ms-row">
+                    <div class="ms-row-title">Create a new app password</div>
+                    <span class="material-symbols-outlined">chevron_right</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ms-modal-overlay">
+                <div class="ms-modal">
+                  <div class="ms-modal-title">App password</div>
+                  <div class="ms-modal-label">Use this password in your mail app:</div>
+                  <div class="ms-pw-box">abcdefghijklmnop</div>
+                  <div class="ms-modal-desc">Copy it now — it won't be shown again.</div>
+                  <div class="ms-modal-actions"><div class="ms-btn">Done</div></div>
+                </div>
+              </div>
+
+              <div class="ms-cursor">
+                <svg width="20" height="28" viewBox="0 0 16 22" fill="none">
+                  <path d="M1 1L6.5 19L9.5 12L15 10L1 1Z" fill="black" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ol id="login-steps" class="login-steps"></ol>
+
+        <div class="app-pw-safety" role="note">
+          <span class="material-symbols-outlined app-pw-safety-icon">verified_user</span>
+          <div class="app-pw-safety-body">
+            <strong>Don't worry about that "less secure" warning.</strong>
+            <ul>
+              <li>An app password is <b>not</b> your main password. It can only send mail — it can't change your account, read your data, or reset your password.</li>
+              <li>You can <b>revoke it anytime</b> from your provider's page. It stops working instantly and your account stays untouched.</li>
+              <li>It's <b>encrypted on this device</b> (protected by your Windows account) and sent only to your email provider to deliver mail — never to us or any third party.</li>
+            </ul>
+          </div>
+        </div>
+
+        <a id="app-pw-open-link" class="app-pw-open" href="#" target="_blank" rel="noopener">
+          <span class="material-symbols-outlined">open_in_new</span>
+          <span id="app-pw-open-text">Open the App passwords page</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Toast notifications layer -->
+    <div id="toast-layer" class="toast-layer" aria-live="polite" aria-atomic="true"></div>
+
+  </body>
+</html>
+
