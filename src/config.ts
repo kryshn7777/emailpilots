@@ -31,6 +31,23 @@ export interface Account {
   user: string;
   pass: string;
   enabled: boolean;
+  /**
+   * Optional IMAP host/port for reading this account's inbox (reply detection).
+   * Absent ⇒ the reply poller derives the host from `host` via deriveImapHost()
+   * and defaults the port to 993. SMTP sending is unaffected.
+   */
+  imapHost?: string;
+  imapPort?: number;
+}
+
+/**
+ * Best-effort IMAP host for a known SMTP host: most providers mirror
+ * smtp.<domain> ↔ imap.<domain> (Gmail: smtp.gmail.com ↔ imap.gmail.com).
+ * Falls back to the SMTP host unchanged when it has no `smtp.` prefix — the
+ * user can always override per-account (imapHost) or via IMAP_HOST in .env.
+ */
+export function deriveImapHost(smtpHost: string): string {
+  return /^smtp\./i.test(smtpHost) ? smtpHost.replace(/^smtp\./i, 'imap.') : smtpHost;
 }
 
 /**
@@ -176,6 +193,8 @@ export function loadConfig(): Config {
     UNSUBSCRIBE_ENABLED,
     INBOX_PLACEMENT,
     TEST_MODE,
+    IMAP_HOST,
+    IMAP_PORT,
   } = process.env;
 
   // Missing credentials are no longer a fatal error during load, 
@@ -199,6 +218,10 @@ export function loadConfig(): Config {
     user: smtp.user,
     pass: smtp.pass,
     enabled: true,
+    // Only set when explicitly overridden in .env; otherwise the poller derives
+    // imap.<domain>:993 from the SMTP host at scan time.
+    ...(IMAP_HOST ? { imapHost: IMAP_HOST } : {}),
+    ...(IMAP_PORT ? { imapPort: parseInt(IMAP_PORT, 10) || 993 } : {}),
   };
   // Extra accounts (decrypt their stored passwords here, same scheme as smtp).
   const extras = readAccounts(basePath).map(a => ({ ...a, pass: decryptPassword(a.pass) }));

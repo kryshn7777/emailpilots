@@ -251,17 +251,23 @@ export class MailProcessor {
     return { total: activeRecords.length, sent: sentThisRun, skipped, failed };
   }
 
-  async processRecipient(record: any): Promise<void> {
+  /**
+   * Send to one recipient. Returns true only when the message was actually
+   * accepted by the server (so the sequence runner can advance a drip step);
+   * false on any skip — no email, suppressed, render failure, rate limit, or
+   * send rejection. Existing callers (Scheduler) ignore the return value.
+   */
+  async processRecipient(record: any): Promise<boolean> {
     const email = record.email || record.Email;
     if (!email) {
       console.warn('Skipping record with no email:', record);
-      return;
+      return false;
     }
 
     // Never send to a suppressed address (bounce / unsubscribe / complaint).
     if (this.suppression.isSuppressed(email)) {
       console.warn(`Skipping scheduled send to ${email}: on suppression list (${this.suppression.reasonFor(email)}).`);
-      return;
+      return false;
     }
 
     let rendered;
@@ -269,7 +275,7 @@ export class MailProcessor {
       rendered = renderEmail(record, this.config);
     } catch (e: any) {
       console.error(`Skipping scheduled send to ${email}: ${e.message}`);
-      return;
+      return false;
     }
 
     const attachments = this.buildAttachments(record);
@@ -279,7 +285,7 @@ export class MailProcessor {
     const res = this.limiter.tryConsume(email, this.attachmentBytes(attachments));
     if (!res.allowed) {
       console.warn(`Skipping scheduled send to ${email}: ${res.reason}`);
-      return;
+      return false;
     }
 
     // Practice mode: deliver to the sender's own inbox, flagging the intended
@@ -300,10 +306,11 @@ export class MailProcessor {
         // Rejected, or the server never accepted this recipient — not delivered.
         this.limiter.refund(email, res.windowRolled);
         console.warn(`Not counting ${email} as sent: server did not accept it.`);
-      } else {
-        console.log(`Successfully sent email to ${email}`);
-        this.onSuccess?.(this.accountId);
+        return false;
       }
+      console.log(`Successfully sent email to ${email}`);
+      this.onSuccess?.(this.accountId);
+      return true;
     } catch (error: any) {
       this.limiter.refund(email, res.windowRolled); // send failed — give the reserved slot back
       if (!isTest && this.isPermanentBounce(error)) {
@@ -311,6 +318,7 @@ export class MailProcessor {
         console.warn(`Suppressed ${email}: permanent failure SMTP ${error.responseCode}.`);
       }
       console.error(`Error sending to ${email}:`, error);
+      return false;
     }
   }
 }
