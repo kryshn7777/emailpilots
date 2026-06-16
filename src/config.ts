@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { readAccounts } from './accountStore';
 import { readCampaigns } from './campaignStore';
+import { readSequences } from './sequenceStore';
 
 export function getBasePath(): string {
   // Electron injects MAIL_DATA_DIR (a per-user writable dir) when packaged so
@@ -65,6 +66,27 @@ export interface Campaign {
   template?: string;
 }
 
+/**
+ * One step of a follow-up sequence. steps[0] is the initial send; each later
+ * step's delayDays is how long to wait after the previous step before sending.
+ * stopOnReply (follow-up steps only) cancels the rest of the drip once the
+ * recipient replies.
+ */
+export interface SequenceStep {
+  subject?: string;
+  messageContent: string;
+  delayDays: number;
+  stopOnReply: boolean;
+}
+
+/** A named follow-up sequence (drip). Recipients reference one via `sequenceId`.
+ *  Stored in sequences.json (see sequenceStore.ts), never in .env. */
+export interface Sequence {
+  id: string;
+  name: string;
+  steps: SequenceStep[];
+}
+
 export interface Config {
   userName?: string;
   smtp: {
@@ -86,6 +108,10 @@ export interface Config {
    * for per-campaign subject/template defaults.
    */
   campaigns?: Campaign[];
+  /** All follow-up sequences from sequences.json. loadConfig() always populates
+   *  it ([] when none). The sequence runner resolves a recipient's sequenceId
+   *  against this. */
+  sequences?: Sequence[];
   paths: {
     recipientsCsv: string;
     recipientsJson: string;
@@ -232,6 +258,7 @@ export function loadConfig(): Config {
     smtp,
     accounts,
     campaigns: readCampaigns(basePath),
+    sequences: readSequences(basePath),
     paths: {
       recipientsCsv: RECIPIENTS_CSV_PATH ? path.resolve(basePath, RECIPIENTS_CSV_PATH) : path.join(basePath, 'recipients.csv'),
       recipientsJson: RECIPIENTS_JSON_PATH ? path.resolve(basePath, RECIPIENTS_JSON_PATH) : path.join(basePath, 'recipients.json'),
