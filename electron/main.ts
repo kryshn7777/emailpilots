@@ -261,8 +261,12 @@ function setupAutoLaunch() {
 }
 
 import { StatsManager } from '../src/statsManager';
+import { ReplyPoller } from '../src/replyPoller';
 
 let globalStatsManager: StatsManager | null = null;
+// Reads each account's INBOX for replies while the scheduler is running. Built
+// in initServices(); lifecycle tied to start/stop-scheduler.
+let globalReplyPoller: ReplyPoller | null = null;
 
 /**
  * In-memory health of each account: result of the last test/real send. Drives
@@ -313,6 +317,9 @@ function rebuildProcessors() {
   } else {
     globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors);
   }
+  // Keep the reply poller pointed at the fresh config (new/removed accounts).
+  if (globalReplyPoller) globalReplyPoller.config = globalConfig;
+  else globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager);
 }
 
 function initServices() {
@@ -330,6 +337,7 @@ function initServices() {
       ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default');
 
     globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors);
+    globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager);
 
     sendLog('Services initialized successfully.', 'system');
   } catch (err: any) {
@@ -706,6 +714,7 @@ ipcMain.handle('sign-out', () => {
 
     // Stop scheduled sending and don't auto-resume on the next launch.
     globalScheduler?.stop();
+    globalReplyPoller?.stop();
     isSchedulerRunning = false;
     writeSchedulerEnabled(false);
     sendStatus(false);
@@ -740,6 +749,7 @@ ipcMain.handle('start-scheduler', () => {
     if (globalScheduler) {
         // Mock the cron scheduling for now (or wrap it)
         globalScheduler.start();
+        globalReplyPoller?.start(); // begin reading replies while sending is active
         isSchedulerRunning = true;
         writeSchedulerEnabled(true); // resume on next launch / boot autostart
         sendStatus(true);
@@ -752,6 +762,7 @@ ipcMain.handle('start-scheduler', () => {
 ipcMain.handle('stop-scheduler', () => {
     if (globalScheduler) {
         globalScheduler.stop();
+        globalReplyPoller?.stop();
         isSchedulerRunning = false;
         writeSchedulerEnabled(false); // stay stopped across restarts
         sendStatus(false);
@@ -763,6 +774,18 @@ ipcMain.handle('stop-scheduler', () => {
 
 ipcMain.handle('get-scheduler-status', () => {
     return isSchedulerRunning;
+});
+
+// Manual reply check (UI button / testing). Returns the current reply list so
+// the renderer can refresh immediately instead of waiting for the next sweep.
+ipcMain.handle('poll-now', async () => {
+    if (!globalReplyPoller) initServices();
+    try {
+        await globalReplyPoller?.pollNow();
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Reply poll failed' };
+    }
 });
 
 let testRunInProgress = false;
@@ -1017,6 +1040,7 @@ if (!gotTheLock) {
     // idle in the tray.
     if (globalScheduler && readSchedulerEnabled()) {
       globalScheduler.start();
+      globalReplyPoller?.start();
       isSchedulerRunning = true;
       sendStatus(true);
       sendLog('Scheduler resumed (was enabled on last exit).', 'success');
