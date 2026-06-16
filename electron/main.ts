@@ -28,6 +28,15 @@ import dotenv from 'dotenv';
 for (const stream of [process.stdout, process.stderr]) {
   stream?.on?.('error', (err: any) => { if (err?.code !== 'EPIPE') throw err; });
 }
+// Belt-and-suspenders: a dead-pipe write can surface EPIPE as an uncaught
+// exception (thrown synchronously up the console call stack, not via the stream
+// 'error' event above). Catch it here. Registering any uncaughtException listener
+// also suppresses Electron's "A JavaScript error occurred in the main process"
+// dialog, so we log real errors instead of letting them pop a modal in the user's face.
+process.on('uncaughtException', (err: any) => {
+  if (err?.code === 'EPIPE') return; // dead console pipe — nothing to do
+  try { console.error('Uncaught exception:', err); } catch { /* console itself may be dead */ }
+});
 
 // --- .env serialization (quoted/escaped so spaces, #, =, and Windows paths survive) ---
 function envText(v: any): string {
