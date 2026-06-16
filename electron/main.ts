@@ -262,6 +262,7 @@ function setupAutoLaunch() {
 
 import { StatsManager } from '../src/statsManager';
 import { ReplyPoller } from '../src/replyPoller';
+import { ReplyStore } from '../src/replyStore';
 
 let globalStatsManager: StatsManager | null = null;
 // Reads each account's INBOX for replies while the scheduler is running. Built
@@ -375,6 +376,12 @@ ipcMain.handle('get-usage', (_event, accountId?: string) => {
 
 ipcMain.handle('list-suppressions', () => {
     return new SuppressionManager(getBasePath()).list();
+});
+
+// Recipients who have replied (drives the Replied column + reply-rate widget).
+// Fresh read of replies.json so it reflects the latest poll.
+ipcMain.handle('list-replies', () => {
+    return new ReplyStore(getBasePath()).list();
 });
 
 ipcMain.handle('remove-suppression', (_event, email: string) => {

@@ -11,6 +11,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // accountId optional — omit for the default account (legacy behavior).
   getUsage: (accountId?: string) => ipcRenderer.invoke('get-usage', accountId),
   getSuppressions: () => ipcRenderer.invoke('list-suppressions'),
+  // Recipients who replied (reply-rate widget + Replied column).
+  getReplies: () => ipcRenderer.invoke('list-replies'),
+  // Manually trigger an IMAP reply sweep now (instead of waiting for the interval).
+  pollNow: () => ipcRenderer.invoke('poll-now'),
   removeSuppression: (email: string) => ipcRenderer.invoke('remove-suppression', email),
   addSuppression: (email: string) => ipcRenderer.invoke('add-suppression', email),
   sendTestEmail: (accountId?: string) => ipcRenderer.invoke('send-test-email', accountId),

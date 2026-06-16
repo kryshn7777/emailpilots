@@ -29,7 +29,7 @@ declare global {
       getRecipients: () => Promise<any[]>;
       saveRecipients: (recipients: any[]) => Promise<boolean>;
       importRecipientsCsv: () => Promise<{ canceled?: boolean; error?: string; filePath?: string; headers?: string[]; rows?: Record<string, string>[] }>;
-      getStats: () => Promise<{ totalEmailsSent: number; perAccount?: { [id: string]: number } }>;
+      getStats: () => Promise<{ totalEmailsSent: number; perAccount?: { [id: string]: number }; totalReplies?: number; perAccountReplies?: { [id: string]: number } }>;
       getUsage: (accountId?: string) => Promise<{
         date: string;
         emailsToday: number; maxPerDay: number;
@@ -39,6 +39,8 @@ declare global {
         maxPerRecipientPerDay: number;
       }>;
       getSuppressions: () => Promise<{ email: string; reason: string; date: string; detail?: string }[]>;
+      getReplies: () => Promise<{ email: string; repliedAt: string; accountId?: string; subject?: string }[]>;
+      pollNow: () => Promise<{ ok: boolean; error?: string }>;
       removeSuppression: (email: string) => Promise<boolean>;
       addSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
       sendTestEmail: (accountId?: string) => Promise<{ ok: boolean; error?: string; to?: string }>;
@@ -147,6 +149,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // drives the Campaigns view, the recipients Campaign column/filter, and the
   // wizard/import/bulk-assign selectors.
   let campaignsCache: { id: string; name: string; subject?: string; template?: string }[] = [];
+  // Lowercased set of recipients who have replied (from replies.json) — drives
+  // the Replied column. Refreshed alongside recipients.
+  let repliedSet: Set<string> = new Set();
   // Recipients table campaign filter: 'all' | 'unassigned' | <campaignId>.
   let currentCampaignFilter = 'all';
   // Bulk-selection of recipient rows by index into recipientsData. Transient —
@@ -1072,6 +1077,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderCampaignsList();
   }
 
+  /** Reload the replied-address set so the Replied column reflects the latest poll. */
+  async function refreshReplies() {
+    try {
+      const replies = await window.electronAPI.getReplies() || [];
+      repliedSet = new Set(replies.map(r => String(r.email || '').toLowerCase()));
+    } catch { repliedSet = new Set(); }
+  }
+
+  /** Refresh the dashboard counters: total sent + reply rate (replies / sent). */
+  async function refreshStats() {
+    try {
+      const stats = await window.electronAPI.getStats();
+      animateCount(document.getElementById('total-sent-display'), stats.totalEmailsSent);
+      const rateEl = document.getElementById('reply-rate-display');
+      if (rateEl) {
+        const sent = stats.totalEmailsSent || 0;
+        const replies = stats.totalReplies || 0;
+        rateEl.textContent = sent > 0 ? `${Math.round((replies / sent) * 100)}%` : '—';
+      }
+    } catch (e) {
+      console.error('Failed to load stats', e);
+    }
+  }
+
   function renderRecipients() {
     recipientsTbody.innerHTML = '';
 
@@ -1249,11 +1278,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       tdCampaign.textContent = campaignNameById(rec.campaignId);
       if (!rec.campaignId) tdCampaign.style.color = 'var(--muted-foreground)';
 
+      // Replied? ✓ when this recipient appears in replies.json (detected by the
+      // IMAP poller), otherwise a muted dash.
+      const tdReplied = document.createElement('td');
+      tdReplied.style.textAlign = 'center';
+      const replied = repliedSet.has(String(rec.email || rec.Email || '').toLowerCase());
+      tdReplied.textContent = replied ? '✓' : '—';
+      tdReplied.style.color = replied ? 'var(--success, #16a34a)' : 'var(--muted-foreground)';
+      if (replied) tdReplied.title = 'Replied';
+
       tr.appendChild(tdSelect);
       tr.appendChild(tdActive);
       tr.appendChild(tdName);
       tr.appendChild(tdEmail);
       tr.appendChild(tdCampaign);
+      tr.appendChild(tdReplied);
       tr.appendChild(tdSchedule);
       tr.appendChild(tdActions);
 
@@ -2158,21 +2197,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateStatusUI(isRunning);
 
     recipientsData = await window.electronAPI.getRecipients();
-    // Load campaigns first so the Campaign column, filter, and selectors are
-    // populated before the recipients table renders.
+    // Load campaigns + replies first so the Campaign and Replied columns,
+    // filter, and selectors are populated before the recipients table renders.
     await refreshCampaigns();
+    await refreshReplies();
     renderRecipients();
 
     // Load accounts (default + extras) for the Accounts view + recipient selector.
     await refreshAccounts();
 
-    // Fetch total stats
-    try {
-        const stats = await window.electronAPI.getStats();
-        animateCount(document.getElementById('total-sent-display'), stats.totalEmailsSent);
-    } catch (e) {
-        console.error("Failed to load stats", e);
-    }
+    // Fetch dashboard counters (total sent + reply rate).
+    await refreshStats();
     
     // Initial usage counter load
     updateUsage();
@@ -2187,9 +2222,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderPreflight();
 
     // Update the live timer every minute
-    setInterval(() => {
+    setInterval(async () => {
         updateAnalyticsAndSchedule();
         updateUsage();
+        await refreshStats();
+        await refreshReplies();
+        renderRecipients();
     }, 60000);
     
   } catch (err) {
