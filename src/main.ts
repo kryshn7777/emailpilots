@@ -51,6 +51,9 @@ declare global {
       getCampaigns: () => Promise<{ id: string; name: string; subject?: string; template?: string }[]>;
       saveCampaign: (campaign: { id?: string; name?: string; subject?: string; template?: string }) => Promise<{ ok: boolean; error?: string; id?: string }>;
       deleteCampaign: (id: string) => Promise<{ ok: boolean; error?: string }>;
+      getSequences: () => Promise<{ id: string; name: string; steps: { subject?: string; messageContent: string; delayDays: number; stopOnReply: boolean }[] }[]>;
+      saveSequence: (sequence: { id?: string; name?: string; steps?: { subject?: string; messageContent: string; delayDays: number; stopOnReply: boolean }[] }) => Promise<{ ok: boolean; error?: string; id?: string }>;
+      deleteSequence: (id: string) => Promise<{ ok: boolean; error?: string }>;
       selectFile: (title: string, extensions: string[]) => Promise<string | null>;
       previewEmail: (index: number) => Promise<{ subject?: string; body?: string; error?: string }>;
       verifyEmail: (email: string) => Promise<{ valid: boolean; reason?: string }>;
@@ -152,6 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Lowercased set of recipients who have replied (from replies.json) — drives
   // the Replied column. Refreshed alongside recipients.
   let repliedSet: Set<string> = new Set();
+  let sequencesCache: { id: string; name: string; steps: { subject?: string; messageContent: string; delayDays: number; stopOnReply: boolean }[] }[] = [];
   // Recipients table campaign filter: 'all' | 'unassigned' | <campaignId>.
   let currentCampaignFilter = 'all';
   // Bulk-selection of recipient rows by index into recipientsData. Transient —
@@ -673,6 +677,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       (document.getElementById('rec-subject') as HTMLInputElement).value = rec.subject || '';
       const recCampaignSel = document.getElementById('rec-campaign') as HTMLSelectElement | null;
       if (recCampaignSel) recCampaignSel.value = [...recCampaignSel.options].some(o => o.value === (rec.campaignId || '')) ? (rec.campaignId || '') : '';
+      const recSequenceSel = document.getElementById('rec-sequence') as HTMLSelectElement | null;
+      if (recSequenceSel) recSequenceSel.value = [...recSequenceSel.options].some(o => o.value === (rec.sequenceId || '')) ? (rec.sequenceId || '') : '';
 
       const msgType = rec.messageType || 'text';
       (document.getElementById('rec-msg-type') as HTMLSelectElement).value = msgType;
@@ -707,6 +713,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const pre = (currentCampaignFilter !== 'all' && currentCampaignFilter !== 'unassigned') ? currentCampaignFilter : '';
         recCampaignSel.value = [...recCampaignSel.options].some(o => o.value === pre) ? pre : '';
       }
+      const recSequenceSelNew = document.getElementById('rec-sequence') as HTMLSelectElement | null;
+      if (recSequenceSelNew) recSequenceSelNew.value = ''; // new recipients start with no sequence
       addTimeRow('09:00'); // Smart Default: 09:00 AM
 
       // Smart Default: Monday - Friday
@@ -1075,6 +1083,153 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch { campaignsCache = []; }
     populateCampaignSelects();
     renderCampaignsList();
+  }
+
+  // --- Sequences (follow-up drips) ---
+  type SeqStep = { subject?: string; messageContent: string; delayDays: number; stopOnReply: boolean };
+
+  function populateSequenceSelects() {
+    const el = document.getElementById('rec-sequence') as HTMLSelectElement | null;
+    if (!el) return;
+    const prev = el.value;
+    el.innerHTML = '';
+    el.add(new Option('No sequence', ''));
+    sequencesCache.forEach(s => el.add(new Option(s.name, s.id)));
+    if ([...el.options].some(o => o.value === prev)) el.value = prev;
+  }
+
+  /** Append one step editor row to #sequence-steps, hydrated from `step`. */
+  function addStepRow(step?: Partial<SeqStep>) {
+    const container = document.getElementById('sequence-steps');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'card seq-step-row';
+    row.style.cssText = 'margin:0;padding:14px 16px;display:flex;flex-direction:column;gap:8px;';
+    row.innerHTML =
+      `<div style="display:flex;justify-content:space-between;align-items:center;">` +
+        `<strong class="seq-step-title" style="font-size:0.9em;">Step</strong>` +
+        `<button type="button" class="btn outline seq-step-remove" style="height:28px;padding:0 10px;font-size:0.8em;color:#ef4444;">Remove</button>` +
+      `</div>` +
+      `<input type="text" class="seq-step-subject form-control" placeholder="Subject (optional — blank reuses the recipient's subject)">` +
+      `<textarea class="seq-step-message form-control" rows="4" placeholder="Message for this step. Use {{name}} to personalize." style="font-family:inherit;"></textarea>` +
+      `<div class="seq-step-followup" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">` +
+        `<label style="display:flex;align-items:center;gap:6px;font-size:0.85em;margin:0;">Wait <input type="number" class="seq-step-delay form-control" min="0" value="3" style="width:70px;height:32px;"> days after previous step</label>` +
+        `<label style="display:flex;align-items:center;gap:6px;font-size:0.85em;margin:0;"><input type="checkbox" class="seq-step-stoponreply" checked> Stop if replied</label>` +
+      `</div>`;
+    (row.querySelector('.seq-step-subject') as HTMLInputElement).value = step?.subject || '';
+    (row.querySelector('.seq-step-message') as HTMLTextAreaElement).value = step?.messageContent || '';
+    (row.querySelector('.seq-step-delay') as HTMLInputElement).value = String(step?.delayDays ?? 3);
+    (row.querySelector('.seq-step-stoponreply') as HTMLInputElement).checked = step?.stopOnReply !== false;
+    row.querySelector('.seq-step-remove')!.addEventListener('click', () => { row.remove(); renumberStepRows(); });
+    container.appendChild(row);
+    renumberStepRows();
+  }
+
+  /** Keep step titles in order; step 1 is the immediate initial send, so hide its
+   *  delay/stop controls. Hide Remove when only one step remains. */
+  function renumberStepRows() {
+    const rows = Array.from(document.querySelectorAll('#sequence-steps .seq-step-row'));
+    rows.forEach((row, i) => {
+      const title = row.querySelector('.seq-step-title');
+      const followup = row.querySelector('.seq-step-followup') as HTMLElement | null;
+      const remove = row.querySelector('.seq-step-remove') as HTMLElement | null;
+      if (title) title.textContent = i === 0 ? 'Step 1 · initial email (sent immediately)' : `Step ${i + 1}`;
+      if (followup) followup.style.display = i === 0 ? 'none' : 'flex';
+      if (remove) remove.style.display = rows.length > 1 ? 'inline-flex' : 'none';
+    });
+  }
+
+  function collectSteps(): SeqStep[] {
+    const rows = Array.from(document.querySelectorAll('#sequence-steps .seq-step-row'));
+    return rows.map((row, i) => ({
+      subject: (row.querySelector('.seq-step-subject') as HTMLInputElement).value,
+      messageContent: (row.querySelector('.seq-step-message') as HTMLTextAreaElement).value,
+      // Step 1 is immediate + ungated, so force delay 0 / stopOnReply off there.
+      delayDays: i === 0 ? 0 : Math.max(0, parseInt((row.querySelector('.seq-step-delay') as HTMLInputElement).value, 10) || 0),
+      stopOnReply: i === 0 ? false : (row.querySelector('.seq-step-stoponreply') as HTMLInputElement).checked,
+    }));
+  }
+
+  function renderSequencesList() {
+    const listEl = document.getElementById('sequences-list');
+    const emptyEl = document.getElementById('sequences-empty-state');
+    const countEl = document.getElementById('sequences-count');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (countEl) countEl.textContent = sequencesCache.length
+      ? `${sequencesCache.length} sequence${sequencesCache.length === 1 ? '' : 's'}` : '';
+    if (sequencesCache.length === 0) { if (emptyEl) emptyEl.style.display = 'flex'; return; }
+    if (emptyEl) emptyEl.style.display = 'none';
+    sequencesCache.forEach(s => {
+      const count = recipientsData.filter(r => r.sequenceId === s.id).length;
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;margin:0;';
+      const info = document.createElement('div');
+      info.innerHTML = `<div style="font-weight:600;">${escapeHTML(s.name)}</div>` +
+        `<div style="font-size:0.8em;color:var(--muted-foreground);margin-top:2px;">` +
+        `${s.steps.length} step${s.steps.length === 1 ? '' : 's'} · ${count} recipient${count === 1 ? '' : 's'}</div>`;
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;gap:8px;';
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn outline';
+      editBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', () => openSequenceForEdit(s));
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn outline';
+      delBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;color:#ef4444;';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', async () => {
+        const msg = count > 0
+          ? `Delete "${s.name}"? Its ${count} recipient${count === 1 ? '' : 's'} will stop being dripped and revert to normal sending.`
+          : `Delete "${s.name}"?`;
+        if (!await confirmDialog(msg, { title: 'Delete sequence?', confirmLabel: 'Delete', danger: true })) return;
+        const res = await window.electronAPI.deleteSequence(s.id);
+        if (!res.ok) { toast(res.error || 'Delete failed.', 'error'); return; }
+        recipientsData.forEach(r => {
+          if (r.sequenceId === s.id) {
+            delete r.sequenceId; delete r.seqStep; delete r.seqLastSentAt; delete r.seqNextDueAt; delete r.seqDone;
+          }
+        });
+        await refreshSequences();
+        renderRecipients();
+        toast('Sequence deleted.', 'success');
+      });
+      actions.appendChild(editBtn); actions.appendChild(delBtn);
+      card.appendChild(info); card.appendChild(actions);
+      listEl.appendChild(card);
+    });
+  }
+
+  function openSequenceForEdit(s: { id: string; name: string; steps: SeqStep[] }) {
+    (document.getElementById('sequence-id') as HTMLInputElement).value = s.id;
+    (document.getElementById('sequence-name') as HTMLInputElement).value = s.name;
+    const container = document.getElementById('sequence-steps'); if (container) container.innerHTML = '';
+    (s.steps && s.steps.length ? s.steps : [{ messageContent: '' } as SeqStep]).forEach(st => addStepRow(st));
+    const title = document.getElementById('sequence-form-title'); if (title) title.textContent = 'Edit sequence';
+    const submit = document.getElementById('sequence-submit-btn'); if (submit) submit.innerHTML = '<span class="material-symbols-outlined">save</span> Save sequence';
+    const cancel = document.getElementById('sequence-cancel-edit-btn'); if (cancel) cancel.style.display = 'inline-flex';
+    document.getElementById('sequence-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    (document.getElementById('sequence-name') as HTMLInputElement).focus();
+  }
+
+  function resetSequenceForm() {
+    (document.getElementById('sequence-form') as HTMLFormElement).reset();
+    (document.getElementById('sequence-id') as HTMLInputElement).value = '';
+    const container = document.getElementById('sequence-steps'); if (container) container.innerHTML = '';
+    addStepRow(); // always keep at least one step in the editor
+    const title = document.getElementById('sequence-form-title'); if (title) title.textContent = 'Create a sequence';
+    const submit = document.getElementById('sequence-submit-btn'); if (submit) submit.innerHTML = '<span class="material-symbols-outlined">add</span> Create sequence';
+    const cancel = document.getElementById('sequence-cancel-edit-btn'); if (cancel) cancel.style.display = 'none';
+    const err = document.getElementById('sequence-error'); if (err) err.style.display = 'none';
+  }
+
+  async function refreshSequences() {
+    try { sequencesCache = await window.electronAPI.getSequences() || []; }
+    catch { sequencesCache = []; }
+    populateSequenceSelects();
+    renderSequencesList();
   }
 
   /** Reload the replied-address set so the Replied column reflects the latest poll. */
@@ -1804,6 +1959,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderCampaignsList();
   });
 
+  // --- Sequence create/edit form ---
+  document.getElementById('sequence-add-step-btn')?.addEventListener('click', () => addStepRow());
+  document.getElementById('sequence-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = (document.getElementById('sequence-id') as HTMLInputElement).value.trim();
+    const name = (document.getElementById('sequence-name') as HTMLInputElement).value.trim();
+    const errEl = document.getElementById('sequence-error');
+    if (!name) { if (errEl) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; } return; }
+    const steps = collectSteps().filter(s => s.messageContent.trim() !== '');
+    if (steps.length === 0) { if (errEl) { errEl.textContent = 'Add at least one step with a message.'; errEl.style.display = 'block'; } return; }
+    const res = await window.electronAPI.saveSequence({ id: id || undefined, name, steps });
+    if (!res.ok) { if (errEl) { errEl.textContent = res.error || 'Save failed.'; errEl.style.display = 'block'; } return; }
+    resetSequenceForm();
+    await refreshSequences();
+    renderRecipients(); // sequence counts in cards reflect assignments
+    toast('Sequence saved.', 'success');
+  });
+  document.getElementById('sequence-cancel-edit-btn')?.addEventListener('click', resetSequenceForm);
+  document.querySelector('.nav-links li[data-view="sequences"]')?.addEventListener('click', () => {
+    renderSequencesList();
+  });
+  // Seed the create form with one empty step on first load.
+  if ((document.getElementById('sequence-steps')?.children.length || 0) === 0) addStepRow();
+
   // Add-account form: provider presets + custom-field toggle.
   const acctProvider = document.getElementById('acct-provider') as HTMLSelectElement | null;
   const acctCustom = document.getElementById('acct-custom-fields') as HTMLElement | null;
@@ -2200,6 +2379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load campaigns + replies first so the Campaign and Replied columns,
     // filter, and selectors are populated before the recipients table renders.
     await refreshCampaigns();
+    await refreshSequences();
     await refreshReplies();
     renderRecipients();
 
@@ -2526,6 +2706,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       const selCampaign = (document.getElementById('rec-campaign') as HTMLSelectElement | null)?.value;
       if (selCampaign) record.campaignId = selCampaign;
       else delete record.campaignId;
+
+      // Sequence: assigning or changing one (re)starts the drip from step 1;
+      // keeping the same one preserves in-progress state (carried by the spread);
+      // clearing it removes all drip state so the recipient sends normally.
+      const selSequence = (document.getElementById('rec-sequence') as HTMLSelectElement | null)?.value || '';
+      const prevSequence = idx >= 0 ? (recipientsData[idx]?.sequenceId || '') : '';
+      if (selSequence) {
+        record.sequenceId = selSequence;
+        if (selSequence !== prevSequence) {
+          record.seqStep = 0;
+          delete record.seqLastSentAt;
+          delete record.seqNextDueAt;
+          delete record.seqDone;
+        }
+      } else {
+        delete record.sequenceId;
+        delete record.seqStep;
+        delete record.seqLastSentAt;
+        delete record.seqNextDueAt;
+        delete record.seqDone;
+      }
 
       if (idx >= 0) {
           recipientsData[idx] = record;

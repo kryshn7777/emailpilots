@@ -14,7 +14,8 @@ import { normalizeAppPassword } from '../src/smtpUtils';
 import { buildProcessors, runAllAccounts } from '../src/campaignRunner';
 import { readAccounts, upsertAccount, removeAccount, accountsFilePath, MAX_EXTRA_ACCOUNTS } from '../src/accountStore';
 import { readCampaigns, upsertCampaign, removeCampaign } from '../src/campaignStore';
-import type { Campaign } from '../src/config';
+import { upsertSequence, removeSequence } from '../src/sequenceStore';
+import type { Campaign, Sequence, SequenceStep } from '../src/config';
 import { atomicWriteFileSync } from '../src/atomicWrite';
 import dotenv from 'dotenv';
 
@@ -616,6 +617,83 @@ ipcMain.handle('delete-campaign', (_event, id: string) => {
     rebuildProcessors();
     // Re-arm a running scheduler so detached recipients use fresh defaults.
     if (isSchedulerRunning && globalScheduler) globalScheduler.start();
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Delete failed' };
+  }
+});
+
+// --- Sequences: follow-up drips (ordered steps, reply-gated) ---
+function genSequenceId(seed?: string): string {
+  const base = String(seed || 'seq')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24) || 'seq';
+  return `${base}-${Date.now().toString(36)}`;
+}
+
+ipcMain.handle('get-sequences', () => {
+  if (!globalConfig) initServices();
+  return (globalConfig?.sequences || []) as Sequence[];
+});
+
+ipcMain.handle('save-sequence', (_event, s) => {
+  try {
+    if (!globalConfig) initServices();
+    const basePath = getBasePath();
+    const name = (s?.name || '').trim();
+    if (!name) return { ok: false, error: 'Sequence name is required.' };
+    const steps: SequenceStep[] = (Array.isArray(s?.steps) ? s.steps : [])
+      .map((st: any): SequenceStep => ({
+        subject: st?.subject != null ? String(st.subject) : '',
+        messageContent: st?.messageContent != null ? String(st.messageContent) : '',
+        delayDays: Number(st?.delayDays) >= 0 ? Number(st.delayDays) : 0,
+        stopOnReply: st?.stopOnReply !== false,
+      }))
+      .filter((st: SequenceStep) => st.messageContent.trim() !== '');
+    if (steps.length === 0) return { ok: false, error: 'Add at least one step with a message.' };
+    const id = (s?.id && String(s.id).trim()) || genSequenceId(name);
+    upsertSequence(basePath, { id, name, steps });
+    globalConfig = loadConfig();
+    rebuildProcessors();
+    return { ok: true, id };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Save failed' };
+  }
+});
+
+ipcMain.handle('delete-sequence', (_event, id: string) => {
+  try {
+    if (!globalConfig) initServices();
+    if (!id) return { ok: false, error: 'Missing sequence id.' };
+    const basePath = getBasePath();
+    removeSequence(basePath, String(id));
+
+    // Detach recipients from the deleted sequence: strip sequenceId and all the
+    // per-recipient drip progress so they fall back to normal single-send behavior.
+    const jsonPath = globalConfig.paths.recipientsJson;
+    if (fs.existsSync(jsonPath)) {
+      try {
+        const recipients = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+        if (Array.isArray(recipients)) {
+          let changed = false;
+          for (const r of recipients) {
+            if (r && r.sequenceId === id) {
+              delete r.sequenceId; delete r.seqStep; delete r.seqLastSentAt;
+              delete r.seqNextDueAt; delete r.seqDone;
+              changed = true;
+            }
+          }
+          if (changed) atomicWriteFileSync(jsonPath, JSON.stringify(recipients, null, 2));
+        }
+      } catch (e) {
+        sendLog('Failed to detach recipients from deleted sequence', 'error');
+      }
+    }
+
+    globalConfig = loadConfig();
+    rebuildProcessors();
     return { ok: true };
   } catch (e: any) {
     return { ok: false, error: e?.message || 'Delete failed' };

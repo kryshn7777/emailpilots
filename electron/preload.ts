@@ -33,6 +33,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-campaign', campaign),
   deleteCampaign: (id: string) => ipcRenderer.invoke('delete-campaign', id),
 
+  // Sequences (follow-up drips: ordered, reply-gated steps)
+  getSequences: () => ipcRenderer.invoke('get-sequences'),
+  saveSequence: (sequence: { id?: string; name?: string; steps?: any[] }) =>
+    ipcRenderer.invoke('save-sequence', sequence),
+  deleteSequence: (id: string) => ipcRenderer.invoke('delete-sequence', id),
+
   startScheduler: () => ipcRenderer.invoke('start-scheduler'),
   stopScheduler: () => ipcRenderer.invoke('stop-scheduler'),
   getSchedulerStatus: () => ipcRenderer.invoke('get-scheduler-status'),

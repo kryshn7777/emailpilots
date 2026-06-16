@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <script type="module" crossorigin src="./assets/index-Dhx7fWLW.js"></script>
+    <script type="module" crossorigin src="./assets/index-CMjRoKsR.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-BqEnYF6T.css">
   </head>
   <body>
@@ -31,6 +31,10 @@
           <li data-view="campaigns">
             <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
             Campaigns
+          </li>
+          <li data-view="sequences">
+            <span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>
+            Sequences
           </li>
           <li data-view="accounts">
             <span class="material-symbols-outlined" aria-hidden="true">alternate_email</span>
@@ -330,6 +334,58 @@
                   Create campaign
                 </button>
                 <button type="button" class="btn outline" id="campaign-cancel-edit-btn" style="display: none;">Cancel edit</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Sequences View -->
+        <div id="sequences" class="view">
+          <header>
+            <h1>Sequences</h1>
+            <p>Build follow-up drips: an initial email, then timed follow-ups that automatically stop once a recipient replies. Assign a sequence to recipients from the Recipients tab.</p>
+          </header>
+
+          <div class="card" style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h3 style="margin: 0;">Your sequences</h3>
+              <span id="sequences-count" style="color: var(--muted-foreground); font-size: 0.85em;"></span>
+            </div>
+
+            <div id="sequences-empty-state" class="empty-state" style="display: none;">
+              <div class="empty-state-icon">
+                <span class="material-symbols-outlined">forward_to_inbox</span>
+              </div>
+              <h3>No sequences yet</h3>
+              <p>Create one below, then assign recipients to it from the Recipients tab.</p>
+            </div>
+
+            <div id="sequences-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;"></div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top: 0;" id="sequence-form-title">Create a sequence</h3>
+            <p class="help-text" style="margin-bottom: 16px;">Step 1 is the initial email — sent as soon as the sequence starts. Each later step waits its delay (in days) after the previous send, and (when "Stop if replied" is on) is skipped once the recipient replies. Reply detection runs while the scheduler is active.</p>
+            <form id="sequence-form">
+              <input type="hidden" id="sequence-id" value="">
+              <div class="form-group">
+                <label for="sequence-name">Name</label>
+                <input type="text" id="sequence-name" required placeholder="e.g. Cold Outreach 3-step">
+              </div>
+              <div class="form-group">
+                <label>Steps</label>
+                <div id="sequence-steps" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                <button type="button" class="btn outline" id="sequence-add-step-btn" style="margin-top: 12px;">
+                  <span class="material-symbols-outlined">add</span> Add step
+                </button>
+              </div>
+              <p id="sequence-error" style="display: none; color: #ef4444; font-size: 0.85em; margin-bottom: 12px;"></p>
+              <div style="display: flex; gap: 8px;">
+                <button type="submit" class="btn primary" id="sequence-submit-btn">
+                  <span class="material-symbols-outlined">add</span>
+                  Create sequence
+                </button>
+                <button type="button" class="btn outline" id="sequence-cancel-edit-btn" style="display: none;">Cancel edit</button>
               </div>
             </form>
           </div>
@@ -725,6 +781,11 @@
                 <label for="rec-campaign">Campaign</label>
                 <select id="rec-campaign" class="form-control"></select>
                 <p class="help-text">Sets the default subject &amp; template for this recipient. Manage campaigns in the Campaigns tab.</p>
+              </div>
+              <div class="form-group">
+                <label for="rec-sequence">Follow-up sequence</label>
+                <select id="rec-sequence" class="form-control"></select>
+                <p class="help-text">Drip this recipient through a sequence. Assigning (or changing) one restarts the drip from step 1. Manage sequences in the Sequences tab.</p>
               </div>
               <div class="form-group" id="rec-account-group" style="display: none;">
                 <label for="rec-account">Send from account</label>
