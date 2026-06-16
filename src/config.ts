@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { readAccounts } from './accountStore';
+import { readCampaigns } from './campaignStore';
 
 export function getBasePath(): string {
   // Electron injects MAIL_DATA_DIR (a per-user writable dir) when packaged so
@@ -32,6 +33,21 @@ export interface Account {
   enabled: boolean;
 }
 
+/**
+ * A user-facing campaign: a named group of recipients with its own default
+ * subject + email template. Recipients reference one via `campaignId`; a recipient
+ * with no campaignId (or an unknown one) falls back to the global defaults.
+ * Stored in campaigns.json (see campaignStore.ts), never in .env.
+ */
+export interface Campaign {
+  id: string;
+  name: string;
+  /** Default subject for recipients in this campaign (Mustache-templated). */
+  subject?: string;
+  /** Inline HTML wrapper; overrides the global template.html when set. */
+  template?: string;
+}
+
 export interface Config {
   userName?: string;
   smtp: {
@@ -47,6 +63,12 @@ export interface Config {
    * it as `config.accounts || []`.
    */
   accounts?: Account[];
+  /**
+   * All user campaigns from campaigns.json. loadConfig() always populates it
+   * ([] when none). renderEmail() resolves a recipient's campaignId against this
+   * for per-campaign subject/template defaults.
+   */
+  campaigns?: Campaign[];
   paths: {
     recipientsCsv: string;
     recipientsJson: string;
@@ -186,6 +208,7 @@ export function loadConfig(): Config {
     userName: USER_NAME || '',
     smtp,
     accounts,
+    campaigns: readCampaigns(basePath),
     paths: {
       recipientsCsv: RECIPIENTS_CSV_PATH ? path.resolve(basePath, RECIPIENTS_CSV_PATH) : path.join(basePath, 'recipients.csv'),
       recipientsJson: RECIPIENTS_JSON_PATH ? path.resolve(basePath, RECIPIENTS_JSON_PATH) : path.join(basePath, 'recipients.json'),

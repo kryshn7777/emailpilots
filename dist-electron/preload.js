@@ -1,1 +1,44 @@
-"use strict";const n=require("electron");n.contextBridge.exposeInMainWorld("electronAPI",{getConfig:()=>n.ipcRenderer.invoke("get-config"),saveConfig:e=>n.ipcRenderer.invoke("save-config",e),signOut:()=>n.ipcRenderer.invoke("sign-out"),getStats:()=>n.ipcRenderer.invoke("get-stats"),getUsage:e=>n.ipcRenderer.invoke("get-usage",e),getSuppressions:()=>n.ipcRenderer.invoke("list-suppressions"),removeSuppression:e=>n.ipcRenderer.invoke("remove-suppression",e),addSuppression:e=>n.ipcRenderer.invoke("add-suppression",e),sendTestEmail:e=>n.ipcRenderer.invoke("send-test-email",e),verifyConnection:e=>n.ipcRenderer.invoke("verify-connection",e),getAccounts:()=>n.ipcRenderer.invoke("get-accounts"),saveAccount:e=>n.ipcRenderer.invoke("save-account",e),deleteAccount:e=>n.ipcRenderer.invoke("delete-account",e),startScheduler:()=>n.ipcRenderer.invoke("start-scheduler"),stopScheduler:()=>n.ipcRenderer.invoke("stop-scheduler"),getSchedulerStatus:()=>n.ipcRenderer.invoke("get-scheduler-status"),runTestSend:()=>n.ipcRenderer.invoke("run-test-send"),openCsv:()=>n.ipcRenderer.invoke("open-csv"),openJson:()=>n.ipcRenderer.invoke("open-json"),getRecipients:()=>n.ipcRenderer.invoke("get-recipients"),saveRecipients:e=>n.ipcRenderer.invoke("save-recipients",e),importRecipientsCsv:()=>n.ipcRenderer.invoke("import-recipients-csv"),selectFile:(e,i)=>n.ipcRenderer.invoke("select-file",e,i),previewEmail:e=>n.ipcRenderer.invoke("preview-email",e),previewUnsavedEmail:e=>n.ipcRenderer.invoke("preview-unsaved-email",e),verifyEmail:e=>n.ipcRenderer.invoke("verify-email",e),onLog:e=>{n.ipcRenderer.on("log-message",(i,r,s)=>e(r,s))},onStatusChange:e=>{n.ipcRenderer.on("scheduler-status",(i,r)=>e(r))}});
+"use strict";
+const electron = require("electron");
+electron.contextBridge.exposeInMainWorld("electronAPI", {
+  getConfig: () => electron.ipcRenderer.invoke("get-config"),
+  saveConfig: (config) => electron.ipcRenderer.invoke("save-config", config),
+  // Clears the primary credentials, every extra account, and stops the scheduler.
+  signOut: () => electron.ipcRenderer.invoke("sign-out"),
+  getStats: () => electron.ipcRenderer.invoke("get-stats"),
+  // accountId optional — omit for the default account (legacy behavior).
+  getUsage: (accountId) => electron.ipcRenderer.invoke("get-usage", accountId),
+  getSuppressions: () => electron.ipcRenderer.invoke("list-suppressions"),
+  removeSuppression: (email) => electron.ipcRenderer.invoke("remove-suppression", email),
+  addSuppression: (email) => electron.ipcRenderer.invoke("add-suppression", email),
+  sendTestEmail: (accountId) => electron.ipcRenderer.invoke("send-test-email", accountId),
+  verifyConnection: (candidate) => electron.ipcRenderer.invoke("verify-connection", candidate),
+  // Multi-account management
+  getAccounts: () => electron.ipcRenderer.invoke("get-accounts"),
+  saveAccount: (account) => electron.ipcRenderer.invoke("save-account", account),
+  deleteAccount: (id) => electron.ipcRenderer.invoke("delete-account", id),
+  // Campaigns (named recipient groups with their own subject + template)
+  getCampaigns: () => electron.ipcRenderer.invoke("get-campaigns"),
+  saveCampaign: (campaign) => electron.ipcRenderer.invoke("save-campaign", campaign),
+  deleteCampaign: (id) => electron.ipcRenderer.invoke("delete-campaign", id),
+  startScheduler: () => electron.ipcRenderer.invoke("start-scheduler"),
+  stopScheduler: () => electron.ipcRenderer.invoke("stop-scheduler"),
+  getSchedulerStatus: () => electron.ipcRenderer.invoke("get-scheduler-status"),
+  runTestSend: () => electron.ipcRenderer.invoke("run-test-send"),
+  openCsv: () => electron.ipcRenderer.invoke("open-csv"),
+  openJson: () => electron.ipcRenderer.invoke("open-json"),
+  getRecipients: () => electron.ipcRenderer.invoke("get-recipients"),
+  saveRecipients: (recipients) => electron.ipcRenderer.invoke("save-recipients", recipients),
+  importRecipientsCsv: () => electron.ipcRenderer.invoke("import-recipients-csv"),
+  selectFile: (title, extensions) => electron.ipcRenderer.invoke("select-file", title, extensions),
+  previewEmail: (index) => electron.ipcRenderer.invoke("preview-email", index),
+  previewUnsavedEmail: (record) => electron.ipcRenderer.invoke("preview-unsaved-email", record),
+  verifyEmail: (email) => electron.ipcRenderer.invoke("verify-email", email),
+  // Listeners from main
+  onLog: (callback) => {
+    electron.ipcRenderer.on("log-message", (_event, message, type) => callback(message, type));
+  },
+  onStatusChange: (callback) => {
+    electron.ipcRenderer.on("scheduler-status", (_event, isActive) => callback(isActive));
+  }
+});

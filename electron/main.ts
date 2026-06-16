@@ -13,6 +13,8 @@ import { readCsvFile } from '../src/csvImport';
 import { normalizeAppPassword } from '../src/smtpUtils';
 import { buildProcessors, runAllAccounts } from '../src/campaignRunner';
 import { readAccounts, upsertAccount, removeAccount, accountsFilePath, MAX_EXTRA_ACCOUNTS } from '../src/accountStore';
+import { readCampaigns, upsertCampaign, removeCampaign } from '../src/campaignStore';
+import type { Campaign } from '../src/config';
 import { atomicWriteFileSync } from '../src/atomicWrite';
 import dotenv from 'dotenv';
 
@@ -519,6 +521,79 @@ ipcMain.handle('delete-account', (_event, id: string) => {
     }
 });
 
+// --- Campaigns: named recipient groups with their own subject + template ---
+function genCampaignId(seed?: string): string {
+  const base = String(seed || 'camp')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24) || 'camp';
+  return `${base}-${Date.now().toString(36)}`;
+}
+
+ipcMain.handle('get-campaigns', () => {
+  if (!globalConfig) initServices();
+  return (globalConfig?.campaigns || []) as Campaign[];
+});
+
+ipcMain.handle('save-campaign', (_event, c) => {
+  try {
+    if (!globalConfig) initServices();
+    const basePath = getBasePath();
+    const name = (c?.name || '').trim();
+    if (!name) return { ok: false, error: 'Campaign name is required.' };
+    const id = (c?.id && String(c.id).trim()) || genCampaignId(name);
+    const campaign: Campaign = {
+      id,
+      name,
+      subject: c?.subject != null ? String(c.subject) : '',
+      template: c?.template != null ? String(c.template) : '',
+    };
+    upsertCampaign(basePath, campaign);
+    globalConfig = loadConfig();
+    rebuildProcessors();
+    return { ok: true, id };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Save failed' };
+  }
+});
+
+ipcMain.handle('delete-campaign', (_event, id: string) => {
+  try {
+    if (!globalConfig) initServices();
+    if (!id) return { ok: false, error: 'Missing campaign id.' };
+    const basePath = getBasePath();
+    removeCampaign(basePath, String(id));
+
+    // Move orphaned recipients to Unassigned: strip the deleted campaignId so
+    // they fall back to the global subject/template instead of pointing at a
+    // campaign that no longer exists.
+    const jsonPath = globalConfig.paths.recipientsJson;
+    if (fs.existsSync(jsonPath)) {
+      try {
+        const recipients = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+        if (Array.isArray(recipients)) {
+          let changed = false;
+          for (const r of recipients) {
+            if (r && r.campaignId === id) { delete r.campaignId; changed = true; }
+          }
+          if (changed) atomicWriteFileSync(jsonPath, JSON.stringify(recipients, null, 2));
+        }
+      } catch (e) {
+        sendLog('Failed to detach recipients from deleted campaign', 'error');
+      }
+    }
+
+    globalConfig = loadConfig();
+    rebuildProcessors();
+    // Re-arm a running scheduler so detached recipients use fresh defaults.
+    if (isSchedulerRunning && globalScheduler) globalScheduler.start();
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Delete failed' };
+  }
+});
+
 ipcMain.handle('get-config', () => {
   if (!globalConfig) {
       const basePath = getBasePath();
@@ -529,8 +604,17 @@ ipcMain.handle('get-config', () => {
   // hasPass (the settings form shows a "saved" placeholder and save-config
   // keeps the stored password when the field comes back blank); the extras are
   // only ever needed via get-accounts, which already redacts.
+  // Hand the renderer the current email-template wrapper (greeting + footer
+  // markup) so Settings can show/edit it; '' when no template.html exists yet.
+  let templateContent = '';
+  try {
+    if (fs.existsSync(globalConfig.paths.templateHtml)) {
+      templateContent = fs.readFileSync(globalConfig.paths.templateHtml, 'utf-8');
+    }
+  } catch { /* unreadable template → leave blank */ }
   return {
     ...globalConfig,
+    templateContent,
     smtp: { ...globalConfig.smtp, pass: '', hasPass: !!globalConfig.smtp?.pass },
     accounts: (globalConfig.accounts || []).map((a: Account) => ({ ...a, pass: '' })),
   };
@@ -585,6 +669,13 @@ MAX_RECIPIENT_PER_DAY=${globalConfig.limits.maxPerRecipientPerDay}
 `;
 
     atomicWriteFileSync(envFilePath, envContent);
+
+    // Email-template wrapper lives in template.html (not .env). Only rewrite it
+    // when this payload actually carries `template` — partial saves (onboarding,
+    // test-mode toggle, sign-out) omit it and must leave the file untouched.
+    if (typeof newConfig.template === 'string') {
+      atomicWriteFileSync(globalConfig.paths.templateHtml, newConfig.template);
+    }
 
     // Clear legacy env vars from process.env so they don't persist after being omitted from the new .env.
     // If we don't do this, loadConfig() will pick them up again and sign-out will fail to clear credentials.

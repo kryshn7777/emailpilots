@@ -1,98 +1,16818 @@
-"use strict";const D=require("electron"),q=require("path"),j=require("fs"),Xe=require("dns"),Vt=require("os"),oe=require("crypto"),fe=require("events"),ke=require("url"),fs=require("util"),js=require("http"),qs=require("https"),Bs=require("zlib"),Y=require("stream"),Ue=require("net"),gs=require("tls"),xs=require("child_process"),Us=require("node:crypto");function Wt(p){return p&&p.__esModule&&Object.prototype.hasOwnProperty.call(p,"default")?p.default:p}var te={exports:{}};const zs="17.3.1",Hs={version:zs};var ci;function $s(){if(ci)return te.exports;ci=1;const p=j,e=q,d=Vt,n=oe,s=Hs.version,o=["🔐 encrypt with Dotenvx: https://dotenvx.com","🔐 prevent committing .env to code: https://dotenvx.com/precommit","🔐 prevent building .env in docker: https://dotenvx.com/prebuild","🤖 agentic secret storage: https://dotenvx.com/as2","⚡️ secrets for agents: https://dotenvx.com/as2","🛡️ auth for agents: https://vestauth.com","🛠️  run anywhere with `dotenvx run -- yourcommand`","⚙️  specify custom .env file path with { path: '/custom/path/.env' }","⚙️  enable debug logging with { debug: true }","⚙️  override existing env vars with { override: true }","⚙️  suppress all logs with { quiet: true }","⚙️  write to custom object with { processEnv: myObject }","⚙️  load multiple .env files with { path: ['.env.local', '.env'] }"];function a(){return o[Math.floor(Math.random()*o.length)]}function h(E){return typeof E=="string"?!["false","0","no","off",""].includes(E.toLowerCase()):!!E}function t(){return process.stdout.isTTY}function u(E){return t()?`\x1B[2m${E}\x1B[0m`:E}const f=/(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;function l(E){const M={};let S=E.toString();S=S.replace(/\r\n?/mg,`
-`);let I;for(;(I=f.exec(S))!=null;){const R=I[1];let P=I[2]||"";P=P.trim();const O=P[0];P=P.replace(/^(['"`])([\s\S]*)\1$/mg,"$2"),O==='"'&&(P=P.replace(/\\n/g,`
-`),P=P.replace(/\\r/g,"\r")),M[R]=P}return M}function _(E){E=E||{};const M=m(E);E.path=M;const S=A.configDotenv(E);if(!S.parsed){const O=new Error(`MISSING_DATA: Cannot parse ${M} for an unknown reason`);throw O.code="MISSING_DATA",O}const I=c(E).split(","),R=I.length;let P;for(let O=0;O<R;O++)try{const L=I[O].trim(),B=g(S,L);P=A.decrypt(B.ciphertext,B.key);break}catch(L){if(O+1>=R)throw L}return A.parse(P)}function w(E){console.error(`[dotenv@${s}][WARN] ${E}`)}function v(E){console.log(`[dotenv@${s}][DEBUG] ${E}`)}function r(E){console.log(`[dotenv@${s}] ${E}`)}function c(E){return E&&E.DOTENV_KEY&&E.DOTENV_KEY.length>0?E.DOTENV_KEY:process.env.DOTENV_KEY&&process.env.DOTENV_KEY.length>0?process.env.DOTENV_KEY:""}function g(E,M){let S;try{S=new URL(M)}catch(L){if(L.code==="ERR_INVALID_URL"){const B=new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");throw B.code="INVALID_DOTENV_KEY",B}throw L}const I=S.password;if(!I){const L=new Error("INVALID_DOTENV_KEY: Missing key part");throw L.code="INVALID_DOTENV_KEY",L}const R=S.searchParams.get("environment");if(!R){const L=new Error("INVALID_DOTENV_KEY: Missing environment part");throw L.code="INVALID_DOTENV_KEY",L}const P=`DOTENV_VAULT_${R.toUpperCase()}`,O=E.parsed[P];if(!O){const L=new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${P} in your .env.vault file.`);throw L.code="NOT_FOUND_DOTENV_ENVIRONMENT",L}return{ciphertext:O,key:I}}function m(E){let M=null;if(E&&E.path&&E.path.length>0)if(Array.isArray(E.path))for(const S of E.path)p.existsSync(S)&&(M=S.endsWith(".vault")?S:`${S}.vault`);else M=E.path.endsWith(".vault")?E.path:`${E.path}.vault`;else M=e.resolve(process.cwd(),".env.vault");return p.existsSync(M)?M:null}function x(E){return E[0]==="~"?e.join(d.homedir(),E.slice(1)):E}function y(E){const M=h(process.env.DOTENV_CONFIG_DEBUG||E&&E.debug),S=h(process.env.DOTENV_CONFIG_QUIET||E&&E.quiet);(M||!S)&&r("Loading env from encrypted .env.vault");const I=A._parseVault(E);let R=process.env;return E&&E.processEnv!=null&&(R=E.processEnv),A.populate(R,I,E),{parsed:I}}function T(E){const M=e.resolve(process.cwd(),".env");let S="utf8",I=process.env;E&&E.processEnv!=null&&(I=E.processEnv);let R=h(I.DOTENV_CONFIG_DEBUG||E&&E.debug),P=h(I.DOTENV_CONFIG_QUIET||E&&E.quiet);E&&E.encoding?S=E.encoding:R&&v("No encoding is specified. UTF-8 is used by default");let O=[M];if(E&&E.path)if(!Array.isArray(E.path))O=[x(E.path)];else{O=[];for(const z of E.path)O.push(x(z))}let L;const B={};for(const z of O)try{const V=A.parse(p.readFileSync(z,{encoding:S}));A.populate(B,V,E)}catch(V){R&&v(`Failed to load ${z} ${V.message}`),L=V}const $=A.populate(I,B,E);if(R=h(I.DOTENV_CONFIG_DEBUG||R),P=h(I.DOTENV_CONFIG_QUIET||P),R||!P){const z=Object.keys($).length,V=[];for(const K of O)try{const X=e.relative(process.cwd(),K);V.push(X)}catch(X){R&&v(`Failed to load ${K} ${X.message}`),L=X}r(`injecting env (${z}) from ${V.join(",")} ${u(`-- tip: ${a()}`)}`)}return L?{parsed:B,error:L}:{parsed:B}}function b(E){if(c(E).length===0)return A.configDotenv(E);const M=m(E);return M?A._configVault(E):(w(`You set DOTENV_KEY but you are missing a .env.vault file at ${M}. Did you forget to build it?`),A.configDotenv(E))}function k(E,M){const S=Buffer.from(M.slice(-64),"hex");let I=Buffer.from(E,"base64");const R=I.subarray(0,12),P=I.subarray(-16);I=I.subarray(12,-16);try{const O=n.createDecipheriv("aes-256-gcm",S,R);return O.setAuthTag(P),`${O.update(I)}${O.final()}`}catch(O){const L=O instanceof RangeError,B=O.message==="Invalid key length",$=O.message==="Unsupported state or unable to authenticate data";if(L||B){const z=new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");throw z.code="INVALID_DOTENV_KEY",z}else if($){const z=new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");throw z.code="DECRYPTION_FAILED",z}else throw O}}function C(E,M,S={}){const I=!!(S&&S.debug),R=!!(S&&S.override),P={};if(typeof M!="object"){const O=new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");throw O.code="OBJECT_REQUIRED",O}for(const O of Object.keys(M))Object.prototype.hasOwnProperty.call(E,O)?(R===!0&&(E[O]=M[O],P[O]=M[O]),I&&v(R===!0?`"${O}" is already defined and WAS overwritten`:`"${O}" is already defined and was NOT overwritten`)):(E[O]=M[O],P[O]=M[O]);return P}const A={configDotenv:T,_configVault:y,_parseVault:_,config:b,decrypt:k,parse:l,populate:C};return te.exports.configDotenv=A.configDotenv,te.exports._configVault=A._configVault,te.exports._parseVault=A._parseVault,te.exports.config=A.config,te.exports.decrypt=A.decrypt,te.exports.parse=A.parse,te.exports.populate=A.populate,te.exports=A,te.exports}var Fs=$s();const tt=Wt(Fs);function ge(p,e){const d=`${p}.${process.pid}.tmp`;j.writeFileSync(d,e,"utf-8");try{j.renameSync(d,p)}catch(n){try{j.unlinkSync(d)}catch{}throw n}}const li=5;function Jt(p){return q.join(p,"accounts.json")}function Vs(p){return!p||!p.id||!p.user?null:{id:String(p.id),label:p.label?String(p.label):void 0,host:p.host||"smtp.office365.com",port:parseInt(p.port,10)||587,user:String(p.user),pass:p.pass||"",enabled:p.enabled!==!1}}function ze(p){const e=Jt(p);if(!j.existsSync(e))return[];try{const d=JSON.parse(j.readFileSync(e,"utf-8"));return Array.isArray(d)?d.map(Vs).filter(n=>n!==null):[]}catch(d){return console.error("Failed to read accounts.json:",d),[]}}function vs(p,e){try{ge(Jt(p),JSON.stringify(e,null,2))}catch(d){throw console.error("Failed to write accounts.json:",d),d}}function Ws(p,e){const d=ze(p),n=d.findIndex(i=>i.id===e.id);return n>=0?d[n]=e:d.push(e),vs(p,d),d}function Js(p,e){const d=ze(p).filter(n=>n.id!==e);return vs(p,d),d}function J(){return process.env.MAIL_DATA_DIR?process.env.MAIL_DATA_DIR:!!process.pkg?q.dirname(process.execPath):process.cwd()}tt.config({path:q.join(J(),".env")});function ct(p,e){return p===void 0||p===""?e:/^(1|true|yes|on)$/i.test(p.trim())}function le(p,e){const d=parseInt(p??"",10);return Number.isFinite(d)&&d>=0?d:e}function pi(p){if(!p)return"";if(p.startsWith("ENC:")){try{if(process.versions&&process.versions.electron){const{safeStorage:e}=require("electron");if(e.isEncryptionAvailable()){const d=Buffer.from(p.substring(4),"base64");return e.decryptString(d)}}}catch(e){console.error("safeStorage decryption failed:",e)}console.warn("Could not decrypt password (not in Electron or decryption unavailable).")}return p}function Se(){const{SMTP_HOST:p,SMTP_PORT:e,SMTP_USER:d,OUTLOOK_USER:n,SMTP_PASS:i,OUTLOOK_PASS:s,RECIPIENTS_CSV_PATH:o,RECIPIENTS_JSON_PATH:a,TEMPLATE_HTML_PATH:h,CV_PATH:t,ENROLLMENT_PATH:u,EMAIL_SUBJECT:f,CRON_SCHEDULE:l,USER_NAME:_,MAX_EMAILS_PER_DAY:w,MAX_EMAILS_PER_WINDOW:v,MAX_WINDOWS_PER_DAY:r,MIN_DELAY_MIN:c,MAX_DELAY_MIN:g,MAX_ATTACHMENT_MB:m,MAX_RECIPIENT_PER_DAY:x,WARMUP_ENABLED:y,WARMUP_CURVE:T,PHYSICAL_ADDRESS:b,UNSUBSCRIBE_ENABLED:k,INBOX_PLACEMENT:C,TEST_MODE:A}=process.env,E=J(),M={host:p||"smtp.office365.com",port:parseInt(e||"587",10),user:d||n||"",pass:pi(i||s||"")},S={id:"default",label:_||M.user||"Primary",host:M.host,port:M.port,user:M.user,pass:M.pass,enabled:!0},I=ze(E).map(P=>({...P,pass:pi(P.pass)})),R=[S,...I];return{userName:_||"",smtp:M,accounts:R,paths:{recipientsCsv:o?q.resolve(E,o):q.join(E,"recipients.csv"),recipientsJson:a?q.resolve(E,a):q.join(E,"recipients.json"),templateHtml:h?q.resolve(E,h):q.join(E,"template.html"),cvPath:t?q.resolve(E,t):void 0,enrollmentPath:u?q.resolve(E,u):void 0},email:{subject:f||"Daily Update"},limits:{maxPerDay:le(w,50),maxPerWindow:le(v,10),maxWindowsPerDay:le(r,5),minDelayMs:le(c,1)*60*1e3,maxDelayMs:le(g,10)*60*1e3,maxAttachmentBytes:le(m,10)*1024*1024,maxPerRecipientPerDay:le(x,3),warmupEnabled:ct(y,!0),warmupCurve:T?T.split(",").map(P=>parseInt(P.trim(),10)).filter(P=>Number.isFinite(P)&&P>=0):[5,5,10,10,15,20,25,30,40,50]},sender:{physicalAddress:b||"",unsubscribeEnabled:ct(k,!0),inboxPlacement:(C||"primary").trim().toLowerCase()==="bulk"?"bulk":"primary"},cronSchedule:l||"0 9 * * *",testMode:ct(A,!1)}}var Ie={},lt={exports:{}},Fe={exports:{}},pt,di;function Qs(){if(di)return pt;di=1;const p=ke,e=1800;class d{constructor(i){this.options=i||{},this.cookies=[]}set(i,s){let o=p.parse(s||""),a=this.parse(i),h;return a.domain?(h=a.domain.replace(/^\./,""),(o.hostname.length<h.length||("."+o.hostname).substr(-h.length+1)!=="."+h)&&(a.domain=o.hostname)):a.domain=o.hostname,a.path||(a.path=this.getPath(o.pathname)),a.expires||(a.expires=new Date(Date.now()+(Number(this.options.sessionTimeout||e)||e)*1e3)),this.add(a)}get(i){return this.list(i).map(s=>s.name+"="+s.value).join("; ")}list(i){let s=[],o,a;for(o=this.cookies.length-1;o>=0;o--){if(a=this.cookies[o],this.isExpired(a)){this.cookies.splice(o,o);continue}this.match(a,i)&&s.unshift(a)}return s}parse(i){let s={};return(i||"").toString().split(";").forEach(o=>{let a=o.split("="),h=a.shift().trim().toLowerCase(),t=a.join("=").trim(),u;if(h)switch(h){case"expires":t=new Date(t),t.toString()!=="Invalid Date"&&(s.expires=t);break;case"path":s.path=t;break;case"domain":u=t.toLowerCase(),u.length&&u.charAt(0)!=="."&&(u="."+u),s.domain=u;break;case"max-age":s.expires=new Date(Date.now()+(Number(t)||0)*1e3);break;case"secure":s.secure=!0;break;case"httponly":s.httponly=!0;break;default:s.name||(s.name=h,s.value=t)}}),s}match(i,s){let o=p.parse(s||"");return!(o.hostname!==i.domain&&(i.domain.charAt(0)!=="."||("."+o.hostname).substr(-i.domain.length)!==i.domain)||this.getPath(o.pathname).substr(0,i.path.length)!==i.path||i.secure&&o.protocol!=="https:")}add(i){let s,o;if(!i||!i.name)return!1;for(s=0,o=this.cookies.length;s<o;s++)if(this.compare(this.cookies[s],i))return this.isExpired(i)?(this.cookies.splice(s,1),!1):(this.cookies[s]=i,!0);return this.isExpired(i)||this.cookies.push(i),!0}compare(i,s){return i.name===s.name&&i.path===s.path&&i.domain===s.domain&&i.secure===s.secure&&i.httponly===i.httponly}isExpired(i){return i.expires&&i.expires<new Date||!i.value}getPath(i){let s=(i||"/").split("/");return s.pop(),s=s.join("/").trim(),s.charAt(0)!=="/"&&(s="/"+s),s.substr(-1)!=="/"&&(s+="/"),s}}return pt=d,pt}const Gs="nodemailer",Ks="8.0.2",Xs="https://nodemailer.com/",ie={name:Gs,version:Ks,homepage:Xs};var dt,ui;function se(){if(ui)return dt;ui=1;const p={ECONNECTION:"Connection closed unexpectedly",ETIMEDOUT:"Connection or operation timed out",ESOCKET:"Socket-level error",EDNS:"DNS resolution failed",ETLS:"TLS handshake or STARTTLS failed",EREQUIRETLS:"REQUIRETLS not supported by server (RFC 8689)",EPROTOCOL:"Invalid SMTP server response",EENVELOPE:"Invalid mail envelope (sender or recipients)",EMESSAGE:"Message delivery error",ESTREAM:"Stream processing error",EAUTH:"Authentication failed",ENOAUTH:"Authentication credentials not provided",EOAUTH2:"OAuth2 token generation or refresh error",EMAXLIMIT:"Pool resource limit reached (max messages per connection)",ESENDMAIL:"Sendmail command error",ESES:"AWS SES transport error",ECONFIG:"Invalid configuration",EPROXY:"Proxy connection error",EFILEACCESS:"File access rejected (disableFileAccess is set)",EURLACCESS:"URL access rejected (disableUrlAccess is set)",EFETCH:"HTTP fetch error"};return dt=Object.keys(p).reduce((e,d)=>(e[d]=d,e),{ERROR_CODES:p}),dt}var hi;function it(){if(hi)return Fe.exports;hi=1;const p=js,e=qs,d=ke,n=Bs,i=Y.PassThrough,s=Qs(),o=ie,a=Ue,h=se(),t=5;Fe.exports=function(f,l){return u(f,l)},Fe.exports.Cookies=s;function u(f,l){l=l||{},l.fetchRes=l.fetchRes||new i,l.cookies=l.cookies||new s,l.redirects=l.redirects||0,l.maxRedirects=isNaN(l.maxRedirects)?t:l.maxRedirects,l.cookie&&([].concat(l.cookie||[]).forEach(b=>{l.cookies.set(b,f)}),l.cookie=!1);let _=l.fetchRes,w=d.parse(f),v=(l.method||"").toString().trim().toUpperCase()||"GET",r=!1,c,g,m=w.protocol==="https:"?e:p,x={"accept-encoding":"gzip,deflate","user-agent":"nodemailer/"+o.version};if(Object.keys(l.headers||{}).forEach(b=>{x[b.toLowerCase().trim()]=l.headers[b]}),l.userAgent&&(x["user-agent"]=l.userAgent),w.auth&&(x.Authorization="Basic "+Buffer.from(w.auth).toString("base64")),(c=l.cookies.get(f))&&(x.cookie=c),l.body){if(l.contentType!==!1&&(x["Content-Type"]=l.contentType||"application/x-www-form-urlencoded"),typeof l.body.pipe=="function")x["Transfer-Encoding"]="chunked",g=l.body,g.on("error",b=>{r||(r=!0,b.code=h.EFETCH,b.sourceUrl=f,_.emit("error",b))});else{if(l.body instanceof Buffer)g=l.body;else if(typeof l.body=="object")try{g=Buffer.from(Object.keys(l.body).map(b=>{let k=l.body[b].toString().trim();return encodeURIComponent(b)+"="+encodeURIComponent(k)}).join("&"))}catch(b){if(r)return;r=!0,b.code=h.EFETCH,b.sourceUrl=f,_.emit("error",b);return}else g=Buffer.from(l.body.toString().trim());x["Content-Type"]=l.contentType||"application/x-www-form-urlencoded",x["Content-Length"]=g.length}v=(l.method||"").toString().trim().toUpperCase()||"POST"}let y,T={method:v,host:w.hostname,path:w.path,port:w.port?w.port:w.protocol==="https:"?443:80,headers:x,rejectUnauthorized:!1,agent:!1};l.tls&&Object.keys(l.tls).forEach(b=>{T[b]=l.tls[b]}),w.protocol==="https:"&&w.hostname&&w.hostname!==T.host&&!a.isIP(w.hostname)&&!T.servername&&(T.servername=w.hostname);try{y=m.request(T)}catch(b){return r=!0,setImmediate(()=>{b.code=h.EFETCH,b.sourceUrl=f,_.emit("error",b)}),_}return l.timeout&&y.setTimeout(l.timeout,()=>{if(r)return;r=!0,y.abort();let b=new Error("Request Timeout");b.code=h.EFETCH,b.sourceUrl=f,_.emit("error",b)}),y.on("error",b=>{r||(r=!0,b.code=h.EFETCH,b.sourceUrl=f,_.emit("error",b))}),y.on("response",b=>{let k;if(!r){switch(b.headers["content-encoding"]){case"gzip":case"deflate":k=n.createUnzip();break}if(b.headers["set-cookie"]&&[].concat(b.headers["set-cookie"]||[]).forEach(C=>{l.cookies.set(C,f)}),[301,302,303,307,308].includes(b.statusCode)&&b.headers.location){if(l.redirects++,l.redirects>l.maxRedirects){r=!0;let C=new Error("Maximum redirect count exceeded");C.code=h.EFETCH,C.sourceUrl=f,_.emit("error",C),y.abort();return}return l.method="GET",l.body=!1,u(d.resolve(f,b.headers.location),l)}if(_.statusCode=b.statusCode,_.headers=b.headers,b.statusCode>=300&&!l.allowErrorResponse){r=!0;let C=new Error("Invalid status code "+b.statusCode);C.code=h.EFETCH,C.sourceUrl=f,_.emit("error",C),y.abort();return}b.on("error",C=>{r||(r=!0,C.code=h.EFETCH,C.sourceUrl=f,_.emit("error",C),y.abort())}),k?(b.pipe(k).pipe(_),k.on("error",C=>{r||(r=!0,C.code=h.EFETCH,C.sourceUrl=f,_.emit("error",C),y.abort())})):b.pipe(_)}}),setImmediate(()=>{if(g)try{if(typeof g.pipe=="function")return g.pipe(y);y.write(g)}catch(b){r=!0,b.code=h.EFETCH,b.sourceUrl=f,_.emit("error",b);return}y.end()}),_}return Fe.exports}var mi;function Z(){return mi||(mi=1,(function(p){const e=ke,d=fs,n=j,i=it(),s=Xe,o=Ue,a=Vt,h=300*1e3,t=30*1e3,u=1e3;let f=0;p.exports._lastCacheCleanup=()=>f,p.exports._resetCacheCleanup=()=>{f=0};let l;try{l=a.networkInterfaces()}catch{}p.exports.networkInterfaces=l;const _=(m,x)=>{let y=p.exports.networkInterfaces;return y?Object.keys(y).map(b=>y[b]).reduce((b,k)=>b.concat(k),[]).filter(b=>!b.internal||x).filter(b=>b.family==="IPv"+m||b.family===m).length>0:!0},w=(m,x,y,T)=>{if(y=y||{},!_(m,y.allowInternalNetworkInterfaces))return T(null,[]);(s.Resolver?new s.Resolver(y):s)["resolve"+m](x,(C,A)=>{if(C){switch(C.code){case s.NODATA:case s.NOTFOUND:case s.NOTIMP:case s.SERVFAIL:case s.CONNREFUSED:case s.REFUSED:case"EAI_AGAIN":return T(null,[])}return T(C)}return T(null,Array.isArray(A)?A:[].concat(A||[]))})},v=p.exports.dnsCache=new Map,r=(m,x)=>{if(!m)return Object.assign({},x||{});let y=m.addresses||[],T=null;return y.length===1?T=y[0]:y.length>1&&(T=y[Math.floor(Math.random()*y.length)]),Object.assign({servername:m.servername,host:T,_addresses:y},x||{})};p.exports.resolveHostname=(m,x)=>{if(m=m||{},!m.host&&m.servername&&(m.host=m.servername),!m.host||o.isIP(m.host)){let A={addresses:[m.host],servername:m.servername||!1};return x(null,r(A,{cached:!1}))}let y;if(v.has(m.host)){y=v.get(m.host);const A=Date.now();if(A-f>t){f=A;for(const[E,M]of v.entries())M.expires&&M.expires<A&&v.delete(E);if(v.size>u){const E=Math.floor(u*.1);Array.from(v.keys()).slice(0,E).forEach(S=>v.delete(S))}}if(!y.expires||y.expires>=A)return x(null,r(y.value,{cached:!0}))}let T=[],b=[],k=null,C=null;w(4,m.host,m,(A,E)=>{A?k=A:T=E||[],w(6,m.host,m,(M,S)=>{M?C=M:b=S||[];let I=T.concat(b);if(I.length){let R={addresses:I,servername:m.servername||m.host};return v.set(m.host,{value:R,expires:Date.now()+(m.dnsTtl||h)}),x(null,r(R,{cached:!1}))}if(k&&C&&y)return v.set(m.host,{value:y.value,expires:Date.now()+(m.dnsTtl||h)}),x(null,r(y.value,{cached:!0,error:k}));try{s.lookup(m.host,{all:!0},(R,P)=>{if(R)return y?(v.set(m.host,{value:y.value,expires:Date.now()+(m.dnsTtl||h)}),x(null,r(y.value,{cached:!0,error:R}))):x(R);let O=P?P.filter(B=>_(B.family)).map(B=>B.address):[];if(P&&P.length&&!O.length&&console.warn(`Failed to resolve IPv${P[0].family} addresses with current network`),!O.length&&y)return x(null,r(y.value,{cached:!0}));let L={addresses:O.length?O:[m.host],servername:m.servername||m.host};return v.set(m.host,{value:L,expires:Date.now()+(m.dnsTtl||h)}),x(null,r(L,{cached:!1}))})}catch(R){return y?(v.set(m.host,{value:y.value,expires:Date.now()+(m.dnsTtl||h)}),x(null,r(y.value,{cached:!0,error:R}))):x(k||C||R)}})})},p.exports.parseConnectionUrl=m=>{m=m||"";let x={};return[e.parse(m,!0)].forEach(y=>{let T;switch(y.protocol){case"smtp:":x.secure=!1;break;case"smtps:":x.secure=!0;break;case"direct:":x.direct=!0;break}!isNaN(y.port)&&Number(y.port)&&(x.port=Number(y.port)),y.hostname&&(x.host=y.hostname),y.auth&&(T=y.auth.split(":"),x.auth||(x.auth={}),x.auth.user=T.shift(),x.auth.pass=T.join(":")),Object.keys(y.query||{}).forEach(b=>{let k=x,C=b,A=y.query[b];switch(isNaN(A)||(A=Number(A)),A){case"true":A=!0;break;case"false":A=!1;break}if(b.indexOf("tls.")===0)C=b.substr(4),x.tls||(x.tls={}),k=x.tls;else if(b.indexOf(".")>=0)return;C in k||(k[C]=A)})}),x},p.exports._logFunc=(m,x,y,T,b,...k)=>{let C={};Object.keys(y||{}).forEach(A=>{A!=="level"&&(C[A]=y[A])}),Object.keys(T||{}).forEach(A=>{A!=="level"&&(C[A]=T[A])}),m[x](C,b,...k)},p.exports.getLogger=(m,x)=>{m=m||{};let y={},T=["trace","debug","info","warn","error","fatal"];if(!m.logger)return T.forEach(k=>{y[k]=()=>!1}),y;let b=m.logger;return m.logger===!0&&(b=g(T)),T.forEach(k=>{y[k]=(C,A,...E)=>{p.exports._logFunc(b,k,x,C,A,...E)}}),y},p.exports.callbackPromise=(m,x)=>function(){let y=Array.from(arguments),T=y.shift();T?x(T):m(...y)},p.exports.parseDataURI=m=>{if(typeof m!="string"||!m.startsWith("data:"))return null;const x=m.indexOf(",");if(x===-1)return null;const y=m.substring(x+1),T=m.substring(5,x);let b;const k=T.split(";");if(k.length>0){const M=k[k.length-1].toLowerCase().trim();["base64","utf8","utf-8"].includes(M)&&M.indexOf("=")===-1&&(b=M,k.pop())}const C=k.length>0?k.shift():"application/octet-stream",A={};for(let M=0;M<k.length;M++){const S=k[M],I=S.indexOf("=");if(I>0){const R=S.substring(0,I).trim(),P=S.substring(I+1).trim();R&&(A[R]=P)}}let E;try{if(b==="base64")E=Buffer.from(y,"base64");else try{E=Buffer.from(decodeURIComponent(y))}catch{E=Buffer.from(y)}}catch{E=Buffer.alloc(0)}return{data:E,encoding:b||null,contentType:C||"application/octet-stream",params:A}},p.exports.resolveContent=(m,x,y)=>{let T;y||(T=new Promise((A,E)=>{y=p.exports.callbackPromise(A,E)}));let b=m&&m[x]&&m[x].content||m[x],k,C=(typeof m[x]=="object"&&m[x].encoding||"utf8").toString().toLowerCase().replace(/[-_\s]/g,"");if(!b)return y(null,b);if(typeof b=="object"){if(typeof b.pipe=="function")return c(b,(A,E)=>{if(A)return y(A);m[x].content?m[x].content=E:m[x]=E,y(null,E)});if(/^https?:\/\//i.test(b.path||b.href))return k=i(b.path||b.href),c(k,y);if(/^data:/i.test(b.path||b.href)){let A=p.exports.parseDataURI(b.path||b.href);return!A||!A.data?y(null,Buffer.from(0)):y(null,A.data)}else if(b.path)return c(n.createReadStream(b.path),y)}return typeof m[x].content=="string"&&!["utf8","usascii","ascii"].includes(C)&&(b=Buffer.from(m[x].content,C)),setImmediate(()=>y(null,b)),T},p.exports.assign=function(){let m=Array.from(arguments),x=m.shift()||{};return m.forEach(y=>{Object.keys(y||{}).forEach(T=>{["tls","auth"].includes(T)&&y[T]&&typeof y[T]=="object"?(x[T]||(x[T]={}),Object.keys(y[T]).forEach(b=>{x[T][b]=y[T][b]})):x[T]=y[T]})}),x},p.exports.encodeXText=m=>{if(!/[^\x21-\x2A\x2C-\x3C\x3E-\x7E]/.test(m))return m;let x=Buffer.from(m),y="";for(let T=0,b=x.length;T<b;T++){let k=x[T];k<33||k>126||k===43||k===61?y+="+"+(k<16?"0":"")+k.toString(16).toUpperCase():y+=String.fromCharCode(k)}return y};function c(m,x){let y=!1,T=[],b=0;m.on("error",k=>{y||(y=!0,x(k))}),m.on("readable",()=>{let k;for(;(k=m.read())!==null;)T.push(k),b+=k.length}),m.on("end",()=>{if(y)return;y=!0;let k;try{k=Buffer.concat(T,b)}catch(C){return x(C)}x(null,k)})}function g(m){let x=0,y=new Map;m.forEach(k=>{k.length>x&&(x=k.length)}),m.forEach(k=>{let C=k.toUpperCase();C.length<x&&(C+=" ".repeat(x-C.length)),y.set(k,C)});let T=(k,C,A,...E)=>{let M="";C&&(C.tnx==="server"?M="S: ":C.tnx==="client"&&(M="C: "),C.sid&&(M="["+C.sid+"] "+M),C.cid&&(M="[#"+C.cid+"] "+M)),A=d.format(A,...E),A.split(/\r?\n/).forEach(S=>{console.log("[%s] %s %s",new Date().toISOString().substr(0,19).replace(/T/," "),y.get(k),M+S)})},b={};return m.forEach(k=>{b[k]=T.bind(null,k)}),b}})(lt)),lt.exports}var ut,fi;function _s(){if(fi)return ut;fi=1;const p=q,e="application/octet-stream",d="bin",n=new Map([["application/acad","dwg"],["application/applixware","aw"],["application/arj","arj"],["application/atom+xml","xml"],["application/atomcat+xml","atomcat"],["application/atomsvc+xml","atomsvc"],["application/base64",["mm","mme"]],["application/binhex","hqx"],["application/binhex4","hqx"],["application/book",["book","boo"]],["application/ccxml+xml,","ccxml"],["application/cdf","cdf"],["application/cdmi-capability","cdmia"],["application/cdmi-container","cdmic"],["application/cdmi-domain","cdmid"],["application/cdmi-object","cdmio"],["application/cdmi-queue","cdmiq"],["application/clariscad","ccad"],["application/commonground","dp"],["application/cu-seeme","cu"],["application/davmount+xml","davmount"],["application/drafting","drw"],["application/dsptype","tsp"],["application/dssc+der","dssc"],["application/dssc+xml","xdssc"],["application/dxf","dxf"],["application/ecmascript",["js","es"]],["application/emma+xml","emma"],["application/envoy","evy"],["application/epub+zip","epub"],["application/excel",["xls","xl","xla","xlb","xlc","xld","xlk","xll","xlm","xlt","xlv","xlw"]],["application/exi","exi"],["application/font-tdpfr","pfr"],["application/fractals","fif"],["application/freeloader","frl"],["application/futuresplash","spl"],["application/geo+json","geojson"],["application/gnutar","tgz"],["application/groupwise","vew"],["application/hlp","hlp"],["application/hta","hta"],["application/hyperstudio","stk"],["application/i-deas","unv"],["application/iges",["iges","igs"]],["application/inf","inf"],["application/internet-property-stream","acx"],["application/ipfix","ipfix"],["application/java","class"],["application/java-archive","jar"],["application/java-byte-code","class"],["application/java-serialized-object","ser"],["application/java-vm","class"],["application/javascript","js"],["application/json","json"],["application/lha","lha"],["application/lzx","lzx"],["application/mac-binary","bin"],["application/mac-binhex","hqx"],["application/mac-binhex40","hqx"],["application/mac-compactpro","cpt"],["application/macbinary","bin"],["application/mads+xml","mads"],["application/marc","mrc"],["application/marcxml+xml","mrcx"],["application/mathematica","ma"],["application/mathml+xml","mathml"],["application/mbedlet","mbd"],["application/mbox","mbox"],["application/mcad","mcd"],["application/mediaservercontrol+xml","mscml"],["application/metalink4+xml","meta4"],["application/mets+xml","mets"],["application/mime","aps"],["application/mods+xml","mods"],["application/mp21","m21"],["application/mp4","mp4"],["application/mspowerpoint",["ppt","pot","pps","ppz"]],["application/msword",["doc","dot","w6w","wiz","word"]],["application/mswrite","wri"],["application/mxf","mxf"],["application/netmc","mcp"],["application/octet-stream",["*"]],["application/oda","oda"],["application/oebps-package+xml","opf"],["application/ogg","ogx"],["application/olescript","axs"],["application/onenote","onetoc"],["application/patch-ops-error+xml","xer"],["application/pdf","pdf"],["application/pgp-encrypted","asc"],["application/pgp-signature","pgp"],["application/pics-rules","prf"],["application/pkcs-12","p12"],["application/pkcs-crl","crl"],["application/pkcs10","p10"],["application/pkcs7-mime",["p7c","p7m"]],["application/pkcs7-signature","p7s"],["application/pkcs8","p8"],["application/pkix-attr-cert","ac"],["application/pkix-cert",["cer","crt"]],["application/pkix-crl","crl"],["application/pkix-pkipath","pkipath"],["application/pkixcmp","pki"],["application/plain","text"],["application/pls+xml","pls"],["application/postscript",["ps","ai","eps"]],["application/powerpoint","ppt"],["application/pro_eng",["part","prt"]],["application/prs.cww","cww"],["application/pskc+xml","pskcxml"],["application/rdf+xml","rdf"],["application/reginfo+xml","rif"],["application/relax-ng-compact-syntax","rnc"],["application/resource-lists+xml","rl"],["application/resource-lists-diff+xml","rld"],["application/ringing-tones","rng"],["application/rls-services+xml","rs"],["application/rsd+xml","rsd"],["application/rss+xml","xml"],["application/rtf",["rtf","rtx"]],["application/sbml+xml","sbml"],["application/scvp-cv-request","scq"],["application/scvp-cv-response","scs"],["application/scvp-vp-request","spq"],["application/scvp-vp-response","spp"],["application/sdp","sdp"],["application/sea","sea"],["application/set","set"],["application/set-payment-initiation","setpay"],["application/set-registration-initiation","setreg"],["application/shf+xml","shf"],["application/sla","stl"],["application/smil",["smi","smil"]],["application/smil+xml","smi"],["application/solids","sol"],["application/sounder","sdr"],["application/sparql-query","rq"],["application/sparql-results+xml","srx"],["application/srgs","gram"],["application/srgs+xml","grxml"],["application/sru+xml","sru"],["application/ssml+xml","ssml"],["application/step",["step","stp"]],["application/streamingmedia","ssm"],["application/tei+xml","tei"],["application/thraud+xml","tfi"],["application/timestamped-data","tsd"],["application/toolbook","tbk"],["application/vda","vda"],["application/vnd.3gpp.pic-bw-large","plb"],["application/vnd.3gpp.pic-bw-small","psb"],["application/vnd.3gpp.pic-bw-var","pvb"],["application/vnd.3gpp2.tcap","tcap"],["application/vnd.3m.post-it-notes","pwn"],["application/vnd.accpac.simply.aso","aso"],["application/vnd.accpac.simply.imp","imp"],["application/vnd.acucobol","acu"],["application/vnd.acucorp","atc"],["application/vnd.adobe.air-application-installer-package+zip","air"],["application/vnd.adobe.fxp","fxp"],["application/vnd.adobe.xdp+xml","xdp"],["application/vnd.adobe.xfdf","xfdf"],["application/vnd.ahead.space","ahead"],["application/vnd.airzip.filesecure.azf","azf"],["application/vnd.airzip.filesecure.azs","azs"],["application/vnd.amazon.ebook","azw"],["application/vnd.americandynamics.acc","acc"],["application/vnd.amiga.ami","ami"],["application/vnd.android.package-archive","apk"],["application/vnd.anser-web-certificate-issue-initiation","cii"],["application/vnd.anser-web-funds-transfer-initiation","fti"],["application/vnd.antix.game-component","atx"],["application/vnd.apple.installer+xml","mpkg"],["application/vnd.apple.mpegurl","m3u8"],["application/vnd.aristanetworks.swi","swi"],["application/vnd.audiograph","aep"],["application/vnd.blueice.multipass","mpm"],["application/vnd.bmi","bmi"],["application/vnd.businessobjects","rep"],["application/vnd.chemdraw+xml","cdxml"],["application/vnd.chipnuts.karaoke-mmd","mmd"],["application/vnd.cinderella","cdy"],["application/vnd.claymore","cla"],["application/vnd.cloanto.rp9","rp9"],["application/vnd.clonk.c4group","c4g"],["application/vnd.cluetrust.cartomobile-config","c11amc"],["application/vnd.cluetrust.cartomobile-config-pkg","c11amz"],["application/vnd.commonspace","csp"],["application/vnd.contact.cmsg","cdbcmsg"],["application/vnd.cosmocaller","cmc"],["application/vnd.crick.clicker","clkx"],["application/vnd.crick.clicker.keyboard","clkk"],["application/vnd.crick.clicker.palette","clkp"],["application/vnd.crick.clicker.template","clkt"],["application/vnd.crick.clicker.wordbank","clkw"],["application/vnd.criticaltools.wbs+xml","wbs"],["application/vnd.ctc-posml","pml"],["application/vnd.cups-ppd","ppd"],["application/vnd.curl.car","car"],["application/vnd.curl.pcurl","pcurl"],["application/vnd.data-vision.rdz","rdz"],["application/vnd.denovo.fcselayout-link","fe_launch"],["application/vnd.dna","dna"],["application/vnd.dolby.mlp","mlp"],["application/vnd.dpgraph","dpg"],["application/vnd.dreamfactory","dfac"],["application/vnd.dvb.ait","ait"],["application/vnd.dvb.service","svc"],["application/vnd.dynageo","geo"],["application/vnd.ecowin.chart","mag"],["application/vnd.enliven","nml"],["application/vnd.epson.esf","esf"],["application/vnd.epson.msf","msf"],["application/vnd.epson.quickanime","qam"],["application/vnd.epson.salt","slt"],["application/vnd.epson.ssf","ssf"],["application/vnd.eszigno3+xml","es3"],["application/vnd.ezpix-album","ez2"],["application/vnd.ezpix-package","ez3"],["application/vnd.fdf","fdf"],["application/vnd.fdsn.seed","seed"],["application/vnd.flographit","gph"],["application/vnd.fluxtime.clip","ftc"],["application/vnd.framemaker","fm"],["application/vnd.frogans.fnc","fnc"],["application/vnd.frogans.ltf","ltf"],["application/vnd.fsc.weblaunch","fsc"],["application/vnd.fujitsu.oasys","oas"],["application/vnd.fujitsu.oasys2","oa2"],["application/vnd.fujitsu.oasys3","oa3"],["application/vnd.fujitsu.oasysgp","fg5"],["application/vnd.fujitsu.oasysprs","bh2"],["application/vnd.fujixerox.ddd","ddd"],["application/vnd.fujixerox.docuworks","xdw"],["application/vnd.fujixerox.docuworks.binder","xbd"],["application/vnd.fuzzysheet","fzs"],["application/vnd.genomatix.tuxedo","txd"],["application/vnd.geogebra.file","ggb"],["application/vnd.geogebra.tool","ggt"],["application/vnd.geometry-explorer","gex"],["application/vnd.geonext","gxt"],["application/vnd.geoplan","g2w"],["application/vnd.geospace","g3w"],["application/vnd.gmx","gmx"],["application/vnd.google-earth.kml+xml","kml"],["application/vnd.google-earth.kmz","kmz"],["application/vnd.grafeq","gqf"],["application/vnd.groove-account","gac"],["application/vnd.groove-help","ghf"],["application/vnd.groove-identity-message","gim"],["application/vnd.groove-injector","grv"],["application/vnd.groove-tool-message","gtm"],["application/vnd.groove-tool-template","tpl"],["application/vnd.groove-vcard","vcg"],["application/vnd.hal+xml","hal"],["application/vnd.handheld-entertainment+xml","zmm"],["application/vnd.hbci","hbci"],["application/vnd.hhe.lesson-player","les"],["application/vnd.hp-hpgl",["hgl","hpg","hpgl"]],["application/vnd.hp-hpid","hpid"],["application/vnd.hp-hps","hps"],["application/vnd.hp-jlyt","jlt"],["application/vnd.hp-pcl","pcl"],["application/vnd.hp-pclxl","pclxl"],["application/vnd.hydrostatix.sof-data","sfd-hdstx"],["application/vnd.hzn-3d-crossword","x3d"],["application/vnd.ibm.minipay","mpy"],["application/vnd.ibm.modcap","afp"],["application/vnd.ibm.rights-management","irm"],["application/vnd.ibm.secure-container","sc"],["application/vnd.iccprofile","icc"],["application/vnd.igloader","igl"],["application/vnd.immervision-ivp","ivp"],["application/vnd.immervision-ivu","ivu"],["application/vnd.insors.igm","igm"],["application/vnd.intercon.formnet","xpw"],["application/vnd.intergeo","i2g"],["application/vnd.intu.qbo","qbo"],["application/vnd.intu.qfx","qfx"],["application/vnd.ipunplugged.rcprofile","rcprofile"],["application/vnd.irepository.package+xml","irp"],["application/vnd.is-xpr","xpr"],["application/vnd.isac.fcs","fcs"],["application/vnd.jam","jam"],["application/vnd.jcp.javame.midlet-rms","rms"],["application/vnd.jisp","jisp"],["application/vnd.joost.joda-archive","joda"],["application/vnd.kahootz","ktz"],["application/vnd.kde.karbon","karbon"],["application/vnd.kde.kchart","chrt"],["application/vnd.kde.kformula","kfo"],["application/vnd.kde.kivio","flw"],["application/vnd.kde.kontour","kon"],["application/vnd.kde.kpresenter","kpr"],["application/vnd.kde.kspread","ksp"],["application/vnd.kde.kword","kwd"],["application/vnd.kenameaapp","htke"],["application/vnd.kidspiration","kia"],["application/vnd.kinar","kne"],["application/vnd.koan","skp"],["application/vnd.kodak-descriptor","sse"],["application/vnd.las.las+xml","lasxml"],["application/vnd.llamagraphics.life-balance.desktop","lbd"],["application/vnd.llamagraphics.life-balance.exchange+xml","lbe"],["application/vnd.lotus-1-2-3","123"],["application/vnd.lotus-approach","apr"],["application/vnd.lotus-freelance","pre"],["application/vnd.lotus-notes","nsf"],["application/vnd.lotus-organizer","org"],["application/vnd.lotus-screencam","scm"],["application/vnd.lotus-wordpro","lwp"],["application/vnd.macports.portpkg","portpkg"],["application/vnd.mcd","mcd"],["application/vnd.medcalcdata","mc1"],["application/vnd.mediastation.cdkey","cdkey"],["application/vnd.mfer","mwf"],["application/vnd.mfmp","mfm"],["application/vnd.micrografx.flo","flo"],["application/vnd.micrografx.igx","igx"],["application/vnd.mif","mif"],["application/vnd.mobius.daf","daf"],["application/vnd.mobius.dis","dis"],["application/vnd.mobius.mbk","mbk"],["application/vnd.mobius.mqy","mqy"],["application/vnd.mobius.msl","msl"],["application/vnd.mobius.plc","plc"],["application/vnd.mobius.txf","txf"],["application/vnd.mophun.application","mpn"],["application/vnd.mophun.certificate","mpc"],["application/vnd.mozilla.xul+xml","xul"],["application/vnd.ms-artgalry","cil"],["application/vnd.ms-cab-compressed","cab"],["application/vnd.ms-excel",["xls","xla","xlc","xlm","xlt","xlw","xlb","xll"]],["application/vnd.ms-excel.addin.macroenabled.12","xlam"],["application/vnd.ms-excel.sheet.binary.macroenabled.12","xlsb"],["application/vnd.ms-excel.sheet.macroenabled.12","xlsm"],["application/vnd.ms-excel.template.macroenabled.12","xltm"],["application/vnd.ms-fontobject","eot"],["application/vnd.ms-htmlhelp","chm"],["application/vnd.ms-ims","ims"],["application/vnd.ms-lrm","lrm"],["application/vnd.ms-officetheme","thmx"],["application/vnd.ms-outlook","msg"],["application/vnd.ms-pki.certstore","sst"],["application/vnd.ms-pki.pko","pko"],["application/vnd.ms-pki.seccat","cat"],["application/vnd.ms-pki.stl","stl"],["application/vnd.ms-pkicertstore","sst"],["application/vnd.ms-pkiseccat","cat"],["application/vnd.ms-pkistl","stl"],["application/vnd.ms-powerpoint",["ppt","pot","pps","ppa","pwz"]],["application/vnd.ms-powerpoint.addin.macroenabled.12","ppam"],["application/vnd.ms-powerpoint.presentation.macroenabled.12","pptm"],["application/vnd.ms-powerpoint.slide.macroenabled.12","sldm"],["application/vnd.ms-powerpoint.slideshow.macroenabled.12","ppsm"],["application/vnd.ms-powerpoint.template.macroenabled.12","potm"],["application/vnd.ms-project","mpp"],["application/vnd.ms-word.document.macroenabled.12","docm"],["application/vnd.ms-word.template.macroenabled.12","dotm"],["application/vnd.ms-works",["wks","wcm","wdb","wps"]],["application/vnd.ms-wpl","wpl"],["application/vnd.ms-xpsdocument","xps"],["application/vnd.mseq","mseq"],["application/vnd.musician","mus"],["application/vnd.muvee.style","msty"],["application/vnd.neurolanguage.nlu","nlu"],["application/vnd.noblenet-directory","nnd"],["application/vnd.noblenet-sealer","nns"],["application/vnd.noblenet-web","nnw"],["application/vnd.nokia.configuration-message","ncm"],["application/vnd.nokia.n-gage.data","ngdat"],["application/vnd.nokia.n-gage.symbian.install","n-gage"],["application/vnd.nokia.radio-preset","rpst"],["application/vnd.nokia.radio-presets","rpss"],["application/vnd.nokia.ringing-tone","rng"],["application/vnd.novadigm.edm","edm"],["application/vnd.novadigm.edx","edx"],["application/vnd.novadigm.ext","ext"],["application/vnd.oasis.opendocument.chart","odc"],["application/vnd.oasis.opendocument.chart-template","otc"],["application/vnd.oasis.opendocument.database","odb"],["application/vnd.oasis.opendocument.formula","odf"],["application/vnd.oasis.opendocument.formula-template","odft"],["application/vnd.oasis.opendocument.graphics","odg"],["application/vnd.oasis.opendocument.graphics-template","otg"],["application/vnd.oasis.opendocument.image","odi"],["application/vnd.oasis.opendocument.image-template","oti"],["application/vnd.oasis.opendocument.presentation","odp"],["application/vnd.oasis.opendocument.presentation-template","otp"],["application/vnd.oasis.opendocument.spreadsheet","ods"],["application/vnd.oasis.opendocument.spreadsheet-template","ots"],["application/vnd.oasis.opendocument.text","odt"],["application/vnd.oasis.opendocument.text-master","odm"],["application/vnd.oasis.opendocument.text-template","ott"],["application/vnd.oasis.opendocument.text-web","oth"],["application/vnd.olpc-sugar","xo"],["application/vnd.oma.dd2+xml","dd2"],["application/vnd.openofficeorg.extension","oxt"],["application/vnd.openxmlformats-officedocument.presentationml.presentation","pptx"],["application/vnd.openxmlformats-officedocument.presentationml.slide","sldx"],["application/vnd.openxmlformats-officedocument.presentationml.slideshow","ppsx"],["application/vnd.openxmlformats-officedocument.presentationml.template","potx"],["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","xlsx"],["application/vnd.openxmlformats-officedocument.spreadsheetml.template","xltx"],["application/vnd.openxmlformats-officedocument.wordprocessingml.document","docx"],["application/vnd.openxmlformats-officedocument.wordprocessingml.template","dotx"],["application/vnd.osgeo.mapguide.package","mgp"],["application/vnd.osgi.dp","dp"],["application/vnd.palm","pdb"],["application/vnd.pawaafile","paw"],["application/vnd.pg.format","str"],["application/vnd.pg.osasli","ei6"],["application/vnd.picsel","efif"],["application/vnd.pmi.widget","wg"],["application/vnd.pocketlearn","plf"],["application/vnd.powerbuilder6","pbd"],["application/vnd.previewsystems.box","box"],["application/vnd.proteus.magazine","mgz"],["application/vnd.publishare-delta-tree","qps"],["application/vnd.pvi.ptid1","ptid"],["application/vnd.quark.quarkxpress","qxd"],["application/vnd.realvnc.bed","bed"],["application/vnd.recordare.musicxml","mxl"],["application/vnd.recordare.musicxml+xml","musicxml"],["application/vnd.rig.cryptonote","cryptonote"],["application/vnd.rim.cod","cod"],["application/vnd.rn-realmedia","rm"],["application/vnd.rn-realplayer","rnx"],["application/vnd.route66.link66+xml","link66"],["application/vnd.sailingtracker.track","st"],["application/vnd.seemail","see"],["application/vnd.sema","sema"],["application/vnd.semd","semd"],["application/vnd.semf","semf"],["application/vnd.shana.informed.formdata","ifm"],["application/vnd.shana.informed.formtemplate","itp"],["application/vnd.shana.informed.interchange","iif"],["application/vnd.shana.informed.package","ipk"],["application/vnd.simtech-mindmapper","twd"],["application/vnd.smaf","mmf"],["application/vnd.smart.teacher","teacher"],["application/vnd.solent.sdkm+xml","sdkm"],["application/vnd.spotfire.dxp","dxp"],["application/vnd.spotfire.sfs","sfs"],["application/vnd.stardivision.calc","sdc"],["application/vnd.stardivision.draw","sda"],["application/vnd.stardivision.impress","sdd"],["application/vnd.stardivision.math","smf"],["application/vnd.stardivision.writer","sdw"],["application/vnd.stardivision.writer-global","sgl"],["application/vnd.stepmania.stepchart","sm"],["application/vnd.sun.xml.calc","sxc"],["application/vnd.sun.xml.calc.template","stc"],["application/vnd.sun.xml.draw","sxd"],["application/vnd.sun.xml.draw.template","std"],["application/vnd.sun.xml.impress","sxi"],["application/vnd.sun.xml.impress.template","sti"],["application/vnd.sun.xml.math","sxm"],["application/vnd.sun.xml.writer","sxw"],["application/vnd.sun.xml.writer.global","sxg"],["application/vnd.sun.xml.writer.template","stw"],["application/vnd.sus-calendar","sus"],["application/vnd.svd","svd"],["application/vnd.symbian.install","sis"],["application/vnd.syncml+xml","xsm"],["application/vnd.syncml.dm+wbxml","bdm"],["application/vnd.syncml.dm+xml","xdm"],["application/vnd.tao.intent-module-archive","tao"],["application/vnd.tmobile-livetv","tmo"],["application/vnd.trid.tpt","tpt"],["application/vnd.triscape.mxs","mxs"],["application/vnd.trueapp","tra"],["application/vnd.ufdl","ufd"],["application/vnd.uiq.theme","utz"],["application/vnd.umajin","umj"],["application/vnd.unity","unityweb"],["application/vnd.uoml+xml","uoml"],["application/vnd.vcx","vcx"],["application/vnd.visio","vsd"],["application/vnd.visionary","vis"],["application/vnd.vsf","vsf"],["application/vnd.wap.wbxml","wbxml"],["application/vnd.wap.wmlc","wmlc"],["application/vnd.wap.wmlscriptc","wmlsc"],["application/vnd.webturbo","wtb"],["application/vnd.wolfram.player","nbp"],["application/vnd.wordperfect","wpd"],["application/vnd.wqd","wqd"],["application/vnd.wt.stf","stf"],["application/vnd.xara",["web","xar"]],["application/vnd.xfdl","xfdl"],["application/vnd.yamaha.hv-dic","hvd"],["application/vnd.yamaha.hv-script","hvs"],["application/vnd.yamaha.hv-voice","hvp"],["application/vnd.yamaha.openscoreformat","osf"],["application/vnd.yamaha.openscoreformat.osfpvg+xml","osfpvg"],["application/vnd.yamaha.smaf-audio","saf"],["application/vnd.yamaha.smaf-phrase","spf"],["application/vnd.yellowriver-custom-menu","cmp"],["application/vnd.zul","zir"],["application/vnd.zzazz.deck+xml","zaz"],["application/vocaltec-media-desc","vmd"],["application/vocaltec-media-file","vmf"],["application/voicexml+xml","vxml"],["application/widget","wgt"],["application/winhlp","hlp"],["application/wordperfect",["wp","wp5","wp6","wpd"]],["application/wordperfect6.0",["w60","wp5"]],["application/wordperfect6.1","w61"],["application/wsdl+xml","wsdl"],["application/wspolicy+xml","wspolicy"],["application/x-123","wk1"],["application/x-7z-compressed","7z"],["application/x-abiword","abw"],["application/x-ace-compressed","ace"],["application/x-aim","aim"],["application/x-authorware-bin","aab"],["application/x-authorware-map","aam"],["application/x-authorware-seg","aas"],["application/x-bcpio","bcpio"],["application/x-binary","bin"],["application/x-binhex40","hqx"],["application/x-bittorrent","torrent"],["application/x-bsh",["bsh","sh","shar"]],["application/x-bytecode.elisp","elc"],["application/x-bytecode.python","pyc"],["application/x-bzip","bz"],["application/x-bzip2",["boz","bz2"]],["application/x-cdf","cdf"],["application/x-cdlink","vcd"],["application/x-chat",["cha","chat"]],["application/x-chess-pgn","pgn"],["application/x-cmu-raster","ras"],["application/x-cocoa","cco"],["application/x-compactpro","cpt"],["application/x-compress","z"],["application/x-compressed",["tgz","gz","z","zip"]],["application/x-conference","nsc"],["application/x-cpio","cpio"],["application/x-cpt","cpt"],["application/x-csh","csh"],["application/x-debian-package","deb"],["application/x-deepv","deepv"],["application/x-director",["dir","dcr","dxr"]],["application/x-doom","wad"],["application/x-dtbncx+xml","ncx"],["application/x-dtbook+xml","dtb"],["application/x-dtbresource+xml","res"],["application/x-dvi","dvi"],["application/x-elc","elc"],["application/x-envoy",["env","evy"]],["application/x-esrehber","es"],["application/x-excel",["xls","xla","xlb","xlc","xld","xlk","xll","xlm","xlt","xlv","xlw"]],["application/x-font-bdf","bdf"],["application/x-font-ghostscript","gsf"],["application/x-font-linux-psf","psf"],["application/x-font-otf","otf"],["application/x-font-pcf","pcf"],["application/x-font-snf","snf"],["application/x-font-ttf","ttf"],["application/x-font-type1","pfa"],["application/x-font-woff","woff"],["application/x-frame","mif"],["application/x-freelance","pre"],["application/x-futuresplash","spl"],["application/x-gnumeric","gnumeric"],["application/x-gsp","gsp"],["application/x-gss","gss"],["application/x-gtar","gtar"],["application/x-gzip",["gz","gzip"]],["application/x-hdf","hdf"],["application/x-helpfile",["help","hlp"]],["application/x-httpd-imap","imap"],["application/x-ima","ima"],["application/x-internet-signup",["ins","isp"]],["application/x-internett-signup","ins"],["application/x-inventor","iv"],["application/x-ip2","ip"],["application/x-iphone","iii"],["application/x-java-class","class"],["application/x-java-commerce","jcm"],["application/x-java-jnlp-file","jnlp"],["application/x-javascript","js"],["application/x-koan",["skd","skm","skp","skt"]],["application/x-ksh","ksh"],["application/x-latex",["latex","ltx"]],["application/x-lha","lha"],["application/x-lisp","lsp"],["application/x-livescreen","ivy"],["application/x-lotus","wq1"],["application/x-lotusscreencam","scm"],["application/x-lzh","lzh"],["application/x-lzx","lzx"],["application/x-mac-binhex40","hqx"],["application/x-macbinary","bin"],["application/x-magic-cap-package-1.0","mc$"],["application/x-mathcad","mcd"],["application/x-meme","mm"],["application/x-midi",["mid","midi"]],["application/x-mif","mif"],["application/x-mix-transfer","nix"],["application/x-mobipocket-ebook","prc"],["application/x-mplayer2","asx"],["application/x-ms-application","application"],["application/x-ms-wmd","wmd"],["application/x-ms-wmz","wmz"],["application/x-ms-xbap","xbap"],["application/x-msaccess","mdb"],["application/x-msbinder","obd"],["application/x-mscardfile","crd"],["application/x-msclip","clp"],["application/x-msdownload",["exe","dll"]],["application/x-msexcel",["xls","xla","xlw"]],["application/x-msmediaview",["mvb","m13","m14"]],["application/x-msmetafile","wmf"],["application/x-msmoney","mny"],["application/x-mspowerpoint","ppt"],["application/x-mspublisher","pub"],["application/x-msschedule","scd"],["application/x-msterminal","trm"],["application/x-mswrite","wri"],["application/x-navi-animation","ani"],["application/x-navidoc","nvd"],["application/x-navimap","map"],["application/x-navistyle","stl"],["application/x-netcdf",["cdf","nc"]],["application/x-newton-compatible-pkg","pkg"],["application/x-nokia-9000-communicator-add-on-software","aos"],["application/x-omc","omc"],["application/x-omcdatamaker","omcd"],["application/x-omcregerator","omcr"],["application/x-pagemaker",["pm4","pm5"]],["application/x-pcl","pcl"],["application/x-perfmon",["pma","pmc","pml","pmr","pmw"]],["application/x-pixclscript","plx"],["application/x-pkcs10","p10"],["application/x-pkcs12",["p12","pfx"]],["application/x-pkcs7-certificates",["p7b","spc"]],["application/x-pkcs7-certreqresp","p7r"],["application/x-pkcs7-mime",["p7m","p7c"]],["application/x-pkcs7-signature",["p7s","p7a"]],["application/x-pointplus","css"],["application/x-portable-anymap","pnm"],["application/x-project",["mpc","mpt","mpv","mpx"]],["application/x-qpro","wb1"],["application/x-rar-compressed","rar"],["application/x-rtf","rtf"],["application/x-sdp","sdp"],["application/x-sea","sea"],["application/x-seelogo","sl"],["application/x-sh","sh"],["application/x-shar",["shar","sh"]],["application/x-shockwave-flash","swf"],["application/x-silverlight-app","xap"],["application/x-sit","sit"],["application/x-sprite",["spr","sprite"]],["application/x-stuffit","sit"],["application/x-stuffitx","sitx"],["application/x-sv4cpio","sv4cpio"],["application/x-sv4crc","sv4crc"],["application/x-tar","tar"],["application/x-tbook",["sbk","tbk"]],["application/x-tcl","tcl"],["application/x-tex","tex"],["application/x-tex-tfm","tfm"],["application/x-texinfo",["texi","texinfo"]],["application/x-troff",["roff","t","tr"]],["application/x-troff-man","man"],["application/x-troff-me","me"],["application/x-troff-ms","ms"],["application/x-troff-msvideo","avi"],["application/x-ustar","ustar"],["application/x-visio",["vsd","vst","vsw"]],["application/x-vnd.audioexplosion.mzz","mzz"],["application/x-vnd.ls-xpix","xpix"],["application/x-vrml","vrml"],["application/x-wais-source",["src","wsrc"]],["application/x-winhelp","hlp"],["application/x-wintalk","wtk"],["application/x-world",["wrl","svr"]],["application/x-wpwin","wpd"],["application/x-wri","wri"],["application/x-x509-ca-cert",["cer","crt","der"]],["application/x-x509-user-cert","crt"],["application/x-xfig","fig"],["application/x-xpinstall","xpi"],["application/x-zip-compressed","zip"],["application/xcap-diff+xml","xdf"],["application/xenc+xml","xenc"],["application/xhtml+xml","xhtml"],["application/xml","xml"],["application/xml-dtd","dtd"],["application/xop+xml","xop"],["application/xslt+xml","xslt"],["application/xspf+xml","xspf"],["application/xv+xml","mxml"],["application/yang","yang"],["application/yin+xml","yin"],["application/ynd.ms-pkipko","pko"],["application/zip","zip"],["audio/adpcm","adp"],["audio/aiff",["aiff","aif","aifc"]],["audio/basic",["snd","au"]],["audio/it","it"],["audio/make",["funk","my","pfunk"]],["audio/make.my.funk","pfunk"],["audio/mid",["mid","rmi"]],["audio/midi",["midi","kar","mid"]],["audio/mod","mod"],["audio/mp4","mp4a"],["audio/mpeg",["mpga","mp3","m2a","mp2","mpa","mpg"]],["audio/mpeg3","mp3"],["audio/nspaudio",["la","lma"]],["audio/ogg","oga"],["audio/s3m","s3m"],["audio/tsp-audio","tsi"],["audio/tsplayer","tsp"],["audio/vnd.dece.audio","uva"],["audio/vnd.digital-winds","eol"],["audio/vnd.dra","dra"],["audio/vnd.dts","dts"],["audio/vnd.dts.hd","dtshd"],["audio/vnd.lucent.voice","lvp"],["audio/vnd.ms-playready.media.pya","pya"],["audio/vnd.nuera.ecelp4800","ecelp4800"],["audio/vnd.nuera.ecelp7470","ecelp7470"],["audio/vnd.nuera.ecelp9600","ecelp9600"],["audio/vnd.qcelp","qcp"],["audio/vnd.rip","rip"],["audio/voc","voc"],["audio/voxware","vox"],["audio/wav","wav"],["audio/webm","weba"],["audio/x-aac","aac"],["audio/x-adpcm","snd"],["audio/x-aiff",["aiff","aif","aifc"]],["audio/x-au","au"],["audio/x-gsm",["gsd","gsm"]],["audio/x-jam","jam"],["audio/x-liveaudio","lam"],["audio/x-mid",["mid","midi"]],["audio/x-midi",["midi","mid"]],["audio/x-mod","mod"],["audio/x-mpeg","mp2"],["audio/x-mpeg-3","mp3"],["audio/x-mpegurl","m3u"],["audio/x-mpequrl","m3u"],["audio/x-ms-wax","wax"],["audio/x-ms-wma","wma"],["audio/x-nspaudio",["la","lma"]],["audio/x-pn-realaudio",["ra","ram","rm","rmm","rmp"]],["audio/x-pn-realaudio-plugin",["ra","rmp","rpm"]],["audio/x-psid","sid"],["audio/x-realaudio","ra"],["audio/x-twinvq","vqf"],["audio/x-twinvq-plugin",["vqe","vql"]],["audio/x-vnd.audioexplosion.mjuicemediafile","mjf"],["audio/x-voc","voc"],["audio/x-wav","wav"],["audio/xm","xm"],["chemical/x-cdx","cdx"],["chemical/x-cif","cif"],["chemical/x-cmdf","cmdf"],["chemical/x-cml","cml"],["chemical/x-csml","csml"],["chemical/x-pdb",["pdb","xyz"]],["chemical/x-xyz","xyz"],["drawing/x-dwf","dwf"],["i-world/i-vrml","ivr"],["image/bmp",["bmp","bm"]],["image/cgm","cgm"],["image/cis-cod","cod"],["image/cmu-raster",["ras","rast"]],["image/fif","fif"],["image/florian",["flo","turbot"]],["image/g3fax","g3"],["image/gif","gif"],["image/ief",["ief","iefs"]],["image/jpeg",["jpeg","jpe","jpg","jfif","jfif-tbnl"]],["image/jutvision","jut"],["image/ktx","ktx"],["image/naplps",["nap","naplps"]],["image/pict",["pic","pict"]],["image/pipeg","jfif"],["image/pjpeg",["jfif","jpe","jpeg","jpg"]],["image/png",["png","x-png"]],["image/prs.btif","btif"],["image/svg+xml","svg"],["image/tiff",["tif","tiff"]],["image/vasa","mcf"],["image/vnd.adobe.photoshop","psd"],["image/vnd.dece.graphic","uvi"],["image/vnd.djvu","djvu"],["image/vnd.dvb.subtitle","sub"],["image/vnd.dwg",["dwg","dxf","svf"]],["image/vnd.dxf","dxf"],["image/vnd.fastbidsheet","fbs"],["image/vnd.fpx","fpx"],["image/vnd.fst","fst"],["image/vnd.fujixerox.edmics-mmr","mmr"],["image/vnd.fujixerox.edmics-rlc","rlc"],["image/vnd.ms-modi","mdi"],["image/vnd.net-fpx",["fpx","npx"]],["image/vnd.rn-realflash","rf"],["image/vnd.rn-realpix","rp"],["image/vnd.wap.wbmp","wbmp"],["image/vnd.xiff","xif"],["image/webp","webp"],["image/x-cmu-raster","ras"],["image/x-cmx","cmx"],["image/x-dwg",["dwg","dxf","svf"]],["image/x-freehand","fh"],["image/x-icon","ico"],["image/x-jg","art"],["image/x-jps","jps"],["image/x-niff",["niff","nif"]],["image/x-pcx","pcx"],["image/x-pict",["pct","pic"]],["image/x-portable-anymap","pnm"],["image/x-portable-bitmap","pbm"],["image/x-portable-graymap","pgm"],["image/x-portable-greymap","pgm"],["image/x-portable-pixmap","ppm"],["image/x-quicktime",["qif","qti","qtif"]],["image/x-rgb","rgb"],["image/x-tiff",["tif","tiff"]],["image/x-windows-bmp","bmp"],["image/x-xbitmap","xbm"],["image/x-xbm","xbm"],["image/x-xpixmap",["xpm","pm"]],["image/x-xwd","xwd"],["image/x-xwindowdump","xwd"],["image/xbm","xbm"],["image/xpm","xpm"],["message/rfc822",["eml","mht","mhtml","nws","mime"]],["model/iges",["iges","igs"]],["model/mesh","msh"],["model/vnd.collada+xml","dae"],["model/vnd.dwf","dwf"],["model/vnd.gdl","gdl"],["model/vnd.gtw","gtw"],["model/vnd.mts","mts"],["model/vnd.vtu","vtu"],["model/vrml",["vrml","wrl","wrz"]],["model/x-pov","pov"],["multipart/x-gzip","gzip"],["multipart/x-ustar","ustar"],["multipart/x-zip","zip"],["music/crescendo",["mid","midi"]],["music/x-karaoke","kar"],["paleovu/x-pv","pvu"],["text/asp","asp"],["text/calendar","ics"],["text/css","css"],["text/csv","csv"],["text/ecmascript","js"],["text/h323","323"],["text/html",["html","htm","stm","acgi","htmls","htx","shtml"]],["text/iuls","uls"],["text/javascript","js"],["text/mcf","mcf"],["text/n3","n3"],["text/pascal","pas"],["text/plain",["txt","bas","c","h","c++","cc","com","conf","cxx","def","f","f90","for","g","hh","idc","jav","java","list","log","lst","m","mar","pl","sdml","text"]],["text/plain-bas","par"],["text/prs.lines.tag","dsc"],["text/richtext",["rtx","rt","rtf"]],["text/scriplet","wsc"],["text/scriptlet","sct"],["text/sgml",["sgm","sgml"]],["text/tab-separated-values","tsv"],["text/troff","t"],["text/turtle","ttl"],["text/uri-list",["uni","unis","uri","uris"]],["text/vnd.abc","abc"],["text/vnd.curl","curl"],["text/vnd.curl.dcurl","dcurl"],["text/vnd.curl.mcurl","mcurl"],["text/vnd.curl.scurl","scurl"],["text/vnd.fly","fly"],["text/vnd.fmi.flexstor","flx"],["text/vnd.graphviz","gv"],["text/vnd.in3d.3dml","3dml"],["text/vnd.in3d.spot","spot"],["text/vnd.rn-realtext","rt"],["text/vnd.sun.j2me.app-descriptor","jad"],["text/vnd.wap.wml","wml"],["text/vnd.wap.wmlscript","wmls"],["text/webviewhtml","htt"],["text/x-asm",["asm","s"]],["text/x-audiosoft-intra","aip"],["text/x-c",["c","cc","cpp"]],["text/x-component","htc"],["text/x-fortran",["for","f","f77","f90"]],["text/x-h",["h","hh"]],["text/x-java-source",["java","jav"]],["text/x-java-source,java","java"],["text/x-la-asf","lsx"],["text/x-m","m"],["text/x-pascal","p"],["text/x-script","hlb"],["text/x-script.csh","csh"],["text/x-script.elisp","el"],["text/x-script.guile","scm"],["text/x-script.ksh","ksh"],["text/x-script.lisp","lsp"],["text/x-script.perl","pl"],["text/x-script.perl-module","pm"],["text/x-script.phyton","py"],["text/x-script.rexx","rexx"],["text/x-script.scheme","scm"],["text/x-script.sh","sh"],["text/x-script.tcl","tcl"],["text/x-script.tcsh","tcsh"],["text/x-script.zsh","zsh"],["text/x-server-parsed-html",["shtml","ssi"]],["text/x-setext","etx"],["text/x-sgml",["sgm","sgml"]],["text/x-speech",["spc","talk"]],["text/x-uil","uil"],["text/x-uuencode",["uu","uue"]],["text/x-vcalendar","vcs"],["text/x-vcard","vcf"],["text/xml","xml"],["video/3gpp","3gp"],["video/3gpp2","3g2"],["video/animaflex","afl"],["video/avi","avi"],["video/avs-video","avs"],["video/dl","dl"],["video/fli","fli"],["video/gl","gl"],["video/h261","h261"],["video/h263","h263"],["video/h264","h264"],["video/jpeg","jpgv"],["video/jpm","jpm"],["video/mj2","mj2"],["video/mp4","mp4"],["video/mpeg",["mpeg","mp2","mpa","mpe","mpg","mpv2","m1v","m2v","mp3"]],["video/msvideo","avi"],["video/ogg","ogv"],["video/quicktime",["mov","qt","moov"]],["video/vdo","vdo"],["video/vivo",["viv","vivo"]],["video/vnd.dece.hd","uvh"],["video/vnd.dece.mobile","uvm"],["video/vnd.dece.pd","uvp"],["video/vnd.dece.sd","uvs"],["video/vnd.dece.video","uvv"],["video/vnd.fvt","fvt"],["video/vnd.mpegurl","mxu"],["video/vnd.ms-playready.media.pyv","pyv"],["video/vnd.rn-realvideo","rv"],["video/vnd.uvvu.mp4","uvu"],["video/vnd.vivo",["viv","vivo"]],["video/vosaic","vos"],["video/webm","webm"],["video/x-amt-demorun","xdr"],["video/x-amt-showrun","xsr"],["video/x-atomic3d-feature","fmf"],["video/x-dl","dl"],["video/x-dv",["dif","dv"]],["video/x-f4v","f4v"],["video/x-fli","fli"],["video/x-flv","flv"],["video/x-gl","gl"],["video/x-isvideo","isu"],["video/x-la-asf",["lsf","lsx"]],["video/x-m4v","m4v"],["video/x-motion-jpeg","mjpg"],["video/x-mpeg",["mp3","mp2"]],["video/x-mpeq2a","mp2"],["video/x-ms-asf",["asf","asr","asx"]],["video/x-ms-asf-plugin","asx"],["video/x-ms-wm","wm"],["video/x-ms-wmv","wmv"],["video/x-ms-wmx","wmx"],["video/x-ms-wvx","wvx"],["video/x-msvideo","avi"],["video/x-qtc","qtc"],["video/x-scm","scm"],["video/x-sgi-movie",["movie","mv"]],["windows/metafile","wmf"],["www/mime","mime"],["x-conference/x-cooltalk","ice"],["x-music/x-midi",["mid","midi"]],["x-world/x-3dmf",["3dm","3dmf","qd3","qd3d"]],["x-world/x-svr","svr"],["x-world/x-vrml",["flr","vrml","wrl","wrz","xaf","xof"]],["x-world/x-vrt","vrt"],["xgl/drawing","xgz"],["xgl/movie","xmz"]]),i=new Map([["123","application/vnd.lotus-1-2-3"],["323","text/h323"],["*","application/octet-stream"],["3dm","x-world/x-3dmf"],["3dmf","x-world/x-3dmf"],["3dml","text/vnd.in3d.3dml"],["3g2","video/3gpp2"],["3gp","video/3gpp"],["7z","application/x-7z-compressed"],["a","application/octet-stream"],["aab","application/x-authorware-bin"],["aac","audio/x-aac"],["aam","application/x-authorware-map"],["aas","application/x-authorware-seg"],["abc","text/vnd.abc"],["abw","application/x-abiword"],["ac","application/pkix-attr-cert"],["acc","application/vnd.americandynamics.acc"],["ace","application/x-ace-compressed"],["acgi","text/html"],["acu","application/vnd.acucobol"],["acx","application/internet-property-stream"],["adp","audio/adpcm"],["aep","application/vnd.audiograph"],["afl","video/animaflex"],["afp","application/vnd.ibm.modcap"],["ahead","application/vnd.ahead.space"],["ai","application/postscript"],["aif",["audio/aiff","audio/x-aiff"]],["aifc",["audio/aiff","audio/x-aiff"]],["aiff",["audio/aiff","audio/x-aiff"]],["aim","application/x-aim"],["aip","text/x-audiosoft-intra"],["air","application/vnd.adobe.air-application-installer-package+zip"],["ait","application/vnd.dvb.ait"],["ami","application/vnd.amiga.ami"],["ani","application/x-navi-animation"],["aos","application/x-nokia-9000-communicator-add-on-software"],["apk","application/vnd.android.package-archive"],["application","application/x-ms-application"],["apr","application/vnd.lotus-approach"],["aps","application/mime"],["arc","application/octet-stream"],["arj",["application/arj","application/octet-stream"]],["art","image/x-jg"],["asf","video/x-ms-asf"],["asm","text/x-asm"],["aso","application/vnd.accpac.simply.aso"],["asp","text/asp"],["asr","video/x-ms-asf"],["asx",["video/x-ms-asf","application/x-mplayer2","video/x-ms-asf-plugin"]],["atc","application/vnd.acucorp"],["atomcat","application/atomcat+xml"],["atomsvc","application/atomsvc+xml"],["atx","application/vnd.antix.game-component"],["au",["audio/basic","audio/x-au"]],["avi",["video/avi","video/msvideo","application/x-troff-msvideo","video/x-msvideo"]],["avs","video/avs-video"],["aw","application/applixware"],["axs","application/olescript"],["azf","application/vnd.airzip.filesecure.azf"],["azs","application/vnd.airzip.filesecure.azs"],["azw","application/vnd.amazon.ebook"],["bas","text/plain"],["bcpio","application/x-bcpio"],["bdf","application/x-font-bdf"],["bdm","application/vnd.syncml.dm+wbxml"],["bed","application/vnd.realvnc.bed"],["bh2","application/vnd.fujitsu.oasysprs"],["bin",["application/octet-stream","application/mac-binary","application/macbinary","application/x-macbinary","application/x-binary"]],["bm","image/bmp"],["bmi","application/vnd.bmi"],["bmp",["image/bmp","image/x-windows-bmp"]],["boo","application/book"],["book","application/book"],["box","application/vnd.previewsystems.box"],["boz","application/x-bzip2"],["bsh","application/x-bsh"],["btif","image/prs.btif"],["bz","application/x-bzip"],["bz2","application/x-bzip2"],["c",["text/plain","text/x-c"]],["c++","text/plain"],["c11amc","application/vnd.cluetrust.cartomobile-config"],["c11amz","application/vnd.cluetrust.cartomobile-config-pkg"],["c4g","application/vnd.clonk.c4group"],["cab","application/vnd.ms-cab-compressed"],["car","application/vnd.curl.car"],["cat",["application/vnd.ms-pkiseccat","application/vnd.ms-pki.seccat"]],["cc",["text/plain","text/x-c"]],["ccad","application/clariscad"],["cco","application/x-cocoa"],["ccxml","application/ccxml+xml,"],["cdbcmsg","application/vnd.contact.cmsg"],["cdf",["application/cdf","application/x-cdf","application/x-netcdf"]],["cdkey","application/vnd.mediastation.cdkey"],["cdmia","application/cdmi-capability"],["cdmic","application/cdmi-container"],["cdmid","application/cdmi-domain"],["cdmio","application/cdmi-object"],["cdmiq","application/cdmi-queue"],["cdx","chemical/x-cdx"],["cdxml","application/vnd.chemdraw+xml"],["cdy","application/vnd.cinderella"],["cer",["application/pkix-cert","application/x-x509-ca-cert"]],["cgm","image/cgm"],["cha","application/x-chat"],["chat","application/x-chat"],["chm","application/vnd.ms-htmlhelp"],["chrt","application/vnd.kde.kchart"],["cif","chemical/x-cif"],["cii","application/vnd.anser-web-certificate-issue-initiation"],["cil","application/vnd.ms-artgalry"],["cla","application/vnd.claymore"],["class",["application/octet-stream","application/java","application/java-byte-code","application/java-vm","application/x-java-class"]],["clkk","application/vnd.crick.clicker.keyboard"],["clkp","application/vnd.crick.clicker.palette"],["clkt","application/vnd.crick.clicker.template"],["clkw","application/vnd.crick.clicker.wordbank"],["clkx","application/vnd.crick.clicker"],["clp","application/x-msclip"],["cmc","application/vnd.cosmocaller"],["cmdf","chemical/x-cmdf"],["cml","chemical/x-cml"],["cmp","application/vnd.yellowriver-custom-menu"],["cmx","image/x-cmx"],["cod",["image/cis-cod","application/vnd.rim.cod"]],["com",["application/octet-stream","text/plain"]],["conf","text/plain"],["cpio","application/x-cpio"],["cpp","text/x-c"],["cpt",["application/mac-compactpro","application/x-compactpro","application/x-cpt"]],["crd","application/x-mscardfile"],["crl",["application/pkix-crl","application/pkcs-crl"]],["crt",["application/pkix-cert","application/x-x509-user-cert","application/x-x509-ca-cert"]],["cryptonote","application/vnd.rig.cryptonote"],["csh",["text/x-script.csh","application/x-csh"]],["csml","chemical/x-csml"],["csp","application/vnd.commonspace"],["css",["text/css","application/x-pointplus"]],["csv","text/csv"],["cu","application/cu-seeme"],["curl","text/vnd.curl"],["cww","application/prs.cww"],["cxx","text/plain"],["dae","model/vnd.collada+xml"],["daf","application/vnd.mobius.daf"],["davmount","application/davmount+xml"],["dcr","application/x-director"],["dcurl","text/vnd.curl.dcurl"],["dd2","application/vnd.oma.dd2+xml"],["ddd","application/vnd.fujixerox.ddd"],["deb","application/x-debian-package"],["deepv","application/x-deepv"],["def","text/plain"],["der","application/x-x509-ca-cert"],["dfac","application/vnd.dreamfactory"],["dif","video/x-dv"],["dir","application/x-director"],["dis","application/vnd.mobius.dis"],["djvu","image/vnd.djvu"],["dl",["video/dl","video/x-dl"]],["dll","application/x-msdownload"],["dms","application/octet-stream"],["dna","application/vnd.dna"],["doc","application/msword"],["docm","application/vnd.ms-word.document.macroenabled.12"],["docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document"],["dot","application/msword"],["dotm","application/vnd.ms-word.template.macroenabled.12"],["dotx","application/vnd.openxmlformats-officedocument.wordprocessingml.template"],["dp",["application/commonground","application/vnd.osgi.dp"]],["dpg","application/vnd.dpgraph"],["dra","audio/vnd.dra"],["drw","application/drafting"],["dsc","text/prs.lines.tag"],["dssc","application/dssc+der"],["dtb","application/x-dtbook+xml"],["dtd","application/xml-dtd"],["dts","audio/vnd.dts"],["dtshd","audio/vnd.dts.hd"],["dump","application/octet-stream"],["dv","video/x-dv"],["dvi","application/x-dvi"],["dwf",["model/vnd.dwf","drawing/x-dwf"]],["dwg",["application/acad","image/vnd.dwg","image/x-dwg"]],["dxf",["application/dxf","image/vnd.dwg","image/vnd.dxf","image/x-dwg"]],["dxp","application/vnd.spotfire.dxp"],["dxr","application/x-director"],["ecelp4800","audio/vnd.nuera.ecelp4800"],["ecelp7470","audio/vnd.nuera.ecelp7470"],["ecelp9600","audio/vnd.nuera.ecelp9600"],["edm","application/vnd.novadigm.edm"],["edx","application/vnd.novadigm.edx"],["efif","application/vnd.picsel"],["ei6","application/vnd.pg.osasli"],["el","text/x-script.elisp"],["elc",["application/x-elc","application/x-bytecode.elisp"]],["eml","message/rfc822"],["emma","application/emma+xml"],["env","application/x-envoy"],["eol","audio/vnd.digital-winds"],["eot","application/vnd.ms-fontobject"],["eps","application/postscript"],["epub","application/epub+zip"],["es",["application/ecmascript","application/x-esrehber"]],["es3","application/vnd.eszigno3+xml"],["esf","application/vnd.epson.esf"],["etx","text/x-setext"],["evy",["application/envoy","application/x-envoy"]],["exe",["application/octet-stream","application/x-msdownload"]],["exi","application/exi"],["ext","application/vnd.novadigm.ext"],["ez2","application/vnd.ezpix-album"],["ez3","application/vnd.ezpix-package"],["f",["text/plain","text/x-fortran"]],["f4v","video/x-f4v"],["f77","text/x-fortran"],["f90",["text/plain","text/x-fortran"]],["fbs","image/vnd.fastbidsheet"],["fcs","application/vnd.isac.fcs"],["fdf","application/vnd.fdf"],["fe_launch","application/vnd.denovo.fcselayout-link"],["fg5","application/vnd.fujitsu.oasysgp"],["fh","image/x-freehand"],["fif",["application/fractals","image/fif"]],["fig","application/x-xfig"],["fli",["video/fli","video/x-fli"]],["flo",["image/florian","application/vnd.micrografx.flo"]],["flr","x-world/x-vrml"],["flv","video/x-flv"],["flw","application/vnd.kde.kivio"],["flx","text/vnd.fmi.flexstor"],["fly","text/vnd.fly"],["fm","application/vnd.framemaker"],["fmf","video/x-atomic3d-feature"],["fnc","application/vnd.frogans.fnc"],["for",["text/plain","text/x-fortran"]],["fpx",["image/vnd.fpx","image/vnd.net-fpx"]],["frl","application/freeloader"],["fsc","application/vnd.fsc.weblaunch"],["fst","image/vnd.fst"],["ftc","application/vnd.fluxtime.clip"],["fti","application/vnd.anser-web-funds-transfer-initiation"],["funk","audio/make"],["fvt","video/vnd.fvt"],["fxp","application/vnd.adobe.fxp"],["fzs","application/vnd.fuzzysheet"],["g","text/plain"],["g2w","application/vnd.geoplan"],["g3","image/g3fax"],["g3w","application/vnd.geospace"],["gac","application/vnd.groove-account"],["gdl","model/vnd.gdl"],["geo","application/vnd.dynageo"],["geojson","application/geo+json"],["gex","application/vnd.geometry-explorer"],["ggb","application/vnd.geogebra.file"],["ggt","application/vnd.geogebra.tool"],["ghf","application/vnd.groove-help"],["gif","image/gif"],["gim","application/vnd.groove-identity-message"],["gl",["video/gl","video/x-gl"]],["gmx","application/vnd.gmx"],["gnumeric","application/x-gnumeric"],["gph","application/vnd.flographit"],["gqf","application/vnd.grafeq"],["gram","application/srgs"],["grv","application/vnd.groove-injector"],["grxml","application/srgs+xml"],["gsd","audio/x-gsm"],["gsf","application/x-font-ghostscript"],["gsm","audio/x-gsm"],["gsp","application/x-gsp"],["gss","application/x-gss"],["gtar","application/x-gtar"],["gtm","application/vnd.groove-tool-message"],["gtw","model/vnd.gtw"],["gv","text/vnd.graphviz"],["gxt","application/vnd.geonext"],["gz",["application/x-gzip","application/x-compressed"]],["gzip",["multipart/x-gzip","application/x-gzip"]],["h",["text/plain","text/x-h"]],["h261","video/h261"],["h263","video/h263"],["h264","video/h264"],["hal","application/vnd.hal+xml"],["hbci","application/vnd.hbci"],["hdf","application/x-hdf"],["help","application/x-helpfile"],["hgl","application/vnd.hp-hpgl"],["hh",["text/plain","text/x-h"]],["hlb","text/x-script"],["hlp",["application/winhlp","application/hlp","application/x-helpfile","application/x-winhelp"]],["hpg","application/vnd.hp-hpgl"],["hpgl","application/vnd.hp-hpgl"],["hpid","application/vnd.hp-hpid"],["hps","application/vnd.hp-hps"],["hqx",["application/mac-binhex40","application/binhex","application/binhex4","application/mac-binhex","application/x-binhex40","application/x-mac-binhex40"]],["hta","application/hta"],["htc","text/x-component"],["htke","application/vnd.kenameaapp"],["htm","text/html"],["html","text/html"],["htmls","text/html"],["htt","text/webviewhtml"],["htx","text/html"],["hvd","application/vnd.yamaha.hv-dic"],["hvp","application/vnd.yamaha.hv-voice"],["hvs","application/vnd.yamaha.hv-script"],["i2g","application/vnd.intergeo"],["icc","application/vnd.iccprofile"],["ice","x-conference/x-cooltalk"],["ico","image/x-icon"],["ics","text/calendar"],["idc","text/plain"],["ief","image/ief"],["iefs","image/ief"],["ifm","application/vnd.shana.informed.formdata"],["iges",["application/iges","model/iges"]],["igl","application/vnd.igloader"],["igm","application/vnd.insors.igm"],["igs",["application/iges","model/iges"]],["igx","application/vnd.micrografx.igx"],["iif","application/vnd.shana.informed.interchange"],["iii","application/x-iphone"],["ima","application/x-ima"],["imap","application/x-httpd-imap"],["imp","application/vnd.accpac.simply.imp"],["ims","application/vnd.ms-ims"],["inf","application/inf"],["ins",["application/x-internet-signup","application/x-internett-signup"]],["ip","application/x-ip2"],["ipfix","application/ipfix"],["ipk","application/vnd.shana.informed.package"],["irm","application/vnd.ibm.rights-management"],["irp","application/vnd.irepository.package+xml"],["isp","application/x-internet-signup"],["isu","video/x-isvideo"],["it","audio/it"],["itp","application/vnd.shana.informed.formtemplate"],["iv","application/x-inventor"],["ivp","application/vnd.immervision-ivp"],["ivr","i-world/i-vrml"],["ivu","application/vnd.immervision-ivu"],["ivy","application/x-livescreen"],["jad","text/vnd.sun.j2me.app-descriptor"],["jam",["application/vnd.jam","audio/x-jam"]],["jar","application/java-archive"],["jav",["text/plain","text/x-java-source"]],["java",["text/plain","text/x-java-source,java","text/x-java-source"]],["jcm","application/x-java-commerce"],["jfif",["image/pipeg","image/jpeg","image/pjpeg"]],["jfif-tbnl","image/jpeg"],["jisp","application/vnd.jisp"],["jlt","application/vnd.hp-jlyt"],["jnlp","application/x-java-jnlp-file"],["joda","application/vnd.joost.joda-archive"],["jpe",["image/jpeg","image/pjpeg"]],["jpeg",["image/jpeg","image/pjpeg"]],["jpg",["image/jpeg","image/pjpeg"]],["jpgv","video/jpeg"],["jpm","video/jpm"],["jps","image/x-jps"],["js",["application/javascript","application/ecmascript","text/javascript","text/ecmascript","application/x-javascript"]],["json","application/json"],["jut","image/jutvision"],["kar",["audio/midi","music/x-karaoke"]],["karbon","application/vnd.kde.karbon"],["kfo","application/vnd.kde.kformula"],["kia","application/vnd.kidspiration"],["kml","application/vnd.google-earth.kml+xml"],["kmz","application/vnd.google-earth.kmz"],["kne","application/vnd.kinar"],["kon","application/vnd.kde.kontour"],["kpr","application/vnd.kde.kpresenter"],["ksh",["application/x-ksh","text/x-script.ksh"]],["ksp","application/vnd.kde.kspread"],["ktx","image/ktx"],["ktz","application/vnd.kahootz"],["kwd","application/vnd.kde.kword"],["la",["audio/nspaudio","audio/x-nspaudio"]],["lam","audio/x-liveaudio"],["lasxml","application/vnd.las.las+xml"],["latex","application/x-latex"],["lbd","application/vnd.llamagraphics.life-balance.desktop"],["lbe","application/vnd.llamagraphics.life-balance.exchange+xml"],["les","application/vnd.hhe.lesson-player"],["lha",["application/octet-stream","application/lha","application/x-lha"]],["lhx","application/octet-stream"],["link66","application/vnd.route66.link66+xml"],["list","text/plain"],["lma",["audio/nspaudio","audio/x-nspaudio"]],["log","text/plain"],["lrm","application/vnd.ms-lrm"],["lsf","video/x-la-asf"],["lsp",["application/x-lisp","text/x-script.lisp"]],["lst","text/plain"],["lsx",["video/x-la-asf","text/x-la-asf"]],["ltf","application/vnd.frogans.ltf"],["ltx","application/x-latex"],["lvp","audio/vnd.lucent.voice"],["lwp","application/vnd.lotus-wordpro"],["lzh",["application/octet-stream","application/x-lzh"]],["lzx",["application/lzx","application/octet-stream","application/x-lzx"]],["m",["text/plain","text/x-m"]],["m13","application/x-msmediaview"],["m14","application/x-msmediaview"],["m1v","video/mpeg"],["m21","application/mp21"],["m2a","audio/mpeg"],["m2v","video/mpeg"],["m3u",["audio/x-mpegurl","audio/x-mpequrl"]],["m3u8","application/vnd.apple.mpegurl"],["m4v","video/x-m4v"],["ma","application/mathematica"],["mads","application/mads+xml"],["mag","application/vnd.ecowin.chart"],["man","application/x-troff-man"],["map","application/x-navimap"],["mar","text/plain"],["mathml","application/mathml+xml"],["mbd","application/mbedlet"],["mbk","application/vnd.mobius.mbk"],["mbox","application/mbox"],["mc$","application/x-magic-cap-package-1.0"],["mc1","application/vnd.medcalcdata"],["mcd",["application/mcad","application/vnd.mcd","application/x-mathcad"]],["mcf",["image/vasa","text/mcf"]],["mcp","application/netmc"],["mcurl","text/vnd.curl.mcurl"],["mdb","application/x-msaccess"],["mdi","image/vnd.ms-modi"],["me","application/x-troff-me"],["meta4","application/metalink4+xml"],["mets","application/mets+xml"],["mfm","application/vnd.mfmp"],["mgp","application/vnd.osgeo.mapguide.package"],["mgz","application/vnd.proteus.magazine"],["mht","message/rfc822"],["mhtml","message/rfc822"],["mid",["audio/mid","audio/midi","music/crescendo","x-music/x-midi","audio/x-midi","application/x-midi","audio/x-mid"]],["midi",["audio/midi","music/crescendo","x-music/x-midi","audio/x-midi","application/x-midi","audio/x-mid"]],["mif",["application/vnd.mif","application/x-mif","application/x-frame"]],["mime",["message/rfc822","www/mime"]],["mj2","video/mj2"],["mjf","audio/x-vnd.audioexplosion.mjuicemediafile"],["mjpg","video/x-motion-jpeg"],["mlp","application/vnd.dolby.mlp"],["mm",["application/base64","application/x-meme"]],["mmd","application/vnd.chipnuts.karaoke-mmd"],["mme","application/base64"],["mmf","application/vnd.smaf"],["mmr","image/vnd.fujixerox.edmics-mmr"],["mny","application/x-msmoney"],["mod",["audio/mod","audio/x-mod"]],["mods","application/mods+xml"],["moov","video/quicktime"],["mov","video/quicktime"],["movie","video/x-sgi-movie"],["mp2",["video/mpeg","audio/mpeg","video/x-mpeg","audio/x-mpeg","video/x-mpeq2a"]],["mp3",["audio/mpeg","audio/mpeg3","video/mpeg","audio/x-mpeg-3","video/x-mpeg"]],["mp4",["video/mp4","application/mp4"]],["mp4a","audio/mp4"],["mpa",["video/mpeg","audio/mpeg"]],["mpc",["application/vnd.mophun.certificate","application/x-project"]],["mpe","video/mpeg"],["mpeg","video/mpeg"],["mpg",["video/mpeg","audio/mpeg"]],["mpga","audio/mpeg"],["mpkg","application/vnd.apple.installer+xml"],["mpm","application/vnd.blueice.multipass"],["mpn","application/vnd.mophun.application"],["mpp","application/vnd.ms-project"],["mpt","application/x-project"],["mpv","application/x-project"],["mpv2","video/mpeg"],["mpx","application/x-project"],["mpy","application/vnd.ibm.minipay"],["mqy","application/vnd.mobius.mqy"],["mrc","application/marc"],["mrcx","application/marcxml+xml"],["ms","application/x-troff-ms"],["mscml","application/mediaservercontrol+xml"],["mseq","application/vnd.mseq"],["msf","application/vnd.epson.msf"],["msg","application/vnd.ms-outlook"],["msh","model/mesh"],["msl","application/vnd.mobius.msl"],["msty","application/vnd.muvee.style"],["mts","model/vnd.mts"],["mus","application/vnd.musician"],["musicxml","application/vnd.recordare.musicxml+xml"],["mv","video/x-sgi-movie"],["mvb","application/x-msmediaview"],["mwf","application/vnd.mfer"],["mxf","application/mxf"],["mxl","application/vnd.recordare.musicxml"],["mxml","application/xv+xml"],["mxs","application/vnd.triscape.mxs"],["mxu","video/vnd.mpegurl"],["my","audio/make"],["mzz","application/x-vnd.audioexplosion.mzz"],["n-gage","application/vnd.nokia.n-gage.symbian.install"],["n3","text/n3"],["nap","image/naplps"],["naplps","image/naplps"],["nbp","application/vnd.wolfram.player"],["nc","application/x-netcdf"],["ncm","application/vnd.nokia.configuration-message"],["ncx","application/x-dtbncx+xml"],["ngdat","application/vnd.nokia.n-gage.data"],["nif","image/x-niff"],["niff","image/x-niff"],["nix","application/x-mix-transfer"],["nlu","application/vnd.neurolanguage.nlu"],["nml","application/vnd.enliven"],["nnd","application/vnd.noblenet-directory"],["nns","application/vnd.noblenet-sealer"],["nnw","application/vnd.noblenet-web"],["npx","image/vnd.net-fpx"],["nsc","application/x-conference"],["nsf","application/vnd.lotus-notes"],["nvd","application/x-navidoc"],["nws","message/rfc822"],["o","application/octet-stream"],["oa2","application/vnd.fujitsu.oasys2"],["oa3","application/vnd.fujitsu.oasys3"],["oas","application/vnd.fujitsu.oasys"],["obd","application/x-msbinder"],["oda","application/oda"],["odb","application/vnd.oasis.opendocument.database"],["odc","application/vnd.oasis.opendocument.chart"],["odf","application/vnd.oasis.opendocument.formula"],["odft","application/vnd.oasis.opendocument.formula-template"],["odg","application/vnd.oasis.opendocument.graphics"],["odi","application/vnd.oasis.opendocument.image"],["odm","application/vnd.oasis.opendocument.text-master"],["odp","application/vnd.oasis.opendocument.presentation"],["ods","application/vnd.oasis.opendocument.spreadsheet"],["odt","application/vnd.oasis.opendocument.text"],["oga","audio/ogg"],["ogv","video/ogg"],["ogx","application/ogg"],["omc","application/x-omc"],["omcd","application/x-omcdatamaker"],["omcr","application/x-omcregerator"],["onetoc","application/onenote"],["opf","application/oebps-package+xml"],["org","application/vnd.lotus-organizer"],["osf","application/vnd.yamaha.openscoreformat"],["osfpvg","application/vnd.yamaha.openscoreformat.osfpvg+xml"],["otc","application/vnd.oasis.opendocument.chart-template"],["otf","application/x-font-otf"],["otg","application/vnd.oasis.opendocument.graphics-template"],["oth","application/vnd.oasis.opendocument.text-web"],["oti","application/vnd.oasis.opendocument.image-template"],["otp","application/vnd.oasis.opendocument.presentation-template"],["ots","application/vnd.oasis.opendocument.spreadsheet-template"],["ott","application/vnd.oasis.opendocument.text-template"],["oxt","application/vnd.openofficeorg.extension"],["p","text/x-pascal"],["p10",["application/pkcs10","application/x-pkcs10"]],["p12",["application/pkcs-12","application/x-pkcs12"]],["p7a","application/x-pkcs7-signature"],["p7b","application/x-pkcs7-certificates"],["p7c",["application/pkcs7-mime","application/x-pkcs7-mime"]],["p7m",["application/pkcs7-mime","application/x-pkcs7-mime"]],["p7r","application/x-pkcs7-certreqresp"],["p7s",["application/pkcs7-signature","application/x-pkcs7-signature"]],["p8","application/pkcs8"],["par","text/plain-bas"],["part","application/pro_eng"],["pas","text/pascal"],["paw","application/vnd.pawaafile"],["pbd","application/vnd.powerbuilder6"],["pbm","image/x-portable-bitmap"],["pcf","application/x-font-pcf"],["pcl",["application/vnd.hp-pcl","application/x-pcl"]],["pclxl","application/vnd.hp-pclxl"],["pct","image/x-pict"],["pcurl","application/vnd.curl.pcurl"],["pcx","image/x-pcx"],["pdb",["application/vnd.palm","chemical/x-pdb"]],["pdf","application/pdf"],["pfa","application/x-font-type1"],["pfr","application/font-tdpfr"],["pfunk",["audio/make","audio/make.my.funk"]],["pfx","application/x-pkcs12"],["pgm",["image/x-portable-graymap","image/x-portable-greymap"]],["pgn","application/x-chess-pgn"],["pgp","application/pgp-signature"],["pic",["image/pict","image/x-pict"]],["pict","image/pict"],["pkg","application/x-newton-compatible-pkg"],["pki","application/pkixcmp"],["pkipath","application/pkix-pkipath"],["pko",["application/ynd.ms-pkipko","application/vnd.ms-pki.pko"]],["pl",["text/plain","text/x-script.perl"]],["plb","application/vnd.3gpp.pic-bw-large"],["plc","application/vnd.mobius.plc"],["plf","application/vnd.pocketlearn"],["pls","application/pls+xml"],["plx","application/x-pixclscript"],["pm",["text/x-script.perl-module","image/x-xpixmap"]],["pm4","application/x-pagemaker"],["pm5","application/x-pagemaker"],["pma","application/x-perfmon"],["pmc","application/x-perfmon"],["pml",["application/vnd.ctc-posml","application/x-perfmon"]],["pmr","application/x-perfmon"],["pmw","application/x-perfmon"],["png","image/png"],["pnm",["application/x-portable-anymap","image/x-portable-anymap"]],["portpkg","application/vnd.macports.portpkg"],["pot",["application/vnd.ms-powerpoint","application/mspowerpoint"]],["potm","application/vnd.ms-powerpoint.template.macroenabled.12"],["potx","application/vnd.openxmlformats-officedocument.presentationml.template"],["pov","model/x-pov"],["ppa","application/vnd.ms-powerpoint"],["ppam","application/vnd.ms-powerpoint.addin.macroenabled.12"],["ppd","application/vnd.cups-ppd"],["ppm","image/x-portable-pixmap"],["pps",["application/vnd.ms-powerpoint","application/mspowerpoint"]],["ppsm","application/vnd.ms-powerpoint.slideshow.macroenabled.12"],["ppsx","application/vnd.openxmlformats-officedocument.presentationml.slideshow"],["ppt",["application/vnd.ms-powerpoint","application/mspowerpoint","application/powerpoint","application/x-mspowerpoint"]],["pptm","application/vnd.ms-powerpoint.presentation.macroenabled.12"],["pptx","application/vnd.openxmlformats-officedocument.presentationml.presentation"],["ppz","application/mspowerpoint"],["prc","application/x-mobipocket-ebook"],["pre",["application/vnd.lotus-freelance","application/x-freelance"]],["prf","application/pics-rules"],["prt","application/pro_eng"],["ps","application/postscript"],["psb","application/vnd.3gpp.pic-bw-small"],["psd",["application/octet-stream","image/vnd.adobe.photoshop"]],["psf","application/x-font-linux-psf"],["pskcxml","application/pskc+xml"],["ptid","application/vnd.pvi.ptid1"],["pub","application/x-mspublisher"],["pvb","application/vnd.3gpp.pic-bw-var"],["pvu","paleovu/x-pv"],["pwn","application/vnd.3m.post-it-notes"],["pwz","application/vnd.ms-powerpoint"],["py","text/x-script.phyton"],["pya","audio/vnd.ms-playready.media.pya"],["pyc","application/x-bytecode.python"],["pyv","video/vnd.ms-playready.media.pyv"],["qam","application/vnd.epson.quickanime"],["qbo","application/vnd.intu.qbo"],["qcp","audio/vnd.qcelp"],["qd3","x-world/x-3dmf"],["qd3d","x-world/x-3dmf"],["qfx","application/vnd.intu.qfx"],["qif","image/x-quicktime"],["qps","application/vnd.publishare-delta-tree"],["qt","video/quicktime"],["qtc","video/x-qtc"],["qti","image/x-quicktime"],["qtif","image/x-quicktime"],["qxd","application/vnd.quark.quarkxpress"],["ra",["audio/x-realaudio","audio/x-pn-realaudio","audio/x-pn-realaudio-plugin"]],["ram","audio/x-pn-realaudio"],["rar","application/x-rar-compressed"],["ras",["image/cmu-raster","application/x-cmu-raster","image/x-cmu-raster"]],["rast","image/cmu-raster"],["rcprofile","application/vnd.ipunplugged.rcprofile"],["rdf","application/rdf+xml"],["rdz","application/vnd.data-vision.rdz"],["rep","application/vnd.businessobjects"],["res","application/x-dtbresource+xml"],["rexx","text/x-script.rexx"],["rf","image/vnd.rn-realflash"],["rgb","image/x-rgb"],["rif","application/reginfo+xml"],["rip","audio/vnd.rip"],["rl","application/resource-lists+xml"],["rlc","image/vnd.fujixerox.edmics-rlc"],["rld","application/resource-lists-diff+xml"],["rm",["application/vnd.rn-realmedia","audio/x-pn-realaudio"]],["rmi","audio/mid"],["rmm","audio/x-pn-realaudio"],["rmp",["audio/x-pn-realaudio-plugin","audio/x-pn-realaudio"]],["rms","application/vnd.jcp.javame.midlet-rms"],["rnc","application/relax-ng-compact-syntax"],["rng",["application/ringing-tones","application/vnd.nokia.ringing-tone"]],["rnx","application/vnd.rn-realplayer"],["roff","application/x-troff"],["rp","image/vnd.rn-realpix"],["rp9","application/vnd.cloanto.rp9"],["rpm","audio/x-pn-realaudio-plugin"],["rpss","application/vnd.nokia.radio-presets"],["rpst","application/vnd.nokia.radio-preset"],["rq","application/sparql-query"],["rs","application/rls-services+xml"],["rsd","application/rsd+xml"],["rt",["text/richtext","text/vnd.rn-realtext"]],["rtf",["application/rtf","text/richtext","application/x-rtf"]],["rtx",["text/richtext","application/rtf"]],["rv","video/vnd.rn-realvideo"],["s","text/x-asm"],["s3m","audio/s3m"],["saf","application/vnd.yamaha.smaf-audio"],["saveme","application/octet-stream"],["sbk","application/x-tbook"],["sbml","application/sbml+xml"],["sc","application/vnd.ibm.secure-container"],["scd","application/x-msschedule"],["scm",["application/vnd.lotus-screencam","video/x-scm","text/x-script.guile","application/x-lotusscreencam","text/x-script.scheme"]],["scq","application/scvp-cv-request"],["scs","application/scvp-cv-response"],["sct","text/scriptlet"],["scurl","text/vnd.curl.scurl"],["sda","application/vnd.stardivision.draw"],["sdc","application/vnd.stardivision.calc"],["sdd","application/vnd.stardivision.impress"],["sdkm","application/vnd.solent.sdkm+xml"],["sdml","text/plain"],["sdp",["application/sdp","application/x-sdp"]],["sdr","application/sounder"],["sdw","application/vnd.stardivision.writer"],["sea",["application/sea","application/x-sea"]],["see","application/vnd.seemail"],["seed","application/vnd.fdsn.seed"],["sema","application/vnd.sema"],["semd","application/vnd.semd"],["semf","application/vnd.semf"],["ser","application/java-serialized-object"],["set","application/set"],["setpay","application/set-payment-initiation"],["setreg","application/set-registration-initiation"],["sfd-hdstx","application/vnd.hydrostatix.sof-data"],["sfs","application/vnd.spotfire.sfs"],["sgl","application/vnd.stardivision.writer-global"],["sgm",["text/sgml","text/x-sgml"]],["sgml",["text/sgml","text/x-sgml"]],["sh",["application/x-shar","application/x-bsh","application/x-sh","text/x-script.sh"]],["shar",["application/x-bsh","application/x-shar"]],["shf","application/shf+xml"],["shtml",["text/html","text/x-server-parsed-html"]],["sid","audio/x-psid"],["sis","application/vnd.symbian.install"],["sit",["application/x-stuffit","application/x-sit"]],["sitx","application/x-stuffitx"],["skd","application/x-koan"],["skm","application/x-koan"],["skp",["application/vnd.koan","application/x-koan"]],["skt","application/x-koan"],["sl","application/x-seelogo"],["sldm","application/vnd.ms-powerpoint.slide.macroenabled.12"],["sldx","application/vnd.openxmlformats-officedocument.presentationml.slide"],["slt","application/vnd.epson.salt"],["sm","application/vnd.stepmania.stepchart"],["smf","application/vnd.stardivision.math"],["smi",["application/smil","application/smil+xml"]],["smil","application/smil"],["snd",["audio/basic","audio/x-adpcm"]],["snf","application/x-font-snf"],["sol","application/solids"],["spc",["text/x-speech","application/x-pkcs7-certificates"]],["spf","application/vnd.yamaha.smaf-phrase"],["spl",["application/futuresplash","application/x-futuresplash"]],["spot","text/vnd.in3d.spot"],["spp","application/scvp-vp-response"],["spq","application/scvp-vp-request"],["spr","application/x-sprite"],["sprite","application/x-sprite"],["src","application/x-wais-source"],["sru","application/sru+xml"],["srx","application/sparql-results+xml"],["sse","application/vnd.kodak-descriptor"],["ssf","application/vnd.epson.ssf"],["ssi","text/x-server-parsed-html"],["ssm","application/streamingmedia"],["ssml","application/ssml+xml"],["sst",["application/vnd.ms-pkicertstore","application/vnd.ms-pki.certstore"]],["st","application/vnd.sailingtracker.track"],["stc","application/vnd.sun.xml.calc.template"],["std","application/vnd.sun.xml.draw.template"],["step","application/step"],["stf","application/vnd.wt.stf"],["sti","application/vnd.sun.xml.impress.template"],["stk","application/hyperstudio"],["stl",["application/vnd.ms-pkistl","application/sla","application/vnd.ms-pki.stl","application/x-navistyle"]],["stm","text/html"],["stp","application/step"],["str","application/vnd.pg.format"],["stw","application/vnd.sun.xml.writer.template"],["sub","image/vnd.dvb.subtitle"],["sus","application/vnd.sus-calendar"],["sv4cpio","application/x-sv4cpio"],["sv4crc","application/x-sv4crc"],["svc","application/vnd.dvb.service"],["svd","application/vnd.svd"],["svf",["image/vnd.dwg","image/x-dwg"]],["svg","image/svg+xml"],["svr",["x-world/x-svr","application/x-world"]],["swf","application/x-shockwave-flash"],["swi","application/vnd.aristanetworks.swi"],["sxc","application/vnd.sun.xml.calc"],["sxd","application/vnd.sun.xml.draw"],["sxg","application/vnd.sun.xml.writer.global"],["sxi","application/vnd.sun.xml.impress"],["sxm","application/vnd.sun.xml.math"],["sxw","application/vnd.sun.xml.writer"],["t",["text/troff","application/x-troff"]],["talk","text/x-speech"],["tao","application/vnd.tao.intent-module-archive"],["tar","application/x-tar"],["tbk",["application/toolbook","application/x-tbook"]],["tcap","application/vnd.3gpp2.tcap"],["tcl",["text/x-script.tcl","application/x-tcl"]],["tcsh","text/x-script.tcsh"],["teacher","application/vnd.smart.teacher"],["tei","application/tei+xml"],["tex","application/x-tex"],["texi","application/x-texinfo"],["texinfo","application/x-texinfo"],["text",["application/plain","text/plain"]],["tfi","application/thraud+xml"],["tfm","application/x-tex-tfm"],["tgz",["application/gnutar","application/x-compressed"]],["thmx","application/vnd.ms-officetheme"],["tif",["image/tiff","image/x-tiff"]],["tiff",["image/tiff","image/x-tiff"]],["tmo","application/vnd.tmobile-livetv"],["torrent","application/x-bittorrent"],["tpl","application/vnd.groove-tool-template"],["tpt","application/vnd.trid.tpt"],["tr","application/x-troff"],["tra","application/vnd.trueapp"],["trm","application/x-msterminal"],["tsd","application/timestamped-data"],["tsi","audio/tsp-audio"],["tsp",["application/dsptype","audio/tsplayer"]],["tsv","text/tab-separated-values"],["ttf","application/x-font-ttf"],["ttl","text/turtle"],["turbot","image/florian"],["twd","application/vnd.simtech-mindmapper"],["txd","application/vnd.genomatix.tuxedo"],["txf","application/vnd.mobius.txf"],["txt","text/plain"],["ufd","application/vnd.ufdl"],["uil","text/x-uil"],["uls","text/iuls"],["umj","application/vnd.umajin"],["uni","text/uri-list"],["unis","text/uri-list"],["unityweb","application/vnd.unity"],["unv","application/i-deas"],["uoml","application/vnd.uoml+xml"],["uri","text/uri-list"],["uris","text/uri-list"],["ustar",["application/x-ustar","multipart/x-ustar"]],["utz","application/vnd.uiq.theme"],["uu",["application/octet-stream","text/x-uuencode"]],["uue","text/x-uuencode"],["uva","audio/vnd.dece.audio"],["uvh","video/vnd.dece.hd"],["uvi","image/vnd.dece.graphic"],["uvm","video/vnd.dece.mobile"],["uvp","video/vnd.dece.pd"],["uvs","video/vnd.dece.sd"],["uvu","video/vnd.uvvu.mp4"],["uvv","video/vnd.dece.video"],["vcd","application/x-cdlink"],["vcf","text/x-vcard"],["vcg","application/vnd.groove-vcard"],["vcs","text/x-vcalendar"],["vcx","application/vnd.vcx"],["vda","application/vda"],["vdo","video/vdo"],["vew","application/groupwise"],["vis","application/vnd.visionary"],["viv",["video/vivo","video/vnd.vivo"]],["vivo",["video/vivo","video/vnd.vivo"]],["vmd","application/vocaltec-media-desc"],["vmf","application/vocaltec-media-file"],["voc",["audio/voc","audio/x-voc"]],["vos","video/vosaic"],["vox","audio/voxware"],["vqe","audio/x-twinvq-plugin"],["vqf","audio/x-twinvq"],["vql","audio/x-twinvq-plugin"],["vrml",["model/vrml","x-world/x-vrml","application/x-vrml"]],["vrt","x-world/x-vrt"],["vsd",["application/vnd.visio","application/x-visio"]],["vsf","application/vnd.vsf"],["vst","application/x-visio"],["vsw","application/x-visio"],["vtu","model/vnd.vtu"],["vxml","application/voicexml+xml"],["w60","application/wordperfect6.0"],["w61","application/wordperfect6.1"],["w6w","application/msword"],["wad","application/x-doom"],["wav",["audio/wav","audio/x-wav"]],["wax","audio/x-ms-wax"],["wb1","application/x-qpro"],["wbmp","image/vnd.wap.wbmp"],["wbs","application/vnd.criticaltools.wbs+xml"],["wbxml","application/vnd.wap.wbxml"],["wcm","application/vnd.ms-works"],["wdb","application/vnd.ms-works"],["web","application/vnd.xara"],["weba","audio/webm"],["webm","video/webm"],["webp","image/webp"],["wg","application/vnd.pmi.widget"],["wgt","application/widget"],["wiz","application/msword"],["wk1","application/x-123"],["wks","application/vnd.ms-works"],["wm","video/x-ms-wm"],["wma","audio/x-ms-wma"],["wmd","application/x-ms-wmd"],["wmf",["windows/metafile","application/x-msmetafile"]],["wml","text/vnd.wap.wml"],["wmlc","application/vnd.wap.wmlc"],["wmls","text/vnd.wap.wmlscript"],["wmlsc","application/vnd.wap.wmlscriptc"],["wmv","video/x-ms-wmv"],["wmx","video/x-ms-wmx"],["wmz","application/x-ms-wmz"],["woff","application/x-font-woff"],["word","application/msword"],["wp","application/wordperfect"],["wp5",["application/wordperfect","application/wordperfect6.0"]],["wp6","application/wordperfect"],["wpd",["application/wordperfect","application/vnd.wordperfect","application/x-wpwin"]],["wpl","application/vnd.ms-wpl"],["wps","application/vnd.ms-works"],["wq1","application/x-lotus"],["wqd","application/vnd.wqd"],["wri",["application/mswrite","application/x-wri","application/x-mswrite"]],["wrl",["model/vrml","x-world/x-vrml","application/x-world"]],["wrz",["model/vrml","x-world/x-vrml"]],["wsc","text/scriplet"],["wsdl","application/wsdl+xml"],["wspolicy","application/wspolicy+xml"],["wsrc","application/x-wais-source"],["wtb","application/vnd.webturbo"],["wtk","application/x-wintalk"],["wvx","video/x-ms-wvx"],["x-png","image/png"],["x3d","application/vnd.hzn-3d-crossword"],["xaf","x-world/x-vrml"],["xap","application/x-silverlight-app"],["xar","application/vnd.xara"],["xbap","application/x-ms-xbap"],["xbd","application/vnd.fujixerox.docuworks.binder"],["xbm",["image/xbm","image/x-xbm","image/x-xbitmap"]],["xdf","application/xcap-diff+xml"],["xdm","application/vnd.syncml.dm+xml"],["xdp","application/vnd.adobe.xdp+xml"],["xdr","video/x-amt-demorun"],["xdssc","application/dssc+xml"],["xdw","application/vnd.fujixerox.docuworks"],["xenc","application/xenc+xml"],["xer","application/patch-ops-error+xml"],["xfdf","application/vnd.adobe.xfdf"],["xfdl","application/vnd.xfdl"],["xgz","xgl/drawing"],["xhtml","application/xhtml+xml"],["xif","image/vnd.xiff"],["xl","application/excel"],["xla",["application/vnd.ms-excel","application/excel","application/x-msexcel","application/x-excel"]],["xlam","application/vnd.ms-excel.addin.macroenabled.12"],["xlb",["application/excel","application/vnd.ms-excel","application/x-excel"]],["xlc",["application/vnd.ms-excel","application/excel","application/x-excel"]],["xld",["application/excel","application/x-excel"]],["xlk",["application/excel","application/x-excel"]],["xll",["application/excel","application/vnd.ms-excel","application/x-excel"]],["xlm",["application/vnd.ms-excel","application/excel","application/x-excel"]],["xls",["application/vnd.ms-excel","application/excel","application/x-msexcel","application/x-excel"]],["xlsb","application/vnd.ms-excel.sheet.binary.macroenabled.12"],["xlsm","application/vnd.ms-excel.sheet.macroenabled.12"],["xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],["xlt",["application/vnd.ms-excel","application/excel","application/x-excel"]],["xltm","application/vnd.ms-excel.template.macroenabled.12"],["xltx","application/vnd.openxmlformats-officedocument.spreadsheetml.template"],["xlv",["application/excel","application/x-excel"]],["xlw",["application/vnd.ms-excel","application/excel","application/x-msexcel","application/x-excel"]],["xm","audio/xm"],["xml",["application/xml","text/xml","application/atom+xml","application/rss+xml"]],["xmz","xgl/movie"],["xo","application/vnd.olpc-sugar"],["xof","x-world/x-vrml"],["xop","application/xop+xml"],["xpi","application/x-xpinstall"],["xpix","application/x-vnd.ls-xpix"],["xpm",["image/xpm","image/x-xpixmap"]],["xpr","application/vnd.is-xpr"],["xps","application/vnd.ms-xpsdocument"],["xpw","application/vnd.intercon.formnet"],["xslt","application/xslt+xml"],["xsm","application/vnd.syncml+xml"],["xspf","application/xspf+xml"],["xsr","video/x-amt-showrun"],["xul","application/vnd.mozilla.xul+xml"],["xwd",["image/x-xwd","image/x-xwindowdump"]],["xyz",["chemical/x-xyz","chemical/x-pdb"]],["yang","application/yang"],["yin","application/yin+xml"],["z",["application/x-compressed","application/x-compress"]],["zaz","application/vnd.zzazz.deck+xml"],["zip",["application/zip","multipart/x-zip","application/x-zip-compressed","application/x-compressed"]],["zir","application/vnd.zul"],["zmm","application/vnd.handheld-entertainment+xml"],["zoo","application/octet-stream"],["zsh","text/x-script.zsh"]]);return ut={detectMimeType(s){if(!s)return e;let o=p.parse(s),a=(o.ext.substr(1)||o.name||"").split("?").shift().trim().toLowerCase(),h=e;return i.has(a)&&(h=i.get(a)),Array.isArray(h)?h[0]:h},detectExtension(s){if(!s)return d;let o=(s||"").toLowerCase().trim().split("/"),a=o.shift().trim(),h=o.join("/").trim();if(n.has(a+"/"+h)){let t=n.get(a+"/"+h);return Array.isArray(t)?t[0]:t}return a==="text"?"txt":"bin"}},ut}var ht,gi;function ws(){if(gi)return ht;gi=1;const p=2147483647,e=36,d=1,n=26,i=38,s=700,o=72,a=128,h="-",t=/^xn--/,u=/[^\0-\x7F]/,f=/[\x2E\u3002\uFF0E\uFF61]/g,l={overflow:"Overflow: input needs wider integers to process","not-basic":"Illegal input >= 0x80 (not a basic code point)","invalid-input":"Invalid input"},_=e-d,w=Math.floor,v=String.fromCharCode;function r(S){throw new RangeError(l[S])}function c(S,I){const R=[];let P=S.length;for(;P--;)R[P]=I(S[P]);return R}function g(S,I){const R=S.split("@");let P="";R.length>1&&(P=R[0]+"@",S=R[1]),S=S.replace(f,".");const O=S.split("."),L=c(O,I).join(".");return P+L}function m(S){const I=[];let R=0;const P=S.length;for(;R<P;){const O=S.charCodeAt(R++);if(O>=55296&&O<=56319&&R<P){const L=S.charCodeAt(R++);(L&64512)==56320?I.push(((O&1023)<<10)+(L&1023)+65536):(I.push(O),R--)}else I.push(O)}return I}const x=S=>String.fromCodePoint(...S),y=function(S){return S>=48&&S<58?26+(S-48):S>=65&&S<91?S-65:S>=97&&S<123?S-97:e},T=function(S,I){return S+22+75*(S<26)-((I!=0)<<5)},b=function(S,I,R){let P=0;for(S=R?w(S/s):S>>1,S+=w(S/I);S>_*n>>1;P+=e)S=w(S/_);return w(P+(_+1)*S/(S+i))},k=function(S){const I=[],R=S.length;let P=0,O=a,L=o,B=S.lastIndexOf(h);B<0&&(B=0);for(let $=0;$<B;++$)S.charCodeAt($)>=128&&r("not-basic"),I.push(S.charCodeAt($));for(let $=B>0?B+1:0;$<R;){const z=P;for(let K=1,X=e;;X+=e){$>=R&&r("invalid-input");const ne=y(S.charCodeAt($++));ne>=e&&r("invalid-input"),ne>w((p-P)/K)&&r("overflow"),P+=ne*K;const ce=X<=L?d:X>=L+n?n:X-L;if(ne<ce)break;const Ce=e-ce;K>w(p/Ce)&&r("overflow"),K*=Ce}const V=I.length+1;L=b(P-z,V,z==0),w(P/V)>p-O&&r("overflow"),O+=w(P/V),P%=V,I.splice(P++,0,O)}return String.fromCodePoint(...I)},C=function(S){const I=[];S=m(S);const R=S.length;let P=a,O=0,L=o;for(const z of S)z<128&&I.push(v(z));const B=I.length;let $=B;for(B&&I.push(h);$<R;){let z=p;for(const K of S)K>=P&&K<z&&(z=K);const V=$+1;z-P>w((p-O)/V)&&r("overflow"),O+=(z-P)*V,P=z;for(const K of S)if(K<P&&++O>p&&r("overflow"),K===P){let X=O;for(let ne=e;;ne+=e){const ce=ne<=L?d:ne>=L+n?n:ne-L;if(X<ce)break;const Ce=X-ce,ai=e-ce;I.push(v(T(ce+Ce%ai,0))),X=w(Ce/ai)}I.push(v(T(X,0))),L=b(O,V,$===B),O=0,++$}++O,++P}return I.join("")};return ht={version:"2.3.1",ucs2:{decode:m,encode:x},decode:k,encode:C,toASCII:function(S){return g(S,function(I){return u.test(I)?"xn--"+C(I):I})},toUnicode:function(S){return g(S,function(I){return t.test(I)?k(I.slice(4).toLowerCase()):I})}},ht}var mt,xi;function ys(){if(xi)return mt;xi=1;const p=Y.Transform;function e(i){return typeof i=="string"&&(i=Buffer.from(i,"utf-8")),i.toString("base64")}function d(i,s){if(i=(i||"").toString(),s=s||76,i.length<=s)return i;let o=[],a=0,h=s*1024;for(;a<i.length;){let t=i.substr(a,h).replace(new RegExp(".{"+s+"}","g"),`$&\r
-`);o.push(t),a+=h}return o.join("")}class n extends p{constructor(s){super(),this.options=s||{},this.options.lineLength!==!1&&(this.options.lineLength=this.options.lineLength||76),this._curLine="",this._remainingBytes=!1,this.inputBytes=0,this.outputBytes=0}_transform(s,o,a){if(o!=="buffer"&&(s=Buffer.from(s,o)),!s||!s.length)return setImmediate(a);this.inputBytes+=s.length,this._remainingBytes&&this._remainingBytes.length&&(s=Buffer.concat([this._remainingBytes,s],this._remainingBytes.length+s.length),this._remainingBytes=!1),s.length%3?(this._remainingBytes=s.slice(s.length-s.length%3),s=s.slice(0,s.length-s.length%3)):this._remainingBytes=!1;let h=this._curLine+e(s);if(this.options.lineLength){h=d(h,this.options.lineLength);let t=h.lastIndexOf(`
-`);t<0?(this._curLine=h,h=""):(this._curLine=h.substring(t+1),h=h.substring(0,t+1),h&&!h.endsWith(`\r
-`)&&(h+=`\r
-`))}else this._curLine="";h&&(this.outputBytes+=h.length,this.push(Buffer.from(h,"ascii"))),setImmediate(a)}_flush(s){this._remainingBytes&&this._remainingBytes.length&&(this._curLine+=e(this._remainingBytes)),this._curLine&&(this.outputBytes+=this._curLine.length,this.push(Buffer.from(this._curLine,"ascii")),this._curLine=""),s()}}return mt={encode:e,wrap:d,Encoder:n},mt}var ft,vi;function bs(){if(vi)return ft;vi=1;const p=Y.Transform;function e(s){typeof s=="string"&&(s=Buffer.from(s,"utf-8"));let o=[[9],[10],[13],[32,60],[62,126]],a="",h;for(let t=0,u=s.length;t<u;t++){if(h=s[t],n(h,o)&&!((h===32||h===9)&&(t===u-1||s[t+1]===10||s[t+1]===13))){a+=String.fromCharCode(h);continue}a+="="+(h<16?"0":"")+h.toString(16).toUpperCase()}return a}function d(s,o){if(s=(s||"").toString(),o=o||76,s.length<=o)return s;let a=0,h=s.length,t,u,f,l=Math.floor(o/3),_="";for(;a<h;){if(f=s.substr(a,o),t=f.match(/\r\n/)){f=f.substr(0,t.index+t[0].length),_+=f,a+=f.length;continue}if(f.substr(-1)===`
-`){_+=f,a+=f.length;continue}else if(t=f.substr(-l).match(/\n.*?$/)){f=f.substr(0,f.length-(t[0].length-1)),_+=f,a+=f.length;continue}else if(f.length>o-l&&(t=f.substr(-l).match(/[ \t.,!?][^ \t.,!?]*$/)))f=f.substr(0,f.length-(t[0].length-1));else if(f.match(/[=][\da-f]{0,2}$/i))for((t=f.match(/[=][\da-f]{0,1}$/i))&&(f=f.substr(0,f.length-t[0].length));f.length>3&&f.length<h-a&&!f.match(/^(?:=[\da-f]{2}){1,4}$/i)&&(t=f.match(/[=][\da-f]{2}$/gi))&&(u=parseInt(t[0].substr(1,2),16),!(u<128||(f=f.substr(0,f.length-3),u>=192))););a+f.length<h&&f.substr(-1)!==`
-`?(f.length===o&&f.match(/[=][\da-f]{2}$/i)?f=f.substr(0,f.length-3):f.length===o&&(f=f.substr(0,f.length-1)),a+=f.length,f+=`=\r
-`):a+=f.length,_+=f}return _}function n(s,o){for(let a=o.length-1;a>=0;a--)if(o[a].length&&(o[a].length===1&&s===o[a][0]||o[a].length===2&&s>=o[a][0]&&s<=o[a][1]))return!0;return!1}class i extends p{constructor(o){super(),this.options=o||{},this.options.lineLength!==!1&&(this.options.lineLength=this.options.lineLength||76),this._curLine="",this.inputBytes=0,this.outputBytes=0}_transform(o,a,h){let t;if(a!=="buffer"&&(o=Buffer.from(o,a)),!o||!o.length)return h();this.inputBytes+=o.length,this.options.lineLength?(t=this._curLine+e(o),t=d(t,this.options.lineLength),t=t.replace(/(^|\n)([^\n]*)$/,(u,f,l)=>(this._curLine=l,f)),t&&(this.outputBytes+=t.length,this.push(t))):(t=e(o),this.outputBytes+=t.length,this.push(t,"ascii")),h()}_flush(o){this._curLine&&(this.outputBytes+=this._curLine.length,this.push(this._curLine,"ascii")),o()}}return ft={encode:e,wrap:d,Encoder:i},ft}var gt,_i;function st(){if(_i)return gt;_i=1;const p=ys(),e=bs(),d=_s();return gt={isPlainText(n,i){return!(typeof n!="string"||(i?/[\x00-\x08\x0b\x0c\x0e-\x1f"\u0080-\uFFFF]/:/[\x00-\x08\x0b\x0c\x0e-\x1f\u0080-\uFFFF]/).test(n))},hasLongerLines(n,i){return n.length>128*1024?!0:new RegExp("^.{"+(i+1)+",}","m").test(n)},encodeWord(n,i,s){i=(i||"Q").toString().toUpperCase().trim().charAt(0),s=s||0;let o,a="UTF-8";if(s&&s>7+a.length&&(s-=7+a.length),i==="Q"?o=e.encode(n).replace(/[^a-z0-9!*+\-/=]/gi,h=>{let t=h.charCodeAt(0).toString(16).toUpperCase();return h===" "?"_":"="+(t.length===1?"0"+t:t)}):i==="B"&&(o=typeof n=="string"?n:p.encode(n),s=s?Math.max(3,(s-s%4)/4*3):0),s&&(i!=="B"?o:p.encode(n)).length>s)if(i==="Q")o=this.splitMimeEncodedString(o,s).join("?= =?"+a+"?"+i+"?");else{let h=[],t="";for(let u=0,f=o.length;u<f;u++){let l=o.charAt(u);/[\ud83c\ud83d\ud83e]/.test(l)&&u<f-1&&(l+=o.charAt(++u)),Buffer.byteLength(t+l)<=s||u===0?t+=l:(h.push(p.encode(t)),t=l)}t&&h.push(p.encode(t)),h.length>1?o=h.join("?= =?"+a+"?"+i+"?"):o=h.join("")}else i==="B"&&(o=p.encode(n));return"=?"+a+"?"+i+"?"+o+(o.substr(-2)==="?="?"":"?=")},encodeWords(n,i,s,o){s=s||0;let a,h=n.match(/(?:^|\s)([^\s]*["\u0080-\uFFFF])/);if(!h)return n;if(o)return this.encodeWord(n,i,s);let t=n.match(/(["\u0080-\uFFFF][^\s]*)[^"\u0080-\uFFFF]*$/);if(!t)return n;let u=h.index+(h[0].match(/[^\s]/)||{index:0}).index,f=t.index+(t[1]||"").length;return a=(u?n.substr(0,u):"")+this.encodeWord(n.substring(u,f),i||"Q",s)+(f<n.length?n.substr(f):""),a},buildHeaderValue(n){let i=[];return Object.keys(n.params||{}).forEach(s=>{let o=n.params[s];!this.isPlainText(o,!0)||o.length>=75?this.buildHeaderParam(s,o,50).forEach(a=>{!/[\s"\\;:/=(),<>@[\]?]|^[-']|'$/.test(a.value)||a.key.substr(-1)==="*"?i.push(a.key+"="+a.value):i.push(a.key+"="+JSON.stringify(a.value))}):/[\s'"\\;:/=(),<>@[\]?]|^-/.test(o)?i.push(s+"="+JSON.stringify(o)):i.push(s+"="+o)}),n.value+(i.length?"; "+i.join("; "):"")},buildHeaderParam(n,i,s){let o=[],a=typeof i=="string"?i:(i||"").toString(),h,t,u,f,l=0,_,w;if(s=s||50,this.isPlainText(i,!0)){if(a.length<=s)return[{key:n,value:a}];a=a.replace(new RegExp(".{"+s+"}","g"),v=>(o.push({line:v}),"")),a&&o.push({line:a})}else{if(/[\uD800-\uDBFF]/.test(a)){for(h=[],_=0,w=a.length;_<w;_++)t=a.charAt(_),u=t.charCodeAt(0),u>=55296&&u<=56319&&_<w-1?(t+=a.charAt(_+1),h.push(t),_++):h.push(t);a=h}f="utf-8''";let v=!0;for(l=0,_=0,w=a.length;_<w;_++){if(t=a[_],v)t=this.safeEncodeURIComponent(t);else if(t=t===" "?t:this.safeEncodeURIComponent(t),t!==a[_])if((this.safeEncodeURIComponent(f)+t).length>=s)o.push({line:f,encoded:v}),f="",l=_-1;else{v=!0,_=l,f="";continue}(f+t).length>=s?(o.push({line:f,encoded:v}),f=t=a[_]===" "?" ":this.safeEncodeURIComponent(a[_]),t===a[_]?(v=!1,l=_-1):v=!0):f+=t}f&&o.push({line:f,encoded:v})}return o.map((v,r)=>({key:n+"*"+r+(v.encoded?"*":""),value:v.line}))},parseHeaderValue(n){let i={value:!1,params:{}},s=!1,o="",a="value",h=!1,t=!1,u;for(let f=0,l=n.length;f<l;f++)if(u=n.charAt(f),a==="key"){if(u==="="){s=o.trim().toLowerCase(),a="value",o="";continue}o+=u}else{if(t)o+=u;else if(u==="\\"){t=!0;continue}else h&&u===h?h=!1:!h&&u==='"'?h=u:!h&&u===";"?(s===!1?i.value=o.trim():i.params[s]=o.trim(),a="key",o=""):o+=u;t=!1}return a==="value"?s===!1?i.value=o.trim():i.params[s]=o.trim():o.trim()&&(i.params[o.trim().toLowerCase()]=""),Object.keys(i.params).forEach(f=>{let l,_,w,v;(w=f.match(/(\*(\d+)|\*(\d+)\*|\*)$/))&&(l=f.substr(0,w.index),_=Number(w[2]||w[3])||0,(!i.params[l]||typeof i.params[l]!="object")&&(i.params[l]={charset:!1,values:[]}),v=i.params[f],_===0&&w[0].substr(-1)==="*"&&(w=v.match(/^([^']*)'[^']*'(.*)$/))&&(i.params[l].charset=w[1]||"iso-8859-1",v=w[2]),i.params[l].values[_]=v,delete i.params[f])}),Object.keys(i.params).forEach(f=>{let l;i.params[f]&&Array.isArray(i.params[f].values)&&(l=i.params[f].values.map(_=>_||"").join(""),i.params[f].charset?i.params[f]="=?"+i.params[f].charset+"?Q?"+l.replace(/[=?_\s]/g,_=>{let w=_.charCodeAt(0).toString(16);return _===" "?"_":"%"+(w.length<2?"0":"")+w}).replace(/%/g,"=")+"?=":i.params[f]=l)}),i},detectExtension:n=>d.detectExtension(n),detectMimeType:n=>d.detectMimeType(n),foldLines(n,i,s){n=(n||"").toString(),i=i||76;let o=0,a=n.length,h="",t,u;for(;o<a;){if(t=n.substr(o,i),t.length<i){h+=t;break}if(u=t.match(/^[^\n\r]*(\r?\n|\r)/)){t=u[0],h+=t,o+=t.length;continue}else(u=t.match(/(\s+)[^\s]*$/))&&u[0].length-(s?(u[1]||"").length:0)<t.length?t=t.substr(0,t.length-(u[0].length-(s?(u[1]||"").length:0))):(u=n.substr(o+t.length).match(/^[^\s]+(\s*)/))&&(t=t+u[0].substr(0,u[0].length-(s?0:(u[1]||"").length)));h+=t,o+=t.length,o<a&&(h+=`\r
-`)}return h},splitMimeEncodedString:(n,i)=>{let s,o,a,h,t=[];for(i=Math.max(i||0,12);n.length;){for(s=n.substr(0,i),(o=s.match(/[=][0-9A-F]?$/i))&&(s=s.substr(0,o.index)),h=!1;!h;)h=!0,(o=n.substr(s.length).match(/^[=]([0-9A-F]{2})/i))&&(a=parseInt(o[1],16),a<194&&a>127&&(s=s.substr(0,s.length-3),h=!1));s.length&&t.push(s),n=n.substr(s.length)}return t},encodeURICharComponent:n=>{let i="",s=n.charCodeAt(0).toString(16).toUpperCase();if(s.length%2&&(s="0"+s),s.length>2)for(let o=0,a=s.length/2;o<a;o++)i+="%"+s.substr(o,2);else i+="%"+s;return i},safeEncodeURIComponent(n){n=(n||"").toString();try{n=encodeURIComponent(n)}catch{return n.replace(/[^\x00-\x1F *'()<>@,;:\\"[\]?=\u007F-\uFFFF]+/g,"")}return n.replace(/[\x00-\x1F *'()<>@,;:\\"[\]?=\u007F-\uFFFF]/g,i=>this.encodeURICharComponent(i))}},gt}var xt,wi;function Ys(){if(wi)return xt;wi=1;function p(i,s){let o=!1,a="text",h,t=[],u={address:[],comment:[],group:[],text:[],textWasQuoted:[]},f,l,_=!1;for(f=0,l=i.length;f<l;f++){let w=i[f],v=f?i[f-1]:null;if(w.type==="operator")switch(w.value){case"<":a="address",_=!1;break;case"(":a="comment",_=!1;break;case":":a="group",o=!0,_=!1;break;case'"':_=!_,a="text";break;default:a="text",_=!1;break}else w.value&&(a==="address"&&(w.value=w.value.replace(/^[^<]*<\s*/,"")),v&&v.noBreak&&u[a].length?(u[a][u[a].length-1]+=w.value,a==="text"&&_&&(u.textWasQuoted[u.textWasQuoted.length-1]=!0)):(u[a].push(w.value),a==="text"&&u.textWasQuoted.push(_)))}if(!u.text.length&&u.comment.length&&(u.text=u.comment,u.comment=[]),o){u.text=u.text.join(" ");let w=[];u.group.length&&n(u.group.join(","),{_depth:s+1}).forEach(r=>{r.group?w=w.concat(r.group):w.push(r)}),t.push({name:u.text||h&&h.name,group:w})}else{if(!u.address.length&&u.text.length){for(f=u.text.length-1;f>=0;f--)if(!u.textWasQuoted[f]&&u.text[f].match(/^[^@\s]+@[^@\s]+$/)){u.address=u.text.splice(f,1),u.textWasQuoted.splice(f,1);break}let w=function(v){return u.address.length?v:(u.address=[v.trim()]," ")};if(!u.address.length)for(f=u.text.length-1;f>=0&&!(!u.textWasQuoted[f]&&(u.text[f]=u.text[f].replace(/\s*\b[^@\s]+@[^\s]+\b\s*/,w).trim(),u.address.length));f--);}if(!u.text.length&&u.comment.length&&(u.text=u.comment,u.comment=[]),u.address.length>1&&(u.text=u.text.concat(u.address.splice(1))),u.text=u.text.join(" "),u.address=u.address.join(" "),!u.address&&o)return[];h={address:u.address||u.text||"",name:u.text||u.address||""},h.address===h.name&&((h.address||"").match(/@/)?h.name="":h.address=""),t.push(h)}return t}class e{constructor(s){this.str=(s||"").toString(),this.operatorCurrent="",this.operatorExpecting="",this.node=null,this.escaped=!1,this.list=[],this.operators={'"':'"',"(":")","<":">",",":"",":":";",";":""}}tokenize(){let s=[];for(let o=0,a=this.str.length;o<a;o++){let h=this.str.charAt(o),t=o<a-1?this.str.charAt(o+1):null;this.checkChar(h,t)}return this.list.forEach(o=>{o.value=(o.value||"").toString().trim(),o.value&&s.push(o)}),s}checkChar(s,o){if(!this.escaped){if(s===this.operatorExpecting){this.node={type:"operator",value:s},o&&![" ","	","\r",`
-`,",",";"].includes(o)&&(this.node.noBreak=!0),this.list.push(this.node),this.node=null,this.operatorExpecting="",this.escaped=!1;return}else if(!this.operatorExpecting&&s in this.operators){this.node={type:"operator",value:s},this.list.push(this.node),this.node=null,this.operatorExpecting=this.operators[s],this.escaped=!1;return}else if(['"',"'"].includes(this.operatorExpecting)&&s==="\\"){this.escaped=!0;return}}this.node||(this.node={type:"text",value:""},this.list.push(this.node)),s===`
-`&&(s=" "),(s.charCodeAt(0)>=33||[" ","	"].includes(s))&&(this.node.value+=s),this.escaped=!1}}const d=50;function n(i,s){s=s||{};let o=s._depth||0;if(o>d)return[];let h=new e(i).tokenize(),t=[],u=[],f=[];h.forEach(l=>{l.type==="operator"&&(l.value===","||l.value===";")?(u.length&&t.push(u),u=[]):u.push(l)}),u.length&&t.push(u),t.forEach(l=>{l=p(l,o),l.length&&(f=f.concat(l))});for(let l=f.length-2;l>=0;l--){let _=f[l],w=f[l+1];_.address===""&&_.name&&!_.group&&w.address&&w.name&&!w.group&&(w.name=_.name+", "+w.name,f.splice(l,1))}if(s.flatten){let l=[],_=w=>{w.forEach(v=>{if(v.group)return _(v.group);l.push(v)})};return _(f),l}return f}return xt=n,xt}var vt,yi;function Zs(){if(yi)return vt;yi=1;const p=Y.Transform;class e extends p{constructor(){super(),this.lastByte=!1}_transform(n,i,s){n.length&&(this.lastByte=n[n.length-1]),this.push(n),s()}_flush(n){return this.lastByte===10?n():this.lastByte===13?(this.push(Buffer.from(`
-`)),n()):(this.push(Buffer.from(`\r
-`)),n())}}return vt=e,vt}var _t,bi;function Es(){if(bi)return _t;bi=1;const e=Y.Transform;class d extends e{constructor(i){super(i),this.options=i||{},this.lastByte=!1}_transform(i,s,o){let a,h=0;for(let t=0,u=i.length;t<u;t++)i[t]===10&&(t&&i[t-1]!==13||!t&&this.lastByte!==13)&&(t>h&&(a=i.slice(h,t),this.push(a)),this.push(Buffer.from(`\r
-`)),h=t+1);h&&h<i.length?(a=i.slice(h),this.push(a)):h||this.push(i),this.lastByte=i[i.length-1],o()}}return _t=d,_t}var wt,Ei;function en(){if(Ei)return wt;Ei=1;const e=Y.Transform;class d extends e{constructor(i){super(i),this.options=i||{}}_transform(i,s,o){let a,h=0;for(let t=0,u=i.length;t<u;t++)i[t]===13&&(a=i.slice(h,t),h=t+1,this.push(a));h&&h<i.length?(a=i.slice(h),this.push(a)):h||this.push(i),o()}}return wt=d,wt}var yt,Si;function Qt(){if(Si)return yt;Si=1;const p=oe,e=j,d=ws(),n=Y.PassThrough,i=Z(),s=st(),o=bs(),a=ys(),h=Ys(),t=it(),u=se(),f=Zs(),l=Es(),_=en();class w{constructor(r,c){this.nodeCounter=0,c=c||{},this.baseBoundary=c.baseBoundary||p.randomBytes(8).toString("hex"),this.boundaryPrefix=c.boundaryPrefix||"--_NmP",this.disableFileAccess=!!c.disableFileAccess,this.disableUrlAccess=!!c.disableUrlAccess,this.normalizeHeaderKey=c.normalizeHeaderKey,this.date=new Date,this.rootNode=c.rootNode||this,this.keepBcc=!!c.keepBcc,c.filename&&(this.filename=c.filename,r||(r=s.detectMimeType(this.filename.split(".").pop()))),this.textEncoding=(c.textEncoding||"").toString().trim().charAt(0).toUpperCase(),this.parentNode=c.parentNode,this.hostname=c.hostname,this.newline=c.newline,this.childNodes=[],this._nodeId=++this.rootNode.nodeCounter,this._headers=[],this._isPlainText=!1,this._hasLongLines=!1,this._envelope=!1,this._raw=!1,this._transforms=[],this._processFuncs=[],r&&this.setHeader("Content-Type",r)}createChild(r,c){!c&&typeof r=="object"&&(c=r,r=void 0);let g=new w(r,c);return this.appendChild(g),g}appendChild(r){return r.rootNode!==this.rootNode&&(r.rootNode=this.rootNode,r._nodeId=++this.rootNode.nodeCounter),r.parentNode=this,this.childNodes.push(r),r}replace(r){return r===this?this:(this.parentNode.childNodes.forEach((c,g)=>{c===this&&(r.rootNode=this.rootNode,r.parentNode=this.parentNode,r._nodeId=this._nodeId,this.rootNode=this,this.parentNode=void 0,r.parentNode.childNodes[g]=r)}),r)}remove(){if(!this.parentNode)return this;for(let r=this.parentNode.childNodes.length-1;r>=0;r--)if(this.parentNode.childNodes[r]===this)return this.parentNode.childNodes.splice(r,1),this.parentNode=void 0,this.rootNode=this,this}setHeader(r,c){let g=!1,m;if(!c&&r&&typeof r=="object")return r.key&&"value"in r?this.setHeader(r.key,r.value):Array.isArray(r)?r.forEach(x=>{this.setHeader(x.key,x.value)}):Object.keys(r).forEach(x=>{this.setHeader(x,r[x])}),this;r=this._normalizeHeaderKey(r),m={key:r,value:c};for(let x=0,y=this._headers.length;x<y;x++)this._headers[x].key===r&&(g?(this._headers.splice(x,1),x--,y--):(this._headers[x]=m,g=!0));return g||this._headers.push(m),this}addHeader(r,c){return!c&&r&&typeof r=="object"?(r.key&&r.value?this.addHeader(r.key,r.value):Array.isArray(r)?r.forEach(g=>{this.addHeader(g.key,g.value)}):Object.keys(r).forEach(g=>{this.addHeader(g,r[g])}),this):Array.isArray(c)?(c.forEach(g=>{this.addHeader(r,g)}),this):(this._headers.push({key:this._normalizeHeaderKey(r),value:c}),this)}getHeader(r){r=this._normalizeHeaderKey(r);for(let c=0,g=this._headers.length;c<g;c++)if(this._headers[c].key===r)return this._headers[c].value}setContent(r){return this.content=r,typeof this.content.pipe=="function"?(this._contentErrorHandler=c=>{this.content.removeListener("error",this._contentErrorHandler),this.content=c},this.content.once("error",this._contentErrorHandler)):typeof this.content=="string"&&(this._isPlainText=s.isPlainText(this.content),this._isPlainText&&s.hasLongerLines(this.content,76)&&(this._hasLongLines=!0)),this}build(r){let c;r||(c=new Promise((T,b)=>{r=i.callbackPromise(T,b)}));let g=this.createReadStream(),m=[],x=0,y=!1;return g.on("readable",()=>{let T;for(;(T=g.read())!==null;)m.push(T),x+=T.length}),g.once("error",T=>{if(!y)return y=!0,r(T)}),g.once("end",T=>{if(!y)return y=!0,T&&T.length&&(m.push(T),x+=T.length),r(null,Buffer.concat(m,x))}),c}getTransferEncoding(){let r=!1,c=(this.getHeader("Content-Type")||"").toString().toLowerCase().trim();return this.content&&(r=(this.getHeader("Content-Transfer-Encoding")||"").toString().toLowerCase().trim(),(!r||!["base64","quoted-printable"].includes(r))&&(/^text\//i.test(c)?this._isPlainText&&!this._hasLongLines?r="7bit":typeof this.content=="string"||this.content instanceof Buffer?r=this._getTextEncoding(this.content)==="Q"?"quoted-printable":"base64":r=this.textEncoding==="B"?"base64":"quoted-printable":/^(multipart|message)\//i.test(c)||(r=r||"base64"))),r}buildHeaders(){let r=this.getTransferEncoding(),c=[];if(r&&this.setHeader("Content-Transfer-Encoding",r),this.filename&&!this.getHeader("Content-Disposition")&&this.setHeader("Content-Disposition","attachment"),this.rootNode===this){this.getHeader("Date")||this.setHeader("Date",this.date.toUTCString().replace(/GMT/,"+0000")),this.messageId(),this.getHeader("MIME-Version")||this.setHeader("MIME-Version","1.0");for(let g=this._headers.length-2;g>=0;g--){let m=this._headers[g];m.key==="Content-Type"&&(this._headers.splice(g,1),this._headers.push(m))}}return this._headers.forEach(g=>{let m=g.key,x=g.value,y,T,b={};if(!(x&&typeof x=="object"&&!["From","Sender","To","Cc","Bcc","Reply-To","Date","References"].includes(m)&&(Object.keys(x).forEach(C=>{C!=="value"&&(b[C]=x[C])}),x=(x.value||"").toString(),!x.trim()))){if(b.prepared){b.foldLines?c.push(s.foldLines(m+": "+x)):c.push(m+": "+x);return}switch(g.key){case"Content-Disposition":y=s.parseHeaderValue(x),this.filename&&(y.params.filename=this.filename),x=s.buildHeaderValue(y);break;case"Content-Type":y=s.parseHeaderValue(x),this._handleContentType(y),y.value.match(/^text\/plain\b/)&&typeof this.content=="string"&&/[\u0080-\uFFFF]/.test(this.content)&&(y.params.charset="utf-8"),x=s.buildHeaderValue(y),this.filename&&(T=this._encodeWords(this.filename),(T!==this.filename||/[\s'"\\;:/=(),<>@[\]?]|^-/.test(T))&&(T='"'+T+'"'),x+="; name="+T);break;case"Bcc":if(!this.keepBcc)return;break}if(x=this._encodeHeaderValue(m,x),!!(x||"").toString().trim()){if(typeof this.normalizeHeaderKey=="function"){let C=this.normalizeHeaderKey(m,x);C&&typeof C=="string"&&C.length&&(m=C)}c.push(s.foldLines(m+": "+x,76))}}}),c.join(`\r
-`)}createReadStream(r){r=r||{};let c=new n(r),g=c,m;this.stream(c,r,x=>{if(x){g.emit("error",x);return}c.end()});for(let x=0,y=this._transforms.length;x<y;x++)m=typeof this._transforms[x]=="function"?this._transforms[x]():this._transforms[x],g.once("error",T=>{m.emit("error",T)}),g=g.pipe(m);m=new f,g.once("error",x=>{m.emit("error",x)}),g=g.pipe(m);for(let x=0,y=this._processFuncs.length;x<y;x++)m=this._processFuncs[x],g=m(g);if(this.newline){const y=["win","windows","dos",`\r
-`].includes(this.newline.toString().toLowerCase())?new l:new _,T=g.pipe(y);return g.on("error",b=>T.emit("error",b)),T}return g}transform(r){this._transforms.push(r)}processFunc(r){this._processFuncs.push(r)}stream(r,c,g){let m=this.getTransferEncoding(),x,y,T=!1,b=A=>{T||(T=!0,g(A))},k=()=>{let A=0,E=()=>{if(A>=this.childNodes.length)return r.write(`\r
---`+this.boundary+`--\r
-`),b();let M=this.childNodes[A++];r.write((A>1?`\r
-`:"")+"--"+this.boundary+`\r
-`),M.stream(r,c,S=>{if(S)return b(S);setImmediate(E)})};if(this.multipart)setImmediate(E);else return b()},C=()=>{if(this.content){if(Object.prototype.toString.call(this.content)==="[object Error]")return b(this.content);typeof this.content.pipe=="function"&&(this.content.removeListener("error",this._contentErrorHandler),this._contentErrorHandler=E=>b(E),this.content.once("error",this._contentErrorHandler));let A=()=>{["quoted-printable","base64"].includes(m)?(x=new(m==="base64"?a:o).Encoder(c),x.pipe(r,{end:!1}),x.once("end",k),x.once("error",E=>b(E)),y=this._getStream(this.content),y.pipe(x)):(y=this._getStream(this.content),y.pipe(r,{end:!1}),y.once("end",k)),y.once("error",E=>b(E))};if(this.content._resolve){let E=[],M=0,S=!1,I=this._getStream(this.content);I.on("error",R=>{S||(S=!0,b(R))}),I.on("readable",()=>{let R;for(;(R=I.read())!==null;)E.push(R),M+=R.length}),I.on("end",()=>{S||(S=!0,this.content._resolve=!1,this.content._resolvedValue=Buffer.concat(E,M),setImmediate(A))})}else setImmediate(A);return}else return setImmediate(k)};this._raw?setImmediate(()=>{if(Object.prototype.toString.call(this._raw)==="[object Error]")return b(this._raw);typeof this._raw.pipe=="function"&&this._raw.removeListener("error",this._contentErrorHandler);let A=this._getStream(this._raw);A.pipe(r,{end:!1}),A.on("error",E=>r.emit("error",E)),A.on("end",k)}):(r.write(this.buildHeaders()+`\r
-\r
-`),setImmediate(C))}setEnvelope(r){let c;this._envelope={from:!1,to:[]},r.from&&(c=[],this._convertAddresses(this._parseAddresses(r.from),c),c=c.filter(m=>m&&m.address),c.length&&c[0]&&(this._envelope.from=c[0].address)),["to","cc","bcc"].forEach(m=>{r[m]&&this._convertAddresses(this._parseAddresses(r[m]),this._envelope.to)}),this._envelope.to=this._envelope.to.map(m=>m.address).filter(m=>m);let g=["to","cc","bcc","from"];return Object.keys(r).forEach(m=>{g.includes(m)||(this._envelope[m]=r[m])}),this}getAddresses(){let r={};return this._headers.forEach(c=>{let g=c.key.toLowerCase();["from","sender","reply-to","to","cc","bcc"].includes(g)&&(Array.isArray(r[g])||(r[g]=[]),this._convertAddresses(this._parseAddresses(c.value),r[g]))}),r}getEnvelope(){if(this._envelope)return this._envelope;let r={from:!1,to:[]};return this._headers.forEach(c=>{let g=[];c.key==="From"||!r.from&&["Reply-To","Sender"].includes(c.key)?(this._convertAddresses(this._parseAddresses(c.value),g),g.length&&g[0]&&(r.from=g[0].address)):["To","Cc","Bcc"].includes(c.key)&&this._convertAddresses(this._parseAddresses(c.value),r.to)}),r.to=r.to.map(c=>c.address),r}messageId(){let r=this.getHeader("Message-ID");return r||(r=this._generateMessageId(),this.setHeader("Message-ID",r)),r}setRaw(r){return this._raw=r,this._raw&&typeof this._raw.pipe=="function"&&(this._contentErrorHandler=c=>{this._raw.removeListener("error",this._contentErrorHandler),this._raw=c},this._raw.once("error",this._contentErrorHandler)),this}_getStream(r){let c;return r._resolvedValue?(c=new n,setImmediate(()=>{try{c.end(r._resolvedValue)}catch(g){c.emit("error",g)}}),c):typeof r.pipe=="function"?r:r&&typeof r.path=="string"&&!r.href?this.disableFileAccess?(c=new n,setImmediate(()=>{let g=new Error("File access rejected for "+r.path);g.code=u.EFILEACCESS,c.emit("error",g)}),c):e.createReadStream(r.path):r&&typeof r.href=="string"?this.disableUrlAccess?(c=new n,setImmediate(()=>{let g=new Error("Url access rejected for "+r.href);g.code=u.EURLACCESS,c.emit("error",g)}),c):t(r.href,{headers:r.httpHeaders}):(c=new n,setImmediate(()=>{try{c.end(r||"")}catch(g){c.emit("error",g)}}),c)}_parseAddresses(r){return[].concat.apply([],[].concat(r).map(c=>c&&c.address?(c.address=this._normalizeAddress(c.address),c.name=c.name||"",[c]):h(c)))}_normalizeHeaderKey(r){return r=(r||"").toString().replace(/\r?\n|\r/g," ").trim().toLowerCase().replace(/^X-SMTPAPI$|^(MIME|DKIM|ARC|BIMI)\b|^[a-z]|-(SPF|FBL|ID|MD5)$|-[a-z]/gi,c=>c.toUpperCase()).replace(/^Content-Features$/i,"Content-features"),r}_handleContentType(r){this.contentType=r.value.trim().toLowerCase(),this.multipart=/^multipart\//i.test(this.contentType)?this.contentType.substr(this.contentType.indexOf("/")+1):!1,this.multipart?this.boundary=r.params.boundary=r.params.boundary||this.boundary||this._generateBoundary():this.boundary=!1}_generateBoundary(){return this.rootNode.boundaryPrefix+"-"+this.rootNode.baseBoundary+"-Part_"+this._nodeId}_encodeHeaderValue(r,c){switch(r=this._normalizeHeaderKey(r),r){case"From":case"Sender":case"To":case"Cc":case"Bcc":case"Reply-To":return this._convertAddresses(this._parseAddresses(c));case"Message-ID":case"In-Reply-To":case"Content-Id":return c=(c||"").toString().replace(/\r?\n|\r/g," "),c.charAt(0)!=="<"&&(c="<"+c),c.charAt(c.length-1)!==">"&&(c=c+">"),c;case"References":return c=[].concat.apply([],[].concat(c||"").map(g=>(g=(g||"").toString().replace(/\r?\n|\r/g," ").trim(),g.replace(/<[^>]*>/g,m=>m.replace(/\s/g,"")).split(/\s+/)))).map(g=>(g.charAt(0)!=="<"&&(g="<"+g),g.charAt(g.length-1)!==">"&&(g=g+">"),g)),c.join(" ").trim();case"Date":return Object.prototype.toString.call(c)==="[object Date]"?c.toUTCString().replace(/GMT/,"+0000"):(c=(c||"").toString().replace(/\r?\n|\r/g," "),this._encodeWords(c));case"Content-Type":case"Content-Disposition":return(c||"").toString().replace(/\r?\n|\r/g," ");default:return c=(c||"").toString().replace(/\r?\n|\r/g," "),this._encodeWords(c)}}_convertAddresses(r,c){let g=[];return c=c||[],[].concat(r||[]).forEach(m=>{if(m.address)m.address=this._normalizeAddress(m.address),m.name?m.name&&g.push(`${this._encodeAddressName(m.name)} <${m.address}>`):g.push(m.address.indexOf(" ")>=0?`<${m.address}>`:`${m.address}`),m.address&&(c.filter(x=>x.address===m.address).length||c.push(m));else if(m.group){let x=(m.group.length?this._convertAddresses(m.group,c):"").trim();g.push(`${this._encodeAddressName(m.name)}:${x};`)}}),g.join(", ")}_normalizeAddress(r){r=(r||"").toString().replace(/[\x00-\x1F<>]+/g," ").trim();let c=r.lastIndexOf("@");if(c<0)return r;let g=r.substr(0,c),m=r.substr(c+1),x;try{x=d.toASCII(m.toLowerCase())}catch{}return g.indexOf(" ")>=0&&(g.charAt(0)!=='"'&&(g='"'+g),g.substr(-1)!=='"'&&(g=g+'"')),`${g}@${x}`}_encodeAddressName(r){return/^[\w ]*$/.test(r)?r:/^[\x20-\x7e]*$/.test(r)?'"'+r.replace(/([\\"])/g,"\\$1")+'"':s.encodeWord(r,this._getTextEncoding(r),52)}_encodeWords(r){return s.encodeWords(r,this._getTextEncoding(r),52,!0)}_getTextEncoding(r){r=(r||"").toString();let c=this.textEncoding,g,m;return c||(m=(r.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\u0080-\uFFFF]/g)||[]).length,g=(r.match(/[a-z]/gi)||[]).length,c=m<g?"Q":"B"),c}_generateMessageId(){return"<"+[2,2,2,6].reduce((r,c)=>r+"-"+p.randomBytes(c).toString("hex"),p.randomBytes(4).toString("hex"))+"@"+(this.getEnvelope().from||this.hostname||"localhost").split("@").pop()+">"}}return yt=w,yt}var bt,Ti;function tn(){if(Ti)return bt;Ti=1;const p=Qt(),e=st(),d=Z().parseDataURI;class n{constructor(s){this.mail=s||{},this.message=!1}compile(){return this._alternatives=this.getAlternatives(),this._htmlNode=this._alternatives.filter(s=>/^text\/html\b/i.test(s.contentType)).pop(),this._attachments=this.getAttachments(!!this._htmlNode),this._useRelated=!!(this._htmlNode&&this._attachments.related.length),this._useAlternative=this._alternatives.length>1,this._useMixed=this._attachments.attached.length>1||this._alternatives.length&&this._attachments.attached.length===1,this.mail.raw?this.message=new p("message/rfc822",{newline:this.mail.newline}).setRaw(this.mail.raw):this._useMixed?this.message=this._createMixed():this._useAlternative?this.message=this._createAlternative():this._useRelated?this.message=this._createRelated():this.message=this._createContentNode(!1,[].concat(this._alternatives||[]).concat(this._attachments.attached||[]).shift()||{contentType:"text/plain",content:""}),this.mail.headers&&this.message.addHeader(this.mail.headers),["from","sender","to","cc","bcc","reply-to","in-reply-to","references","subject","message-id","date"].forEach(s=>{let o=s.replace(/-(\w)/g,(a,h)=>h.toUpperCase());this.mail[o]&&this.message.setHeader(s,this.mail[o])}),this.mail.envelope&&this.message.setEnvelope(this.mail.envelope),this.message.messageId(),this.message}getAttachments(s){let o,a,h=[].concat(this.mail.attachments||[]).map((t,u)=>{let f;/^data:/i.test(t.path||t.href)&&(t=this._processDataUrl(t));let l=t.contentType||e.detectMimeType(t.filename||t.path||t.href||"bin"),_=/^image\//i.test(l),w=/^message\//i.test(l),v=t.contentDisposition||(w||_&&t.cid?"inline":"attachment"),r;return"contentTransferEncoding"in t?r=t.contentTransferEncoding:w?r="8bit":r="base64",f={contentType:l,contentDisposition:v,contentTransferEncoding:r},t.filename?f.filename=t.filename:!w&&t.filename!==!1&&(f.filename=(t.path||t.href||"").split("/").pop().split("?").shift()||"attachment-"+(u+1),f.filename.indexOf(".")<0&&(f.filename+="."+e.detectExtension(f.contentType))),/^https?:\/\//i.test(t.path)&&(t.href=t.path,t.path=void 0),t.cid&&(f.cid=t.cid),t.raw?f.raw=t.raw:t.path?f.content={path:t.path}:t.href?f.content={href:t.href,httpHeaders:t.httpHeaders}:f.content=t.content||"",t.encoding&&(f.encoding=t.encoding),t.headers&&(f.headers=t.headers),f});return this.mail.icalEvent&&(typeof this.mail.icalEvent=="object"&&(this.mail.icalEvent.content||this.mail.icalEvent.path||this.mail.icalEvent.href||this.mail.icalEvent.raw)?o=this.mail.icalEvent:o={content:this.mail.icalEvent},a={},Object.keys(o).forEach(t=>{a[t]=o[t]}),a.contentType="application/ics",a.headers||(a.headers={}),a.filename=a.filename||"invite.ics",a.headers["Content-Disposition"]="attachment",a.headers["Content-Transfer-Encoding"]="base64"),s?{attached:h.filter(t=>!t.cid).concat(a||[]),related:h.filter(t=>!!t.cid)}:{attached:h.concat(a||[]),related:[]}}getAlternatives(){let s=[],o,a,h,t,u,f;return this.mail.text&&(typeof this.mail.text=="object"&&(this.mail.text.content||this.mail.text.path||this.mail.text.href||this.mail.text.raw)?o=this.mail.text:o={content:this.mail.text},o.contentType="text/plain; charset=utf-8"),this.mail.watchHtml&&(typeof this.mail.watchHtml=="object"&&(this.mail.watchHtml.content||this.mail.watchHtml.path||this.mail.watchHtml.href||this.mail.watchHtml.raw)?h=this.mail.watchHtml:h={content:this.mail.watchHtml},h.contentType="text/watch-html; charset=utf-8"),this.mail.amp&&(typeof this.mail.amp=="object"&&(this.mail.amp.content||this.mail.amp.path||this.mail.amp.href||this.mail.amp.raw)?t=this.mail.amp:t={content:this.mail.amp},t.contentType="text/x-amp-html; charset=utf-8"),this.mail.icalEvent&&(typeof this.mail.icalEvent=="object"&&(this.mail.icalEvent.content||this.mail.icalEvent.path||this.mail.icalEvent.href||this.mail.icalEvent.raw)?u=this.mail.icalEvent:u={content:this.mail.icalEvent},f={},Object.keys(u).forEach(l=>{f[l]=u[l]}),f.content&&typeof f.content=="object"&&(f.content._resolve=!0),f.filename=!1,f.contentType="text/calendar; charset=utf-8; method="+(f.method||"PUBLISH").toString().trim().toUpperCase(),f.headers||(f.headers={})),this.mail.html&&(typeof this.mail.html=="object"&&(this.mail.html.content||this.mail.html.path||this.mail.html.href||this.mail.html.raw)?a=this.mail.html:a={content:this.mail.html},a.contentType="text/html; charset=utf-8"),[].concat(o||[]).concat(h||[]).concat(t||[]).concat(a||[]).concat(f||[]).concat(this.mail.alternatives||[]).forEach(l=>{let _;/^data:/i.test(l.path||l.href)&&(l=this._processDataUrl(l)),_={contentType:l.contentType||e.detectMimeType(l.filename||l.path||l.href||"txt"),contentTransferEncoding:l.contentTransferEncoding},l.filename&&(_.filename=l.filename),/^https?:\/\//i.test(l.path)&&(l.href=l.path,l.path=void 0),l.raw?_.raw=l.raw:l.path?_.content={path:l.path}:l.href?_.content={href:l.href}:_.content=l.content||"",l.encoding&&(_.encoding=l.encoding),l.headers&&(_.headers=l.headers),s.push(_)}),s}_createMixed(s){let o;return s?o=s.createChild("multipart/mixed",{disableUrlAccess:this.mail.disableUrlAccess,disableFileAccess:this.mail.disableFileAccess,normalizeHeaderKey:this.mail.normalizeHeaderKey,newline:this.mail.newline}):o=new p("multipart/mixed",{baseBoundary:this.mail.baseBoundary,textEncoding:this.mail.textEncoding,boundaryPrefix:this.mail.boundaryPrefix,disableUrlAccess:this.mail.disableUrlAccess,disableFileAccess:this.mail.disableFileAccess,normalizeHeaderKey:this.mail.normalizeHeaderKey,newline:this.mail.newline}),this._useAlternative?this._createAlternative(o):this._useRelated&&this._createRelated(o),[].concat(!this._useAlternative&&this._alternatives||[]).concat(this._attachments.attached||[]).forEach(a=>{(!this._useRelated||a!==this._htmlNode)&&this._createContentNode(o,a)}),o}_createAlternative(s){let o;return s?o=s.createChild("multipart/alternative",{disableUrlAccess:this.mail.disableUrlAccess,disableFileAccess:this.mail.disableFileAccess,normalizeHeaderKey:this.mail.normalizeHeaderKey,newline:this.mail.newline}):o=new p("multipart/alternative",{baseBoundary:this.mail.baseBoundary,textEncoding:this.mail.textEncoding,boundaryPrefix:this.mail.boundaryPrefix,disableUrlAccess:this.mail.disableUrlAccess,disableFileAccess:this.mail.disableFileAccess,normalizeHeaderKey:this.mail.normalizeHeaderKey,newline:this.mail.newline}),this._alternatives.forEach(a=>{this._useRelated&&this._htmlNode===a?this._createRelated(o):this._createContentNode(o,a)}),o}_createRelated(s){let o;return s?o=s.createChild('multipart/related; type="text/html"',{disableUrlAccess:this.mail.disableUrlAccess,disableFileAccess:this.mail.disableFileAccess,normalizeHeaderKey:this.mail.normalizeHeaderKey,newline:this.mail.newline}):o=new p('multipart/related; type="text/html"',{baseBoundary:this.mail.baseBoundary,textEncoding:this.mail.textEncoding,boundaryPrefix:this.mail.boundaryPrefix,disableUrlAccess:this.mail.disableUrlAccess,disableFileAccess:this.mail.disableFileAccess,normalizeHeaderKey:this.mail.normalizeHeaderKey,newline:this.mail.newline}),this._createContentNode(o,this._htmlNode),this._attachments.related.forEach(a=>this._createContentNode(o,a)),o}_createContentNode(s,o){o=o||{},o.content=o.content||"";let a,h=(o.encoding||"utf8").toString().toLowerCase().replace(/[-_\s]/g,"");return s?a=s.createChild(o.contentType,{filename:o.filename,textEncoding:this.mail.textEncoding,disableUrlAccess:this.mail.disableUrlAccess,disableFileAccess:this.mail.disableFileAccess,normalizeHeaderKey:this.mail.normalizeHeaderKey,newline:this.mail.newline}):a=new p(o.contentType,{filename:o.filename,baseBoundary:this.mail.baseBoundary,textEncoding:this.mail.textEncoding,boundaryPrefix:this.mail.boundaryPrefix,disableUrlAccess:this.mail.disableUrlAccess,disableFileAccess:this.mail.disableFileAccess,normalizeHeaderKey:this.mail.normalizeHeaderKey,newline:this.mail.newline}),o.headers&&a.addHeader(o.headers),o.cid&&a.setHeader("Content-Id","<"+o.cid.replace(/[<>]/g,"")+">"),o.contentTransferEncoding?a.setHeader("Content-Transfer-Encoding",o.contentTransferEncoding):this.mail.encoding&&/^text\//i.test(o.contentType)&&a.setHeader("Content-Transfer-Encoding",this.mail.encoding),(!/^text\//i.test(o.contentType)||o.contentDisposition)&&a.setHeader("Content-Disposition",o.contentDisposition||(o.cid&&/^image\//i.test(o.contentType)?"inline":"attachment")),typeof o.content=="string"&&!["utf8","usascii","ascii"].includes(h)&&(o.content=Buffer.from(o.content,h)),o.raw?a.setRaw(o.raw):a.setContent(o.content),a}_processDataUrl(s){const o=s.path||s.href;if(!o||typeof o!="string"||!o.startsWith("data:"))return s;if(o.length>52428800){let h="application/octet-stream";const t=o.indexOf(",");if(t>0&&t<200){const f=o.substring(5,t).split(";");f[0]&&f[0].includes("/")&&(h=f[0].trim())}return Object.assign({},s,{path:!1,href:!1,content:Buffer.alloc(0),contentType:s.contentType||h})}let a;try{a=d(o)}catch{return s}return a&&(s.content=a.data,s.contentType=s.contentType||a.contentType,"path"in s&&(s.path=!1),"href"in s&&(s.href=!1)),s}}return bt=n,bt}var Et,ki;function sn(){if(ki)return Et;ki=1;const p=Y.Transform;class e extends p{constructor(n){super(n),this.lastBytes=Buffer.alloc(4),this.headersParsed=!1,this.headerBytes=0,this.headerChunks=[],this.rawHeaders=!1,this.bodySize=0}updateLastBytes(n){let i=this.lastBytes.length,s=Math.min(n.length,i);for(let o=0,a=i-s;o<a;o++)this.lastBytes[o]=this.lastBytes[o+s];for(let o=1;o<=s;o++)this.lastBytes[i-o]=n[n.length-o]}checkHeaders(n){if(this.headersParsed)return!0;let i=this.lastBytes.length,s=0;this.curLinePos=0;for(let o=0,a=this.lastBytes.length+n.length;o<a;o++){let h;if(o<i?h=this.lastBytes[o]:h=n[o-i],h===10&&o){let t=o-1<i?this.lastBytes[o-1]:n[o-1-i],u=o>1?o-2<i?this.lastBytes[o-2]:n[o-2-i]:!1;if(t===10){this.headersParsed=!0,s=o-i+1,this.headerBytes+=s;break}else if(t===13&&u===10){this.headersParsed=!0,s=o-i+1,this.headerBytes+=s;break}}}if(this.headersParsed){if(this.headerChunks.push(n.slice(0,s)),this.rawHeaders=Buffer.concat(this.headerChunks,this.headerBytes),this.headerChunks=null,this.emit("headers",this.parseHeaders()),n.length-1>s){let o=n.slice(s);this.bodySize+=o.length,setImmediate(()=>this.push(o))}return!1}else this.headerBytes+=n.length,this.headerChunks.push(n);return this.updateLastBytes(n),!1}_transform(n,i,s){if(!n||!n.length)return s();typeof n=="string"&&(n=Buffer.from(n,i));let o;try{o=this.checkHeaders(n)}catch(a){return s(a)}o&&(this.bodySize+=n.length,this.push(n)),setImmediate(s)}_flush(n){if(this.headerChunks){let i=Buffer.concat(this.headerChunks,this.headerBytes);this.bodySize+=i.length,this.push(i),this.headerChunks=null}n()}parseHeaders(){let n=(this.rawHeaders||"").toString().split(/\r?\n/);for(let i=n.length-1;i>0;i--)/^\s/.test(n[i])&&(n[i-1]+=`
-`+n[i],n.splice(i,1));return n.filter(i=>i.trim()).map(i=>({key:i.substr(0,i.indexOf(":")).trim().toLowerCase(),line:i}))}}return Et=e,Et}var St,Ai;function nn(){if(Ai)return St;Ai=1;const p=Y.Transform,e=oe;class d extends p{constructor(i){super(),i=i||{},this.chunkBuffer=[],this.chunkBufferLen=0,this.bodyHash=e.createHash(i.hashAlgo||"sha1"),this.remainder="",this.byteLength=0,this.debug=i.debug,this._debugBody=i.debug?[]:!1}updateHash(i){let s,o="",a="file";for(let t=i.length-1;t>=0;t--){let u=i[t];if(!(a==="file"&&(u===10||u===13))){if(a==="file"&&(u===9||u===32))a="line";else if(!(a==="line"&&(u===9||u===32))){if((a==="file"||a==="line")&&(a="body",t===i.length-1))break}}if(t===0){if(a==="file"&&(!this.remainder||/[\r\n]$/.test(this.remainder))||a==="line"&&(!this.remainder||/[ \t]$/.test(this.remainder))){this.remainder+=i.toString("binary");return}else if(a==="line"||a==="file"){o=i.toString("binary"),i=!1;break}}if(a==="body"){o=i.slice(t+1).toString("binary"),i=i.slice(0,t+1);break}}let h=!!this.remainder;if(i&&!h){for(let t=0,u=i.length;t<u;t++)if(t&&i[t]===10&&i[t-1]!==13){h=!0;break}else if(t&&i[t]===13&&i[t-1]===32){h=!0;break}else if(t&&i[t]===32&&i[t-1]===32){h=!0;break}else if(i[t]===9){h=!0;break}}h?(s=this.remainder+(i?i.toString("binary"):""),this.remainder=o,s=s.replace(/\r?\n/g,`
-`).replace(/[ \t]*$/gm,"").replace(/[ \t]+/gm," ").replace(/\n/g,`\r
-`),i=Buffer.from(s,"binary")):o&&(this.remainder=o),this.debug&&this._debugBody.push(i),this.bodyHash.update(i)}_transform(i,s,o){if(!i||!i.length)return o();typeof i=="string"&&(i=Buffer.from(i,s)),this.updateHash(i),this.byteLength+=i.length,this.push(i),o()}_flush(i){/[\r\n]$/.test(this.remainder)&&this.byteLength>2&&this.bodyHash.update(Buffer.from(`\r
-`)),this.byteLength||this.push(Buffer.from(`\r
-`)),this.emit("hash",this.bodyHash.digest("base64"),this.debug?Buffer.concat(this._debugBody):!1),i()}}return St=d,St}var Ve={exports:{}},Ci;function rn(){if(Ci)return Ve.exports;Ci=1;const p=ws(),e=st(),d=oe;Ve.exports=(o,a,h,t)=>{t=t||{};let f=t.headerFieldNames||"From:Sender:Reply-To:Subject:Date:Message-ID:To:Cc:MIME-Version:Content-Type:Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive",l=i(o,f,t.skipFields),_=n(t.domainName,t.keySelector,l.fieldNames,a,h),w,v;l.headers+="dkim-signature:"+s(_),w=d.createSign(("rsa-"+a).toUpperCase()),w.update(l.headers);try{v=w.sign(t.privateKey,"base64")}catch{return!1}return _+v.replace(/(^.{73}|.{75}(?!\r?\n|\r))/g,`$&\r
- `).trim()},Ve.exports.relaxedHeaders=i;function n(o,a,h,t,u){let f=["v=1","a=rsa-"+t,"c=relaxed/relaxed","d="+p.toASCII(o),"q=dns/txt","s="+a,"bh="+u,"h="+h].join("; ");return e.foldLines("DKIM-Signature: "+f,76)+`;\r
- b=`}function i(o,a,h){let t=new Set,u=new Set,f=new Map;(h||"").toLowerCase().split(":").forEach(w=>{u.add(w.trim())}),(a||"").toLowerCase().split(":").filter(w=>!u.has(w.trim())).forEach(w=>{t.add(w.trim())});for(let w=o.length-1;w>=0;w--){let v=o[w];t.has(v.key)&&!f.has(v.key)&&f.set(v.key,s(v.line))}let l=[],_=[];return t.forEach(w=>{f.has(w)&&(_.push(w),l.push(w+":"+f.get(w)))}),{headers:l.join(`\r
-`)+`\r
-`,fieldNames:_.join(":")}}function s(o){return o.substr(o.indexOf(":")+1).replace(/\r?\n/g,"").replace(/\s+/g," ").trim()}return Ve.exports}var Tt,Ii;function on(){if(Ii)return Tt;Ii=1;const p=sn(),e=nn(),d=rn(),n=Y.PassThrough,i=j,s=q,o=oe,a="sha256",h=2*1024*1024;class t{constructor(l,_,w,v){this.options=l||{},this.keys=_,this.cacheTreshold=Number(this.options.cacheTreshold)||h,this.hashAlgo=this.options.hashAlgo||a,this.cacheDir=this.options.cacheDir||!1,this.chunks=[],this.chunklen=0,this.readPos=0,this.cachePath=this.cacheDir?s.join(this.cacheDir,"message."+Date.now()+"-"+o.randomBytes(14).toString("hex")):!1,this.cache=!1,this.headers=!1,this.bodyHash=!1,this.parser=!1,this.relaxedBody=!1,this.input=w,this.output=v,this.output.usingCache=!1,this.hasErrored=!1,this.input.on("error",r=>{this.hasErrored=!0,this.cleanup(),v.emit("error",r)})}cleanup(){!this.cache||!this.cachePath||i.unlink(this.cachePath,()=>!1)}createReadCache(){this.cache=i.createReadStream(this.cachePath),this.cache.once("error",l=>{this.cleanup(),this.output.emit("error",l)}),this.cache.once("close",()=>{this.cleanup()}),this.cache.pipe(this.output)}sendNextChunk(){if(this.hasErrored)return;if(this.readPos>=this.chunks.length)return this.cache?this.createReadCache():this.output.end();let l=this.chunks[this.readPos++];if(this.output.write(l)===!1)return this.output.once("drain",()=>{this.sendNextChunk()});setImmediate(()=>this.sendNextChunk())}sendSignedOutput(){let l=0,_=()=>{if(l>=this.keys.length)return this.output.write(this.parser.rawHeaders),setImmediate(()=>this.sendNextChunk());let w=this.keys[l++],v=d(this.headers,this.hashAlgo,this.bodyHash,{domainName:w.domainName,keySelector:w.keySelector,privateKey:w.privateKey,headerFieldNames:this.options.headerFieldNames,skipFields:this.options.skipFields});return v&&this.output.write(Buffer.from(v+`\r
-`)),setImmediate(_)};if(this.bodyHash&&this.headers)return _();this.output.write(this.parser.rawHeaders),this.sendNextChunk()}createWriteCache(){this.output.usingCache=!0,this.cache=i.createWriteStream(this.cachePath),this.cache.once("error",l=>{this.cleanup(),this.relaxedBody.unpipe(this.cache),this.relaxedBody.on("readable",()=>{for(;this.relaxedBody.read()!==null;);}),this.hasErrored=!0,this.output.emit("error",l)}),this.cache.once("close",()=>{this.sendSignedOutput()}),this.relaxedBody.removeAllListeners("readable"),this.relaxedBody.pipe(this.cache)}signStream(){this.parser=new p,this.relaxedBody=new e({hashAlgo:this.hashAlgo}),this.parser.on("headers",l=>{this.headers=l}),this.relaxedBody.on("hash",l=>{this.bodyHash=l}),this.relaxedBody.on("readable",()=>{let l;if(!this.cache){for(;(l=this.relaxedBody.read())!==null;)if(this.chunks.push(l),this.chunklen+=l.length,this.chunklen>=this.cacheTreshold&&this.cachePath)return this.createWriteCache()}}),this.relaxedBody.on("end",()=>{this.cache||this.sendSignedOutput()}),this.parser.pipe(this.relaxedBody),setImmediate(()=>this.input.pipe(this.parser))}}class u{constructor(l){this.options=l||{},this.keys=[].concat(this.options.keys||{domainName:l.domainName,keySelector:l.keySelector,privateKey:l.privateKey})}sign(l,_){let w=new n,v=l,r=!1;Buffer.isBuffer(l)?(r=l,v=new n):typeof l=="string"&&(r=Buffer.from(l),v=new n);let c=this.options;_&&Object.keys(_).length&&(c={},Object.keys(this.options||{}).forEach(m=>{c[m]=this.options[m]}),Object.keys(_||{}).forEach(m=>{m in c||(c[m]=_[m])}));let g=new t(c,this.keys,v,w);return setImmediate(()=>{g.signStream(),r&&setImmediate(()=>{v.end(r)})}),w}}return Tt=u,Tt}var kt,Mi;function an(){if(Mi)return kt;Mi=1;const p=Ue,e=gs,d=ke,n=se();function i(s,o,a,h){let t=d.parse(s),u,f,l;u={host:t.hostname,port:Number(t.port)?Number(t.port):t.protocol==="https:"?443:80},t.protocol==="https:"?(u.rejectUnauthorized=!1,f=e.connect.bind(e)):f=p.connect.bind(p);let _=!1,w=r=>{if(!_){_=!0;try{l.destroy()}catch{}h(r)}},v=()=>{let r=new Error("Proxy socket timed out");r.code="ETIMEDOUT",w(r)};l=f(u,()=>{if(_)return;let r={Host:a+":"+o,Connection:"close"};t.auth&&(r["Proxy-Authorization"]="Basic "+Buffer.from(t.auth).toString("base64")),l.write("CONNECT "+a+":"+o+` HTTP/1.1\r
-`+Object.keys(r).map(m=>m+": "+r[m]).join(`\r
-`)+`\r
-\r
-`);let c="",g=m=>{let x,y;if(!_&&(c+=m.toString("binary"),x=c.match(/\r\n\r\n/))){if(l.removeListener("data",g),y=c.substr(x.index+x[0].length),c=c.substr(0,x.index),y&&l.unshift(Buffer.from(y,"binary")),_=!0,x=c.match(/^HTTP\/\d+\.\d+ (\d+)/i),!x||(x[1]||"").charAt(0)!=="2"){try{l.destroy()}catch{}let T=new Error("Invalid response from proxy"+(x&&": "+x[1]||""));return T.code=n.EPROXY,h(T)}return l.removeListener("error",w),l.removeListener("timeout",v),l.setTimeout(0),h(null,l)}};l.on("data",g)}),l.setTimeout(i.timeout||30*1e3),l.on("timeout",v),l.once("error",w)}return kt=i,kt}var At,Oi;function cn(){if(Oi)return At;Oi=1;const p=Z(),e=Qt(),d=st();class n{constructor(s,o){this.mailer=s,this.data={},this.message=null,o=o||{};let a=s.options||{},h=s._defaults||{};Object.keys(o).forEach(t=>{this.data[t]=o[t]}),this.data.headers=this.data.headers||{},Object.keys(h).forEach(t=>{t in this.data?t==="headers"&&Object.keys(h.headers).forEach(u=>{u in this.data.headers||(this.data.headers[u]=h.headers[u])}):this.data[t]=h[t]}),["disableFileAccess","disableUrlAccess","normalizeHeaderKey"].forEach(t=>{t in a&&(this.data[t]=a[t])})}resolveContent(...s){return p.resolveContent(...s)}resolveAll(s){let o=[[this.data,"html"],[this.data,"text"],[this.data,"watchHtml"],[this.data,"amp"],[this.data,"icalEvent"]];this.data.alternatives&&this.data.alternatives.length&&this.data.alternatives.forEach((l,_)=>{o.push([this.data.alternatives,_])}),this.data.attachments&&this.data.attachments.length&&this.data.attachments.forEach((l,_)=>{l.filename||(l.filename=(l.path||l.href||"").split("/").pop().split("?").shift()||"attachment-"+(_+1),l.filename.indexOf(".")<0&&(l.filename+="."+d.detectExtension(l.contentType))),l.contentType||(l.contentType=d.detectMimeType(l.filename||l.path||l.href||"bin")),o.push([this.data.attachments,_])});let a=new e;["from","to","cc","bcc","sender","replyTo"].forEach(l=>{let _;this.message?_=[].concat(a._parseAddresses(this.message.getHeader(l==="replyTo"?"reply-to":l))||[]):this.data[l]&&(_=[].concat(a._parseAddresses(this.data[l])||[])),_&&_.length?this.data[l]=_:l in this.data&&(this.data[l]=null)}),["from","sender"].forEach(l=>{this.data[l]&&(this.data[l]=this.data[l].shift())});let u=0,f=()=>{if(u>=o.length)return s(null,this.data);let l=o[u++];if(!l[0]||!l[0][l[1]])return f();p.resolveContent(...l,(_,w)=>{if(_)return s(_);let v={content:w};l[0][l[1]]&&typeof l[0][l[1]]=="object"&&!Buffer.isBuffer(l[0][l[1]])&&Object.keys(l[0][l[1]]).forEach(r=>{!(r in v)&&!["content","path","href","raw"].includes(r)&&(v[r]=l[0][l[1]][r])}),l[0][l[1]]=v,f()})};setImmediate(()=>f())}normalize(s){let o=this.data.envelope||this.message.getEnvelope(),a=this.message.messageId();this.resolveAll((h,t)=>h?s(h):(t.envelope=o,t.messageId=a,["html","text","watchHtml","amp"].forEach(u=>{t[u]&&t[u].content&&(typeof t[u].content=="string"?t[u]=t[u].content:Buffer.isBuffer(t[u].content)&&(t[u]=t[u].content.toString()))}),t.icalEvent&&Buffer.isBuffer(t.icalEvent.content)&&(t.icalEvent.content=t.icalEvent.content.toString("base64"),t.icalEvent.encoding="base64"),t.alternatives&&t.alternatives.length&&t.alternatives.forEach(u=>{u&&u.content&&Buffer.isBuffer(u.content)&&(u.content=u.content.toString("base64"),u.encoding="base64")}),t.attachments&&t.attachments.length&&t.attachments.forEach(u=>{u&&u.content&&Buffer.isBuffer(u.content)&&(u.content=u.content.toString("base64"),u.encoding="base64")}),t.normalizedHeaders={},Object.keys(t.headers||{}).forEach(u=>{let f=[].concat(t.headers[u]||[]).shift();f=f&&f.value||f,f&&(["references","in-reply-to","message-id","content-id"].includes(u)&&(f=this.message._encodeHeaderValue(u,f)),t.normalizedHeaders[u]=f)}),t.list&&typeof t.list=="object"&&this._getListHeaders(t.list).forEach(f=>{t.normalizedHeaders[f.key]=f.value.map(l=>l&&l.value||l).join(", ")}),t.references&&(t.normalizedHeaders.references=this.message._encodeHeaderValue("references",t.references)),t.inReplyTo&&(t.normalizedHeaders["in-reply-to"]=this.message._encodeHeaderValue("in-reply-to",t.inReplyTo)),s(null,t)))}setMailerHeader(){!this.message||!this.data.xMailer||this.message.setHeader("X-Mailer",this.data.xMailer)}setPriorityHeaders(){if(!(!this.message||!this.data.priority))switch((this.data.priority||"").toString().toLowerCase()){case"high":this.message.setHeader("X-Priority","1 (Highest)"),this.message.setHeader("X-MSMail-Priority","High"),this.message.setHeader("Importance","High");break;case"low":this.message.setHeader("X-Priority","5 (Lowest)"),this.message.setHeader("X-MSMail-Priority","Low"),this.message.setHeader("Importance","Low");break}}setListHeaders(){!this.message||!this.data.list||typeof this.data.list!="object"||this.data.list&&typeof this.data.list=="object"&&this._getListHeaders(this.data.list).forEach(s=>{s.value.forEach(o=>{this.message.addHeader(s.key,o)})})}_getListHeaders(s){return Object.keys(s).map(o=>({key:"list-"+o.toLowerCase().trim(),value:[].concat(s[o]||[]).map(a=>({prepared:!0,foldLines:!0,value:[].concat(a||[]).map(h=>{if(typeof h=="string"&&(h={url:h}),h&&h.url){if(o.toLowerCase().trim()==="id"){let u=h.comment||"";return d.isPlainText(u)?u='"'+u+'"':u=d.encodeWord(u),(h.comment?u+" ":"")+this._formatListUrl(h.url).replace(/^<[^:]+\/{,2}/,"")}let t=h.comment||"";return d.isPlainText(t)||(t=d.encodeWord(t)),this._formatListUrl(h.url)+(h.comment?" ("+t+")":"")}return""}).filter(h=>h).join(", ")}))}))}_formatListUrl(s){return s=s.replace(/[\s<]+|[\s>]+/g,""),/^(https?|mailto|ftp):/.test(s)?"<"+s+">":/^[^@]+@[^@]+$/.test(s)?"<mailto:"+s+">":"<http://"+s+">"}}return At=n,At}var Ct,Ni;function ln(){if(Ni)return Ct;Ni=1;const p=fe,e=Z(),d=_s(),n=tn(),i=on(),s=an(),o=se(),a=fs,h=ke,t=ie,u=cn(),f=Ue,l=Xe,_=oe;class w extends p{constructor(r,c,g){super(),this.options=c||{},this._defaults=g||{},this._defaultPlugins={compile:[(...m)=>this._convertDataImages(...m)],stream:[]},this._userPlugins={compile:[],stream:[]},this.meta=new Map,this.dkim=this.options.dkim?new i(this.options.dkim):!1,this.transporter=r,this.transporter.mailer=this,this.logger=e.getLogger(this.options,{component:this.options.component||"mail"}),this.logger.debug({tnx:"create"},"Creating transport: %s",this.getVersionString()),typeof this.transporter.on=="function"&&(this.transporter.on("log",m=>{this.logger.debug({tnx:"transport"},"%s: %s",m.type,m.message)}),this.transporter.on("error",m=>{this.logger.error({err:m,tnx:"transport"},"Transport Error: %s",m.message),this.emit("error",m)}),this.transporter.on("idle",(...m)=>{this.emit("idle",...m)}),this.transporter.on("clear",(...m)=>{this.emit("clear",...m)})),["close","isIdle","verify"].forEach(m=>{this[m]=(...x)=>typeof this.transporter[m]=="function"?(m==="verify"&&typeof this.getSocket=="function"&&(this.transporter.getSocket=this.getSocket,this.getSocket=!1),this.transporter[m](...x)):(this.logger.warn({tnx:"transport",methodName:m},"Non existing method %s called for transport",m),!1)}),this.options.proxy&&typeof this.options.proxy=="string"&&this.setupProxy(this.options.proxy)}use(r,c){return r=(r||"").toString(),this._userPlugins.hasOwnProperty(r)?this._userPlugins[r].push(c):this._userPlugins[r]=[c],this}sendMail(r,c=null){let g;c||(g=new Promise((x,y)=>{c=e.callbackPromise(x,y)})),typeof this.getSocket=="function"&&(this.transporter.getSocket=this.getSocket,this.getSocket=!1);let m=new u(this,r);return this.logger.debug({tnx:"transport",name:this.transporter.name,version:this.transporter.version,action:"send"},"Sending mail using %s/%s",this.transporter.name,this.transporter.version),this._processPlugins("compile",m,x=>{if(x)return this.logger.error({err:x,tnx:"plugin",action:"compile"},"PluginCompile Error: %s",x.message),c(x);m.message=new n(m.data).compile(),m.setMailerHeader(),m.setPriorityHeaders(),m.setListHeaders(),this._processPlugins("stream",m,y=>{if(y)return this.logger.error({err:y,tnx:"plugin",action:"stream"},"PluginStream Error: %s",y.message),c(y);(m.data.dkim||this.dkim)&&m.message.processFunc(T=>{let b=m.data.dkim?new i(m.data.dkim):this.dkim;return this.logger.debug({tnx:"DKIM",messageId:m.message.messageId(),dkimDomains:b.keys.map(k=>k.keySelector+"."+k.domainName).join(", ")},"Signing outgoing message with %s keys",b.keys.length),b.sign(T,m.data._dkim)}),this.transporter.send(m,(...T)=>{T[0]&&this.logger.error({err:T[0],tnx:"transport",action:"send"},"Send Error: %s",T[0].message),c(...T)})})}),g}getVersionString(){return a.format("%s (%s; +%s; %s/%s)",t.name,t.version,t.homepage,this.transporter.name,this.transporter.version)}_processPlugins(r,c,g){if(r=(r||"").toString(),!this._userPlugins.hasOwnProperty(r))return g();let m=this._userPlugins[r]||[],x=this._defaultPlugins[r]||[];if(m.length&&this.logger.debug({tnx:"transaction",pluginCount:m.length,step:r},"Using %s plugins for %s",m.length,r),m.length+x.length===0)return g();let y=0,T="default",b=()=>{let k=T==="default"?x:m;if(y>=k.length)if(T==="default"&&m.length)T="user",y=0,k=m;else return g();let C=k[y++];C(c,A=>{if(A)return g(A);b()})};b()}setupProxy(r){let c=h.parse(r);this.getSocket=(g,m)=>{let x=c.protocol.replace(/:$/,"").toLowerCase();if(this.meta.has("proxy_handler_"+x))return this.meta.get("proxy_handler_"+x)(c,g,m);switch(x){case"http":case"https":s(c.href,g.port,g.host,(T,b)=>T?m(T):m(null,{connection:b}));return;case"socks":case"socks5":case"socks4":case"socks4a":{if(!this.meta.has("proxy_socks_module")){let b=new Error("Socks module not loaded");return b.code=o.EPROXY,m(b)}let T=b=>{let k=!!this.meta.get("proxy_socks_module").SocksClient,C=k?this.meta.get("proxy_socks_module").SocksClient:this.meta.get("proxy_socks_module"),A=Number(c.protocol.replace(/\D/g,""))||5,E={proxy:{ipaddress:b,port:Number(c.port),type:A},[k?"destination":"target"]:{host:g.host,port:g.port},command:"connect"};if(c.auth){let M=decodeURIComponent(c.auth.split(":").shift()),S=decodeURIComponent(c.auth.split(":").pop());k?(E.proxy.userId=M,E.proxy.password=S):A===4?E.userid=M:E.authentication={username:M,password:S}}C.createConnection(E,(M,S)=>M?m(M):m(null,{connection:S.socket||S}))};return f.isIP(c.hostname)?T(c.hostname):l.resolve(c.hostname,(b,k)=>{if(b)return m(b);T(Array.isArray(k)?k[0]:k)})}}let y=new Error("Unknown proxy configuration");y.code=o.EPROXY,m(y)}}_convertDataImages(r,c){if(!this.options.attachDataUrls&&!r.data.attachDataUrls||!r.data.html)return c();r.resolveContent(r.data,"html",(g,m)=>{if(g)return c(g);let x=0;m=(m||"").toString().replace(/(<img\b[^<>]{0,1024} src\s{0,20}=[\s"']{0,20})(data:([^;]+);[^"'>\s]+)/gi,(y,T,b,k)=>{let C=_.randomBytes(10).toString("hex")+"@localhost";return r.data.attachments||(r.data.attachments=[]),Array.isArray(r.data.attachments)||(r.data.attachments=[].concat(r.data.attachments||[])),r.data.attachments.push({path:b,cid:C,filename:"image-"+ ++x+"."+d.detectExtension(k)}),T+"cid:"+C}),r.data.html=m,c()})}set(r,c){return this.meta.set(r,c)}get(r){return this.meta.get(r)}}return Ct=w,Ct}var It,Pi;function pn(){if(Pi)return It;Pi=1;const e=Y.Transform;class d extends e{constructor(i){super(i),this.options=i||{},this._curLine="",this.inByteCount=0,this.outByteCount=0,this.lastByte=!1}_transform(i,s,o){let a=[],h=0,t,u,f=0,l;if(!i||!i.length)return o();for(typeof i=="string"&&(i=Buffer.from(i)),this.inByteCount+=i.length,t=0,u=i.length;t<u;t++)i[t]===46?(t&&i[t-1]===10||!t&&(!this.lastByte||this.lastByte===10))&&(l=i.slice(f,t+1),a.push(l),a.push(Buffer.from(".")),h+=l.length+1,f=t+1):i[t]===10&&(t&&i[t-1]!==13||!t&&this.lastByte!==13)&&(t>f?(l=i.slice(f,t),a.push(l),h+=l.length+2):h+=2,a.push(Buffer.from(`\r
-`)),f=t+1);h?(f<i.length&&(l=i.slice(f),a.push(l),h+=l.length),this.outByteCount+=h,this.push(Buffer.concat(a,h))):(this.outByteCount+=i.length,this.push(i)),this.lastByte=i[i.length-1],o()}_flush(i){let s;this.lastByte===10?s=Buffer.from(`.\r
-`):this.lastByte===13?s=Buffer.from(`
-.\r
-`):s=Buffer.from(`\r
-.\r
-`),this.outByteCount+=s.length,this.push(s),i()}}return It=d,It}var Mt,Ri;function Gt(){if(Ri)return Mt;Ri=1;const p=ie,e=fe.EventEmitter,d=Ue,n=gs,i=Vt,s=oe,o=pn(),a=Y.PassThrough,h=Z(),t=120*1e3,u=600*1e3,f=30*1e3,l=30*1e3,_=()=>{};class w extends e{constructor(r){super(r),this.id=s.randomBytes(8).toString("base64").replace(/\W/g,""),this.stage="init",this.options=r||{},this.secureConnection=!!this.options.secure,this.alreadySecured=!!this.options.secured,this.port=Number(this.options.port)||(this.secureConnection?465:587),this.host=this.options.host||"localhost",this.servername=this.options.servername?this.options.servername:d.isIP(this.host)?!1:this.host,this.allowInternalNetworkInterfaces=this.options.allowInternalNetworkInterfaces||!1,typeof this.options.secure>"u"&&this.port===465&&(this.secureConnection=!0),this.name=this.options.name||this._getHostname(),this.logger=h.getLogger(this.options,{component:this.options.component||"smtp-connection",sid:this.id}),this.customAuth=new Map,Object.keys(this.options.customAuth||{}).forEach(c=>{let g=(c||"").toString().trim().toUpperCase();g&&this.customAuth.set(g,this.options.customAuth[c])}),this.version=p.version,this.authenticated=!1,this.destroyed=!1,this.secure=!!this.secureConnection,this._remainder="",this._responseQueue=[],this.lastServerResponse=!1,this._socket=!1,this._supportedAuth=[],this.allowsAuth=!1,this._envelope=!1,this._supportedExtensions=[],this._maxAllowedSize=0,this._responseActions=[],this._recipientQueue=[],this._greetingTimeout=!1,this._connectionTimeout=!1,this._destroyed=!1,this._closing=!1,this._onSocketData=c=>this._onData(c),this._onSocketError=c=>this._onError(c,"ESOCKET",!1,"CONN"),this._onSocketClose=()=>this._onClose(),this._onSocketEnd=()=>this._onEnd(),this._onSocketTimeout=()=>this._onTimeout(),this._onConnectionSocketError=c=>this._onConnectionError(c,"ESOCKET"),this._connectionAttemptId=0}connect(r){if(typeof r=="function"){this.once("connect",()=>{this.logger.debug({tnx:"smtp"},"SMTP handshake finished"),r()});const g=this._isDestroyedMessage("connect");if(g)return r(this._formatError(g,"ECONNECTION",!1,"CONN"))}let c={port:this.port,host:this.host,allowInternalNetworkInterfaces:this.allowInternalNetworkInterfaces,timeout:this.options.dnsTimeout||l};if(this.options.localAddress&&(c.localAddress=this.options.localAddress),this.options.connection){this._socket=this.options.connection,this._setupConnectionHandlers(),this.secureConnection&&!this.alreadySecured?setImmediate(()=>this._upgradeConnection(g=>{if(g){this._onError(new Error("Error initiating TLS - "+(g.message||g)),"ETLS",!1,"CONN");return}this._onConnect()})):setImmediate(()=>this._onConnect());return}else return this.options.socket?(this._socket=this.options.socket,h.resolveHostname(c,(g,m)=>{if(g)return setImmediate(()=>this._onError(g,"EDNS",!1,"CONN"));this.logger.debug({tnx:"dns",source:c.host,resolved:m.host,cached:!!m.cached},"Resolved %s as %s [cache %s]",c.host,m.host,m.cached?"hit":"miss"),Object.keys(m).forEach(x=>{x.charAt(0)!=="_"&&m[x]&&(c[x]=m[x])});try{this._socket.connect(this.port,this.host,()=>{this._socket.setKeepAlive(!0),this._onConnect()}),this._setupConnectionHandlers()}catch(x){return setImmediate(()=>this._onError(x,"ECONNECTION",!1,"CONN"))}})):this.secureConnection?(this.options.tls&&Object.keys(this.options.tls).forEach(g=>{c[g]=this.options.tls[g]}),this.servername&&!c.servername&&(c.servername=this.servername),h.resolveHostname(c,(g,m)=>{if(g)return setImmediate(()=>this._onError(g,"EDNS",!1,"CONN"));this.logger.debug({tnx:"dns",source:c.host,resolved:m.host,cached:!!m.cached},"Resolved %s as %s [cache %s]",c.host,m.host,m.cached?"hit":"miss"),Object.keys(m).forEach(x=>{x.charAt(0)!=="_"&&m[x]&&(c[x]=m[x])}),this._fallbackAddresses=(m._addresses||[]).filter(x=>x!==c.host),this._connectOpts=Object.assign({},c),this._connectToHost(c,!0)})):h.resolveHostname(c,(g,m)=>{if(g)return setImmediate(()=>this._onError(g,"EDNS",!1,"CONN"));this.logger.debug({tnx:"dns",source:c.host,resolved:m.host,cached:!!m.cached},"Resolved %s as %s [cache %s]",c.host,m.host,m.cached?"hit":"miss"),Object.keys(m).forEach(x=>{x.charAt(0)!=="_"&&m[x]&&(c[x]=m[x])}),this._fallbackAddresses=(m._addresses||[]).filter(x=>x!==c.host),this._connectOpts=Object.assign({},c),this._connectToHost(c,!1)})}_connectToHost(r,c){this._connectionAttemptId++;const g=this._connectionAttemptId;let m=c?n.connect:d.connect;try{this._socket=m(r,()=>{this._connectionAttemptId===g&&(this._socket.setKeepAlive(!0),this._onConnect())}),this._setupConnectionHandlers()}catch(x){return setImmediate(()=>this._onError(x,"ECONNECTION",!1,"CONN"))}}_setupConnectionHandlers(){this._connectionTimeout=setTimeout(()=>{this._onConnectionError("Connection timeout","ETIMEDOUT")},this.options.connectionTimeout||t),this._socket.on("error",this._onConnectionSocketError)}_onConnectionError(r,c){if(clearTimeout(this._connectionTimeout),!(this._fallbackAddresses&&this._fallbackAddresses.length&&this.stage==="init"&&!this._destroyed)){this._onError(r,c,!1,"CONN");return}let m=this._fallbackAddresses.shift();if(this.logger.info({tnx:"network",failedHost:this._connectOpts.host,nextHost:m,error:r.message||r},"Connection to %s failed, trying %s",this._connectOpts.host,m),this._socket){try{this._socket.removeListener("error",this._onConnectionSocketError),this._socket.destroy()}catch{}this._socket=null}this._connectOpts.host=m,this._connectToHost(this._connectOpts,this.secureConnection)}quit(){this._sendCommand("QUIT"),this._responseActions.push(this.close)}close(){if(clearTimeout(this._connectionTimeout),clearTimeout(this._greetingTimeout),this._responseActions=[],this._closing)return;this._closing=!0;let r="end";this.stage==="init"&&(r="destroy"),this.logger.debug({tnx:"smtp"},'Closing connection to the server using "%s"',r);let c=this._socket&&this._socket.socket||this._socket;if(c&&!c.destroyed)try{c.setTimeout(0),c.removeListener("data",this._onSocketData),c.removeListener("timeout",this._onSocketTimeout),c.removeListener("close",this._onSocketClose),c.removeListener("end",this._onSocketEnd),c.removeListener("error",this._onSocketError),c.removeListener("error",this._onConnectionSocketError),c.on("error",_),c[r]()}catch{}this._destroy()}login(r,c){const g=this._isDestroyedMessage("login");if(g)return c(this._formatError(g,"ECONNECTION",!1,"API"));if(this._auth=r||{},this._authMethod=(this._auth.method||"").toString().trim().toUpperCase()||!1,!this._authMethod&&this._auth.oauth2&&!this._auth.credentials?this._authMethod="XOAUTH2":(!this._authMethod||this._authMethod==="XOAUTH2"&&!this._auth.oauth2)&&(this._authMethod=(this._supportedAuth[0]||"PLAIN").toUpperCase().trim()),this._authMethod!=="XOAUTH2"&&(!this._auth.credentials||!this._auth.credentials.user||!this._auth.credentials.pass))if(this._auth.user&&this._auth.pass||this.customAuth.has(this._authMethod))this._auth.credentials={user:this._auth.user,pass:this._auth.pass,options:this._auth.options};else return c(this._formatError('Missing credentials for "'+this._authMethod+'"',"EAUTH",!1,"API"));if(this.customAuth.has(this._authMethod)){let m=this.customAuth.get(this._authMethod),x,y=!1,T=()=>{y||(y=!0,this.logger.info({tnx:"smtp",username:this._auth.user,action:"authenticated",method:this._authMethod},"User %s authenticated",JSON.stringify(this._auth.user)),this.authenticated=!0,c(null,!0))},b=C=>{y||(y=!0,c(this._formatError(C,"EAUTH",x,"AUTH "+this._authMethod)))},k=m({auth:this._auth,method:this._authMethod,extensions:[].concat(this._supportedExtensions),authMethods:[].concat(this._supportedAuth),maxAllowedSize:this._maxAllowedSize||!1,sendCommand:(C,A)=>{let E;return A||(E=new Promise((M,S)=>{A=h.callbackPromise(M,S)})),this._responseActions.push(M=>{x=M;let S=M.match(/^(\d+)(?:\s(\d+\.\d+\.\d+))?\s/),I={command:C,response:M};S?(I.status=Number(S[1])||0,S[2]&&(I.code=S[2]),I.text=M.substr(S[0].length)):(I.text=M,I.status=0),A(null,I)}),setImmediate(()=>this._sendCommand(C)),E},resolve:T,reject:b});k&&typeof k.catch=="function"&&k.then(T).catch(b);return}switch(this._authMethod){case"XOAUTH2":this._handleXOauth2Token(!1,c);return;case"LOGIN":this._responseActions.push(m=>{this._actionAUTH_LOGIN_USER(m,c)}),this._sendCommand("AUTH LOGIN");return;case"PLAIN":this._responseActions.push(m=>{this._actionAUTHComplete(m,c)}),this._sendCommand("AUTH PLAIN "+Buffer.from("\0"+this._auth.credentials.user+"\0"+this._auth.credentials.pass,"utf-8").toString("base64"),"AUTH PLAIN "+Buffer.from("\0"+this._auth.credentials.user+"\0/* secret */","utf-8").toString("base64"));return;case"CRAM-MD5":this._responseActions.push(m=>{this._actionAUTH_CRAM_MD5(m,c)}),this._sendCommand("AUTH CRAM-MD5");return}return c(this._formatError('Unknown authentication method "'+this._authMethod+'"',"EAUTH",!1,"API"))}send(r,c,g){if(!c)return g(this._formatError("Empty message","EMESSAGE",!1,"API"));const m=this._isDestroyedMessage("send message");if(m)return g(this._formatError(m,"ECONNECTION",!1,"API"));if(this._maxAllowedSize&&r.size>this._maxAllowedSize)return setImmediate(()=>{g(this._formatError("Message size larger than allowed "+this._maxAllowedSize,"EMESSAGE",!1,"MAIL FROM"))});let x=!1,y=function(){x||(x=!0,g(...arguments))};typeof c.on=="function"&&c.on("error",b=>y(this._formatError(b,"ESTREAM",!1,"API")));let T=Date.now();this._setEnvelope(r,(b,k)=>{if(b){let E=new a;return typeof c.pipe=="function"?c.pipe(E):(E.write(c),E.end()),y(b)}let C=Date.now(),A=this._createSendStream((E,M)=>E?y(E):(k.envelopeTime=C-T,k.messageTime=Date.now()-C,k.messageSize=A.outByteCount,k.response=M,y(null,k)));typeof c.pipe=="function"?c.pipe(A):(A.write(c),A.end())})}reset(r){this._sendCommand("RSET"),this._responseActions.push(c=>c.charAt(0)!=="2"?r(this._formatError("Could not reset session state. response="+c,"EPROTOCOL",c,"RSET")):(this._envelope=!1,r(null,!0)))}_onConnect(){if(clearTimeout(this._connectionTimeout),this.logger.info({tnx:"network",localAddress:this._socket.localAddress,localPort:this._socket.localPort,remoteAddress:this._socket.remoteAddress,remotePort:this._socket.remotePort},"%s established to %s:%s",this.secure?"Secure connection":"Connection",this._socket.remoteAddress,this._socket.remotePort),this._destroyed){this.close();return}this.stage="connected",this._socket.removeListener("data",this._onSocketData),this._socket.removeListener("timeout",this._onSocketTimeout),this._socket.removeListener("close",this._onSocketClose),this._socket.removeListener("end",this._onSocketEnd),this._socket.removeListener("error",this._onConnectionSocketError),this._socket.on("error",this._onSocketError),this._socket.on("data",this._onSocketData),this._socket.once("close",this._onSocketClose),this._socket.once("end",this._onSocketEnd),this._socket.setTimeout(this.options.socketTimeout||u),this._socket.on("timeout",this._onSocketTimeout),this._greetingTimeout=setTimeout(()=>{this._socket&&!this._destroyed&&this._responseActions[0]===this._actionGreeting&&this._onError("Greeting never received","ETIMEDOUT",!1,"CONN")},this.options.greetingTimeout||f),this._responseActions.push(this._actionGreeting),this._socket.resume()}_onData(r){if(this._destroyed||!r||!r.length)return;let c=(r||"").toString("binary"),g=(this._remainder+c).split(/\r?\n/),m;this._remainder=g.pop();for(let x=0,y=g.length;x<y;x++){if(this._responseQueue.length&&(m=this._responseQueue[this._responseQueue.length-1],/^\d+-/.test(m.split(`
-`).pop()))){this._responseQueue[this._responseQueue.length-1]+=`
-`+g[x];continue}this._responseQueue.push(g[x])}this._responseQueue.length&&(m=this._responseQueue[this._responseQueue.length-1],/^\d+-/.test(m.split(`
-`).pop()))||this._processResponse()}_onError(r,c,g,m){if(clearTimeout(this._connectionTimeout),clearTimeout(this._greetingTimeout),this._destroyed)return;r=this._formatError(r,c,g,m),["ETIMEDOUT","ESOCKET","ECONNECTION"].includes(r.code)?this.logger.warn(g,r.message):this.logger.error(g,r.message),this.emit("error",r),this.close()}_formatError(r,c,g,m){let x;/Error\]$/i.test(Object.prototype.toString.call(r))?x=r:x=new Error(r),c&&c!=="Error"&&(x.code=c),g&&(x.response=g,x.message+=": "+g);let y=typeof g=="string"&&Number((g.match(/^\d+/)||[])[0])||!1;return y&&(x.responseCode=y),m&&(x.command=m),x}_onClose(){let r=!1;if(this._remainder&&this._remainder.trim()&&((this.options.debug||this.options.transactionLog)&&this.logger.debug({tnx:"server"},this._remainder.replace(/\r?\n$/,"")),this.lastServerResponse=r=this._remainder.trim()),this.logger.info({tnx:"network"},"Connection closed"),this.upgrading&&!this._destroyed)return this._onError(new Error("Connection closed unexpectedly"),"ETLS",r,"CONN");if(![this._actionGreeting,this.close].includes(this._responseActions[0])&&!this._destroyed)return this._onError(new Error("Connection closed unexpectedly"),"ECONNECTION",r,"CONN");if(/^[45]\d{2}\b/.test(r))return this._onError(new Error("Connection closed unexpectedly"),"ECONNECTION",r,"CONN");this._destroy()}_onEnd(){this._socket&&!this._socket.destroyed&&this._socket.destroy()}_onTimeout(){return this._onError(new Error("Timeout"),"ETIMEDOUT",!1,"CONN")}_destroy(){this._destroyed||(this._destroyed=!0,this.emit("end"))}_upgradeConnection(r){this._socket.removeListener("data",this._onSocketData),this._socket.removeListener("timeout",this._onSocketTimeout);let c=this._socket,g={socket:this._socket,host:this.host};Object.keys(this.options.tls||{}).forEach(m=>{g[m]=this.options.tls[m]}),this.servername&&!g.servername&&(g.servername=this.servername),this.upgrading=!0;try{this._socket=n.connect(g,()=>(this.secure=!0,this.upgrading=!1,this._socket.on("data",this._onSocketData),c.removeListener("close",this._onSocketClose),c.removeListener("end",this._onSocketEnd),c.removeListener("error",this._onSocketError),r(null,!0)))}catch(m){return r(m)}this._socket.on("error",this._onSocketError),this._socket.once("close",this._onSocketClose),this._socket.once("end",this._onSocketEnd),this._socket.setTimeout(this.options.socketTimeout||u),this._socket.on("timeout",this._onSocketTimeout),c.resume()}_processResponse(){if(!this._responseQueue.length)return!1;let r=this.lastServerResponse=(this._responseQueue.shift()||"").toString();if(/^\d+-/.test(r.split(`
-`).pop()))return;(this.options.debug||this.options.transactionLog)&&this.logger.debug({tnx:"server"},r.replace(/\r?\n$/,"")),r.trim()||setImmediate(()=>this._processResponse());let c=this._responseActions.shift();if(typeof c=="function")c.call(this,r),setImmediate(()=>this._processResponse());else return this._onError(new Error("Unexpected Response"),"EPROTOCOL",r,"CONN")}_sendCommand(r,c){if(!this._destroyed){if(this._socket.destroyed)return this.close();(this.options.debug||this.options.transactionLog)&&this.logger.debug({tnx:"client"},(c||r||"").toString().replace(/\r?\n$/,"")),this._socket.write(Buffer.from(r+`\r
-`,"utf-8"))}}_setEnvelope(r,c){let g=[],m=!1;if(this._envelope=r||{},this._envelope.from=(this._envelope.from&&this._envelope.from.address||this._envelope.from||"").toString().trim(),this._envelope.to=[].concat(this._envelope.to||[]).map(x=>(x&&x.address||x||"").toString().trim()),!this._envelope.to.length)return c(this._formatError("No recipients defined","EENVELOPE",!1,"API"));if(this._envelope.from&&/[\r\n<>]/.test(this._envelope.from))return c(this._formatError("Invalid sender "+JSON.stringify(this._envelope.from),"EENVELOPE",!1,"API"));/[\x80-\uFFFF]/.test(this._envelope.from)&&(m=!0);for(let x=0,y=this._envelope.to.length;x<y;x++){if(!this._envelope.to[x]||/[\r\n<>]/.test(this._envelope.to[x]))return c(this._formatError("Invalid recipient "+JSON.stringify(this._envelope.to[x]),"EENVELOPE",!1,"API"));/[\x80-\uFFFF]/.test(this._envelope.to[x])&&(m=!0)}if(this._envelope.rcptQueue=JSON.parse(JSON.stringify(this._envelope.to||[])),this._envelope.rejected=[],this._envelope.rejectedErrors=[],this._envelope.accepted=[],this._envelope.dsn)try{this._envelope.dsn=this._setDsnEnvelope(this._envelope.dsn)}catch(x){return c(this._formatError("Invalid DSN "+x.message,"EENVELOPE",!1,"API"))}if(this._responseActions.push(x=>{this._actionMAIL(x,c)}),m&&this._supportedExtensions.includes("SMTPUTF8")&&(g.push("SMTPUTF8"),this._usingSmtpUtf8=!0),this._envelope.use8BitMime&&this._supportedExtensions.includes("8BITMIME")&&(g.push("BODY=8BITMIME"),this._using8BitMime=!0),this._envelope.size&&this._supportedExtensions.includes("SIZE")&&g.push("SIZE="+this._envelope.size),this._envelope.dsn&&this._supportedExtensions.includes("DSN")&&(this._envelope.dsn.ret&&g.push("RET="+h.encodeXText(this._envelope.dsn.ret)),this._envelope.dsn.envid&&g.push("ENVID="+h.encodeXText(this._envelope.dsn.envid))),this._envelope.requireTLSExtensionEnabled){if(!this.secure)return c(this._formatError("REQUIRETLS can only be used over TLS connections (RFC 8689)","EREQUIRETLS",!1,"MAIL FROM"));if(!this._supportedExtensions.includes("REQUIRETLS"))return c(this._formatError("Server does not support REQUIRETLS extension (RFC 8689)","EREQUIRETLS",!1,"MAIL FROM"));g.push("REQUIRETLS")}this._sendCommand("MAIL FROM:<"+this._envelope.from+">"+(g.length?" "+g.join(" "):""))}_setDsnEnvelope(r){let c=(r.ret||r.return||"").toString().toUpperCase()||null;if(c)switch(c){case"HDRS":case"HEADERS":c="HDRS";break;case"FULL":case"BODY":c="FULL";break}if(c&&!["FULL","HDRS"].includes(c))throw new Error("ret: "+JSON.stringify(c));let g=(r.envid||r.id||"").toString()||null,m=r.notify||null;if(m){typeof m=="string"&&(m=m.split(",")),m=m.map(b=>b.trim().toUpperCase());let y=["NEVER","SUCCESS","FAILURE","DELAY"];if(m.filter(b=>!y.includes(b)).length||m.length>1&&m.includes("NEVER"))throw new Error("notify: "+JSON.stringify(m.join(",")));m=m.join(",")}let x=(r.recipient||r.orcpt||"").toString()||null;return x&&x.indexOf(";")<0&&(x="rfc822;"+x),{ret:c,envid:g,notify:m,orcpt:x}}_getDsnRcptToArgs(){let r=[];return this._envelope.dsn&&this._supportedExtensions.includes("DSN")&&(this._envelope.dsn.notify&&r.push("NOTIFY="+h.encodeXText(this._envelope.dsn.notify)),this._envelope.dsn.orcpt&&r.push("ORCPT="+h.encodeXText(this._envelope.dsn.orcpt))),r.length?" "+r.join(" "):""}_createSendStream(r){let c=new o,g;return this.options.lmtp?this._envelope.accepted.forEach((m,x)=>{let y=x===this._envelope.accepted.length-1;this._responseActions.push(T=>{this._actionLMTPStream(m,y,T,r)})}):this._responseActions.push(m=>{this._actionSMTPStream(m,r)}),c.pipe(this._socket,{end:!1}),this.options.debug&&(g=new a,g.on("readable",()=>{let m;for(;m=g.read();)this.logger.debug({tnx:"message"},m.toString("binary").replace(/\r?\n$/,""))}),c.pipe(g)),c.once("end",()=>{this.logger.info({tnx:"message",inByteCount:c.inByteCount,outByteCount:c.outByteCount},"<%s bytes encoded mime message (source size %s bytes)>",c.outByteCount,c.inByteCount)}),c}_actionGreeting(r){if(clearTimeout(this._greetingTimeout),r.substr(0,3)!=="220"){this._onError(new Error("Invalid greeting. response="+r),"EPROTOCOL",r,"CONN");return}this.options.lmtp?(this._responseActions.push(this._actionLHLO),this._sendCommand("LHLO "+this.name)):(this._responseActions.push(this._actionEHLO),this._sendCommand("EHLO "+this.name))}_actionLHLO(r){if(r.charAt(0)!=="2"){this._onError(new Error("Invalid LHLO. response="+r),"EPROTOCOL",r,"LHLO");return}this._actionEHLO(r)}_actionEHLO(r){let c;if(r.substr(0,3)==="421"){this._onError(new Error("Server terminates connection. response="+r),"ECONNECTION",r,"EHLO");return}if(r.charAt(0)!=="2"){if(this.options.requireTLS){this._onError(new Error("EHLO failed but HELO does not support required STARTTLS. response="+r),"ECONNECTION",r,"EHLO");return}this._responseActions.push(this._actionHELO),this._sendCommand("HELO "+this.name);return}if(this._ehloLines=r.split(/\r?\n/).map(g=>g.replace(/^\d+[ -]/,"").trim()).filter(g=>g).slice(1),!this.secure&&!this.options.ignoreTLS&&(/[ -]STARTTLS\b/im.test(r)||this.options.requireTLS)){this._sendCommand("STARTTLS"),this._responseActions.push(this._actionSTARTTLS);return}/[ -]SMTPUTF8\b/im.test(r)&&this._supportedExtensions.push("SMTPUTF8"),/[ -]DSN\b/im.test(r)&&this._supportedExtensions.push("DSN"),/[ -]8BITMIME\b/im.test(r)&&this._supportedExtensions.push("8BITMIME"),/[ -]REQUIRETLS\b/im.test(r)&&this._supportedExtensions.push("REQUIRETLS"),/[ -]PIPELINING\b/im.test(r)&&this._supportedExtensions.push("PIPELINING"),/[ -]AUTH\b/i.test(r)&&(this.allowsAuth=!0),/[ -]AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)PLAIN/i.test(r)&&this._supportedAuth.push("PLAIN"),/[ -]AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)LOGIN/i.test(r)&&this._supportedAuth.push("LOGIN"),/[ -]AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)CRAM-MD5/i.test(r)&&this._supportedAuth.push("CRAM-MD5"),/[ -]AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)XOAUTH2/i.test(r)&&this._supportedAuth.push("XOAUTH2"),(c=r.match(/[ -]SIZE(?:[ \t]+(\d+))?/im))&&(this._supportedExtensions.push("SIZE"),this._maxAllowedSize=Number(c[1])||0),this.emit("connect")}_actionHELO(r){if(r.charAt(0)!=="2"){this._onError(new Error("Invalid HELO. response="+r),"EPROTOCOL",r,"HELO");return}this.allowsAuth=!0,this.emit("connect")}_actionSTARTTLS(r){if(r.charAt(0)!=="2"){if(this.options.opportunisticTLS)return this.logger.info({tnx:"smtp"},"Failed STARTTLS upgrade, continuing unencrypted"),this.emit("connect");this._onError(new Error("Error upgrading connection with STARTTLS"),"ETLS",r,"STARTTLS");return}this._upgradeConnection((c,g)=>{if(c){this._onError(new Error("Error initiating TLS - "+(c.message||c)),"ETLS",!1,"STARTTLS");return}this.logger.info({tnx:"smtp"},"Connection upgraded with STARTTLS"),g?this.options.lmtp?(this._responseActions.push(this._actionLHLO),this._sendCommand("LHLO "+this.name)):(this._responseActions.push(this._actionEHLO),this._sendCommand("EHLO "+this.name)):this.emit("connect")})}_actionAUTH_LOGIN_USER(r,c){if(!/^334[ -]/.test(r)){c(this._formatError('Invalid login sequence while waiting for "334 VXNlcm5hbWU6"',"EAUTH",r,"AUTH LOGIN"));return}this._responseActions.push(g=>{this._actionAUTH_LOGIN_PASS(g,c)}),this._sendCommand(Buffer.from(this._auth.credentials.user+"","utf-8").toString("base64"))}_actionAUTH_CRAM_MD5(r,c){let g=r.match(/^334\s+(.+)$/),m="";if(g)m=g[1];else return c(this._formatError("Invalid login sequence while waiting for server challenge string","EAUTH",r,"AUTH CRAM-MD5"));let x=Buffer.from(m,"base64").toString("ascii"),y=s.createHmac("md5",this._auth.credentials.pass);y.update(x);let T=this._auth.credentials.user+" "+y.digest("hex");this._responseActions.push(b=>{this._actionAUTH_CRAM_MD5_PASS(b,c)}),this._sendCommand(Buffer.from(T).toString("base64"),Buffer.from(this._auth.credentials.user+" /* secret */").toString("base64"))}_actionAUTH_CRAM_MD5_PASS(r,c){if(!r.match(/^235\s+/))return c(this._formatError('Invalid login sequence while waiting for "235"',"EAUTH",r,"AUTH CRAM-MD5"));this.logger.info({tnx:"smtp",username:this._auth.user,action:"authenticated",method:this._authMethod},"User %s authenticated",JSON.stringify(this._auth.user)),this.authenticated=!0,c(null,!0)}_actionAUTH_LOGIN_PASS(r,c){if(!/^334[ -]/.test(r))return c(this._formatError('Invalid login sequence while waiting for "334 UGFzc3dvcmQ6"',"EAUTH",r,"AUTH LOGIN"));this._responseActions.push(g=>{this._actionAUTHComplete(g,c)}),this._sendCommand(Buffer.from((this._auth.credentials.pass||"").toString(),"utf-8").toString("base64"),Buffer.from("/* secret */","utf-8").toString("base64"))}_actionAUTHComplete(r,c,g){if(!g&&typeof c=="function"&&(g=c,c=!1),r.substr(0,3)==="334"){this._responseActions.push(m=>{c||this._authMethod!=="XOAUTH2"?this._actionAUTHComplete(m,!0,g):setImmediate(()=>this._handleXOauth2Token(!0,g))}),this._sendCommand("");return}if(r.charAt(0)!=="2")return this.logger.info({tnx:"smtp",username:this._auth.user,action:"authfail",method:this._authMethod},"User %s failed to authenticate",JSON.stringify(this._auth.user)),g(this._formatError("Invalid login","EAUTH",r,"AUTH "+this._authMethod));this.logger.info({tnx:"smtp",username:this._auth.user,action:"authenticated",method:this._authMethod},"User %s authenticated",JSON.stringify(this._auth.user)),this.authenticated=!0,g(null,!0)}_actionMAIL(r,c){let g,m;if(Number(r.charAt(0))!==2)return this._usingSmtpUtf8&&/^550 /.test(r)&&/[\x80-\uFFFF]/.test(this._envelope.from)?g="Internationalized mailbox name not allowed":g="Mail command failed",c(this._formatError(g,"EENVELOPE",r,"MAIL FROM"));if(this._envelope.rcptQueue.length)if(this._recipientQueue=[],this._supportedExtensions.includes("PIPELINING"))for(;this._envelope.rcptQueue.length;)m=this._envelope.rcptQueue.shift(),this._recipientQueue.push(m),this._responseActions.push(x=>{this._actionRCPT(x,c)}),this._sendCommand("RCPT TO:<"+m+">"+this._getDsnRcptToArgs());else m=this._envelope.rcptQueue.shift(),this._recipientQueue.push(m),this._responseActions.push(x=>{this._actionRCPT(x,c)}),this._sendCommand("RCPT TO:<"+m+">"+this._getDsnRcptToArgs());else return c(this._formatError("Can't send mail - no recipients defined","EENVELOPE",!1,"API"))}_actionRCPT(r,c){let g,m,x=this._recipientQueue.shift();if(Number(r.charAt(0))!==2?(this._usingSmtpUtf8&&/^553 /.test(r)&&/[\x80-\uFFFF]/.test(x)?g="Internationalized mailbox name not allowed":g="Recipient command failed",this._envelope.rejected.push(x),m=this._formatError(g,"EENVELOPE",r,"RCPT TO"),m.recipient=x,this._envelope.rejectedErrors.push(m)):this._envelope.accepted.push(x),!this._envelope.rcptQueue.length&&!this._recipientQueue.length)if(this._envelope.rejected.length<this._envelope.to.length)this._responseActions.push(y=>{this._actionDATA(y,c)}),this._sendCommand("DATA");else return m=this._formatError("Can't send mail - all recipients were rejected","EENVELOPE",r,"RCPT TO"),m.rejected=this._envelope.rejected,m.rejectedErrors=this._envelope.rejectedErrors,c(m);else this._envelope.rcptQueue.length&&(x=this._envelope.rcptQueue.shift(),this._recipientQueue.push(x),this._responseActions.push(y=>{this._actionRCPT(y,c)}),this._sendCommand("RCPT TO:<"+x+">"+this._getDsnRcptToArgs()))}_actionDATA(r,c){if(!/^[23]/.test(r))return c(this._formatError("Data command failed","EENVELOPE",r,"DATA"));let g={accepted:this._envelope.accepted,rejected:this._envelope.rejected};this._ehloLines&&this._ehloLines.length&&(g.ehlo=this._ehloLines),this._envelope.rejectedErrors.length&&(g.rejectedErrors=this._envelope.rejectedErrors),c(null,g)}_actionSMTPStream(r,c){return Number(r.charAt(0))!==2?c(this._formatError("Message failed","EMESSAGE",r,"DATA")):c(null,r)}_actionLMTPStream(r,c,g,m){let x;if(Number(g.charAt(0))!==2){x=this._formatError("Message failed for recipient "+r,"EMESSAGE",g,"DATA"),x.recipient=r,this._envelope.rejected.push(r),this._envelope.rejectedErrors.push(x);for(let y=0,T=this._envelope.accepted.length;y<T;y++)this._envelope.accepted[y]===r&&this._envelope.accepted.splice(y,1)}if(c)return m(null,g)}_handleXOauth2Token(r,c){this._auth.oauth2.getToken(r,(g,m)=>{if(g)return this.logger.info({tnx:"smtp",username:this._auth.user,action:"authfail",method:this._authMethod},"User %s failed to authenticate",JSON.stringify(this._auth.user)),c(this._formatError(g,"EAUTH",!1,"AUTH XOAUTH2"));this._responseActions.push(x=>{this._actionAUTHComplete(x,r,c)}),this._sendCommand("AUTH XOAUTH2 "+this._auth.oauth2.buildXOAuth2Token(m),"AUTH XOAUTH2 "+this._auth.oauth2.buildXOAuth2Token("/* secret */"))})}_isDestroyedMessage(r){if(this._destroyed)return"Cannot "+r+" - smtp connection is already destroyed.";if(this._socket){if(this._socket.destroyed)return"Cannot "+r+" - smtp connection socket is already destroyed.";if(!this._socket.writable)return"Cannot "+r+" - smtp connection socket is already half-closed."}}_getHostname(){let r;try{r=i.hostname()||""}catch{r="localhost"}return(!r||r.indexOf(".")<0)&&(r="[127.0.0.1]"),r.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)&&(r="["+r+"]"),r}}return Mt=w,Mt}var Ot,Di;function Ss(){if(Di)return Ot;Di=1;const p=Y.Stream,e=it(),d=oe,n=Z(),i=se();class s extends p{constructor(a,h){if(super(),this.options=a||{},a&&a.serviceClient){if(!a.privateKey||!a.user){let u=new Error('Options "privateKey" and "user" are required for service account!');u.code=i.EOAUTH2,setImmediate(()=>this.emit("error",u));return}let t=Math.min(Math.max(Number(this.options.serviceRequestTimeout)||0,0),3600);this.options.serviceRequestTimeout=t||300}if(this.logger=n.getLogger({logger:h},{component:this.options.component||"OAuth2"}),this.provisionCallback=typeof this.options.provisionCallback=="function"?this.options.provisionCallback:!1,this.options.accessUrl=this.options.accessUrl||"https://accounts.google.com/o/oauth2/token",this.options.customHeaders=this.options.customHeaders||{},this.options.customParams=this.options.customParams||{},this.accessToken=this.options.accessToken||!1,this.options.expires&&Number(this.options.expires))this.expires=this.options.expires;else{let t=Math.max(Number(this.options.timeout)||0,0);this.expires=t&&Date.now()+t*1e3||0}this.renewing=!1,this.renewalQueue=[]}getToken(a,h){if(!a&&this.accessToken&&(!this.expires||this.expires>Date.now()))return this.logger.debug({tnx:"OAUTH2",user:this.options.user,action:"reuse"},"Reusing existing access token for %s",this.options.user),h(null,this.accessToken);if(!this.provisionCallback&&!this.options.refreshToken&&!this.options.serviceClient){if(this.accessToken)return this.logger.debug({tnx:"OAUTH2",user:this.options.user,action:"reuse"},"Reusing existing access token (no refresh capability) for %s",this.options.user),h(null,this.accessToken);this.logger.error({tnx:"OAUTH2",user:this.options.user,action:"renew"},"Cannot renew access token for %s: No refresh mechanism available",this.options.user);let u=new Error("Can't create new access token for user");return u.code=i.EOAUTH2,h(u)}if(this.renewing)return this.renewalQueue.push({renew:a,callback:h});this.renewing=!0;const t=(u,f)=>{this.renewalQueue.forEach(l=>l.callback(u,f)),this.renewalQueue=[],this.renewing=!1,u?this.logger.error({err:u,tnx:"OAUTH2",user:this.options.user,action:"renew"},"Failed generating new Access Token for %s",this.options.user):this.logger.info({tnx:"OAUTH2",user:this.options.user,action:"renew"},"Generated new Access Token for %s",this.options.user),h(u,f)};this.provisionCallback?this.provisionCallback(this.options.user,!!a,(u,f,l)=>{!u&&f&&(this.accessToken=f,this.expires=l||0),t(u,f)}):this.generateToken(t)}updateToken(a,h){this.accessToken=a,h=Math.max(Number(h)||0,0),this.expires=h&&Date.now()+h*1e3||0,this.emit("token",{user:this.options.user,accessToken:a||"",expires:this.expires})}generateToken(a){let h,t;if(this.options.serviceClient){let u=Math.floor(Date.now()/1e3),f={iss:this.options.serviceClient,scope:this.options.scope||"https://mail.google.com/",sub:this.options.user,aud:this.options.accessUrl,iat:u,exp:u+this.options.serviceRequestTimeout},l;try{l=this.jwtSignRS256(f)}catch{let w=new Error("Can't generate token. Check your auth options");return w.code=i.EOAUTH2,a(w)}h={grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion:l},t={grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion:f}}else{if(!this.options.refreshToken){let u=new Error("Can't create new access token for user");return u.code=i.EOAUTH2,a(u)}h={client_id:this.options.clientId||"",client_secret:this.options.clientSecret||"",refresh_token:this.options.refreshToken,grant_type:"refresh_token"},t={client_id:this.options.clientId||"",client_secret:(this.options.clientSecret||"").substr(0,6)+"...",refresh_token:(this.options.refreshToken||"").substr(0,6)+"...",grant_type:"refresh_token"}}Object.keys(this.options.customParams).forEach(u=>{h[u]=this.options.customParams[u],t[u]=this.options.customParams[u]}),this.logger.debug({tnx:"OAUTH2",user:this.options.user,action:"generate"},"Requesting token using: %s",JSON.stringify(t)),this.postRequest(this.options.accessUrl,h,this.options,(u,f)=>{let l;if(u)return a(u);try{l=JSON.parse(f.toString())}catch(v){return a(v)}if(!l||typeof l!="object"){this.logger.debug({tnx:"OAUTH2",user:this.options.user,action:"post"},"Response: %s",(f||"").toString());let v=new Error("Invalid authentication response");return v.code=i.EOAUTH2,a(v)}let _={};if(Object.keys(l).forEach(v=>{v!=="access_token"?_[v]=l[v]:_[v]=(l[v]||"").toString().substr(0,6)+"..."}),this.logger.debug({tnx:"OAUTH2",user:this.options.user,action:"post"},"Response: %s",JSON.stringify(_)),l.error){let v=l.error;l.error_description&&(v+=": "+l.error_description),l.error_uri&&(v+=" ("+l.error_uri+")");let r=new Error(v);return r.code=i.EOAUTH2,a(r)}if(l.access_token)return this.updateToken(l.access_token,l.expires_in),a(null,this.accessToken);let w=new Error("No access token");return w.code=i.EOAUTH2,a(w)})}buildXOAuth2Token(a){let h=["user="+(this.options.user||""),"auth=Bearer "+(a||this.accessToken),"",""];return Buffer.from(h.join(""),"utf-8").toString("base64")}postRequest(a,h,t,u){let f=!1,l=[],_=0,w=e(a,{method:"post",headers:t.customHeaders,body:h,allowErrorResponse:!0});w.on("readable",()=>{let v;for(;(v=w.read())!==null;)l.push(v),_+=v.length}),w.once("error",v=>{if(!f)return f=!0,u(v)}),w.once("end",()=>{if(!f)return f=!0,u(null,Buffer.concat(l,_))})}toBase64URL(a){return typeof a=="string"&&(a=Buffer.from(a)),a.toString("base64").replace(/[=]+/g,"").replace(/\+/g,"-").replace(/\//g,"_")}jwtSignRS256(a){a=['{"alg":"RS256","typ":"JWT"}',JSON.stringify(a)].map(t=>this.toBase64URL(t)).join(".");let h=d.createSign("RSA-SHA256").update(a).sign(this.options.privateKey);return a+"."+this.toBase64URL(h)}}return Ot=s,Ot}var Nt,Li;function dn(){if(Li)return Nt;Li=1;const p=Gt(),e=Z().assign,d=Ss(),n=se(),i=fe;class s extends i{constructor(a){if(super(),this.pool=a,this.options=a.options,this.logger=this.pool.logger,this.options.auth)switch((this.options.auth.type||"").toString().toUpperCase()){case"OAUTH2":{let h=new d(this.options.auth,this.logger);h.provisionCallback=this.pool.mailer&&this.pool.mailer.get("oauth2_provision_cb")||h.provisionCallback,this.auth={type:"OAUTH2",user:this.options.auth.user,oauth2:h,method:"XOAUTH2"},h.on("token",t=>this.pool.mailer.emit("token",t)),h.on("error",t=>this.emit("error",t));break}default:if(!this.options.auth.user&&!this.options.auth.pass)break;this.auth={type:(this.options.auth.type||"").toString().toUpperCase()||"LOGIN",user:this.options.auth.user,credentials:{user:this.options.auth.user||"",pass:this.options.auth.pass,options:this.options.auth.options},method:(this.options.auth.method||"").trim().toUpperCase()||this.options.authMethod||!1}}this._connection=!1,this._connected=!1,this.messages=0,this.available=!0}connect(a){this.pool.getSocket(this.options,(h,t)=>{if(h)return a(h);let u=!1,f=this.options;t&&t.connection&&(this.logger.info({tnx:"proxy",remoteAddress:t.connection.remoteAddress,remotePort:t.connection.remotePort,destHost:f.host||"",destPort:f.port||"",action:"connected"},"Using proxied socket from %s:%s to %s:%s",t.connection.remoteAddress,t.connection.remotePort,f.host||"",f.port||""),f=e(!1,f),Object.keys(t).forEach(l=>{f[l]=t[l]})),this.connection=new p(f),this.connection.once("error",l=>{if(this.emit("error",l),!u)return u=!0,a(l)}),this.connection.once("end",()=>{if(this.close(),u)return;u=!0;let l=setTimeout(()=>{if(u)return;let _=new Error("Unexpected socket close");this.connection&&this.connection._socket&&this.connection._socket.upgrading&&(_.code=n.ETLS),a(_)},1e3);try{l.unref()}catch{}}),this.connection.connect(()=>{if(!u)if(this.auth&&(this.connection.allowsAuth||f.forceAuth))this.connection.login(this.auth,l=>{if(!u){if(u=!0,l)return this.connection.close(),this.emit("error",l),a(l);this._connected=!0,a(null,!0)}});else return u=!0,this._connected=!0,a(null,!0)})})}send(a,h){if(!this._connected)return this.connect(l=>l?h(l):this.send(a,h));let t=a.message.getEnvelope(),u=a.message.messageId(),f=[].concat(t.to||[]);f.length>3&&f.push("...and "+f.splice(2).length+" more"),this.logger.info({tnx:"send",messageId:u,cid:this.id},"Sending message %s using #%s to <%s>",u,this.id,f.join(", ")),a.data.dsn&&(t.dsn=a.data.dsn),a.data.requireTLSExtensionEnabled&&(t.requireTLSExtensionEnabled=a.data.requireTLSExtensionEnabled),this.connection.send(t,a.message.createReadStream(),(l,_)=>{if(this.messages++,l)return this.connection.close(),this.emit("error",l),h(l);_.envelope={from:t.from,to:t.to},_.messageId=u,setImmediate(()=>{let w;this.messages>=this.options.maxMessages?(w=new Error("Resource exhausted"),w.code=n.EMAXLIMIT,this.connection.close(),this.emit("error",w)):this.pool._checkRateLimit(()=>{this.available=!0,this.emit("available")})}),h(null,_)})}close(){this._connected=!1,this.auth&&this.auth.oauth2&&this.auth.oauth2.removeAllListeners(),this.connection&&this.connection.close(),this.emit("close")}}return Nt=s,Nt}const un={description:"Alibaba Cloud Mail",domains:["aliyun.com"],host:"smtp.aliyun.com",port:465,secure:!0},hn={description:"Alibaba Cloud Enterprise Mail",host:"smtp.qiye.aliyun.com",port:465,secure:!0},mn={description:"AOL Mail",domains:["aol.com"],host:"smtp.aol.com",port:587},fn={description:"Aruba PEC (Italian email provider)",domains:["aruba.it","pec.aruba.it"],aliases:["Aruba PEC"],host:"smtps.aruba.it",port:465,secure:!0,authMethod:"LOGIN"},gn={description:"Bluewin (Swiss email provider)",host:"smtpauths.bluewin.ch",domains:["bluewin.ch"],port:465},xn={description:"BOL Mail (Brazilian provider)",domains:["bol.com.br"],host:"smtp.bol.com.br",port:587,requireTLS:!0},vn={description:"DebugMail (email testing service)",host:"debugmail.io",port:25},_n={description:"Disroot (privacy-focused provider)",domains:["disroot.org"],host:"disroot.org",port:587,secure:!1,authMethod:"LOGIN"},wn={description:"Dyn Email Delivery",aliases:["Dynect"],host:"smtp.dynect.net",port:25},yn={description:"Elastic Email",aliases:["Elastic Email"],host:"smtp.elasticemail.com",port:465,secure:!0},bn={description:"Ethereal Email (email testing service)",aliases:["ethereal.email"],host:"smtp.ethereal.email",port:587},En={description:"FastMail",domains:["fastmail.fm"],host:"smtp.fastmail.com",port:465,secure:!0},Sn={description:"Gandi Mail",aliases:["Gandi","Gandi Mail"],host:"mail.gandi.net",port:587},Tn={description:"Gmail",aliases:["Google Mail"],domains:["gmail.com","googlemail.com"],host:"smtp.gmail.com",port:465,secure:!0},kn={description:"Gmail Workspace",aliases:["Google Workspace Mail"],host:"smtp-relay.gmail.com",port:465,secure:!0},An={description:"GMX Mail",domains:["gmx.com","gmx.net","gmx.de"],host:"mail.gmx.com",port:587},Cn={description:"GoDaddy Email (US)",host:"smtpout.secureserver.net",port:25},In={description:"GoDaddy Email (Asia)",host:"smtp.asia.secureserver.net",port:25},Mn={description:"GoDaddy Email (Europe)",host:"smtp.europe.secureserver.net",port:25},On={description:"Outlook.com / Hotmail",aliases:["Outlook","Outlook.com","Hotmail.com"],domains:["hotmail.com","outlook.com"],host:"smtp-mail.outlook.com",port:587},Nn={description:"iCloud Mail",aliases:["Me","Mac"],domains:["me.com","mac.com"],host:"smtp.mail.me.com",port:587},Pn={description:"Infomaniak Mail (Swiss hosting provider)",host:"mail.infomaniak.com",domains:["ik.me","ikmail.com","etik.com"],port:587},Rn={description:"KolabNow (secure email service)",domains:["kolabnow.com"],aliases:["Kolab"],host:"smtp.kolabnow.com",port:465,secure:!0,authMethod:"LOGIN"},Dn={description:"Loopia (Swedish hosting provider)",host:"mailcluster.loopia.se",port:465},Ln={description:"Loops",host:"smtp.loops.so",port:587},jn={description:"MailDev (local email testing)",port:1025,ignoreTLS:!0},qn={description:"MailerSend",host:"smtp.mailersend.net",port:587},Bn={description:"Mailgun",host:"smtp.mailgun.org",port:465,secure:!0},Un={description:"Mailjet",host:"in.mailjet.com",port:587},zn={description:"Mailosaur (email testing service)",host:"mailosaur.io",port:25},Hn={description:"Mailtrap",host:"live.smtp.mailtrap.io",port:587},$n={description:"Mandrill (by Mailchimp)",host:"smtp.mandrillapp.com",port:587},Fn={description:"Naver Mail (Korean email provider)",host:"smtp.naver.com",port:587},Vn={description:"OhMySMTP (email delivery service)",host:"smtp.ohmysmtp.com",port:587,secure:!1},Wn={description:"One.com Email",host:"send.one.com",port:465,secure:!0},Jn={description:"OpenMailBox",aliases:["OMB","openmailbox.org"],host:"smtp.openmailbox.org",port:465,secure:!0},Qn={description:"Microsoft 365 / Office 365",host:"smtp.office365.com",port:587,secure:!1},Gn={description:"Postmark",aliases:["PostmarkApp"],host:"smtp.postmarkapp.com",port:2525},Kn={description:"Proton Mail",aliases:["ProtonMail","Proton.me","Protonmail.com","Protonmail.ch"],domains:["proton.me","protonmail.com","pm.me","protonmail.ch"],host:"smtp.protonmail.ch",port:587,requireTLS:!0},Xn={description:"QQ Mail",domains:["qq.com"],host:"smtp.qq.com",port:465,secure:!0},Yn={description:"QQ Enterprise Mail",aliases:["QQ Enterprise"],domains:["exmail.qq.com"],host:"smtp.exmail.qq.com",port:465,secure:!0},Zn={description:"Resend",host:"smtp.resend.com",port:465,secure:!0},er={description:"Runbox (Norwegian email provider)",domains:["runbox.com"],host:"smtp.runbox.com",port:465,secure:!0},tr={description:"SendCloud (Chinese email delivery)",host:"smtp.sendcloud.net",port:2525},ir={description:"SendGrid",host:"smtp.sendgrid.net",port:587},sr={description:"Brevo (formerly Sendinblue)",aliases:["Brevo"],host:"smtp-relay.brevo.com",port:587},nr={description:"SendPulse",host:"smtp-pulse.com",port:465,secure:!0},rr={description:"AWS SES US East (N. Virginia)",host:"email-smtp.us-east-1.amazonaws.com",port:465,secure:!0},or={description:"Seznam Email (Czech email provider)",aliases:["Seznam Email"],domains:["seznam.cz","email.cz","post.cz","spoluzaci.cz"],host:"smtp.seznam.cz",port:465,secure:!0},ar={description:"SMTP2GO",host:"mail.smtp2go.com",port:2525},cr={description:"SparkPost",aliases:["SparkPost","SparkPost Mail"],domains:["sparkpost.com"],host:"smtp.sparkpostmail.com",port:587,secure:!1},lr={description:"Tipimail (email delivery service)",host:"smtp.tipimail.com",port:587},pr={description:"Tutanota (Tuta Mail)",domains:["tutanota.com","tuta.com","tutanota.de","tuta.io"],host:"smtp.tutanota.com",port:465,secure:!0},dr={description:"Yahoo Mail",domains:["yahoo.com"],host:"smtp.mail.yahoo.com",port:465,secure:!0},ur={description:"Yandex Mail",domains:["yandex.ru"],host:"smtp.yandex.ru",port:465,secure:!0},hr={description:"Zimbra Mail Server",aliases:["Zimbra Collaboration"],host:"smtp.zimbra.com",port:587,requireTLS:!0},mr={description:"Zoho Mail",host:"smtp.zoho.com",port:465,secure:!0,authMethod:"LOGIN"},fr={126:{description:"126 Mail (NetEase)",host:"smtp.126.com",port:465,secure:!0},163:{description:"163 Mail (NetEase)",host:"smtp.163.com",port:465,secure:!0},"1und1":{description:"1&1 Mail (German hosting provider)",host:"smtp.1und1.de",port:465,secure:!0,authMethod:"LOGIN"},Aliyun:un,AliyunQiye:hn,AOL:mn,Aruba:fn,Bluewin:gn,BOL:xn,DebugMail:vn,Disroot:_n,DynectEmail:wn,ElasticEmail:yn,Ethereal:bn,FastMail:En,"Feishu Mail":{description:"Feishu Mail (Lark)",aliases:["Feishu","FeishuMail"],domains:["www.feishu.cn"],host:"smtp.feishu.cn",port:465,secure:!0},"Forward Email":{description:"Forward Email (email forwarding service)",aliases:["FE","ForwardEmail"],domains:["forwardemail.net"],host:"smtp.forwardemail.net",port:465,secure:!0},GandiMail:Sn,Gmail:Tn,GmailWorkspace:kn,GMX:An,Godaddy:Cn,GodaddyAsia:In,GodaddyEurope:Mn,"hot.ee":{description:"Hot.ee (Estonian email provider)",host:"mail.hot.ee"},Hotmail:On,iCloud:Nn,Infomaniak:Pn,KolabNow:Rn,Loopia:Dn,Loops:Ln,"mail.ee":{description:"Mail.ee (Estonian email provider)",host:"smtp.mail.ee"},"Mail.ru":{description:"Mail.ru",host:"smtp.mail.ru",port:465,secure:!0},"Mailcatch.app":{description:"Mailcatch (email testing service)",host:"sandbox-smtp.mailcatch.app",port:2525},Maildev:jn,MailerSend:qn,Mailgun:Bn,Mailjet:Un,Mailosaur:zn,Mailtrap:Hn,Mandrill:$n,Naver:Fn,OhMySMTP:Vn,One:Wn,OpenMailBox:Jn,Outlook365:Qn,Postmark:Gn,Proton:Kn,"qiye.aliyun":{description:"Alibaba Mail Enterprise Edition",host:"smtp.mxhichina.com",port:"465",secure:!0},QQ:Xn,QQex:Yn,Resend:Zn,Runbox:er,SendCloud:tr,SendGrid:ir,SendinBlue:sr,SendPulse:nr,SES:rr,"SES-AP-NORTHEAST-1":{description:"AWS SES Asia Pacific (Tokyo)",host:"email-smtp.ap-northeast-1.amazonaws.com",port:465,secure:!0},"SES-AP-NORTHEAST-2":{description:"AWS SES Asia Pacific (Seoul)",host:"email-smtp.ap-northeast-2.amazonaws.com",port:465,secure:!0},"SES-AP-NORTHEAST-3":{description:"AWS SES Asia Pacific (Osaka)",host:"email-smtp.ap-northeast-3.amazonaws.com",port:465,secure:!0},"SES-AP-SOUTH-1":{description:"AWS SES Asia Pacific (Mumbai)",host:"email-smtp.ap-south-1.amazonaws.com",port:465,secure:!0},"SES-AP-SOUTHEAST-1":{description:"AWS SES Asia Pacific (Singapore)",host:"email-smtp.ap-southeast-1.amazonaws.com",port:465,secure:!0},"SES-AP-SOUTHEAST-2":{description:"AWS SES Asia Pacific (Sydney)",host:"email-smtp.ap-southeast-2.amazonaws.com",port:465,secure:!0},"SES-CA-CENTRAL-1":{description:"AWS SES Canada (Central)",host:"email-smtp.ca-central-1.amazonaws.com",port:465,secure:!0},"SES-EU-CENTRAL-1":{description:"AWS SES Europe (Frankfurt)",host:"email-smtp.eu-central-1.amazonaws.com",port:465,secure:!0},"SES-EU-NORTH-1":{description:"AWS SES Europe (Stockholm)",host:"email-smtp.eu-north-1.amazonaws.com",port:465,secure:!0},"SES-EU-WEST-1":{description:"AWS SES Europe (Ireland)",host:"email-smtp.eu-west-1.amazonaws.com",port:465,secure:!0},"SES-EU-WEST-2":{description:"AWS SES Europe (London)",host:"email-smtp.eu-west-2.amazonaws.com",port:465,secure:!0},"SES-EU-WEST-3":{description:"AWS SES Europe (Paris)",host:"email-smtp.eu-west-3.amazonaws.com",port:465,secure:!0},"SES-SA-EAST-1":{description:"AWS SES South America (São Paulo)",host:"email-smtp.sa-east-1.amazonaws.com",port:465,secure:!0},"SES-US-EAST-1":{description:"AWS SES US East (N. Virginia)",host:"email-smtp.us-east-1.amazonaws.com",port:465,secure:!0},"SES-US-EAST-2":{description:"AWS SES US East (Ohio)",host:"email-smtp.us-east-2.amazonaws.com",port:465,secure:!0},"SES-US-GOV-EAST-1":{description:"AWS SES GovCloud (US-East)",host:"email-smtp.us-gov-east-1.amazonaws.com",port:465,secure:!0},"SES-US-GOV-WEST-1":{description:"AWS SES GovCloud (US-West)",host:"email-smtp.us-gov-west-1.amazonaws.com",port:465,secure:!0},"SES-US-WEST-1":{description:"AWS SES US West (N. California)",host:"email-smtp.us-west-1.amazonaws.com",port:465,secure:!0},"SES-US-WEST-2":{description:"AWS SES US West (Oregon)",host:"email-smtp.us-west-2.amazonaws.com",port:465,secure:!0},Seznam:or,SMTP2GO:ar,Sparkpost:cr,Tipimail:lr,Tutanota:pr,Yahoo:dr,Yandex:ur,Zimbra:hr,Zoho:mr};var Pt,ji;function Ts(){if(ji)return Pt;ji=1;const p=fr,e={};Object.keys(p).forEach(i=>{let s=p[i];e[d(i)]=n(s),[].concat(s.aliases||[]).forEach(o=>{e[d(o)]=n(s)}),[].concat(s.domains||[]).forEach(o=>{e[d(o)]=n(s)})});function d(i){return i.replace(/[^a-zA-Z0-9.-]/g,"").toLowerCase()}function n(i){let s=["domains","aliases"],o={};return Object.keys(i).forEach(a=>{s.indexOf(a)<0&&(o[a]=i[a])}),o}return Pt=function(i){return i=d(i.split("@").pop()),e[i]||!1},Pt}var Rt,qi;function gr(){if(qi)return Rt;qi=1;const p=fe,e=dn(),d=Gt(),n=Ts(),i=Z(),s=se(),o=ie;class a extends p{constructor(t){super(),t=t||{},typeof t=="string"&&(t={url:t});let u,f=t.service;typeof t.getSocket=="function"&&(this.getSocket=t.getSocket),t.url&&(u=i.parseConnectionUrl(t.url),f=f||u.service),this.options=i.assign(!1,t,u,f&&n(f)),this.options.maxConnections=this.options.maxConnections||5,this.options.maxMessages=this.options.maxMessages||100,this.logger=i.getLogger(this.options,{component:this.options.component||"smtp-pool"});let l=new d(this.options);this.name="SMTP (pool)",this.version=o.version+"[client:"+l.version+"]",this._rateLimit={counter:0,timeout:null,waiting:[],checkpoint:!1,delta:Number(this.options.rateDelta)||1e3,limit:Number(this.options.rateLimit)||0},this._closed=!1,this._queue=[],this._connections=[],this._connectionCounter=0,this.idling=!0,setImmediate(()=>{this.idling&&this.emit("idle")})}getSocket(t,u){return setImmediate(()=>u(null,!1))}send(t,u){return this._closed?!1:(this._queue.push({mail:t,requeueAttempts:0,callback:u}),this.idling&&this._queue.length>=this.options.maxConnections&&(this.idling=!1),setImmediate(()=>this._processMessages()),!0)}close(){let t,u=this._connections.length;if(this._closed=!0,clearTimeout(this._rateLimit.timeout),!u&&!this._queue.length)return;for(let l=u-1;l>=0;l--)this._connections[l]&&this._connections[l].available&&(t=this._connections[l],t.close(),this.logger.info({tnx:"connection",cid:t.id,action:"removed"},"Connection #%s removed",t.id));if(u&&!this._connections.length&&this.logger.debug({tnx:"connection"},"All connections removed"),!this._queue.length)return;let f=()=>{if(!this._queue.length){this.logger.debug({tnx:"connection"},"Pending queue entries cleared");return}let l=this._queue.shift();if(l&&typeof l.callback=="function")try{l.callback(new Error("Connection pool was closed"))}catch(_){this.logger.error({err:_,tnx:"callback",cid:t.id},"Callback error for #%s: %s",t.id,_.message)}setImmediate(f)};setImmediate(f)}_processMessages(){let t,u,f;if(this._closed)return;if(!this._queue.length){this.idling||(this.idling=!0,this.emit("idle"));return}for(u=0,f=this._connections.length;u<f;u++)if(this._connections[u].available){t=this._connections[u];break}if(!t&&this._connections.length<this.options.maxConnections&&(t=this._createConnection()),!t){this.idling=!1;return}!this.idling&&this._queue.length<this.options.maxConnections&&(this.idling=!0,this.emit("idle"));let l=t.queueEntry=this._queue.shift();l.messageId=(t.queueEntry.mail.message.getHeader("message-id")||"").replace(/[<>\s]/g,""),t.available=!1,this.logger.debug({tnx:"pool",cid:t.id,messageId:l.messageId,action:"assign"},"Assigned message <%s> to #%s (%s)",l.messageId,t.id,t.messages+1),this._rateLimit.limit&&(this._rateLimit.counter++,this._rateLimit.checkpoint||(this._rateLimit.checkpoint=Date.now())),t.send(l.mail,(_,w)=>{if(l===t.queueEntry){try{l.callback(_,w)}catch(v){this.logger.error({err:v,tnx:"callback",cid:t.id},"Callback error for #%s: %s",t.id,v.message)}t.queueEntry=!1}})}_createConnection(){let t=new e(this);return t.id=++this._connectionCounter,this.logger.info({tnx:"pool",cid:t.id,action:"conection"},"Created new pool resource #%s",t.id),t.on("available",()=>{this.logger.debug({tnx:"connection",cid:t.id,action:"available"},"Connection #%s became available",t.id),this._closed?this.close():this._processMessages()}),t.once("error",u=>{if(u.code!=="EMAXLIMIT"?this.logger.warn({err:u,tnx:"pool",cid:t.id},"Pool Error for #%s: %s",t.id,u.message):this.logger.debug({tnx:"pool",cid:t.id,action:"maxlimit"},"Max messages limit exchausted for #%s",t.id),t.queueEntry){try{t.queueEntry.callback(u)}catch(f){this.logger.error({err:f,tnx:"callback",cid:t.id},"Callback error for #%s: %s",t.id,f.message)}t.queueEntry=!1}this._removeConnection(t),this._continueProcessing()}),t.once("close",()=>{this.logger.info({tnx:"connection",cid:t.id,action:"closed"},"Connection #%s was closed",t.id),this._removeConnection(t),t.queueEntry?setTimeout(()=>{t.queueEntry&&(this._shouldRequeuOnConnectionClose(t.queueEntry)?this._requeueEntryOnConnectionClose(t):this._failDeliveryOnConnectionClose(t)),this._continueProcessing()},50):(!this._closed&&this.idling&&!this._connections.length&&this.emit("clear"),this._continueProcessing())}),this._connections.push(t),t}_shouldRequeuOnConnectionClose(t){return this.options.maxRequeues===void 0||this.options.maxRequeues<0?!0:t.requeueAttempts<this.options.maxRequeues}_failDeliveryOnConnectionClose(t){if(t.queueEntry&&t.queueEntry.callback){try{t.queueEntry.callback(new Error("Reached maximum number of retries after connection was closed"))}catch(u){this.logger.error({err:u,tnx:"callback",messageId:t.queueEntry.messageId,cid:t.id},"Callback error for #%s: %s",t.id,u.message)}t.queueEntry=!1}}_requeueEntryOnConnectionClose(t){t.queueEntry.requeueAttempts=t.queueEntry.requeueAttempts+1,this.logger.debug({tnx:"pool",cid:t.id,messageId:t.queueEntry.messageId,action:"requeue"},"Re-queued message <%s> for #%s. Attempt: #%s",t.queueEntry.messageId,t.id,t.queueEntry.requeueAttempts),this._queue.unshift(t.queueEntry),t.queueEntry=!1}_continueProcessing(){this._closed?this.close():setTimeout(()=>this._processMessages(),100)}_removeConnection(t){let u=this._connections.indexOf(t);u!==-1&&this._connections.splice(u,1)}_checkRateLimit(t){if(!this._rateLimit.limit)return t();let u=Date.now();if(this._rateLimit.counter<this._rateLimit.limit)return t();if(this._rateLimit.waiting.push(t),this._rateLimit.checkpoint<=u-this._rateLimit.delta)return this._clearRateLimit();this._rateLimit.timeout||(this._rateLimit.timeout=setTimeout(()=>this._clearRateLimit(),this._rateLimit.delta-(u-this._rateLimit.checkpoint)),this._rateLimit.checkpoint=u)}_clearRateLimit(){for(clearTimeout(this._rateLimit.timeout),this._rateLimit.timeout=null,this._rateLimit.counter=0,this._rateLimit.checkpoint=!1;this._rateLimit.waiting.length;){let t=this._rateLimit.waiting.shift();setImmediate(t)}}isIdle(){return this.idling}verify(t){let u;t||(u=new Promise((l,_)=>{t=i.callbackPromise(l,_)}));let f=new e(this).auth;return this.getSocket(this.options,(l,_)=>{if(l)return t(l);let w=this.options;_&&_.connection&&(this.logger.info({tnx:"proxy",remoteAddress:_.connection.remoteAddress,remotePort:_.connection.remotePort,destHost:w.host||"",destPort:w.port||"",action:"connected"},"Using proxied socket from %s:%s to %s:%s",_.connection.remoteAddress,_.connection.remotePort,w.host||"",w.port||""),w=i.assign(!1,w),Object.keys(_).forEach(g=>{w[g]=_[g]}));let v=new d(w),r=!1;v.once("error",g=>{if(!r)return r=!0,v.close(),t(g)}),v.once("end",()=>{if(!r)return r=!0,t(new Error("Connection closed"))});let c=()=>{if(!r)return r=!0,v.quit(),t(null,!0)};v.connect(()=>{if(!r)if(f&&(v.allowsAuth||w.forceAuth))v.login(f,g=>{if(!r){if(g)return r=!0,v.close(),t(g);c()}});else if(!f&&v.allowsAuth&&w.forceAuth){let g=new Error("Authentication info was not provided");return g.code=s.ENOAUTH,r=!0,v.close(),t(g)}else c()})}),u}}return Rt=a,Rt}var Dt,Bi;function xr(){if(Bi)return Dt;Bi=1;const p=fe,e=Gt(),d=Ts(),n=Z(),i=Ss(),s=se(),o=ie;class a extends p{constructor(t){super(),t=t||{},typeof t=="string"&&(t={url:t});let u,f=t.service;typeof t.getSocket=="function"&&(this.getSocket=t.getSocket),t.url&&(u=n.parseConnectionUrl(t.url),f=f||u.service),this.options=n.assign(!1,t,u,f&&d(f)),this.logger=n.getLogger(this.options,{component:this.options.component||"smtp-transport"});let l=new e(this.options);this.name="SMTP",this.version=o.version+"[client:"+l.version+"]",this.options.auth&&(this.auth=this.getAuth({}))}getSocket(t,u){return setImmediate(()=>u(null,!1))}getAuth(t){if(!t)return this.auth;let u=!1,f={};if(this.options.auth&&typeof this.options.auth=="object"&&Object.keys(this.options.auth).forEach(l=>{u=!0,f[l]=this.options.auth[l]}),t&&typeof t=="object"&&Object.keys(t).forEach(l=>{u=!0,f[l]=t[l]}),!u)return!1;switch((f.type||"").toString().toUpperCase()){case"OAUTH2":{if(!f.service&&!f.user)return!1;let l=new i(f,this.logger);return l.provisionCallback=this.mailer&&this.mailer.get("oauth2_provision_cb")||l.provisionCallback,l.on("token",_=>this.mailer.emit("token",_)),l.on("error",_=>this.emit("error",_)),{type:"OAUTH2",user:f.user,oauth2:l,method:"XOAUTH2"}}default:return{type:(f.type||"").toString().toUpperCase()||"LOGIN",user:f.user,credentials:{user:f.user||"",pass:f.pass,options:f.options},method:(f.method||"").trim().toUpperCase()||this.options.authMethod||!1}}}send(t,u){this.getSocket(this.options,(f,l)=>{if(f)return u(f);let _=!1,w=this.options;l&&l.connection&&(this.logger.info({tnx:"proxy",remoteAddress:l.connection.remoteAddress,remotePort:l.connection.remotePort,destHost:w.host||"",destPort:w.port||"",action:"connected"},"Using proxied socket from %s:%s to %s:%s",l.connection.remoteAddress,l.connection.remotePort,w.host||"",w.port||""),w=n.assign(!1,w),Object.keys(l).forEach(c=>{w[c]=l[c]}));let v=new e(w);v.once("error",c=>{if(!_)return _=!0,v.close(),u(c)}),v.once("end",()=>{if(_)return;let c=setTimeout(()=>{if(_)return;_=!0;let g=new Error("Unexpected socket close");v&&v._socket&&v._socket.upgrading&&(g.code=s.ETLS),u(g)},1e3);try{c.unref()}catch{}});let r=()=>{let c=t.message.getEnvelope(),g=t.message.messageId(),m=[].concat(c.to||[]);m.length>3&&m.push("...and "+m.splice(2).length+" more"),t.data.dsn&&(c.dsn=t.data.dsn),t.data.requireTLSExtensionEnabled&&(c.requireTLSExtensionEnabled=t.data.requireTLSExtensionEnabled),this.logger.info({tnx:"send",messageId:g},"Sending message %s to <%s>",g,m.join(", ")),v.send(c,t.message.createReadStream(),(x,y)=>{if(_=!0,v.close(),x)return this.logger.error({err:x,tnx:"send"},"Send error for %s: %s",g,x.message),u(x);y.envelope={from:c.from,to:c.to},y.messageId=g;try{return u(null,y)}catch(T){this.logger.error({err:T,tnx:"callback"},"Callback error for %s: %s",g,T.message)}})};v.connect(()=>{if(_)return;let c=this.getAuth(t.data.auth);c&&(v.allowsAuth||w.forceAuth)?v.login(c,g=>{if(c&&c!==this.auth&&c.oauth2&&c.oauth2.removeAllListeners(),!_){if(g)return _=!0,v.close(),u(g);r()}}):r()})})}verify(t){let u;return t||(u=new Promise((f,l)=>{t=n.callbackPromise(f,l)})),this.getSocket(this.options,(f,l)=>{if(f)return t(f);let _=this.options;l&&l.connection&&(this.logger.info({tnx:"proxy",remoteAddress:l.connection.remoteAddress,remotePort:l.connection.remotePort,destHost:_.host||"",destPort:_.port||"",action:"connected"},"Using proxied socket from %s:%s to %s:%s",l.connection.remoteAddress,l.connection.remotePort,_.host||"",_.port||""),_=n.assign(!1,_),Object.keys(l).forEach(c=>{_[c]=l[c]}));let w=new e(_),v=!1;w.once("error",c=>{if(!v)return v=!0,w.close(),t(c)}),w.once("end",()=>{if(!v)return v=!0,t(new Error("Connection closed"))});let r=()=>{if(!v)return v=!0,w.quit(),t(null,!0)};w.connect(()=>{if(v)return;let c=this.getAuth({});if(c&&(w.allowsAuth||_.forceAuth))w.login(c,g=>{if(!v){if(g)return v=!0,w.close(),t(g);r()}});else if(!c&&w.allowsAuth&&_.forceAuth){let g=new Error("Authentication info was not provided");return g.code=s.ENOAUTH,v=!0,w.close(),t(g)}else r()})}),u}close(){this.auth&&this.auth.oauth2&&this.auth.oauth2.removeAllListeners(),this.emit("close")}}return Dt=a,Dt}var Lt,Ui;function vr(){if(Ui)return Lt;Ui=1;const p=xs.spawn,e=ie,d=Z(),n=se();class i{constructor(o){o=o||{},this._spawn=p,this.options=o||{},this.name="Sendmail",this.version=e.version,this.path="sendmail",this.args=!1,this.winbreak=!1,this.logger=d.getLogger(this.options,{component:this.options.component||"sendmail"}),o&&(typeof o=="string"?this.path=o:typeof o=="object"&&(o.path&&(this.path=o.path),Array.isArray(o.args)&&(this.args=o.args),this.winbreak=["win","windows","dos",`\r
-`].includes((o.newline||"").toString().toLowerCase())))}send(o,a){o.message.keepBcc=!0;let h=o.data.envelope||o.message.getEnvelope(),t=o.message.messageId(),u,f,l;if([].concat(h.from||[]).concat(h.to||[]).some(v=>/^-/.test(v))){let v=new Error("Can not send mail. Invalid envelope addresses.");return v.code=n.ESENDMAIL,a(v)}this.args?u=["-i"].concat(this.args).concat(h.to):u=["-i"].concat(h.from?["-f",h.from]:[]).concat(h.to);let w=v=>{if(!l&&(l=!0,typeof a=="function"))return v?a(v):a(null,{envelope:o.data.envelope||o.message.getEnvelope(),messageId:t,response:"Messages queued for delivery"})};try{f=this._spawn(this.path,u)}catch(v){return this.logger.error({err:v,tnx:"spawn",messageId:t},"Error occurred while spawning sendmail. %s",v.message),w(v)}if(f){f.on("error",c=>{this.logger.error({err:c,tnx:"spawn",messageId:t},"Error occurred when sending message %s. %s",t,c.message),w(c)}),f.once("exit",c=>{if(!c)return w();let g;c===127?g=new Error("Sendmail command not found, process exited with code "+c):g=new Error("Sendmail exited with code "+c),g.code=n.ESENDMAIL,this.logger.error({err:g,tnx:"stdin",messageId:t},"Error sending message %s to sendmail. %s",t,g.message),w(g)}),f.once("close",w),f.stdin.on("error",c=>{this.logger.error({err:c,tnx:"stdin",messageId:t},"Error occurred when piping message %s to sendmail. %s",t,c.message),w(c)});let v=[].concat(h.to||[]);v.length>3&&v.push("...and "+v.splice(2).length+" more"),this.logger.info({tnx:"send",messageId:t},"Sending message %s to <%s>",t,v.join(", "));let r=o.message.createReadStream();r.once("error",c=>{this.logger.error({err:c,tnx:"stdin",messageId:t},"Error occurred when generating message %s. %s",t,c.message),f.kill("SIGINT"),w(c)}),r.pipe(f.stdin)}else{let v=new Error("sendmail was not found");return v.code=n.ESENDMAIL,w(v)}}}return Lt=i,Lt}var jt,zi;function _r(){if(zi)return jt;zi=1;const p=ie,e=Z();class d{constructor(i){i=i||{},this.options=i||{},this.name="StreamTransport",this.version=p.version,this.logger=e.getLogger(this.options,{component:this.options.component||"stream-transport"}),this.winbreak=["win","windows","dos",`\r
-`].includes((i.newline||"").toString().toLowerCase())}send(i,s){i.message.keepBcc=!0;let o=i.data.envelope||i.message.getEnvelope(),a=i.message.messageId(),h=[].concat(o.to||[]);h.length>3&&h.push("...and "+h.splice(2).length+" more"),this.logger.info({tnx:"send",messageId:a},"Sending message %s to <%s> using %s line breaks",a,h.join(", "),this.winbreak?"<CR><LF>":"<LF>"),setImmediate(()=>{let t;try{t=i.message.createReadStream()}catch(l){return this.logger.error({err:l,tnx:"send",messageId:a},"Creating send stream failed for %s. %s",a,l.message),s(l)}if(!this.options.buffer)return t.once("error",l=>{this.logger.error({err:l,tnx:"send",messageId:a},"Failed creating message for %s. %s",a,l.message)}),s(null,{envelope:i.data.envelope||i.message.getEnvelope(),messageId:a,message:t});let u=[],f=0;t.on("readable",()=>{let l;for(;(l=t.read())!==null;)u.push(l),f+=l.length}),t.once("error",l=>(this.logger.error({err:l,tnx:"send",messageId:a},"Failed creating message for %s. %s",a,l.message),s(l))),t.on("end",()=>s(null,{envelope:i.data.envelope||i.message.getEnvelope(),messageId:a,message:Buffer.concat(u,f)}))})}}return jt=d,jt}var qt,Hi;function wr(){if(Hi)return qt;Hi=1;const p=ie,e=Z();class d{constructor(i){i=i||{},this.options=i||{},this.name="JSONTransport",this.version=p.version,this.logger=e.getLogger(this.options,{component:this.options.component||"json-transport"})}send(i,s){i.message.keepBcc=!0;let o=i.data.envelope||i.message.getEnvelope(),a=i.message.messageId(),h=[].concat(o.to||[]);h.length>3&&h.push("...and "+h.splice(2).length+" more"),this.logger.info({tnx:"send",messageId:a},"Composing JSON structure of %s to <%s>",a,h.join(", ")),setImmediate(()=>{i.normalize((t,u)=>t?(this.logger.error({err:t,tnx:"send",messageId:a},"Failed building JSON structure for %s. %s",a,t.message),s(t)):(delete u.envelope,delete u.normalizedHeaders,s(null,{envelope:o,messageId:a,message:this.options.skipEncoding?u:JSON.stringify(u)})))})}}return qt=d,qt}var Bt,$i;function yr(){if($i)return Bt;$i=1;const p=fe,e=ie,d=Z(),n=Es(),i=Qt();class s extends p{constructor(a){super(),a=a||{},this.options=a||{},this.ses=this.options.SES,this.name="SESTransport",this.version=e.version,this.logger=d.getLogger(this.options,{component:this.options.component||"ses-transport"})}getRegion(a){return this.ses.sesClient.config&&typeof this.ses.sesClient.config.region=="function"?this.ses.sesClient.config.region().then(h=>a(null,h)).catch(h=>a(h)):a(null,!1)}send(a,h){let t=a.message._headers.find(w=>/^from$/i.test(w.key));if(t){let w=new i("text/plain");t=w._convertAddresses(w._parseAddresses(t.value))}let u=a.data.envelope||a.message.getEnvelope(),f=a.message.messageId(),l=[].concat(u.to||[]);l.length>3&&l.push("...and "+l.splice(2).length+" more"),this.logger.info({tnx:"send",messageId:f},"Sending message %s to <%s>",f,l.join(", "));let _=w=>{a.data._dkim||(a.data._dkim={}),a.data._dkim.skipFields&&typeof a.data._dkim.skipFields=="string"?a.data._dkim.skipFields+=":date:message-id":a.data._dkim.skipFields="date:message-id";let v=a.message.createReadStream(),r=v.pipe(new n),c=[],g=0;r.on("readable",()=>{let m;for(;(m=r.read())!==null;)c.push(m),g+=m.length}),v.once("error",m=>r.emit("error",m)),r.once("error",m=>{w(m)}),r.once("end",()=>w(null,Buffer.concat(c,g)))};setImmediate(()=>_((w,v)=>{if(w)return this.logger.error({err:w,tnx:"send",messageId:f},"Failed creating message for %s. %s",f,w.message),h(w);let r={Content:{Raw:{Data:v}},FromEmailAddress:t||u.from,Destination:{ToAddresses:u.to}};Object.keys(a.data.ses||{}).forEach(c=>{r[c]=a.data.ses[c]}),this.getRegion((c,g)=>{(c||!g)&&(g="us-east-1");const m=new this.ses.SendEmailCommand(r);this.ses.sesClient.send(m).then(y=>{g==="us-east-1"&&(g="email"),h(null,{envelope:{from:u.from,to:u.to},messageId:"<"+y.MessageId+(/@/.test(y.MessageId)?"":"@"+g+".amazonses.com")+">",response:y.MessageId,raw:v})}).catch(y=>{this.logger.error({err:y,tnx:"send"},"Send error for %s: %s",f,y.message),h(y)})})}))}verify(a){let h;a||(h=new Promise((f,l)=>{a=d.callbackPromise(f,l)}));const t=f=>f&&!["InvalidParameterValue","MessageRejected"].includes(f.code||f.Code||f.name)?a(f):a(null,!0),u={Content:{Raw:{Data:Buffer.from(`From: <invalid@invalid>\r
-To: <invalid@invalid>\r
- Subject: Invalid\r
-\r
-Invalid`)}},FromEmailAddress:"invalid@invalid",Destination:{ToAddresses:["invalid@invalid"]}};return this.getRegion((f,l)=>{const _=new this.ses.SendEmailCommand(u);this.ses.sesClient.send(_).then(v=>t(null)).catch(v=>t(v))}),h}}return Bt=s,Bt}var Fi;function br(){if(Fi)return Ie;Fi=1;const p=ln(),e=Z(),d=gr(),n=xr(),i=vr(),s=_r(),o=wr(),a=yr(),h=se(),t=it(),u=ie,f=(process.env.ETHEREAL_API||"https://api.nodemailer.com").replace(/\/+$/,""),l=(process.env.ETHEREAL_WEB||"https://ethereal.email").replace(/\/+$/,""),_=(process.env.ETHEREAL_API_KEY||"").replace(/\s*/g,"")||null,w=["true","yes","y","1"].includes((process.env.ETHEREAL_CACHE||"yes").toString().trim().toLowerCase());let v=!1;return Ie.createTransport=function(r,c){let g,m,x;if(typeof r=="object"&&typeof r.send!="function"||typeof r=="string"&&/^(smtps?|direct):/i.test(r))if((g=typeof r=="string"?r:r.url)?m=e.parseConnectionUrl(g):m=r,m.pool)r=new d(m);else if(m.sendmail)r=new i(m);else if(m.streamTransport)r=new s(m);else if(m.jsonTransport)r=new o(m);else if(m.SES){if(m.SES.ses&&m.SES.aws){let y=new Error("Using legacy SES configuration, expecting @aws-sdk/client-sesv2, see https://nodemailer.com/transports/ses/");throw y.code=h.ECONFIG,y}r=new a(m)}else r=new n(m);return x=new p(r,m,c),x},Ie.createTestAccount=function(r,c){let g;if(!c&&typeof r=="function"&&(c=r,r=!1),c||(g=new Promise((k,C)=>{c=e.callbackPromise(k,C)})),w&&v)return setImmediate(()=>c(null,v)),g;r=r||f;let m=[],x=0,y={},T={requestor:u.name,version:u.version};_&&(y.Authorization="Bearer "+_);let b=t(r+"/user",{contentType:"application/json",method:"POST",headers:y,body:Buffer.from(JSON.stringify(T))});return b.on("readable",()=>{let k;for(;(k=b.read())!==null;)m.push(k),x+=k.length}),b.once("error",k=>c(k)),b.once("end",()=>{let k=Buffer.concat(m,x),C,A;try{C=JSON.parse(k.toString())}catch(E){A=E}if(A)return c(A);if(C.status!=="success"||C.error)return c(new Error(C.error||"Request failed"));delete C.status,v=C,c(null,v)}),g},Ie.getTestMessageUrl=function(r){if(!r||!r.response)return!1;let c=new Map;return r.response.replace(/\[([^\]]+)\]$/,(g,m)=>{m.replace(/\b([A-Z0-9]+)=([^\s]+)/g,(x,y,T)=>{c.set(y,T)})}),c.has("STATUS")&&c.has("MSGID")?(v.web||l)+"/message/"+c.get("MSGID"):!1},Ie}var Er=br();const Sr=Wt(Er);class He{constructor(e){this.config=e,this.transporter=Sr.createTransport({host:e.smtp.host,port:e.smtp.port,secure:e.smtp.port===465,auth:{user:e.smtp.user,pass:e.smtp.pass}})}async verifyConnection(){try{return await this.transporter.verify(),{ok:!0}}catch(e){return{ok:!1,error:e?.message||"Connection failed"}}}async sendMail(e,d,n,i=[],s={}){const o={};s.listUnsubscribe&&(o["List-Unsubscribe"]=`<${s.listUnsubscribe}>`,/^https?:/i.test(s.listUnsubscribe)&&(o["List-Unsubscribe-Post"]="List-Unsubscribe=One-Click"));try{const a=await this.transporter.sendMail({from:this.config.userName?{name:this.config.userName,address:this.config.smtp.user}:this.config.smtp.user,to:e,subject:d,html:n,text:s.text,attachments:i,headers:o}),h=a.accepted||[],t=a.rejected||[];return h.some(f=>String(f).toLowerCase()===e.toLowerCase())?console.log(`Email sent successfully to: ${e} (SMTP ${a.response||"accepted"})`):console.warn(`Email NOT delivered to ${e}: server did not accept it (accepted=${JSON.stringify(h)} rejected=${JSON.stringify(t)} response=${a.response||"none"})`),{accepted:h,rejected:t}}catch(a){throw console.error(`Failed to send email to ${e}:`,a),a}}}function Ut(){const p=new Date,e=p.getFullYear(),d=String(p.getMonth()+1).padStart(2,"0"),n=String(p.getDate()).padStart(2,"0");return`${e}-${d}-${n}`}class ks{constructor(e,d,n){this.limits=d;const i=(n||"").replace(/[^a-zA-Z0-9_-]/g,"_"),s=i&&i!=="default"?`limits.${i}.json`:"limits.json";this.statePath=q.join(e,s),this.state=this.load(),this.rolloverIfNeeded()}load(){const e=Ut(),d={date:e,emailsToday:0,windowsToday:1,currentWindowCount:0,perRecipientToday:{},warmupStartDate:e};if(!j.existsSync(this.statePath))return d;try{const n=JSON.parse(j.readFileSync(this.statePath,"utf-8"));return{date:n.date||d.date,emailsToday:n.emailsToday||0,windowsToday:n.windowsToday||1,currentWindowCount:n.currentWindowCount||0,perRecipientToday:n.perRecipientToday||{},warmupStartDate:n.warmupStartDate||"2000-01-01"}}catch(n){return console.error("Failed to load limits.json, resetting:",n),d}}save(){try{ge(this.statePath,JSON.stringify(this.state,null,2))}catch(e){console.error("Failed to save limits.json:",e)}}rolloverIfNeeded(){const e=Ut();this.state.date!==e&&(this.state={date:e,emailsToday:0,windowsToday:1,currentWindowCount:0,perRecipientToday:{},warmupStartDate:this.state.warmupStartDate},this.save())}warmupDay(){const e=new Date(this.state.warmupStartDate+"T00:00:00"),d=new Date(Ut()+"T00:00:00"),n=Math.floor((d.getTime()-e.getTime())/864e5);return n<0?0:n}effectiveMaxPerDay(){const{warmupEnabled:e,warmupCurve:d,maxPerDay:n}=this.limits;if(!e||!d||d.length===0)return n;const i=Math.min(this.warmupDay(),d.length-1);return Math.min(n,d[i])}check(e,d){this.rolloverIfNeeded();const n=(e||"").toLowerCase();if(d>this.limits.maxAttachmentBytes)return{allowed:!1,reason:`attachment size exceeds ${(this.limits.maxAttachmentBytes/1048576).toFixed(0)}MB limit`};if((this.state.perRecipientToday[n]||0)>=this.limits.maxPerRecipientPerDay)return{allowed:!1,reason:`recipient daily cap (${this.limits.maxPerRecipientPerDay}) reached for ${e}`};const i=this.effectiveMaxPerDay();if(this.state.emailsToday>=i){const s=i<this.limits.maxPerDay?" (warmup ramp)":"";return{allowed:!1,exhausted:!0,reason:`daily send cap (${i})${s} reached`}}return this.state.currentWindowCount>=this.limits.maxPerWindow&&this.state.windowsToday>=this.limits.maxWindowsPerDay?{allowed:!1,exhausted:!0,reason:`window budget exhausted (${this.limits.maxWindowsPerDay} windows x ${this.limits.maxPerWindow})`}:{allowed:!0}}record(e){this.rolloverIfNeeded();const d=(e||"").toLowerCase();let n=!1;return this.state.currentWindowCount>=this.limits.maxPerWindow&&(this.state.windowsToday++,this.state.currentWindowCount=0,n=!0),this.state.currentWindowCount++,this.state.emailsToday++,this.state.perRecipientToday[d]=(this.state.perRecipientToday[d]||0)+1,this.save(),n}tryConsume(e,d){const n=this.check(e,d);return n.allowed&&(n.windowRolled=this.record(e)),n}refund(e,d=!1){this.rolloverIfNeeded();const n=(e||"").toLowerCase();this.state.emailsToday>0&&this.state.emailsToday--,d&&this.state.currentWindowCount===1?(this.state.windowsToday=Math.max(1,this.state.windowsToday-1),this.state.currentWindowCount=this.limits.maxPerWindow):this.state.currentWindowCount>0&&this.state.currentWindowCount--,(this.state.perRecipientToday[n]||0)>0&&this.state.perRecipientToday[n]--,this.save()}randomDelayMs(){const{minDelayMs:e,maxDelayMs:d}=this.limits;return d<=e?e:Math.floor(e+Math.random()*(d-e))}getState(){return this.rolloverIfNeeded(),this.state}getUsage(){this.rolloverIfNeeded();const e=this.effectiveMaxPerDay();return{date:this.state.date,emailsToday:this.state.emailsToday,maxPerDay:e,hardMaxPerDay:this.limits.maxPerDay,warmupActive:e<this.limits.maxPerDay,windowsToday:this.state.windowsToday,maxWindowsPerDay:this.limits.maxWindowsPerDay,currentWindowCount:this.state.currentWindowCount,maxPerWindow:this.limits.maxPerWindow,maxPerRecipientPerDay:this.limits.maxPerRecipientPerDay}}}class nt{constructor(e){this.entries={},this.filePath=q.join(e,"suppression.json"),this.load()}load(){if(this.entries={},!!j.existsSync(this.filePath))try{const e=JSON.parse(j.readFileSync(this.filePath,"utf-8"));if(Array.isArray(e))for(const d of e)d&&d.email&&(this.entries[d.email.toLowerCase()]=d)}catch(e){console.error("Failed to load suppression.json:",e)}}save(){try{ge(this.filePath,JSON.stringify(Object.values(this.entries),null,2))}catch(e){console.error("Failed to save suppression.json:",e)}}isSuppressed(e){return this.load(),!!this.entries[(e||"").toLowerCase()]}reasonFor(e){return this.entries[(e||"").toLowerCase()]?.reason}add(e,d,n){const i=(e||"").toLowerCase();i&&(this.load(),!this.entries[i]&&(this.entries[i]={email:i,reason:d,date:new Date().toISOString(),detail:n},this.save()))}remove(e){const d=(e||"").toLowerCase();this.load(),this.entries[d]&&(delete this.entries[d],this.save())}list(){return this.load(),Object.values(this.entries)}}var Tr=Object.prototype.toString,Ae=Array.isArray||function(e){return Tr.call(e)==="[object Array]"};function Kt(p){return typeof p=="function"}function kr(p){return Ae(p)?"array":typeof p}function zt(p){return p.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g,"\\$&")}function Vi(p,e){return p!=null&&typeof p=="object"&&e in p}function Ar(p,e){return p!=null&&typeof p!="object"&&p.hasOwnProperty&&p.hasOwnProperty(e)}var Cr=RegExp.prototype.test;function Ir(p,e){return Cr.call(p,e)}var Mr=/\S/;function Or(p){return!Ir(Mr,p)}var Nr={"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;","/":"&#x2F;","`":"&#x60;","=":"&#x3D;"};function Pr(p){return String(p).replace(/[&<>"'`=\/]/g,function(d){return Nr[d]})}var Rr=/\s*/,Dr=/\s+/,Wi=/\s*=/,Lr=/\s*\}/,jr=/#|\^|\/|>|\{|&|=|!/;function qr(p,e){if(!p)return[];var d=!1,n=[],i=[],s=[],o=!1,a=!1,h="",t=0;function u(){if(o&&!a)for(;s.length;)delete i[s.pop()];else s=[];o=!1,a=!1}var f,l,_;function w(k){if(typeof k=="string"&&(k=k.split(Dr,2)),!Ae(k)||k.length!==2)throw new Error("Invalid tags: "+k);f=new RegExp(zt(k[0])+"\\s*"),l=new RegExp("\\s*"+zt(k[1])),_=new RegExp("\\s*"+zt("}"+k[1]))}w(e||ee.tags);for(var v=new $e(p),r,c,g,m,x,y;!v.eos();){if(r=v.pos,g=v.scanUntil(f),g)for(var T=0,b=g.length;T<b;++T)m=g.charAt(T),Or(m)?(s.push(i.length),h+=m):(a=!0,d=!0,h+=" "),i.push(["text",m,r,r+1]),r+=1,m===`
-`&&(u(),h="",t=0,d=!1);if(!v.scan(f))break;if(o=!0,c=v.scan(jr)||"name",v.scan(Rr),c==="="?(g=v.scanUntil(Wi),v.scan(Wi),v.scanUntil(l)):c==="{"?(g=v.scanUntil(_),v.scan(Lr),v.scanUntil(l),c="&"):g=v.scanUntil(l),!v.scan(l))throw new Error("Unclosed tag at "+v.pos);if(c==">"?x=[c,g,r,v.pos,h,t,d]:x=[c,g,r,v.pos],t++,i.push(x),c==="#"||c==="^")n.push(x);else if(c==="/"){if(y=n.pop(),!y)throw new Error('Unopened section "'+g+'" at '+r);if(y[1]!==g)throw new Error('Unclosed section "'+y[1]+'" at '+r)}else c==="name"||c==="{"||c==="&"?a=!0:c==="="&&w(g)}if(u(),y=n.pop(),y)throw new Error('Unclosed section "'+y[1]+'" at '+v.pos);return Ur(Br(i))}function Br(p){for(var e=[],d,n,i=0,s=p.length;i<s;++i)d=p[i],d&&(d[0]==="text"&&n&&n[0]==="text"?(n[1]+=d[1],n[3]=d[3]):(e.push(d),n=d));return e}function Ur(p){for(var e=[],d=e,n=[],i,s,o=0,a=p.length;o<a;++o)switch(i=p[o],i[0]){case"#":case"^":d.push(i),n.push(i),d=i[4]=[];break;case"/":s=n.pop(),s[5]=i[2],d=n.length>0?n[n.length-1][4]:e;break;default:d.push(i)}return e}function $e(p){this.string=p,this.tail=p,this.pos=0}$e.prototype.eos=function(){return this.tail===""};$e.prototype.scan=function(e){var d=this.tail.match(e);if(!d||d.index!==0)return"";var n=d[0];return this.tail=this.tail.substring(n.length),this.pos+=n.length,n};$e.prototype.scanUntil=function(e){var d=this.tail.search(e),n;switch(d){case-1:n=this.tail,this.tail="";break;case 0:n="";break;default:n=this.tail.substring(0,d),this.tail=this.tail.substring(d)}return this.pos+=n.length,n};function Te(p,e){this.view=p,this.cache={".":this.view},this.parent=e}Te.prototype.push=function(e){return new Te(e,this)};Te.prototype.lookup=function(e){var d=this.cache,n;if(d.hasOwnProperty(e))n=d[e];else{for(var i=this,s,o,a,h=!1;i;){if(e.indexOf(".")>0)for(s=i.view,o=e.split("."),a=0;s!=null&&a<o.length;)a===o.length-1&&(h=Vi(s,o[a])||Ar(s,o[a])),s=s[o[a++]];else s=i.view[e],h=Vi(i.view,e);if(h){n=s;break}i=i.parent}d[e]=n}return Kt(n)&&(n=n.call(this.view)),n};function G(){this.templateCache={_cache:{},set:function(e,d){this._cache[e]=d},get:function(e){return this._cache[e]},clear:function(){this._cache={}}}}G.prototype.clearCache=function(){typeof this.templateCache<"u"&&this.templateCache.clear()};G.prototype.parse=function(e,d){var n=this.templateCache,i=e+":"+(d||ee.tags).join(":"),s=typeof n<"u",o=s?n.get(i):void 0;return o==null&&(o=qr(e,d),s&&n.set(i,o)),o};G.prototype.render=function(e,d,n,i){var s=this.getConfigTags(i),o=this.parse(e,s),a=d instanceof Te?d:new Te(d,void 0);return this.renderTokens(o,a,n,e,i)};G.prototype.renderTokens=function(e,d,n,i,s){for(var o="",a,h,t,u=0,f=e.length;u<f;++u)t=void 0,a=e[u],h=a[0],h==="#"?t=this.renderSection(a,d,n,i,s):h==="^"?t=this.renderInverted(a,d,n,i,s):h===">"?t=this.renderPartial(a,d,n,s):h==="&"?t=this.unescapedValue(a,d):h==="name"?t=this.escapedValue(a,d,s):h==="text"&&(t=this.rawValue(a)),t!==void 0&&(o+=t);return o};G.prototype.renderSection=function(e,d,n,i,s){var o=this,a="",h=d.lookup(e[1]);function t(l){return o.render(l,d,n,s)}if(h){if(Ae(h))for(var u=0,f=h.length;u<f;++u)a+=this.renderTokens(e[4],d.push(h[u]),n,i,s);else if(typeof h=="object"||typeof h=="string"||typeof h=="number")a+=this.renderTokens(e[4],d.push(h),n,i,s);else if(Kt(h)){if(typeof i!="string")throw new Error("Cannot use higher-order sections without the original template");h=h.call(d.view,i.slice(e[3],e[5]),t),h!=null&&(a+=h)}else a+=this.renderTokens(e[4],d,n,i,s);return a}};G.prototype.renderInverted=function(e,d,n,i,s){var o=d.lookup(e[1]);if(!o||Ae(o)&&o.length===0)return this.renderTokens(e[4],d,n,i,s)};G.prototype.indentPartial=function(e,d,n){for(var i=d.replace(/[^ \t]/g,""),s=e.split(`
-`),o=0;o<s.length;o++)s[o].length&&(o>0||!n)&&(s[o]=i+s[o]);return s.join(`
-`)};G.prototype.renderPartial=function(e,d,n,i){if(n){var s=this.getConfigTags(i),o=Kt(n)?n(e[1]):n[e[1]];if(o!=null){var a=e[6],h=e[5],t=e[4],u=o;h==0&&t&&(u=this.indentPartial(o,t,a));var f=this.parse(u,s);return this.renderTokens(f,d,n,u,i)}}};G.prototype.unescapedValue=function(e,d){var n=d.lookup(e[1]);if(n!=null)return n};G.prototype.escapedValue=function(e,d,n){var i=this.getConfigEscape(n)||ee.escape,s=d.lookup(e[1]);if(s!=null)return typeof s=="number"&&i===ee.escape?String(s):i(s)};G.prototype.rawValue=function(e){return e[1]};G.prototype.getConfigTags=function(e){return Ae(e)?e:e&&typeof e=="object"?e.tags:void 0};G.prototype.getConfigEscape=function(e){if(e&&typeof e=="object"&&!Ae(e))return e.escape};var ee={name:"mustache.js",version:"4.2.0",tags:["{{","}}"],clearCache:void 0,escape:void 0,parse:void 0,render:void 0,Scanner:void 0,Context:void 0,Writer:void 0,set templateCache(p){qe.templateCache=p},get templateCache(){return qe.templateCache}},qe=new G;ee.clearCache=function(){return qe.clearCache()};ee.parse=function(e,d){return qe.parse(e,d)};ee.render=function(e,d,n,i){if(typeof e!="string")throw new TypeError('Invalid template! Template should be a "string" but "'+kr(e)+'" was given as the first argument for mustache#render(template, view, partials)');return qe.render(e,d,n,i)};ee.escape=Pr;ee.Scanner=$e;ee.Context=Te;ee.Writer=G;function zr(p){return p.replace(/<style[\s\S]*?<\/style>/gi,"").replace(/<script[\s\S]*?<\/script>/gi,"").replace(/<a\s[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,(e,d,n)=>`${String(n).replace(/<[^>]+>/g,"").trim()} (${d})`).replace(/<\s*br\s*\/?>/gi,`
-`).replace(/<\/\s*(p|div|tr|li|h[1-6])\s*>/gi,`
-`).replace(/<[^>]+>/g,"").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/\n{3,}/g,`
-
-`).replace(/[ \t]+\n/g,`
-`).trim()}function Hr(p,e){if(e.sender.inboxPlacement==="primary")return{html:"",unsubscribe:void 0};const d=[];let n;return e.sender.unsubscribeEnabled&&p&&(n=`mailto:${p}?subject=Unsubscribe`,d.push(`To stop receiving these emails, <a href="${n}">unsubscribe here</a>.`)),e.sender.physicalAddress&&d.push(e.sender.physicalAddress.replace(/\n/g,", ")),d.length===0?{html:"",unsubscribe:n}:{html:`<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e5e5;font-size:12px;color:#888;line-height:1.5;">${d.join("<br>")}</div>`,unsubscribe:n}}const $r={"&amp;":"&","&lt;":"<","&gt;":">","&quot;":'"',"&#39;":"'","&#x2F;":"/","&#x60;":"`","&#x3D;":"="};function Fr(p){return p.replace(/&(amp|lt|gt|quot|#39|#x2F|#x60|#x3D);/g,e=>$r[e]||e)}function Ye(p,e){let d="";if(p.messageType==="file"&&p.messageContent){if(!j.existsSync(p.messageContent))throw new Error(`Message file not found at ${p.messageContent}`);d=j.readFileSync(p.messageContent,"utf-8")}else p.messageType==="text"&&p.messageContent&&(d=p.messageContent);let n="";j.existsSync(e.paths.templateHtml)&&(n=j.readFileSync(e.paths.templateHtml,"utf-8"));let i;n&&n.includes("{{{message}}}")?i=n.split("{{{message}}}").join(d):n?i=n:i=d;let s=ee.render(i,p);e.sender.inboxPlacement==="primary"&&(s=s.replace(/<head[\s\S]*?<\/head>/gi,"").replace(/<style[\s\S]*?<\/style>/gi,""));const o=Hr(e.smtp.user,e);o.html&&(s=s.includes("</body>")?s.replace("</body>",`${o.html}</body>`):s+o.html);const a=p.subject&&String(p.subject).trim()?String(p.subject):e.email.subject,h=Fr(ee.render(a,p)),t=zr(s);return{subject:h,body:s,text:t,listUnsubscribe:o.unsubscribe}}const Vr=["free","guarantee","guaranteed","act now","limited time","winner","congratulations","click here","buy now","order now","risk-free","no obligation","100%","cash","cheap","discount","earn money","make money","income","viagra","crypto","investment","urgent","apply now","exclusive deal","lowest price","this is not spam"],Wr={high:3,med:2,low:1};function Jr(p){return p.replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/\s+/g," ").trim()}function Qr(p,e,d){p=p||"",e=e||"";const n=[],i=Jr(e),s=(p||"").toLowerCase(),o=i.toLowerCase();p&&p.length>0?(p.replace(/[^a-zA-Z]/g,"").length>=6&&p===p.toUpperCase()&&n.push({label:"Subject is ALL CAPS",severity:"high"}),p.length>70&&n.push({label:"Subject longer than 70 chars",severity:"low"})):n.push({label:"Empty subject",severity:"med"}),((p.match(/!/g)||[]).length>=2||(i.match(/!/g)||[]).length>=4)&&n.push({label:"Excessive exclamation marks",severity:"med"}),/\$\$\$|\$\d{3,}/.test(p+" "+i)&&n.push({label:"Money/`$$$` patterns",severity:"med"});const a=Vr.filter(l=>s.includes(l)||o.includes(l));a.length>=4?n.push({label:`Many spam-trigger words (${a.slice(0,4).join(", ")}…)`,severity:"high"}):a.length>0&&n.push({label:`Spam-trigger words (${a.join(", ")})`,severity:"med"});const h=(e.match(/<a\s[^>]*href=["']?(?!mailto:)/gi)||[]).length;h>8?n.push({label:`Too many links (${h})`,severity:"high"}):h>4&&n.push({label:`High link count (${h})`,severity:"low"}),(e.match(/<img\s/gi)||[]).length>0&&i.length<80&&n.push({label:"Image-only / very little text",severity:"high"}),i.length<20&&n.push({label:"Almost no body text",severity:"med"}),d||n.push({label:"No plain-text alternative part",severity:"low"});const u=n.reduce((l,_)=>l+Wr[_.severity],0),f=u>=6?"risky":u>=3?"warn":"clean";return{score:u,level:f,findings:n}}function As(p,e){const d=e||"default",n=p?.accountId;return d==="default"?!n||n==="default":n===d}class Xt{constructor(e,d,n,i){this.config=e,this.emailService=d,this.onSuccess=n,this.accountId=i,this.limiter=new ks(J(),e.limits,i),this.suppression=new nt(J())}ownsRecord(e){return As(e,this.accountId)}isPermanentBounce(e){if(e?.code!=="EENVELOPE")return!1;const d=e?.responseCode;return typeof d=="number"&&d>=500&&d<600}handleRejections(e,d,n=!0){const i=e.toLowerCase(),s=(d.rejected||[]).some(o=>String(o).toLowerCase()===i);return s&&n&&(this.suppression.add(e,"bounce","rejected at send time"),console.warn(`Suppressed ${e}: rejected by mail server.`)),s}wasAccepted(e,d){const n=e.toLowerCase();return(d.accepted||[]).some(i=>String(i).toLowerCase()===n)}attachmentBytes(e){let d=0;for(const n of e)try{d+=j.statSync(n.path).size}catch{}return d}buildAttachments(e){const d=[],{cvPath:n,enrollmentPath:i}=this.config.paths;if(e.attachments&&Array.isArray(e.attachments))for(const s of e.attachments)if(j.existsSync(s.path)){const o=s.customName&&s.customName.trim()!==""?s.customName:q.basename(s.path);d.push({filename:o,path:s.path})}else console.warn(`Warning: Attached file not found at ${s.path}`);else{const s=e.cvPath||n;s&&j.existsSync(s)?d.push({filename:q.basename(s),path:s}):s&&console.warn(`Warning: CV file not found at ${s}`)}return i&&j.existsSync(i)?d.push({filename:q.basename(i),path:i}):i&&console.warn(`Warning: Enrollment letter not found at ${i}`),d}delay(e){return new Promise(d=>setTimeout(d,e))}warnIfSpammy(e,d,n,i){const s=Qr(d,n,i);s.level!=="clean"&&console.warn(`Spam-risk ${s.level} (score ${s.score}) for ${e}: `+s.findings.map(o=>o.label).join("; "))}async processEmails(){const{recipientsJson:e}=this.config.paths;if(!j.existsSync(e))return console.error(`Error: recipients.json not found at ${e}`),{total:0,sent:0,skipped:0,failed:0};let d;try{d=JSON.parse(j.readFileSync(e,"utf-8"))}catch{return console.error("Failed to parse recipients.json"),{total:0,sent:0,skipped:0,failed:0}}const n=d.filter(a=>a.active!==!1&&this.ownsRecord(a));console.log(`Processing ${n.length} active recipients...`);let i=0,s=0,o=0;for(let a=0;a<n.length;a++){const h=n[a],t=h.email||h.Email;if(!t){console.warn("Skipping record with no email:",h),s++;continue}if(this.suppression.isSuppressed(t)){console.warn(`Skipping ${t}: on suppression list (${this.suppression.reasonFor(t)}).`),s++;continue}let u;try{u=Ye(h,this.config)}catch(r){console.warn(`Skipping ${t}: ${r.message}`),s++;continue}const f=this.buildAttachments(h),l=this.limiter.tryConsume(t,this.attachmentBytes(f));if(!l.allowed){if(console.warn(`Skipping ${t}: ${l.reason}`),l.exhausted){s+=n.length-a,console.warn(`Stopping run: ${l.reason}. ${n.length-a-1} remaining recipient(s) skipped.`);break}s++;continue}if(i>0){const r=this.limiter.randomDelayMs();console.log(`Waiting ${(r/1e3).toFixed(0)}s before next email (rate-limit pacing)...`),await this.delay(r)}const _=!!this.config.testMode,w=_?this.config.smtp.user:t,v=_?`[TEST → ${t}] ${u.subject}`:u.subject;_&&console.log(`Practice mode: rerouting ${t} → ${w}`),this.warnIfSpammy(t,u.subject,u.body,!!u.text);try{const r=await this.emailService.sendMail(w,v,u.body,f,{text:u.text,listUnsubscribe:u.listUnsubscribe});this.handleRejections(w,r,!_)||!this.wasAccepted(w,r)?(this.limiter.refund(t,l.windowRolled),console.warn(`Not counting ${t} as sent: server did not accept it.`),o++):(i++,this.onSuccess?.(this.accountId))}catch(r){this.limiter.refund(t,l.windowRolled),!_&&this.isPermanentBounce(r)&&(this.suppression.add(t,"bounce",`SMTP ${r.responseCode}`),console.warn(`Suppressed ${t}: permanent failure SMTP ${r.responseCode}.`)),console.error(`Error sending to ${t}, continuing with next...`),o++}}return console.log(`All emails processed. sent=${i} skipped=${s} failed=${o}`),{total:n.length,sent:i,skipped:s,failed:o}}async processRecipient(e){const d=e.email||e.Email;if(!d){console.warn("Skipping record with no email:",e);return}if(this.suppression.isSuppressed(d)){console.warn(`Skipping scheduled send to ${d}: on suppression list (${this.suppression.reasonFor(d)}).`);return}let n;try{n=Ye(e,this.config)}catch(t){console.error(`Skipping scheduled send to ${d}: ${t.message}`);return}const i=this.buildAttachments(e),s=this.limiter.tryConsume(d,this.attachmentBytes(i));if(!s.allowed){console.warn(`Skipping scheduled send to ${d}: ${s.reason}`);return}const o=!!this.config.testMode,a=o?this.config.smtp.user:d,h=o?`[TEST → ${d}] ${n.subject}`:n.subject;o&&console.log(`Practice mode: rerouting scheduled send ${d} → ${a}`),this.warnIfSpammy(d,n.subject,n.body,!!n.text);try{const t=await this.emailService.sendMail(a,h,n.body,i,{text:n.text,listUnsubscribe:n.listUnsubscribe});this.handleRejections(a,t,!o)||!this.wasAccepted(a,t)?(this.limiter.refund(d,s.windowRolled),console.warn(`Not counting ${d} as sent: server did not accept it.`)):(console.log(`Successfully sent email to ${d}`),this.onSuccess?.(this.accountId))}catch(t){this.limiter.refund(d,s.windowRolled),!o&&this.isPermanentBounce(t)&&(this.suppression.add(d,"bounce",`SMTP ${t.responseCode}`),console.warn(`Suppressed ${d}: permanent failure SMTP ${t.responseCode}.`)),console.error(`Error sending to ${d}:`,t)}}}var Me={},pe={},de={},xe={},Ji;function Yt(){if(Ji)return xe;Ji=1;var p=xe&&xe.__importDefault||function(n){return n&&n.__esModule?n:{default:n}};Object.defineProperty(xe,"__esModule",{value:!0}),xe.createID=d;const e=p(Us);function d(n="",i=16){const s="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",o=e.default.randomBytes(i),a=Array.from(o,h=>s[h%s.length]).join("");return n?`${n}-${a}`:a}return xe}var We={},Qi;function Zt(){if(Qi)return We;Qi=1,Object.defineProperty(We,"__esModule",{value:!0});const p={INFO:"\x1B[36m",WARN:"\x1B[33m",ERROR:"\x1B[31m",DEBUG:"\x1B[35m"},e="\x1B[32m",d="\x1B[0m";function n(s,o,a){const h=new Date().toISOString(),t=p[s]??"",f=`${`[${h}] [PID: ${process.pid}] ${e}[NODE-CRON]${e} ${t}[${s}]${d}`} ${o}`;switch(s){case"ERROR":console.error(f,a??"");break;case"DEBUG":console.debug(f,a??"");break;case"WARN":console.warn(f);break;default:console.info(f);break}}const i={info(s){n("INFO",s)},warn(s){n("WARN",s)},error(s,o){s instanceof Error?n("ERROR",s.message,s):n("ERROR",s,o)},debug(s,o){s instanceof Error?n("DEBUG",s.message,s):n("DEBUG",s,o)}};return We.default=i,We}var Oe={},Gi;function Gr(){if(Gi)return Oe;Gi=1,Object.defineProperty(Oe,"__esModule",{value:!0}),Oe.TrackedPromise=void 0;class p{promise;error;state;value;constructor(d){this.state="pending",this.promise=new Promise((n,i)=>{d(s=>{this.state="fulfilled",this.value=s,n(s)},s=>{this.state="rejected",this.error=s,i(s)})})}getPromise(){return this.promise}getState(){return this.state}isPending(){return this.state==="pending"}isFulfilled(){return this.state==="fulfilled"}isRejected(){return this.state==="rejected"}getValue(){return this.value}getError(){return this.error}then(d,n){return this.promise.then(d,n)}catch(d){return this.promise.catch(d)}finally(d){return this.promise.finally(d)}}return Oe.TrackedPromise=p,Oe}var Ki;function Kr(){if(Ki)return de;Ki=1;var p=de&&de.__importDefault||function(f){return f&&f.__esModule?f:{default:f}};Object.defineProperty(de,"__esModule",{value:!0}),de.Runner=void 0;const e=Yt(),d=p(Zt()),n=Gr();function i(){}function s(){return!0}function o(f,l){d.default.error("Task failed with error!",l)}class a{timeMatcher;onMatch;noOverlap;maxExecutions;maxRandomDelay;runCount;running;heartBeatTimeout;onMissedExecution;onOverlap;onError;beforeRun;onFinished;onMaxExecutions;constructor(l,_,w){this.timeMatcher=l,this.onMatch=_,this.noOverlap=w==null||w.noOverlap===void 0?!1:w.noOverlap,this.maxExecutions=w?.maxExecutions,this.maxRandomDelay=w?.maxRandomDelay||0,this.onMissedExecution=w?.onMissedExecution||i,this.onOverlap=w?.onOverlap||i,this.onError=w?.onError||o,this.onFinished=w?.onFinished||s,this.beforeRun=w?.beforeRun||s,this.onMaxExecutions=w?.onMaxExecutions||i,this.runCount=0,this.running=!1}start(){this.running=!0;let l,_;const w=g=>{this.running&&(clearTimeout(this.heartBeatTimeout),this.heartBeatTimeout=setTimeout(c,t(this.timeMatcher,g)))},v=g=>new Promise(async m=>{const x={id:(0,e.createID)("exec"),reason:"scheduled"},y=await this.beforeRun(g,x),T=Math.floor(Math.random()*this.maxRandomDelay);y&&setTimeout(async()=>{try{this.runCount++,x.startedAt=new Date;const b=await this.onMatch(g,x);x.finishedAt=new Date,x.result=b,this.onFinished(g,x),this.maxExecutions&&this.runCount>=this.maxExecutions&&(this.onMaxExecutions(g),this.stop())}catch(b){x.finishedAt=new Date,x.error=b,this.onError(g,b,x)}m(!0)},T)}),r=g=>new n.TrackedPromise(async(m,x)=>{try{this.timeMatcher.match(g)&&await v(g),m(!0)}catch(y){x(y)}}),c=async()=>{const g=u();if(_&&_.getTime()<g.getTime())for(;_.getTime()<g.getTime();)d.default.warn(`missed execution at ${_}! Possible blocking IO or high CPU user at the same process used by node-cron.`),_=this.timeMatcher.getNextMatch(_),h(this.onMissedExecution,_,o);if(l&&l.getState()==="pending"&&(h(this.onOverlap,g,o),this.noOverlap)){d.default.warn("task still running, new execution blocked by overlap prevention!"),_=this.timeMatcher.getNextMatch(g),w(g);return}l=r(g),_=this.timeMatcher.getNextMatch(g),w(g)};this.heartBeatTimeout=setTimeout(()=>{c()},t(this.timeMatcher,u()))}nextRun(){return this.timeMatcher.getNextMatch(new Date)}stop(){this.running=!1,this.heartBeatTimeout&&(clearTimeout(this.heartBeatTimeout),this.heartBeatTimeout=void 0)}isStarted(){return!!this.heartBeatTimeout&&this.running}isStopped(){return!this.isStarted()}async execute(){const l=new Date,_={id:(0,e.createID)("exec"),reason:"invoked"};try{if(await this.beforeRun(l,_)){this.runCount++,_.startedAt=new Date;const v=await this.onMatch(l,_);_.finishedAt=new Date,_.result=v,this.onFinished(l,_)}}catch(w){_.finishedAt=new Date,_.error=w,this.onError(l,w,_)}}}de.Runner=a;async function h(f,l,_){try{await f(l)}catch(w){_(l,w)}}function t(f,l){const w=f.getNextMatch(l),v=new Date,r=w.getTime()-v.getTime();return r>864e5?864e5:Math.max(0,r)}function u(){const f=new Date;return f.setMilliseconds(0),f}return de}var ue={},ve={},Je={},Xi;function Xr(){return Xi||(Xi=1,Object.defineProperty(Je,"__esModule",{value:!0}),Je.default=(()=>{const p=["january","february","march","april","may","june","july","august","september","october","november","december"],e=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];function d(i,s){for(let o=0;o<s.length;o++)i=i.replace(new RegExp(s[o],"gi"),o+1);return i}function n(i){return i=d(i,p),i=d(i,e),i}return n})()),Je}var Qe={},Yi;function ei(){return Yi||(Yi=1,Object.defineProperty(Qe,"__esModule",{value:!0}),Qe.default=(()=>{const p=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"],e=["sun","mon","tue","wed","thu","fri","sat"];function d(i,s){for(let o=0;o<s.length;o++)i=i.replace(new RegExp(s[o],"gi"),o);return i}function n(i){return i=i.replace("7","0"),i=d(i,p),d(i,e)}return n})()),Qe}var Ge={},Zi;function Yr(){return Zi||(Zi=1,Object.defineProperty(Ge,"__esModule",{value:!0}),Ge.default=(()=>{function p(d,n){return d.indexOf("*")!==-1?d.replace("*",n):d}function e(d){return d[0]=p(d[0],"0-59"),d[1]=p(d[1],"0-59"),d[2]=p(d[2],"0-23"),d[3]=p(d[3],"1-31"),d[4]=p(d[4],"1-12"),d[5]=p(d[5],"0-6"),d}return e})()),Ge}var Ke={},es;function Zr(){return es||(es=1,Object.defineProperty(Ke,"__esModule",{value:!0}),Ke.default=(()=>{function p(n,i,s,o,a){const h=parseInt(a),t=[];let u=parseInt(o),f=parseInt(s);f>u&&(u=parseInt(s),f=parseInt(o));for(let l=f;l<=u;l+=h)t.push(l);return n.replace(new RegExp(i,"i"),t.join())}function e(n){const i=/(\d+)-(\d+)(\/(\d+)|)/;let s=i.exec(n);for(;s!==null&&s.length>0;)n=p(n,s[0],s[1],s[2],s[4]||"1"),s=i.exec(n);return n}function d(n){for(let i=0;i<n.length;i++)n[i]=e(n[i]);return n}return d})()),Ke}var ts;function ti(){if(ts)return ve;ts=1;var p=ve&&ve.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(ve,"__esModule",{value:!0});const e=p(Xr()),d=p(ei()),n=p(Yr()),i=p(Zr());return ve.default=(()=>{function s(t){return t.length===5?["0"].concat(t):t}function o(t){return t.replace(/\s{2,}/g," ").trim()}function a(t){for(let u=0;u<t.length;u++){const f=t[u].split(",");for(let l=0;l<f.length;l++)f[l]=parseInt(f[l]);t[u]=f}return t}function h(t){let u=o(`${t}`).split(" ");return u=s(u),u[4]=(0,e.default)(u[4]),u[5]=(0,d.default)(u[5]),u=(0,n.default)(u),u=(0,i.default)(u),u=a(u),u}return h})(),ve}var Ne={},is;function rt(){if(is)return Ne;is=1,Object.defineProperty(Ne,"__esModule",{value:!0}),Ne.LocalizedTime=void 0;class p{timestamp;parts;timezone;constructor(i,s){this.timestamp=i.getTime(),this.timezone=s,this.parts=e(i,s)}toDate(){return new Date(this.timestamp)}toISO(){const i=this.parts.gmt.replace(/^GMT/,""),s=i||"Z",o=a=>String(a).padStart(2,"0");return`${this.parts.year}-${o(this.parts.month)}-${o(this.parts.day)}T${o(this.parts.hour)}:${o(this.parts.minute)}:${o(this.parts.second)}.${String(this.parts.milisecond).padStart(3,"0")}`+s}getParts(){return this.parts}set(i,s){this.parts[i]=s;const o=new Date(this.toISO());this.timestamp=o.getTime(),this.parts=e(o,this.timezone)}}Ne.LocalizedTime=p;function e(n,i){const s={year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",weekday:"short",hour12:!1};i&&(s.timeZone=i);const a=new Intl.DateTimeFormat("en-US",s).formatToParts(n).filter(h=>h.type!=="literal").reduce((h,t)=>(h[t.type]=t.value,h),{});return{day:parseInt(a.day),month:parseInt(a.month),year:parseInt(a.year),hour:a.hour==="24"?0:parseInt(a.hour),minute:parseInt(a.minute),second:parseInt(a.second),milisecond:n.getMilliseconds(),weekday:a.weekday,gmt:d(n,i)}}function d(n,i){const s=new Date(n.toLocaleString("en-US",{timeZone:"UTC"})),o=new Date(n.toLocaleString("en-US",{timeZone:i}));let a=(s.getTime()-o.getTime())/6e4;const h=a<=0?"+":"-";if(a=Math.abs(a),a===0)return"Z";const t=Math.floor(a/60).toString().padStart(2,"0"),u=Math.floor(a%60).toString().padStart(2,"0");return`GMT${h}${t}:${u}`}return Ne}var he={},ss;function eo(){if(ss)return he;ss=1;var p=he&&he.__importDefault||function(a){return a&&a.__esModule?a:{default:a}};Object.defineProperty(he,"__esModule",{value:!0}),he.MatcherWalker=void 0;const e=p(ti()),d=rt(),n=ii(),i=p(ei());class s{cronExpression;baseDate;pattern;expressions;timeMatcher;timezone;constructor(h,t,u){this.cronExpression=h,this.baseDate=t,this.timeMatcher=new n.TimeMatcher(h,u),this.timezone=u,this.expressions=(0,e.default)(h)}isMatching(){return this.timeMatcher.match(this.baseDate)}matchNext(){const t=(()=>{const l=new Date(this.baseDate.getTime());l.setMilliseconds(0);const _=new d.LocalizedTime(l,this.timezone),w=_.getParts(),v=new d.LocalizedTime(_.toDate(),this.timezone),r=this.expressions[0],c=o(r,w.second);if(c&&(v.set("second",c),this.timeMatcher.match(v.toDate())))return v;v.set("second",r[0]);const g=this.expressions[1],m=o(g,w.minute);if(m&&(v.set("minute",m),this.timeMatcher.match(v.toDate())))return v;v.set("minute",g[0]);const x=this.expressions[2],y=o(x,w.hour);if(y&&(v.set("hour",y),this.timeMatcher.match(v.toDate())))return v;v.set("hour",x[0]);const T=this.expressions[3],b=o(T,w.day);if(b&&(v.set("day",b),this.timeMatcher.match(v.toDate())))return v;v.set("day",T[0]);const k=this.expressions[4],C=o(k,w.month);return C&&(v.set("month",C),this.timeMatcher.match(v.toDate()))||(v.set("year",v.getParts().year+1),v.set("month",k[0])),v})(),u=this.expressions[5];let f=parseInt((0,i.default)(t.getParts().weekday));for(;!(u.indexOf(f)>-1);)t.set("year",t.getParts().year+1),f=parseInt((0,i.default)(t.getParts().weekday));return t}}he.MatcherWalker=s;function o(a,h){const t=a.sort((u,f)=>u-f).filter(u=>u>h);return t.length>0?t[0]:!1}return he}var ns;function ii(){if(ns)return ue;ns=1;var p=ue&&ue.__importDefault||function(a){return a&&a.__esModule?a:{default:a}};Object.defineProperty(ue,"__esModule",{value:!0}),ue.TimeMatcher=void 0;const e=p(ti()),d=p(ei()),n=rt(),i=eo();function s(a,h){return a.indexOf(h)!==-1}class o{timezone;pattern;expressions;constructor(h,t){this.timezone=t,this.pattern=h,this.expressions=(0,e.default)(h)}match(h){const u=new n.LocalizedTime(h,this.timezone).getParts(),f=s(this.expressions[0],u.second),l=s(this.expressions[1],u.minute),_=s(this.expressions[2],u.hour),w=s(this.expressions[3],u.day),v=s(this.expressions[4],u.month),r=s(this.expressions[5],parseInt((0,d.default)(u.weekday)));return f&&l&&_&&w&&v&&r}getNextMatch(h){return new i.MatcherWalker(this.pattern,h,this.timezone).matchNext().toDate()}}return ue.TimeMatcher=o,ue}var Pe={},rs;function Cs(){if(rs)return Pe;rs=1,Object.defineProperty(Pe,"__esModule",{value:!0}),Pe.StateMachine=void 0;const p={stopped:["stopped","idle","destroyed"],idle:["idle","running","stopped","destroyed"],running:["running","idle","stopped","destroyed"],destroyed:["destroyed"]};class e{state;constructor(n="stopped"){this.state=n}changeState(n){if(p[this.state].includes(n))this.state=n;else throw new Error(`invalid transition from ${this.state} to ${n}`)}}return Pe.StateMachine=e,Pe}var os;function to(){if(os)return pe;os=1;var p=pe&&pe.__importDefault||function(u){return u&&u.__esModule?u:{default:u}};Object.defineProperty(pe,"__esModule",{value:!0}),pe.InlineScheduledTask=void 0;const e=p(fe),d=Kr(),n=ii(),i=Yt(),s=Cs(),o=p(Zt()),a=rt();class h extends e.default{}class t{emitter;cronExpression;timeMatcher;runner;id;name;stateMachine;timezone;constructor(f,l,_){this.emitter=new h,this.cronExpression=f,this.id=(0,i.createID)("task",12),this.name=_?.name||this.id,this.timezone=_?.timezone,this.timeMatcher=new n.TimeMatcher(f,_?.timezone),this.stateMachine=new s.StateMachine;const w={timezone:_?.timezone,noOverlap:_?.noOverlap,maxExecutions:_?.maxExecutions,maxRandomDelay:_?.maxRandomDelay,beforeRun:(v,r)=>(r.reason==="scheduled"&&this.changeState("running"),this.emitter.emit("execution:started",this.createContext(v,r)),!0),onFinished:(v,r)=>(r.reason==="scheduled"&&this.changeState("idle"),this.emitter.emit("execution:finished",this.createContext(v,r)),!0),onError:(v,r,c)=>{o.default.error(r),this.emitter.emit("execution:failed",this.createContext(v,c)),this.changeState("idle")},onOverlap:v=>{this.emitter.emit("execution:overlap",this.createContext(v))},onMissedExecution:v=>{this.emitter.emit("execution:missed",this.createContext(v))},onMaxExecutions:v=>{this.emitter.emit("execution:maxReached",this.createContext(v)),this.destroy()}};this.runner=new d.Runner(this.timeMatcher,(v,r)=>l(this.createContext(v,r)),w)}getNextRun(){return this.stateMachine.state!=="stopped"?this.runner.nextRun():null}changeState(f){this.runner.isStarted()&&this.stateMachine.changeState(f)}start(){this.runner.isStopped()&&(this.runner.start(),this.stateMachine.changeState("idle"),this.emitter.emit("task:started",this.createContext(new Date)))}stop(){this.runner.isStarted()&&(this.runner.stop(),this.stateMachine.changeState("stopped"),this.emitter.emit("task:stopped",this.createContext(new Date)))}getStatus(){return this.stateMachine.state}destroy(){this.stateMachine.state!=="destroyed"&&(this.stop(),this.stateMachine.changeState("destroyed"),this.emitter.emit("task:destroyed",this.createContext(new Date)))}execute(){return new Promise((f,l)=>{const _=v=>{this.off("execution:finished",_),l(v.execution?.error)},w=v=>{this.off("execution:failed",_),f(v.execution?.result)};this.once("execution:finished",w),this.once("execution:failed",_),this.runner.execute()})}on(f,l){this.emitter.on(f,l)}off(f,l){this.emitter.off(f,l)}once(f,l){this.emitter.once(f,l)}createContext(f,l){const _=new a.LocalizedTime(f,this.timezone);return{date:_.toDate(),dateLocalIso:_.toISO(),triggeredAt:new Date,task:this,execution:l}}}return pe.InlineScheduledTask=t,pe}var Re={},as;function io(){if(as)return Re;as=1,Object.defineProperty(Re,"__esModule",{value:!0}),Re.TaskRegistry=void 0;const p=new Map;class e{add(n){if(this.has(n.id))throw Error(`task ${n.id} already registred!`);p.set(n.id,n),n.on("task:destroyed",()=>{this.remove(n)})}get(n){return p.get(n)}remove(n){this.has(n.id)&&(n?.destroy(),p.delete(n.id))}all(){return p}has(n){return p.has(n)}killAll(){p.forEach(n=>this.remove(n))}}return Re.TaskRegistry=e,Re}var _e={},cs;function so(){if(cs)return _e;cs=1;var p=_e&&_e.__importDefault||function(l){return l&&l.__esModule?l:{default:l}};Object.defineProperty(_e,"__esModule",{value:!0});const e=p(ti()),d=/^(?:\d+|\*|\*\/\d+)$/;function n(l,_,w){const v=l;for(const r of v){const c=parseInt(r,10);if(!Number.isNaN(c)&&(c<_||c>w)||!d.test(r))return!1}return!0}function i(l){return!n(l,0,59)}function s(l){return!n(l,0,59)}function o(l){return!n(l,0,23)}function a(l){return!n(l,1,31)}function h(l){return!n(l,1,12)}function t(l){return!n(l,0,7)}function u(l,_){if(i(_[0]))throw new Error(`${l[0]} is a invalid expression for second`);if(s(_[1]))throw new Error(`${l[1]} is a invalid expression for minute`);if(o(_[2]))throw new Error(`${l[2]} is a invalid expression for hour`);if(a(_[3]))throw new Error(`${l[3]} is a invalid expression for day of month`);if(h(_[4]))throw new Error(`${l[4]} is a invalid expression for month`);if(t(_[5]))throw new Error(`${l[5]} is a invalid expression for week day`)}function f(l){if(typeof l!="string")throw new TypeError("pattern must be a string!");const _=l.split(" "),w=(0,e.default)(l);_.length===5&&_.unshift("0"),u(_,w)}return _e.default=f,_e}var we={},ls;function no(){if(ls)return we;ls=1;var p=we&&we.__importDefault||function(_){return _&&_.__esModule?_:{default:_}};Object.defineProperty(we,"__esModule",{value:!0});const e=q,d=xs,n=Yt(),i=Y,s=Cs(),o=rt(),a=p(Zt()),h=ii(),t=(0,e.resolve)(__dirname,"daemon.js");class u extends i.EventEmitter{}class f{emitter;id;name;cronExpression;taskPath;options;forkProcess;stateMachine;constructor(w,v,r){this.cronExpression=w,this.taskPath=v,this.options=r,this.id=(0,n.createID)("task"),this.name=r?.name||this.id,this.emitter=new u,this.stateMachine=new s.StateMachine("stopped"),this.on("task:stopped",()=>{this.forkProcess?.kill(),this.forkProcess=void 0,this.stateMachine.changeState("stopped")}),this.on("task:destroyed",()=>{this.forkProcess?.kill(),this.forkProcess=void 0,this.stateMachine.changeState("destroyed")})}getNextRun(){return this.stateMachine.state!=="stopped"?new h.TimeMatcher(this.cronExpression,this.options?.timezone).getNextMatch(new Date):null}start(){return new Promise((w,v)=>{if(this.forkProcess)return w(void 0);const r=setTimeout(()=>{v(new Error("Start operation timed out"))},5e3);try{this.forkProcess=(0,d.fork)(t),this.forkProcess.on("error",c=>{clearTimeout(r),v(new Error(`Error on daemon: ${c.message}`))}),this.forkProcess.on("exit",(c,g)=>{if(c!==0&&g!=="SIGTERM"){const m=new Error(`node-cron daemon exited with code ${c||g}`);a.default.error(m),clearTimeout(r),v(m)}}),this.forkProcess.on("message",c=>{if(c.jsonError&&c.context?.execution&&(c.context.execution.error=l(c.jsonError),delete c.jsonError),c.context?.task?.state&&this.stateMachine.changeState(c.context?.task?.state),c.context){const g=c.context?.execution;delete g?.hasError;const m=this.createContext(new Date(c.context.date),g);this.emitter.emit(c.event,m)}}),this.once("task:started",()=>{this.stateMachine.changeState("idle"),clearTimeout(r),w(void 0)}),this.forkProcess.send({command:"task:start",path:this.taskPath,cron:this.cronExpression,options:this.options})}catch(c){v(c)}})}stop(){return new Promise((w,v)=>{if(!this.forkProcess)return w(void 0);const r=setTimeout(()=>{clearTimeout(r),v(new Error("Stop operation timed out"))},5e3),c=()=>{clearTimeout(r),this.off("task:stopped",g),this.forkProcess=void 0,w(void 0)},g=()=>{c()};this.once("task:stopped",g),this.forkProcess.send({command:"task:stop"})})}getStatus(){return this.stateMachine.state}destroy(){return new Promise((w,v)=>{if(!this.forkProcess)return w(void 0);const r=setTimeout(()=>{clearTimeout(r),v(new Error("Destroy operation timed out"))},5e3),c=()=>{clearTimeout(r),this.off("task:destroyed",c),w(void 0)};this.once("task:destroyed",c),this.forkProcess.send({command:"task:destroy"})})}execute(){return new Promise((w,v)=>{if(!this.forkProcess)return v(new Error("Cannot execute background task because it hasn't been started yet. Please initialize the task using the start() method before attempting to execute it."));const r=setTimeout(()=>{c(),v(new Error("Execution timeout exceeded"))},5e3),c=()=>{clearTimeout(r),this.off("execution:finished",g),this.off("execution:failed",m)},g=x=>{c(),w(x.execution?.result)},m=x=>{c(),v(x.execution?.error||new Error("Execution failed without specific error"))};this.once("execution:finished",g),this.once("execution:failed",m),this.forkProcess.send({command:"task:execute"})})}on(w,v){this.emitter.on(w,v)}off(w,v){this.emitter.off(w,v)}once(w,v){this.emitter.once(w,v)}createContext(w,v){const r=new o.LocalizedTime(w,this.options?.timezone);return{date:r.toDate(),dateLocalIso:r.toISO(),triggeredAt:new Date,task:this,execution:v}}}function l(_){const w=JSON.parse(_),v=globalThis[w.name]||Error,r=new v(w.message);return w.stack&&(r.stack=w.stack),Object.keys(w).forEach(c=>{["name","message","stack"].includes(c)||(r[c]=w[c])}),r}return we.default=f,we}var ps;function ro(){return ps||(ps=1,(function(p){var e=Me&&Me.__importDefault||function(_){return _&&_.__esModule?_:{default:_}};Object.defineProperty(p,"__esModule",{value:!0}),p.nodeCron=p.getTask=p.getTasks=void 0,p.schedule=t,p.createTask=u,p.solvePath=f,p.validate=l;const d=to(),n=io(),i=e(so()),s=e(no()),o=e(q),a=ke,h=new n.TaskRegistry;function t(_,w,v){const r=u(_,w,v);return r.start(),r}function u(_,w,v){let r;if(w instanceof Function)r=new d.InlineScheduledTask(_,w,v);else{const c=f(w);r=new s.default(_,c,v)}return h.add(r),r}function f(_){if(o.default.isAbsolute(_))return(0,a.pathToFileURL)(_).href;if(_.startsWith("file://"))return _;const w=new Error().stack?.split(`
-`);if(w){w?.shift();const r=w?.find(c=>c.indexOf(__filename)===-1)?.match(/(file:\/\/)?(((\/?)(\w:))?([/\\].+)):\d+:\d+/);if(r){const c=`${r[5]??""}${o.default.dirname(r[6])}`;return(0,a.pathToFileURL)(o.default.resolve(c,_)).href}}throw new Error(`Could not locate task file ${_}`)}function l(_){try{return(0,i.default)(_),!0}catch{return!1}}p.getTasks=h.all,p.getTask=h.get,p.nodeCron={schedule:t,createTask:u,validate:l,getTasks:p.getTasks,getTask:p.getTask},p.default=p.nodeCron})(Me)),Me}var oo=ro();const ao=Wt(oo);class Is{constructor(e,d,n){this.config=e,this.mailProcessor=d,this.processors=n,this.tasks=[],this.activeTimeouts=[]}start(){console.log("Starting advanced recipient-based scheduler..."),this.stop();const{recipientsJson:e}=this.config.paths;if(!j.existsSync(e)){console.error(`Error: recipients.json not found at ${e}`);return}let d;try{d=JSON.parse(j.readFileSync(e,"utf-8"))}catch{console.error("Failed to parse recipients.json");return}const n=this.processors&&this.processors.size>0?[...this.processors.entries()]:[["default",this.mailProcessor]];let i=0;for(const[s,o]of n){const a=d.filter(h=>h.active!==!1&&As(h,s));if(a.length!==0)for(const h of a)i+=this.scheduleRecord(h,o)}if(i===0){console.log("No active recipients to schedule.");return}console.log(`Scheduler is running with ${i} individual jobs. Press Ctrl+C to exit.`)}scheduleRecord(e,d){let n="*";if(e.scheduledDays&&e.scheduledDays.length>0){const a={Sun:"0",Mon:"1",Tue:"2",Wed:"3",Thu:"4",Fri:"5",Sat:"6"},h=e.scheduledDays.map(t=>a[t]).filter(Boolean);h.length>0&&(n=h.join(","))}const i=e.scheduledTimes&&e.scheduledTimes.length>0?e.scheduledTimes:[],s=parseInt(e.entropyMinutes)||0;let o=0;for(const a of i){const[h,t]=a.split(":"),u=parseInt(h),f=parseInt(t);if(isNaN(u)||isNaN(f))continue;let l=u,_=f,w=0;if(s>0){let g=u*60+f-s;g<0&&(g+=1440,w=-1),l=Math.floor(g/60)%24,_=g%60}let v=n;w===-1&&n!=="*"&&(v=n.split(",").map(g=>{let m=parseInt(g)-1;return m<0&&(m=6),m.toString()}).join(","));const r=`${_} ${l} * * ${v}`,c=ao.schedule(r,async()=>{let g=0;if(s>0&&(g=Math.random()*(2*s)*60*1e3,console.log(`[${new Date().toLocaleString()}] Scheduled job for ${e.email} triggered. Applying entropy delay of ${(g/6e4).toFixed(1)} minutes.`)),g>0){const m=setTimeout(async()=>{console.log(`
-[${new Date().toLocaleString()}] Sending scheduled email to ${e.email}...`),await d.processRecipient(e),this.activeTimeouts=this.activeTimeouts.filter(x=>x!==m)},g);this.activeTimeouts.push(m)}else console.log(`
-[${new Date().toLocaleString()}] Sending scheduled email to ${e.email}...`),await d.processRecipient(e)});this.tasks.push(c),o++}return o}stop(){for(const e of this.tasks)e.stop();this.tasks=[];for(const e of this.activeTimeouts)clearTimeout(e);this.activeTimeouts=[],console.log("All scheduled jobs and pending timeouts stopped.")}}class U extends Error{constructor(e,d,n,...i){Array.isArray(d)&&(d=d.join(" ").trim()),super(d),Error.captureStackTrace!==void 0&&Error.captureStackTrace(this,U),this.code=e;for(const s of i)for(const o in s){const a=s[o];this[o]=Buffer.isBuffer(a)?a.toString(n.encoding):a==null?a:JSON.parse(JSON.stringify(a))}}}const co=function(p){return typeof p=="object"&&p!==null&&!Array.isArray(p)},Ms=function(p){const e=[];for(let d=0,n=p.length;d<n;d++){const i=p[d];if(i==null||i===!1)e[d]={disabled:!0};else if(typeof i=="string")e[d]={name:i};else if(co(i)){if(typeof i.name!="string")throw new U("CSV_OPTION_COLUMNS_MISSING_NAME",["Option columns missing name:",`property "name" is required at position ${d}`,"when column is an object literal"]);e[d]=i}else throw new U("CSV_INVALID_COLUMN_DEFINITION",["Invalid column definition:","expect a string or a literal object,",`got ${JSON.stringify(i)} at position ${d}`])}return e};class ds{constructor(e=100){this.size=e,this.length=0,this.buf=Buffer.allocUnsafe(e)}prepend(e){if(Buffer.isBuffer(e)){const d=this.length+e.length;if(d>=this.size&&(this.resize(),d>=this.size))throw Error("INVALID_BUFFER_STATE");const n=this.buf;this.buf=Buffer.allocUnsafe(this.size),e.copy(this.buf,0),n.copy(this.buf,e.length),this.length+=e.length}else{const d=this.length++;d===this.size&&this.resize();const n=this.clone();this.buf[0]=e,n.copy(this.buf,1,0,d)}}append(e){const d=this.length++;d===this.size&&this.resize(),this.buf[d]=e}clone(){return Buffer.from(this.buf.slice(0,this.length))}resize(){const e=this.length;this.size=this.size*2;const d=Buffer.allocUnsafe(this.size);this.buf.copy(d,0,0,e),this.buf=d}toString(e){return e?this.buf.slice(0,this.length).toString(e):Uint8Array.prototype.slice.call(this.buf.slice(0,this.length))}toJSON(){return this.toString("utf8")}reset(){this.length=0}}const lo=12,po=13,uo=10,ho=32,mo=9,fo=function(p){return{bomSkipped:!1,bufBytesStart:0,castField:p.cast_function,commenting:!1,error:void 0,enabled:p.from_line===1,escaping:!1,escapeIsQuote:Buffer.isBuffer(p.escape)&&Buffer.isBuffer(p.quote)&&Buffer.compare(p.escape,p.quote)===0,expectedRecordLength:Array.isArray(p.columns)?p.columns.length:void 0,field:new ds(20),firstLineToHeaders:p.cast_first_line_to_header,needMoreDataSize:Math.max(p.comment!==null?p.comment.length:0,...p.delimiter.map(e=>e.length),p.quote!==null?p.quote.length:0),previousBuf:void 0,quoting:!1,stop:!1,rawBuffer:new ds(100),record:[],recordHasError:!1,record_length:0,recordDelimiterMaxLength:p.record_delimiter.length===0?0:Math.max(...p.record_delimiter.map(e=>e.length)),trimChars:[Buffer.from(" ",p.encoding)[0],Buffer.from("	",p.encoding)[0]],wasQuoting:!1,wasRowDelimiter:!1,timchars:[Buffer.from(Buffer.from([po],"utf8").toString(),p.encoding),Buffer.from(Buffer.from([uo],"utf8").toString(),p.encoding),Buffer.from(Buffer.from([lo],"utf8").toString(),p.encoding),Buffer.from(Buffer.from([ho],"utf8").toString(),p.encoding),Buffer.from(Buffer.from([mo],"utf8").toString(),p.encoding)]}},go=function(p){return p.replace(/([A-Z])/g,function(e,d){return"_"+d.toLowerCase()})},us=function(p){const e={};for(const n in p)e[go(n)]=p[n];if(e.encoding===void 0||e.encoding===!0)e.encoding="utf8";else if(e.encoding===null||e.encoding===!1)e.encoding=null;else if(typeof e.encoding!="string"&&e.encoding!==null)throw new U("CSV_INVALID_OPTION_ENCODING",["Invalid option encoding:","encoding must be a string or null to return a buffer,",`got ${JSON.stringify(e.encoding)}`],e);if(e.bom===void 0||e.bom===null||e.bom===!1)e.bom=!1;else if(e.bom!==!0)throw new U("CSV_INVALID_OPTION_BOM",["Invalid option bom:","bom must be true,",`got ${JSON.stringify(e.bom)}`],e);if(e.cast_function=null,e.cast===void 0||e.cast===null||e.cast===!1||e.cast==="")e.cast=void 0;else if(typeof e.cast=="function")e.cast_function=e.cast,e.cast=!0;else if(e.cast!==!0)throw new U("CSV_INVALID_OPTION_CAST",["Invalid option cast:","cast must be true or a function,",`got ${JSON.stringify(e.cast)}`],e);if(e.cast_date===void 0||e.cast_date===null||e.cast_date===!1||e.cast_date==="")e.cast_date=!1;else if(e.cast_date===!0)e.cast_date=function(n){const i=Date.parse(n);return isNaN(i)?n:new Date(i)};else if(typeof e.cast_date!="function")throw new U("CSV_INVALID_OPTION_CAST_DATE",["Invalid option cast_date:","cast_date must be true or a function,",`got ${JSON.stringify(e.cast_date)}`],e);if(e.cast_first_line_to_header=void 0,e.columns===!0)e.cast_first_line_to_header=void 0;else if(typeof e.columns=="function")e.cast_first_line_to_header=e.columns,e.columns=!0;else if(Array.isArray(e.columns))e.columns=Ms(e.columns);else if(e.columns===void 0||e.columns===null||e.columns===!1)e.columns=!1;else throw new U("CSV_INVALID_OPTION_COLUMNS",["Invalid option columns:","expect an array, a function or true,",`got ${JSON.stringify(e.columns)}`],e);if(e.group_columns_by_name===void 0||e.group_columns_by_name===null||e.group_columns_by_name===!1)e.group_columns_by_name=!1;else{if(e.group_columns_by_name!==!0)throw new U("CSV_INVALID_OPTION_GROUP_COLUMNS_BY_NAME",["Invalid option group_columns_by_name:","expect an boolean,",`got ${JSON.stringify(e.group_columns_by_name)}`],e);if(e.columns===!1)throw new U("CSV_INVALID_OPTION_GROUP_COLUMNS_BY_NAME",["Invalid option group_columns_by_name:","the `columns` mode must be activated."],e)}if(e.comment===void 0||e.comment===null||e.comment===!1||e.comment==="")e.comment=null;else if(typeof e.comment=="string"&&(e.comment=Buffer.from(e.comment,e.encoding)),!Buffer.isBuffer(e.comment))throw new U("CSV_INVALID_OPTION_COMMENT",["Invalid option comment:","comment must be a buffer or a string,",`got ${JSON.stringify(e.comment)}`],e);if(e.comment_no_infix===void 0||e.comment_no_infix===null||e.comment_no_infix===!1)e.comment_no_infix=!1;else if(e.comment_no_infix!==!0)throw new U("CSV_INVALID_OPTION_COMMENT",["Invalid option comment_no_infix:","value must be a boolean,",`got ${JSON.stringify(e.comment_no_infix)}`],e);const d=JSON.stringify(e.delimiter);if(Array.isArray(e.delimiter)||(e.delimiter=[e.delimiter]),e.delimiter.length===0)throw new U("CSV_INVALID_OPTION_DELIMITER",["Invalid option delimiter:","delimiter must be a non empty string or buffer or array of string|buffer,",`got ${d}`],e);if(e.delimiter=e.delimiter.map(function(n){if(n==null||n===!1)return Buffer.from(",",e.encoding);if(typeof n=="string"&&(n=Buffer.from(n,e.encoding)),!Buffer.isBuffer(n)||n.length===0)throw new U("CSV_INVALID_OPTION_DELIMITER",["Invalid option delimiter:","delimiter must be a non empty string or buffer or array of string|buffer,",`got ${d}`],e);return n}),e.escape===void 0||e.escape===!0?e.escape=Buffer.from('"',e.encoding):typeof e.escape=="string"?e.escape=Buffer.from(e.escape,e.encoding):(e.escape===null||e.escape===!1)&&(e.escape=null),e.escape!==null&&!Buffer.isBuffer(e.escape))throw new Error(`Invalid Option: escape must be a buffer, a string or a boolean, got ${JSON.stringify(e.escape)}`);if(e.from===void 0||e.from===null)e.from=1;else if(typeof e.from=="string"&&/\d+/.test(e.from)&&(e.from=parseInt(e.from)),Number.isInteger(e.from)){if(e.from<0)throw new Error(`Invalid Option: from must be a positive integer, got ${JSON.stringify(p.from)}`)}else throw new Error(`Invalid Option: from must be an integer, got ${JSON.stringify(e.from)}`);if(e.from_line===void 0||e.from_line===null)e.from_line=1;else if(typeof e.from_line=="string"&&/\d+/.test(e.from_line)&&(e.from_line=parseInt(e.from_line)),Number.isInteger(e.from_line)){if(e.from_line<=0)throw new Error(`Invalid Option: from_line must be a positive integer greater than 0, got ${JSON.stringify(p.from_line)}`)}else throw new Error(`Invalid Option: from_line must be an integer, got ${JSON.stringify(p.from_line)}`);if(e.ignore_last_delimiters===void 0||e.ignore_last_delimiters===null)e.ignore_last_delimiters=!1;else if(typeof e.ignore_last_delimiters=="number")e.ignore_last_delimiters=Math.floor(e.ignore_last_delimiters),e.ignore_last_delimiters===0&&(e.ignore_last_delimiters=!1);else if(typeof e.ignore_last_delimiters!="boolean")throw new U("CSV_INVALID_OPTION_IGNORE_LAST_DELIMITERS",["Invalid option `ignore_last_delimiters`:","the value must be a boolean value or an integer,",`got ${JSON.stringify(e.ignore_last_delimiters)}`],e);if(e.ignore_last_delimiters===!0&&e.columns===!1)throw new U("CSV_IGNORE_LAST_DELIMITERS_REQUIRES_COLUMNS",["The option `ignore_last_delimiters`","requires the activation of the `columns` option"],e);if(e.info===void 0||e.info===null||e.info===!1)e.info=!1;else if(e.info!==!0)throw new Error(`Invalid Option: info must be true, got ${JSON.stringify(e.info)}`);if(e.max_record_size===void 0||e.max_record_size===null||e.max_record_size===!1)e.max_record_size=0;else if(!(Number.isInteger(e.max_record_size)&&e.max_record_size>=0))if(typeof e.max_record_size=="string"&&/\d+/.test(e.max_record_size))e.max_record_size=parseInt(e.max_record_size);else throw new Error(`Invalid Option: max_record_size must be a positive integer, got ${JSON.stringify(e.max_record_size)}`);if(e.objname===void 0||e.objname===null||e.objname===!1)e.objname=void 0;else if(Buffer.isBuffer(e.objname)){if(e.objname.length===0)throw new Error("Invalid Option: objname must be a non empty buffer");e.encoding===null||(e.objname=e.objname.toString(e.encoding))}else if(typeof e.objname=="string"){if(e.objname.length===0)throw new Error("Invalid Option: objname must be a non empty string")}else if(typeof e.objname!="number")throw new Error(`Invalid Option: objname must be a string or a buffer, got ${e.objname}`);if(e.objname!==void 0){if(typeof e.objname=="number"){if(e.columns!==!1)throw Error("Invalid Option: objname index cannot be combined with columns or be defined as a field")}else if(e.columns===!1)throw Error("Invalid Option: objname field must be combined with columns or be defined as an index")}if(e.on_record===void 0||e.on_record===null)e.on_record=void 0;else if(typeof e.on_record!="function")throw new U("CSV_INVALID_OPTION_ON_RECORD",["Invalid option `on_record`:","expect a function,",`got ${JSON.stringify(e.on_record)}`],e);if(e.on_skip!==void 0&&e.on_skip!==null&&typeof e.on_skip!="function")throw new Error(`Invalid Option: on_skip must be a function, got ${JSON.stringify(e.on_skip)}`);if(e.quote===null||e.quote===!1||e.quote==="")e.quote=null;else if(e.quote===void 0||e.quote===!0?e.quote=Buffer.from('"',e.encoding):typeof e.quote=="string"&&(e.quote=Buffer.from(e.quote,e.encoding)),!Buffer.isBuffer(e.quote))throw new Error(`Invalid Option: quote must be a buffer or a string, got ${JSON.stringify(e.quote)}`);if(e.raw===void 0||e.raw===null||e.raw===!1)e.raw=!1;else if(e.raw!==!0)throw new Error(`Invalid Option: raw must be true, got ${JSON.stringify(e.raw)}`);if(e.record_delimiter===void 0)e.record_delimiter=[];else if(typeof e.record_delimiter=="string"||Buffer.isBuffer(e.record_delimiter)){if(e.record_delimiter.length===0)throw new U("CSV_INVALID_OPTION_RECORD_DELIMITER",["Invalid option `record_delimiter`:","value must be a non empty string or buffer,",`got ${JSON.stringify(e.record_delimiter)}`],e);e.record_delimiter=[e.record_delimiter]}else if(!Array.isArray(e.record_delimiter))throw new U("CSV_INVALID_OPTION_RECORD_DELIMITER",["Invalid option `record_delimiter`:","value must be a string, a buffer or array of string|buffer,",`got ${JSON.stringify(e.record_delimiter)}`],e);if(e.record_delimiter=e.record_delimiter.map(function(n,i){if(typeof n!="string"&&!Buffer.isBuffer(n))throw new U("CSV_INVALID_OPTION_RECORD_DELIMITER",["Invalid option `record_delimiter`:","value must be a string, a buffer or array of string|buffer",`at index ${i},`,`got ${JSON.stringify(n)}`],e);if(n.length===0)throw new U("CSV_INVALID_OPTION_RECORD_DELIMITER",["Invalid option `record_delimiter`:","value must be a non empty string or buffer",`at index ${i},`,`got ${JSON.stringify(n)}`],e);return typeof n=="string"&&(n=Buffer.from(n,e.encoding)),n}),typeof e.relax_column_count!="boolean")if(e.relax_column_count===void 0||e.relax_column_count===null)e.relax_column_count=!1;else throw new Error(`Invalid Option: relax_column_count must be a boolean, got ${JSON.stringify(e.relax_column_count)}`);if(typeof e.relax_column_count_less!="boolean")if(e.relax_column_count_less===void 0||e.relax_column_count_less===null)e.relax_column_count_less=!1;else throw new Error(`Invalid Option: relax_column_count_less must be a boolean, got ${JSON.stringify(e.relax_column_count_less)}`);if(typeof e.relax_column_count_more!="boolean")if(e.relax_column_count_more===void 0||e.relax_column_count_more===null)e.relax_column_count_more=!1;else throw new Error(`Invalid Option: relax_column_count_more must be a boolean, got ${JSON.stringify(e.relax_column_count_more)}`);if(typeof e.relax_quotes!="boolean")if(e.relax_quotes===void 0||e.relax_quotes===null)e.relax_quotes=!1;else throw new Error(`Invalid Option: relax_quotes must be a boolean, got ${JSON.stringify(e.relax_quotes)}`);if(typeof e.skip_empty_lines!="boolean")if(e.skip_empty_lines===void 0||e.skip_empty_lines===null)e.skip_empty_lines=!1;else throw new Error(`Invalid Option: skip_empty_lines must be a boolean, got ${JSON.stringify(e.skip_empty_lines)}`);if(typeof e.skip_records_with_empty_values!="boolean")if(e.skip_records_with_empty_values===void 0||e.skip_records_with_empty_values===null)e.skip_records_with_empty_values=!1;else throw new Error(`Invalid Option: skip_records_with_empty_values must be a boolean, got ${JSON.stringify(e.skip_records_with_empty_values)}`);if(typeof e.skip_records_with_error!="boolean")if(e.skip_records_with_error===void 0||e.skip_records_with_error===null)e.skip_records_with_error=!1;else throw new Error(`Invalid Option: skip_records_with_error must be a boolean, got ${JSON.stringify(e.skip_records_with_error)}`);if(e.rtrim===void 0||e.rtrim===null||e.rtrim===!1)e.rtrim=!1;else if(e.rtrim!==!0)throw new Error(`Invalid Option: rtrim must be a boolean, got ${JSON.stringify(e.rtrim)}`);if(e.ltrim===void 0||e.ltrim===null||e.ltrim===!1)e.ltrim=!1;else if(e.ltrim!==!0)throw new Error(`Invalid Option: ltrim must be a boolean, got ${JSON.stringify(e.ltrim)}`);if(e.trim===void 0||e.trim===null||e.trim===!1)e.trim=!1;else if(e.trim!==!0)throw new Error(`Invalid Option: trim must be a boolean, got ${JSON.stringify(e.trim)}`);if(e.trim===!0&&p.ltrim!==!1?e.ltrim=!0:e.ltrim!==!0&&(e.ltrim=!1),e.trim===!0&&p.rtrim!==!1?e.rtrim=!0:e.rtrim!==!0&&(e.rtrim=!1),e.to===void 0||e.to===null)e.to=-1;else if(e.to!==-1)if(typeof e.to=="string"&&/\d+/.test(e.to)&&(e.to=parseInt(e.to)),Number.isInteger(e.to)){if(e.to<=0)throw new Error(`Invalid Option: to must be a positive integer greater than 0, got ${JSON.stringify(p.to)}`)}else throw new Error(`Invalid Option: to must be an integer, got ${JSON.stringify(p.to)}`);if(e.to_line===void 0||e.to_line===null)e.to_line=-1;else if(e.to_line!==-1)if(typeof e.to_line=="string"&&/\d+/.test(e.to_line)&&(e.to_line=parseInt(e.to_line)),Number.isInteger(e.to_line)){if(e.to_line<=0)throw new Error(`Invalid Option: to_line must be a positive integer greater than 0, got ${JSON.stringify(p.to_line)}`)}else throw new Error(`Invalid Option: to_line must be an integer, got ${JSON.stringify(p.to_line)}`);return e},hs=function(p){return p.every(e=>e==null||e.toString&&e.toString().trim()==="")},xo=13,vo=10,ye={utf8:Buffer.from([239,187,191]),utf16le:Buffer.from([255,254])},_o=function(p={}){const e={bytes:0,comment_lines:0,empty_lines:0,invalid_field_length:0,lines:1,records:0},d=us(p);return{info:e,original_options:p,options:d,state:fo(d),__needMoreData:function(n,i,s){if(s)return!1;const{encoding:o,escape:a,quote:h}=this.options,{quoting:t,needMoreDataSize:u,recordDelimiterMaxLength:f}=this.state,l=i-n-1,_=Math.max(u,f===0?Buffer.from(`\r
-`,o).length:f,t?(a===null?0:a.length)+h.length:0,t?h.length+f:0);return l<_},parse:function(n,i,s,o){const{bom:a,comment_no_infix:h,encoding:t,from_line:u,ltrim:f,max_record_size:l,raw:_,relax_quotes:w,rtrim:v,skip_empty_lines:r,to:c,to_line:g}=this.options;let{comment:m,escape:x,quote:y,record_delimiter:T}=this.options;const{bomSkipped:b,previousBuf:k,rawBuffer:C,escapeIsQuote:A}=this.state;let E;if(k===void 0)if(n===void 0){o();return}else E=n;else k!==void 0&&n===void 0?E=k:E=Buffer.concat([k,n]);if(b===!1)if(a===!1)this.state.bomSkipped=!0;else if(E.length<3){if(i===!1){this.state.previousBuf=E;return}}else{for(const I in ye)if(ye[I].compare(E,0,ye[I].length)===0){const R=ye[I].length;this.state.bufBytesStart+=R,E=E.slice(R);const P=us({...this.original_options,encoding:I});for(const O in P)this.options[O]=P[O];({comment:m,escape:x,quote:y}=this.options);break}this.state.bomSkipped=!0}const M=E.length;let S;for(S=0;S<M&&!this.__needMoreData(S,M,i);S++){if(this.state.wasRowDelimiter===!0&&(this.info.lines++,this.state.wasRowDelimiter=!1),g!==-1&&this.info.lines>g){this.state.stop=!0,o();return}this.state.quoting===!1&&T.length===0&&this.__autoDiscoverRecordDelimiter(E,S)&&(T=this.options.record_delimiter);const I=E[S];if(_===!0&&C.append(I),(I===xo||I===vo)&&this.state.wasRowDelimiter===!1&&(this.state.wasRowDelimiter=!0),this.state.escaping===!0)this.state.escaping=!1;else{if(x!==null&&this.state.quoting===!0&&this.__isEscape(E,S,I)&&S+x.length<M)if(A){if(this.__isQuote(E,S+x.length)){this.state.escaping=!0,S+=x.length-1;continue}}else{this.state.escaping=!0,S+=x.length-1;continue}if(this.state.commenting===!1&&this.__isQuote(E,S))if(this.state.quoting===!0){const O=E[S+y.length],L=v&&this.__isCharTrimable(E,S+y.length),B=m!==null&&this.__compareBytes(m,E,S+y.length,O),$=this.__isDelimiter(E,S+y.length,O),z=T.length===0?this.__autoDiscoverRecordDelimiter(E,S+y.length):this.__isRecordDelimiter(O,E,S+y.length);if(x!==null&&this.__isEscape(E,S,I)&&this.__isQuote(E,S+x.length))S+=x.length-1;else if(!O||$||z||B||L){this.state.quoting=!1,this.state.wasQuoting=!0,S+=y.length-1;continue}else if(w===!1){const V=this.__error(new U("CSV_INVALID_CLOSING_QUOTE",["Invalid Closing Quote:",`got "${String.fromCharCode(O)}"`,`at line ${this.info.lines}`,"instead of delimiter, record delimiter, trimable character","(if activated) or comment"],this.options,this.__infoField()));if(V!==void 0)return V}else this.state.quoting=!1,this.state.wasQuoting=!0,this.state.field.prepend(y),S+=y.length-1}else if(this.state.field.length!==0){if(w===!1){const O=this.__infoField(),L=Object.keys(ye).map($=>ye[$].equals(this.state.field.toString())?$:!1).filter(Boolean)[0],B=this.__error(new U("INVALID_OPENING_QUOTE",["Invalid Opening Quote:",`a quote is found on field ${JSON.stringify(O.column)} at line ${O.lines}, value is ${JSON.stringify(this.state.field.toString(t))}`,L?`(${L} bom)`:void 0],this.options,O,{field:this.state.field}));if(B!==void 0)return B}}else{this.state.quoting=!0,S+=y.length-1;continue}if(this.state.quoting===!1){const O=this.__isRecordDelimiter(I,E,S);if(O!==0){if(this.state.commenting&&this.state.wasQuoting===!1&&this.state.record.length===0&&this.state.field.length===0)this.info.comment_lines++;else{if(this.state.enabled===!1&&this.info.lines+(this.state.wasRowDelimiter===!0?1:0)>=u){this.state.enabled=!0,this.__resetField(),this.__resetRecord(),S+=O-1;continue}if(r===!0&&this.state.wasQuoting===!1&&this.state.record.length===0&&this.state.field.length===0){this.info.empty_lines++,S+=O-1;continue}this.info.bytes=this.state.bufBytesStart+S;const $=this.__onField();if($!==void 0)return $;this.info.bytes=this.state.bufBytesStart+S+O;const z=this.__onRecord(s);if(z!==void 0)return z;if(c!==-1&&this.info.records>=c){this.state.stop=!0,o();return}}this.state.commenting=!1,S+=O-1;continue}if(this.state.commenting)continue;if(m!==null&&(h===!1||this.state.record.length===0&&this.state.field.length===0)&&this.__compareBytes(m,E,S,I)!==0){this.state.commenting=!0;continue}const L=this.__isDelimiter(E,S,I);if(L!==0){this.info.bytes=this.state.bufBytesStart+S;const B=this.__onField();if(B!==void 0)return B;S+=L-1;continue}}}if(this.state.commenting===!1&&l!==0&&this.state.record_length+this.state.field.length>l)return this.__error(new U("CSV_MAX_RECORD_SIZE",["Max Record Size:","record exceed the maximum number of tolerated bytes",`of ${l}`,`at line ${this.info.lines}`],this.options,this.__infoField()));const R=f===!1||this.state.quoting===!0||this.state.field.length!==0||!this.__isCharTrimable(E,S),P=v===!1||this.state.wasQuoting===!1;if(R===!0&&P===!0)this.state.field.append(I);else{if(v===!0&&!this.__isCharTrimable(E,S))return this.__error(new U("CSV_NON_TRIMABLE_CHAR_AFTER_CLOSING_QUOTE",["Invalid Closing Quote:","found non trimable byte after quote",`at line ${this.info.lines}`],this.options,this.__infoField()));R===!1&&(S+=this.__isCharTrimable(E,S)-1);continue}}if(i===!0)if(this.state.quoting===!0){const I=this.__error(new U("CSV_QUOTE_NOT_CLOSED",["Quote Not Closed:",`the parsing is finished with an opening quote at line ${this.info.lines}`],this.options,this.__infoField()));if(I!==void 0)return I}else if(this.state.wasQuoting===!0||this.state.record.length!==0||this.state.field.length!==0){this.info.bytes=this.state.bufBytesStart+S;const I=this.__onField();if(I!==void 0)return I;const R=this.__onRecord(s);if(R!==void 0)return R}else this.state.wasRowDelimiter===!0?this.info.empty_lines++:this.state.commenting===!0&&this.info.comment_lines++;else this.state.bufBytesStart+=S,this.state.previousBuf=E.slice(S);this.state.wasRowDelimiter===!0&&(this.info.lines++,this.state.wasRowDelimiter=!1)},__onRecord:function(n){const{columns:i,group_columns_by_name:s,encoding:o,info:a,from:h,relax_column_count:t,relax_column_count_less:u,relax_column_count_more:f,raw:l,skip_records_with_empty_values:_}=this.options,{enabled:w,record:v}=this.state;if(w===!1)return this.__resetRecord();const r=v.length;if(i===!0){if(_===!0&&hs(v)){this.__resetRecord();return}return this.__firstLineToColumns(v)}if(i===!1&&this.info.records===0&&(this.state.expectedRecordLength=r),r!==this.state.expectedRecordLength){const c=i===!1?new U("CSV_RECORD_INCONSISTENT_FIELDS_LENGTH",["Invalid Record Length:",`expect ${this.state.expectedRecordLength},`,`got ${r} on line ${this.info.lines}`],this.options,this.__infoField(),{record:v}):new U("CSV_RECORD_INCONSISTENT_COLUMNS",["Invalid Record Length:",`columns length is ${i.length},`,`got ${r} on line ${this.info.lines}`],this.options,this.__infoField(),{record:v});if(t===!0||u===!0&&r<this.state.expectedRecordLength||f===!0&&r>this.state.expectedRecordLength)this.info.invalid_field_length++,this.state.error=c;else{const g=this.__error(c);if(g)return g}}if(_===!0&&hs(v)){this.__resetRecord();return}if(this.state.recordHasError===!0){this.__resetRecord(),this.state.recordHasError=!1;return}if(this.info.records++,h===1||this.info.records>=h){const{objname:c}=this.options;if(i!==!1){const g={};for(let m=0,x=v.length;m<x;m++)i[m]===void 0||i[m].disabled||(s===!0&&g[i[m].name]!==void 0?Array.isArray(g[i[m].name])?g[i[m].name]=g[i[m].name].concat(v[m]):g[i[m].name]=[g[i[m].name],v[m]]:g[i[m].name]=v[m]);if(l===!0||a===!0){const m=Object.assign({record:g},l===!0?{raw:this.state.rawBuffer.toString(o)}:{},a===!0?{info:this.__infoRecord()}:{}),x=this.__push(c===void 0?m:[g[c],m],n);if(x)return x}else{const m=this.__push(c===void 0?g:[g[c],g],n);if(m)return m}}else if(l===!0||a===!0){const g=Object.assign({record:v},l===!0?{raw:this.state.rawBuffer.toString(o)}:{},a===!0?{info:this.__infoRecord()}:{}),m=this.__push(c===void 0?g:[v[c],g],n);if(m)return m}else{const g=this.__push(c===void 0?v:[v[c],v],n);if(g)return g}}this.__resetRecord()},__firstLineToColumns:function(n){const{firstLineToHeaders:i}=this.state;try{const s=i===void 0?n:i.call(null,n);if(!Array.isArray(s))return this.__error(new U("CSV_INVALID_COLUMN_MAPPING",["Invalid Column Mapping:","expect an array from column function,",`got ${JSON.stringify(s)}`],this.options,this.__infoField(),{headers:s}));const o=Ms(s);this.state.expectedRecordLength=o.length,this.options.columns=o,this.__resetRecord();return}catch(s){return s}},__resetRecord:function(){this.options.raw===!0&&this.state.rawBuffer.reset(),this.state.error=void 0,this.state.record=[],this.state.record_length=0},__onField:function(){const{cast:n,encoding:i,rtrim:s,max_record_size:o}=this.options,{enabled:a,wasQuoting:h}=this.state;if(a===!1)return this.__resetField();let t=this.state.field.toString(i);if(s===!0&&h===!1&&(t=t.trimRight()),n===!0){const[u,f]=this.__cast(t);if(u!==void 0)return u;t=f}this.state.record.push(t),o!==0&&typeof t=="string"&&(this.state.record_length+=t.length),this.__resetField()},__resetField:function(){this.state.field.reset(),this.state.wasQuoting=!1},__push:function(n,i){const{on_record:s}=this.options;if(s!==void 0){const o=this.__infoRecord();try{n=s.call(null,n,o)}catch(a){return a}if(n==null)return}i(n)},__cast:function(n){const{columns:i,relax_column_count:s}=this.options;if(Array.isArray(i)===!0&&s&&this.options.columns.length<=this.state.record.length)return[void 0,void 0];if(this.state.castField!==null)try{const a=this.__infoField();return[void 0,this.state.castField.call(null,n,a)]}catch(a){return[a]}if(this.__isFloat(n))return[void 0,parseFloat(n)];if(this.options.cast_date!==!1){const a=this.__infoField();return[void 0,this.options.cast_date.call(null,n,a)]}return[void 0,n]},__isCharTrimable:function(n,i){return((o,a)=>{const{timchars:h}=this.state;e:for(let t=0;t<h.length;t++){const u=h[t];for(let f=0;f<u.length;f++)if(u[f]!==o[a+f])continue e;return u.length}return 0})(n,i)},__isFloat:function(n){return n-parseFloat(n)+1>=0},__compareBytes:function(n,i,s,o){if(n[0]!==o)return 0;const a=n.length;for(let h=1;h<a;h++)if(n[h]!==i[s+h])return 0;return a},__isDelimiter:function(n,i,s){const{delimiter:o,ignore_last_delimiters:a}=this.options;if(a===!0&&this.state.record.length===this.options.columns.length-1)return 0;if(a!==!1&&typeof a=="number"&&this.state.record.length===a-1)return 0;e:for(let h=0;h<o.length;h++){const t=o[h];if(t[0]===s){for(let u=1;u<t.length;u++)if(t[u]!==n[i+u])continue e;return t.length}}return 0},__isRecordDelimiter:function(n,i,s){const{record_delimiter:o}=this.options,a=o.length;e:for(let h=0;h<a;h++){const t=o[h],u=t.length;if(t[0]===n){for(let f=1;f<u;f++)if(t[f]!==i[s+f])continue e;return t.length}}return 0},__isEscape:function(n,i,s){const{escape:o}=this.options;if(o===null)return!1;const a=o.length;if(o[0]===s){for(let h=0;h<a;h++)if(o[h]!==n[i+h])return!1;return!0}return!1},__isQuote:function(n,i){const{quote:s}=this.options;if(s===null)return!1;const o=s.length;for(let a=0;a<o;a++)if(s[a]!==n[i+a])return!1;return!0},__autoDiscoverRecordDelimiter:function(n,i){const{encoding:s}=this.options,o=[Buffer.from(`\r
-`,s),Buffer.from(`
-`,s),Buffer.from("\r",s)];e:for(let a=0;a<o.length;a++){const h=o[a].length;for(let t=0;t<h;t++)if(o[a][t]!==n[i+t])continue e;return this.options.record_delimiter.push(o[a]),this.state.recordDelimiterMaxLength=o[a].length,o[a].length}return 0},__error:function(n){const{encoding:i,raw:s,skip_records_with_error:o}=this.options,a=typeof n=="string"?new Error(n):n;if(o){if(this.state.recordHasError=!0,this.options.on_skip!==void 0)try{this.options.on_skip(a,s?this.state.rawBuffer.toString(i):void 0)}catch(h){return h}return}else return a},__infoDataSet:function(){return{...this.info,columns:this.options.columns}},__infoRecord:function(){const{columns:n,raw:i,encoding:s}=this.options;return{...this.__infoDataSet(),error:this.state.error,header:n===!0,index:this.state.record.length,raw:i?this.state.rawBuffer.toString(s):void 0}},__infoField:function(){const{columns:n}=this.options,i=Array.isArray(n);return{...this.__infoRecord(),column:i===!0?n.length>this.state.record.length?n[this.state.record.length].name:null:this.state.record.length,quoting:this.state.wasQuoting}}}},wo=function(p,e={}){typeof p=="string"&&(p=Buffer.from(p));const d=e&&e.objname?{}:[],n=_o(e),i=a=>{n.options.objname===void 0?d.push(a):d[a[0]]=a[1]},s=()=>{},o=n.parse(p,!0,i,s);if(o!==void 0)throw o;return d};function yo(p){const e=j.readFileSync(p,"utf-8"),d=wo(e,{columns:!0,bom:!0,trim:!0,skip_empty_lines:!0,relax_column_count:!0});return{headers:d.length>0?Object.keys(d[0]):[],rows:d}}function si(p){return String(p??"").replace(/\s+/g,"")}function bo(p){return(p?.accounts||[]).filter(e=>e.enabled&&e.user&&e.pass)}function ni(p,e){const d=new Map;for(const n of bo(p)){const i={...p,smtp:{host:n.host,port:n.port,user:n.user,pass:n.pass}},s=new He(i),o=new Xt(i,s,e,n.id);d.set(n.id,o)}return d}async function Eo(p,e){const d={total:0,sent:0,skipped:0,failed:0},n=ni(p,e);if(n.size===0)return d;const i=await Promise.all([...n.values()].map(s=>s.processEmails()));for(const s of i)d.total+=s.total,d.sent+=s.sent,d.skipped+=s.skipped,d.failed+=s.failed;return d}class Os{constructor(e){this.statsPath=q.join(e,"stats.json"),this.currentStats=this.loadStats()}loadStats(){if(!j.existsSync(this.statsPath))return{totalEmailsSent:0,perAccount:{}};try{const e=JSON.parse(j.readFileSync(this.statsPath,"utf-8")),d={};if(e&&e.perAccount&&typeof e.perAccount=="object")for(const[n,i]of Object.entries(e.perAccount))d[n]=Number(i)||0;return{totalEmailsSent:Number(e?.totalEmailsSent)||0,perAccount:d}}catch(e){return console.error("Failed to load stats:",e),{totalEmailsSent:0,perAccount:{}}}}saveStats(){try{ge(this.statsPath,JSON.stringify(this.currentStats,null,2))}catch(e){console.error("Failed to save stats:",e)}}getStats(){return this.currentStats}incrementEmailsSent(e){this.currentStats.totalEmailsSent++,e&&(this.currentStats.perAccount||(this.currentStats.perAccount={}),this.currentStats.perAccount[e]=(this.currentStats.perAccount[e]||0)+1),this.saveStats()}}function re(p){return'"'+String(p??"").replace(/"/g,'\\"').replace(/[\r\n]/g," ")+'"'}function $t(p){if(!p)return"";if(D.safeStorage.isEncryptionAvailable())try{return`ENC:${D.safeStorage.encryptString(p).toString("base64")}`}catch(e){console.error("safeStorage encryption failed:",e)}return p}function De(p){return'"'+String(p??"").replace(/\\/g,"/").replace(/"/g,'\\"').replace(/[\r\n]/g," ")+'"'}function Ns(){if(!D.app.isPackaged)return;const p=D.app.getPath("userData");process.env.MAIL_DATA_DIR=p;try{const e=q.dirname(process.execPath);if(e===p)return;const d=[".env","recipients.json","recipients.csv","template.html","template.txt","stats.json","limits.json","suppression.json","accounts.json","scheduler.json"];for(const n of d){const i=q.join(e,n),s=q.join(p,n);!j.existsSync(s)&&j.existsSync(i)&&j.copyFileSync(i,s)}}catch{}}process.env.DIST=q.join(__dirname,"../dist-vite");process.env.VITE_PUBLIC=D.app.isPackaged?process.env.DIST:q.join(process.env.DIST,"../public");let H,be=null,Ze=!1,et=!1;const So=process.argv.includes("--hidden"),ms=process.env.VITE_DEV_SERVER_URL;let W=null,Ee=null,N=null,me=new Map;function F(p,e="info"){console.log(`[${e.toUpperCase()}] ${p}`),H&&H.webContents.send("log-message",p,e)}function ot(p){H&&H.webContents.send("scheduler-status",p)}function Ps(){H=new D.BrowserWindow({width:1e3,height:700,minWidth:800,minHeight:600,show:!1,icon:q.join(process.env.VITE_PUBLIC||"","assets","app_icon.png"),titleBarStyle:"hidden",titleBarOverlay:{color:"#f3f3f3",symbolColor:"#1a1a1a",height:40},webPreferences:{preload:q.join(__dirname,"preload.js")}}),H.once("ready-to-show",()=>{(!So||!Ze)&&H?.show()}),H.on("close",p=>{!et&&Ze&&(p.preventDefault(),H?.hide())}),ms?H.loadURL(ms):H.loadFile(q.join(__dirname,"../dist-vite/index.html")),H.webContents.setWindowOpenHandler(p=>(D.shell.openExternal(p.url),{action:"deny"}))}function Le(){(!H||H.isDestroyed())&&Ps(),H?.show(),H?.isMinimized()&&H.restore(),H?.focus()}function Rs(){const e={type:"warning",buttons:["Quit","Cancel"],defaultId:1,cancelId:1,noLink:!0,title:"Quit Email Pilots?",message:"Quit Email Pilots?",detail:ae?`Email Pilots is sending on schedule. Quitting stops all scheduled and in-progress emails until you reopen the app.
-
-To keep sending in the background, close the window instead.`:`Quitting fully closes Email Pilots, so nothing will send until you reopen it.
-
-To keep it running in the background, close the window instead.`};return(H&&!H.isDestroyed()?D.dialog.showMessageBoxSync(H,e):D.dialog.showMessageBoxSync(e))===0}function To(){Rs()&&(et=!0,D.app.quit())}function ko(){if(be)return;let p=D.nativeImage.createEmpty();for(const e of["app_icon.png","pilot.png","butler.png"]){const d=D.nativeImage.createFromPath(q.join(process.env.VITE_PUBLIC||"","assets",e));if(!d.isEmpty()){p=d.resize({width:16,height:16});break}}if(p.isEmpty()){Ze=!1,F("Tray icon not found — keeping normal window close (no background tray).","error");return}be=new D.Tray(p),Ze=!0,be.setToolTip("Email Pilots — running in background"),be.setContextMenu(D.Menu.buildFromTemplate([{label:"Open Email Pilots",click:()=>Le()},{type:"separator"},{label:"Quit",click:()=>To()}])),be.on("click",()=>Le()),be.on("double-click",()=>Le())}function Ds(){return q.join(J(),"scheduler.json")}function Ao(){try{return JSON.parse(j.readFileSync(Ds(),"utf-8")).enabled===!0}catch{return!1}}function ri(p){try{ge(Ds(),JSON.stringify({enabled:p},null,2))}catch(e){F(`Could not persist scheduler state: ${e?.message||e}`,"error")}}function Co(){if(D.app.isPackaged)try{D.app.setLoginItemSettings({openAtLogin:!0,path:process.execPath,args:["--hidden"]})}catch(p){F(`Could not set auto-start: ${p?.message||p}`,"error")}}let je=null;const at=new Map;function Ft(p,e){at.set(p||"default",e)}function Be(p){je?.incrementEmailsSent(p),Ft(p,{ok:!0,at:Date.now(),kind:"send"})}function Io(p){return`${String(p||"acct").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,24)||"acct"}-${Date.now().toString(36)}`}function oi(){N&&(me=ni(N,Be),Ee=me.get("default")??new Xt(N,new He(N),Be,"default"),W?(W.config=N,W.mailProcessor=Ee,W.processors=me,ae?W.start():W.stop()):W=new Is(N,Ee,me))}function Q(){try{Ns();const p=J();tt.config({path:q.join(p,".env"),override:!0}),N=Se(),je=new Os(p),me=ni(N,Be),Ee=me.get("default")??new Xt(N,new He(N),Be,"default"),W=new Is(N,Ee,me),F("Services initialized successfully.","system")}catch(p){if(F(`Failed to initialize services: ${p.message}`,"error"),!N)try{N=Se()}catch{N={smtp:{},accounts:[],paths:{},email:{},limits:{},sender:{}}}}}D.ipcMain.handle("get-stats",()=>(je||(je=new Os(J())),je.getStats()));D.ipcMain.handle("get-usage",(p,e)=>(N||Q(),new ks(J(),N.limits,e).getUsage()));D.ipcMain.handle("list-suppressions",()=>new nt(J()).list());D.ipcMain.handle("remove-suppression",(p,e)=>(new nt(J()).remove(e),!0));D.ipcMain.handle("add-suppression",(p,e)=>{const d=String(e||"").trim().toLowerCase();return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d)?(new nt(J()).add(d,"manual","blocked via UI"),{ok:!0}):{ok:!1,error:"Enter a valid email address."}});D.ipcMain.handle("send-test-email",async(p,e)=>{N||Q();const d=N?.accounts||[],n=(e?d.find(i=>i.id===e):void 0)||d.find(i=>i.id==="default")||d[0];if(!n||!n.user||!n.pass)return{ok:!1,error:"Add your email address and password in Settings first."};try{const i=new He({...N,smtp:{host:n.host,port:n.port,user:n.user,pass:n.pass}}),s=n.user;return await i.sendMail(s,"Email Pilots — test email","<p>This is a test from <strong>Email Pilots</strong>. If you received this, your SMTP settings work.</p>",[],{text:"This is a test from Email Pilots. If you received this, your SMTP settings work."}),Ft(n.id,{ok:!0,at:Date.now(),kind:"test"}),{ok:!0,to:s}}catch(i){return Ft(n.id,{ok:!1,error:i?.message||"Send failed",at:Date.now(),kind:"test"}),{ok:!1,error:i?.message||"Send failed"}}});D.ipcMain.handle("verify-connection",async(p,e)=>{const d=(e?.host||N?.smtp?.host||"smtp.office365.com").trim(),n=parseInt(e?.port,10)||N?.smtp?.port||587,i=(e?.user??N?.smtp?.user??"").trim(),s=si(e?.pass??N?.smtp?.pass);return!i||!s?{ok:!1,error:"Add your email address and app password first."}:new He({smtp:{host:d,port:n,user:i,pass:s}}).verifyConnection()});D.ipcMain.handle("get-accounts",()=>(N||Q(),(N?.accounts||[]).map(e=>({id:e.id,label:e.label||e.user,host:e.host,port:e.port,user:e.user,enabled:e.enabled,hasPass:!!e.pass,isDefault:e.id==="default",status:at.get(e.id)||null}))));D.ipcMain.handle("save-account",async(p,e)=>{try{N||Q();const d=J(),n=(e?.user||"").trim();if(!n)return{ok:!1,error:"Email address is required."};const i=e?.id&&String(e.id).trim()||Io(n);if(i==="default")return{ok:!1,error:"The primary account is edited in Settings."};const s=(e?.host||"smtp.office365.com").trim(),o=parseInt(e?.port,10)||587,a=ze(d),h=a.find(l=>l.id===i);if(!h&&a.length>=li)return{ok:!1,error:`Account limit reached (max ${li} added accounts). Remove one before adding another.`};const t=si(e?.pass);let u;if(t)u=$t(t);else if(h)u=h.pass;else return{ok:!1,error:"App password is required."};const f={id:i,label:(e?.label||n).trim(),host:s,port:o,user:n,pass:u,enabled:e?.enabled!==!1};return Ws(d,f),N=Se(),oi(),{ok:!0,id:i}}catch(d){return{ok:!1,error:d?.message||"Save failed"}}});D.ipcMain.handle("delete-account",(p,e)=>{try{if(N||Q(),!e||e==="default")return{ok:!1,error:"The primary account cannot be removed."};const d=J();Js(d,String(e));const n=String(e).replace(/[^a-zA-Z0-9_-]/g,"_");try{j.unlinkSync(q.join(d,`limits.${n}.json`))}catch{}return at.delete(String(e)),N=Se(),oi(),{ok:!0}}catch(d){return{ok:!1,error:d?.message||"Delete failed"}}});D.ipcMain.handle("get-config",()=>{if(!N){const p=J();tt.config({path:q.join(p,".env"),override:!0}),N=Se()}return{...N,smtp:{...N.smtp,pass:"",hasPass:!!N.smtp?.pass},accounts:(N.accounts||[]).map(p=>({...p,pass:""}))}});function Ls(p){try{N||Q();const e=J(),d=q.join(e,".env"),n=String(p.user??N.smtp.user??"").trim(),i=si(p.pass),s=i?$t(i):n?$t(N.smtp.pass||""):"",o=`USER_NAME=${re(p.userName??N.userName??"")}
-SMTP_HOST=${re(p.smtpHost||N.smtp.host||"smtp.office365.com")}
-SMTP_PORT=${parseInt(p.smtpPort,10)||N.smtp.port||587}
-SMTP_USER=${re(n)}
-SMTP_PASS=${re(s)}
-RECIPIENTS_CSV_PATH=${De(N.paths.recipientsCsv)}
-RECIPIENTS_JSON_PATH=${De(N.paths.recipientsJson)}
-TEMPLATE_HTML_PATH=${De(N.paths.templateHtml)}
-CRON_SCHEDULE=${re(p.cron??N.cronSchedule)}
-EMAIL_SUBJECT=${re(p.subject??N.email.subject)}
-CV_PATH=${De(p.cvPath??N.paths.cvPath??"")}
-ENROLLMENT_PATH=${De(p.enrollmentPath??N.paths.enrollmentPath??"")}
-PHYSICAL_ADDRESS=${re(p.physicalAddress??N.sender.physicalAddress)}
-UNSUBSCRIBE_ENABLED=${p.unsubscribeEnabled??N.sender.unsubscribeEnabled?"true":"false"}
-INBOX_PLACEMENT=${re(p.inboxPlacement??N.sender.inboxPlacement)}
-WARMUP_ENABLED=${p.warmupEnabled??N.limits.warmupEnabled?"true":"false"}
-TEST_MODE=${p.testMode??N.testMode?"true":"false"}
-WARMUP_CURVE=${re((N.limits.warmupCurve||[]).join(","))}
-MAX_EMAILS_PER_DAY=${N.limits.maxPerDay}
-MAX_EMAILS_PER_WINDOW=${N.limits.maxPerWindow}
-MAX_WINDOWS_PER_DAY=${N.limits.maxWindowsPerDay}
-MIN_DELAY_MIN=${Math.round(N.limits.minDelayMs/6e4)}
-MAX_DELAY_MIN=${Math.round(N.limits.maxDelayMs/6e4)}
-MAX_ATTACHMENT_MB=${Math.round(N.limits.maxAttachmentBytes/(1024*1024))}
-MAX_RECIPIENT_PER_DAY=${N.limits.maxPerRecipientPerDay}
-`;return ge(d,o),delete process.env.OUTLOOK_USER,delete process.env.OUTLOOK_PASS,tt.config({path:d,override:!0}),N=Se(),oi(),!0}catch(e){return F(`Error saving configuration: ${e.message}`,"error"),!1}}D.ipcMain.handle("save-config",(p,e)=>Ls(e));D.ipcMain.handle("sign-out",()=>{try{N||Q();const p=J();W?.stop(),ae=!1,ri(!1),ot(!1);for(const d of ze(p)){const n=d.id.replace(/[^a-zA-Z0-9_-]/g,"_");try{j.unlinkSync(q.join(p,`limits.${n}.json`))}catch{}}try{j.unlinkSync(Jt(p))}catch{}return at.clear(),{ok:Ls({user:"",pass:"",smtpHost:N.smtp?.host,smtpPort:N.smtp?.port})}}catch(p){return{ok:!1,error:p?.message||"Sign out failed"}}});let ae=!1;D.ipcMain.handle("start-scheduler",()=>(W||Q(),W?(W.start(),ae=!0,ri(!0),ot(!0),F(`Scheduler started with cron: ${N.cronSchedule}`,"success"),!0):!1));D.ipcMain.handle("stop-scheduler",()=>W?(W.stop(),ae=!1,ri(!1),ot(!1),F("Scheduler stopped.","system"),!0):!1);D.ipcMain.handle("get-scheduler-status",()=>ae);let Ht=!1;D.ipcMain.handle("run-test-send",async()=>{if(Ht)return F("A run is already in progress.","error"),{error:"in-progress"};Ee||Q(),Ht=!0,F("Starting immediate test execution...","info");const p=console.log,e=console.error;console.log=(...n)=>{F(n.join(" "),"info"),p(...n)},console.error=(...n)=>{F(n.join(" "),"error"),e(...n)};let d={total:0,sent:0,skipped:0,failed:0};try{d=await Eo(N,Be),F(`Test execution completed. sent=${d.sent} skipped=${d.skipped} failed=${d.failed}`,d.sent>0?"success":"error")}catch(n){F(`Execution failed: ${n.message}`,"error"),d.error=n.message}finally{console.log=p,console.error=e,Ht=!1}return d});D.ipcMain.handle("open-csv",()=>{if(N||Q(),N&&N.paths.recipientsCsv){const p=N.paths.recipientsCsv;j.existsSync(p)?(D.shell.openPath(p),F(`Opened CSV at ${p}`,"info")):F(`CSV file not found at ${p}`,"error")}});D.ipcMain.handle("open-json",()=>{if(N||Q(),N&&N.paths.recipientsJson){const p=N.paths.recipientsJson;j.existsSync(p)?(D.shell.openPath(p),F(`Opened JSON at ${p}`,"info")):F(`JSON file not found at ${p}`,"error")}});D.ipcMain.handle("get-recipients",()=>{N||Q();const p=N.paths.recipientsJson;if(j.existsSync(p))try{const e=j.readFileSync(p,"utf8");return JSON.parse(e)}catch{return F("Failed to parse recipients.json","error"),[]}return[]});D.ipcMain.handle("save-recipients",(p,e)=>{N||Q();const d=N.paths.recipientsJson;try{return ge(d,JSON.stringify(e,null,2)),F("Recipients saved successfully","success"),ae&&W&&(W.start(),F("Scheduler re-armed with the updated recipient list.","system")),!0}catch{return F("Failed to save recipients","error"),!1}});D.ipcMain.handle("select-file",async(p,e,d)=>{if(!H)return null;const n=await D.dialog.showOpenDialog(H,{title:e,properties:["openFile"],filters:[{name:"Allowed Files",extensions:d}]});return n.canceled||n.filePaths.length===0?null:n.filePaths[0]});D.ipcMain.handle("import-recipients-csv",async()=>{if(!H)return{canceled:!0};const p=await D.dialog.showOpenDialog(H,{title:"Import Recipients from CSV",properties:["openFile"],filters:[{name:"CSV",extensions:["csv"]}]});if(p.canceled||p.filePaths.length===0)return{canceled:!0};const e=p.filePaths[0];try{const{headers:d,rows:n}=yo(e);return d.length===0?{error:"No columns found — the CSV appears empty or has no header row."}:(F(`Read ${n.length} row(s) from ${e}`,"info"),{filePath:e,headers:d,rows:n})}catch(d){return F(`Failed to read CSV: ${d.message}`,"error"),{error:d?.message||"Failed to read CSV file."}}});D.ipcMain.handle("select-message-file",async p=>{if(!H)return null;const e=await D.dialog.showOpenDialog(H,{title:"Select Message File",properties:["openFile"],filters:[{name:"Text/HTML",extensions:["txt","html"]}]});return e.canceled||e.filePaths.length===0?null:e.filePaths[0]});D.ipcMain.handle("preview-email",(p,e)=>{N||Q();const d=N.paths.recipientsJson;if(!j.existsSync(d))return{error:"Missing recipients.json file."};try{const i=JSON.parse(j.readFileSync(d,"utf8"))[e];return i?Ye(i,N):{error:"Recipient not found."}}catch(n){return{error:n.message}}});D.ipcMain.handle("preview-unsaved-email",(p,e)=>{N||Q();try{return Ye(e,N)}catch(d){return{error:d.message}}});D.ipcMain.handle("verify-email",async(p,e)=>{const d=String(e??"").trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d))return{valid:!1,reason:"Invalid syntax"};const i=d.split("@")[1],s=["ECONNREFUSED","ETIMEOUT","ETIMEDOUT","ESERVFAIL","EREFUSED","ECANCELLED","EBADRESP"];try{const o=await Xe.promises.resolveMx(i);if(o&&o.length>0)return{valid:!0}}catch(o){if(s.includes(o?.code))return{valid:!0,reason:"DNS check skipped (resolver unavailable)"}}try{return await Xe.promises.lookup(i),{valid:!0}}catch(o){return s.includes(o?.code)?{valid:!0,reason:"DNS check skipped (resolver unavailable)"}:{valid:!1,reason:"Domain does not exist or cannot receive email"}}});const Mo=D.app.requestSingleInstanceLock();Mo?(D.app.on("second-instance",()=>{Le()}),D.app.whenReady().then(()=>{Ns(),Ps(),ko(),Q(),Co(),W&&Ao()&&(W.start(),ae=!0,ot(!0),F("Scheduler resumed (was enabled on last exit).","success")),D.app.on("activate",()=>{Le()})})):D.app.quit();D.app.on("before-quit",p=>{et||(p.preventDefault(),Rs()&&(et=!0,D.app.quit()))});D.app.on("window-all-closed",()=>{});
+"use strict";
+const electron = require("electron");
+const path = require("path");
+const fs = require("fs");
+const dns = require("dns");
+const require$$2$1 = require("os");
+const require$$2 = require("crypto");
+const require$$0$4 = require("events");
+const require$$0$1 = require("url");
+const require$$1$1 = require("util");
+const require$$0$3 = require("http");
+const require$$1 = require("https");
+const require$$3 = require("zlib");
+const require$$0$2 = require("stream");
+const require$$7 = require("net");
+const require$$1$2 = require("tls");
+const require$$0$5 = require("child_process");
+const require$$0$6 = require("node:crypto");
+function getDefaultExportFromCjs(x) {
+  return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
+}
+var main = { exports: {} };
+const version$1 = "17.3.1";
+const require$$4 = {
+  version: version$1
+};
+var hasRequiredMain;
+function requireMain() {
+  if (hasRequiredMain) return main.exports;
+  hasRequiredMain = 1;
+  const fs$1 = fs;
+  const path$1 = path;
+  const os = require$$2$1;
+  const crypto = require$$2;
+  const packageJson = require$$4;
+  const version2 = packageJson.version;
+  const TIPS = [
+    "🔐 encrypt with Dotenvx: https://dotenvx.com",
+    "🔐 prevent committing .env to code: https://dotenvx.com/precommit",
+    "🔐 prevent building .env in docker: https://dotenvx.com/prebuild",
+    "🤖 agentic secret storage: https://dotenvx.com/as2",
+    "⚡️ secrets for agents: https://dotenvx.com/as2",
+    "🛡️ auth for agents: https://vestauth.com",
+    "🛠️  run anywhere with `dotenvx run -- yourcommand`",
+    "⚙️  specify custom .env file path with { path: '/custom/path/.env' }",
+    "⚙️  enable debug logging with { debug: true }",
+    "⚙️  override existing env vars with { override: true }",
+    "⚙️  suppress all logs with { quiet: true }",
+    "⚙️  write to custom object with { processEnv: myObject }",
+    "⚙️  load multiple .env files with { path: ['.env.local', '.env'] }"
+  ];
+  function _getRandomTip() {
+    return TIPS[Math.floor(Math.random() * TIPS.length)];
+  }
+  function parseBoolean(value) {
+    if (typeof value === "string") {
+      return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
+    }
+    return Boolean(value);
+  }
+  function supportsAnsi() {
+    return process.stdout.isTTY;
+  }
+  function dim(text) {
+    return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
+  }
+  const LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
+  function parse4(src) {
+    const obj = {};
+    let lines = src.toString();
+    lines = lines.replace(/\r\n?/mg, "\n");
+    let match;
+    while ((match = LINE.exec(lines)) != null) {
+      const key = match[1];
+      let value = match[2] || "";
+      value = value.trim();
+      const maybeQuote = value[0];
+      value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
+      if (maybeQuote === '"') {
+        value = value.replace(/\\n/g, "\n");
+        value = value.replace(/\\r/g, "\r");
+      }
+      obj[key] = value;
+    }
+    return obj;
+  }
+  function _parseVault(options) {
+    options = options || {};
+    const vaultPath = _vaultPath(options);
+    options.path = vaultPath;
+    const result = DotenvModule.configDotenv(options);
+    if (!result.parsed) {
+      const err = new Error(`MISSING_DATA: Cannot parse ${vaultPath} for an unknown reason`);
+      err.code = "MISSING_DATA";
+      throw err;
+    }
+    const keys = _dotenvKey(options).split(",");
+    const length = keys.length;
+    let decrypted;
+    for (let i = 0; i < length; i++) {
+      try {
+        const key = keys[i].trim();
+        const attrs = _instructions(result, key);
+        decrypted = DotenvModule.decrypt(attrs.ciphertext, attrs.key);
+        break;
+      } catch (error) {
+        if (i + 1 >= length) {
+          throw error;
+        }
+      }
+    }
+    return DotenvModule.parse(decrypted);
+  }
+  function _warn(message) {
+    console.error(`[dotenv@${version2}][WARN] ${message}`);
+  }
+  function _debug(message) {
+    console.log(`[dotenv@${version2}][DEBUG] ${message}`);
+  }
+  function _log(message) {
+    console.log(`[dotenv@${version2}] ${message}`);
+  }
+  function _dotenvKey(options) {
+    if (options && options.DOTENV_KEY && options.DOTENV_KEY.length > 0) {
+      return options.DOTENV_KEY;
+    }
+    if (process.env.DOTENV_KEY && process.env.DOTENV_KEY.length > 0) {
+      return process.env.DOTENV_KEY;
+    }
+    return "";
+  }
+  function _instructions(result, dotenvKey) {
+    let uri;
+    try {
+      uri = new URL(dotenvKey);
+    } catch (error) {
+      if (error.code === "ERR_INVALID_URL") {
+        const err = new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      }
+      throw error;
+    }
+    const key = uri.password;
+    if (!key) {
+      const err = new Error("INVALID_DOTENV_KEY: Missing key part");
+      err.code = "INVALID_DOTENV_KEY";
+      throw err;
+    }
+    const environment = uri.searchParams.get("environment");
+    if (!environment) {
+      const err = new Error("INVALID_DOTENV_KEY: Missing environment part");
+      err.code = "INVALID_DOTENV_KEY";
+      throw err;
+    }
+    const environmentKey = `DOTENV_VAULT_${environment.toUpperCase()}`;
+    const ciphertext = result.parsed[environmentKey];
+    if (!ciphertext) {
+      const err = new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${environmentKey} in your .env.vault file.`);
+      err.code = "NOT_FOUND_DOTENV_ENVIRONMENT";
+      throw err;
+    }
+    return { ciphertext, key };
+  }
+  function _vaultPath(options) {
+    let possibleVaultPath = null;
+    if (options && options.path && options.path.length > 0) {
+      if (Array.isArray(options.path)) {
+        for (const filepath of options.path) {
+          if (fs$1.existsSync(filepath)) {
+            possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
+          }
+        }
+      } else {
+        possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
+      }
+    } else {
+      possibleVaultPath = path$1.resolve(process.cwd(), ".env.vault");
+    }
+    if (fs$1.existsSync(possibleVaultPath)) {
+      return possibleVaultPath;
+    }
+    return null;
+  }
+  function _resolveHome(envPath2) {
+    return envPath2[0] === "~" ? path$1.join(os.homedir(), envPath2.slice(1)) : envPath2;
+  }
+  function _configVault(options) {
+    const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
+    const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options && options.quiet);
+    if (debug || !quiet) {
+      _log("Loading env from encrypted .env.vault");
+    }
+    const parsed = DotenvModule._parseVault(options);
+    let processEnv = process.env;
+    if (options && options.processEnv != null) {
+      processEnv = options.processEnv;
+    }
+    DotenvModule.populate(processEnv, parsed, options);
+    return { parsed };
+  }
+  function configDotenv(options) {
+    const dotenvPath = path$1.resolve(process.cwd(), ".env");
+    let encoding = "utf8";
+    let processEnv = process.env;
+    if (options && options.processEnv != null) {
+      processEnv = options.processEnv;
+    }
+    let debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || options && options.debug);
+    let quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || options && options.quiet);
+    if (options && options.encoding) {
+      encoding = options.encoding;
+    } else {
+      if (debug) {
+        _debug("No encoding is specified. UTF-8 is used by default");
+      }
+    }
+    let optionPaths = [dotenvPath];
+    if (options && options.path) {
+      if (!Array.isArray(options.path)) {
+        optionPaths = [_resolveHome(options.path)];
+      } else {
+        optionPaths = [];
+        for (const filepath of options.path) {
+          optionPaths.push(_resolveHome(filepath));
+        }
+      }
+    }
+    let lastError;
+    const parsedAll = {};
+    for (const path2 of optionPaths) {
+      try {
+        const parsed = DotenvModule.parse(fs$1.readFileSync(path2, { encoding }));
+        DotenvModule.populate(parsedAll, parsed, options);
+      } catch (e) {
+        if (debug) {
+          _debug(`Failed to load ${path2} ${e.message}`);
+        }
+        lastError = e;
+      }
+    }
+    const populated = DotenvModule.populate(processEnv, parsedAll, options);
+    debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || debug);
+    quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || quiet);
+    if (debug || !quiet) {
+      const keysCount = Object.keys(populated).length;
+      const shortPaths = [];
+      for (const filePath of optionPaths) {
+        try {
+          const relative = path$1.relative(process.cwd(), filePath);
+          shortPaths.push(relative);
+        } catch (e) {
+          if (debug) {
+            _debug(`Failed to load ${filePath} ${e.message}`);
+          }
+          lastError = e;
+        }
+      }
+      _log(`injecting env (${keysCount}) from ${shortPaths.join(",")} ${dim(`-- tip: ${_getRandomTip()}`)}`);
+    }
+    if (lastError) {
+      return { parsed: parsedAll, error: lastError };
+    } else {
+      return { parsed: parsedAll };
+    }
+  }
+  function config(options) {
+    if (_dotenvKey(options).length === 0) {
+      return DotenvModule.configDotenv(options);
+    }
+    const vaultPath = _vaultPath(options);
+    if (!vaultPath) {
+      _warn(`You set DOTENV_KEY but you are missing a .env.vault file at ${vaultPath}. Did you forget to build it?`);
+      return DotenvModule.configDotenv(options);
+    }
+    return DotenvModule._configVault(options);
+  }
+  function decrypt(encrypted, keyStr) {
+    const key = Buffer.from(keyStr.slice(-64), "hex");
+    let ciphertext = Buffer.from(encrypted, "base64");
+    const nonce = ciphertext.subarray(0, 12);
+    const authTag = ciphertext.subarray(-16);
+    ciphertext = ciphertext.subarray(12, -16);
+    try {
+      const aesgcm = crypto.createDecipheriv("aes-256-gcm", key, nonce);
+      aesgcm.setAuthTag(authTag);
+      return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
+    } catch (error) {
+      const isRange = error instanceof RangeError;
+      const invalidKeyLength = error.message === "Invalid key length";
+      const decryptionFailed = error.message === "Unsupported state or unable to authenticate data";
+      if (isRange || invalidKeyLength) {
+        const err = new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      } else if (decryptionFailed) {
+        const err = new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");
+        err.code = "DECRYPTION_FAILED";
+        throw err;
+      } else {
+        throw error;
+      }
+    }
+  }
+  function populate(processEnv, parsed, options = {}) {
+    const debug = Boolean(options && options.debug);
+    const override = Boolean(options && options.override);
+    const populated = {};
+    if (typeof parsed !== "object") {
+      const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
+      err.code = "OBJECT_REQUIRED";
+      throw err;
+    }
+    for (const key of Object.keys(parsed)) {
+      if (Object.prototype.hasOwnProperty.call(processEnv, key)) {
+        if (override === true) {
+          processEnv[key] = parsed[key];
+          populated[key] = parsed[key];
+        }
+        if (debug) {
+          if (override === true) {
+            _debug(`"${key}" is already defined and WAS overwritten`);
+          } else {
+            _debug(`"${key}" is already defined and was NOT overwritten`);
+          }
+        }
+      } else {
+        processEnv[key] = parsed[key];
+        populated[key] = parsed[key];
+      }
+    }
+    return populated;
+  }
+  const DotenvModule = {
+    configDotenv,
+    _configVault,
+    _parseVault,
+    config,
+    decrypt,
+    parse: parse4,
+    populate
+  };
+  main.exports.configDotenv = DotenvModule.configDotenv;
+  main.exports._configVault = DotenvModule._configVault;
+  main.exports._parseVault = DotenvModule._parseVault;
+  main.exports.config = DotenvModule.config;
+  main.exports.decrypt = DotenvModule.decrypt;
+  main.exports.parse = DotenvModule.parse;
+  main.exports.populate = DotenvModule.populate;
+  main.exports = DotenvModule;
+  return main.exports;
+}
+var mainExports = requireMain();
+const dotenv = /* @__PURE__ */ getDefaultExportFromCjs(mainExports);
+function atomicWriteFileSync(filePath, data) {
+  const tmp = `${filePath}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, data, "utf-8");
+  try {
+    fs.renameSync(tmp, filePath);
+  } catch (e) {
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+    }
+    throw e;
+  }
+}
+const MAX_EXTRA_ACCOUNTS = 5;
+function accountsFilePath(basePath) {
+  return path.join(basePath, "accounts.json");
+}
+function normalize$1(a) {
+  if (!a || !a.id || !a.user) return null;
+  return {
+    id: String(a.id),
+    label: a.label ? String(a.label) : void 0,
+    host: a.host || "smtp.office365.com",
+    port: parseInt(a.port, 10) || 587,
+    user: String(a.user),
+    pass: a.pass || "",
+    enabled: a.enabled !== false
+  };
+}
+function readAccounts(basePath) {
+  const file = accountsFilePath(basePath);
+  if (!fs.existsSync(file)) return [];
+  try {
+    const data = JSON.parse(fs.readFileSync(file, "utf-8"));
+    if (!Array.isArray(data)) return [];
+    return data.map(normalize$1).filter((a) => a !== null);
+  } catch (e) {
+    console.error("Failed to read accounts.json:", e);
+    return [];
+  }
+}
+function writeAccounts(basePath, accounts) {
+  try {
+    atomicWriteFileSync(accountsFilePath(basePath), JSON.stringify(accounts, null, 2));
+  } catch (e) {
+    console.error("Failed to write accounts.json:", e);
+    throw e;
+  }
+}
+function upsertAccount(basePath, acc) {
+  const all = readAccounts(basePath);
+  const idx = all.findIndex((a) => a.id === acc.id);
+  if (idx >= 0) all[idx] = acc;
+  else all.push(acc);
+  writeAccounts(basePath, all);
+  return all;
+}
+function removeAccount(basePath, id) {
+  const all = readAccounts(basePath).filter((a) => a.id !== id);
+  writeAccounts(basePath, all);
+  return all;
+}
+function campaignsFilePath(basePath) {
+  return path.join(basePath, "campaigns.json");
+}
+function normalize(c) {
+  if (!c || !c.id || !c.name) return null;
+  return {
+    id: String(c.id),
+    name: String(c.name),
+    subject: c.subject != null ? String(c.subject) : "",
+    template: c.template != null ? String(c.template) : ""
+  };
+}
+function readCampaigns(basePath) {
+  const file = campaignsFilePath(basePath);
+  if (!fs.existsSync(file)) return [];
+  try {
+    const data = JSON.parse(fs.readFileSync(file, "utf-8"));
+    if (!Array.isArray(data)) return [];
+    return data.map(normalize).filter((c) => c !== null);
+  } catch (e) {
+    console.error("Failed to read campaigns.json:", e);
+    return [];
+  }
+}
+function writeCampaigns(basePath, campaigns) {
+  try {
+    atomicWriteFileSync(campaignsFilePath(basePath), JSON.stringify(campaigns, null, 2));
+  } catch (e) {
+    console.error("Failed to write campaigns.json:", e);
+    throw e;
+  }
+}
+function upsertCampaign(basePath, camp) {
+  const all = readCampaigns(basePath);
+  const idx = all.findIndex((c) => c.id === camp.id);
+  if (idx >= 0) all[idx] = camp;
+  else all.push(camp);
+  writeCampaigns(basePath, all);
+  return all;
+}
+function removeCampaign(basePath, id) {
+  const all = readCampaigns(basePath).filter((c) => c.id !== id);
+  writeCampaigns(basePath, all);
+  return all;
+}
+function getBasePath() {
+  if (process.env.MAIL_DATA_DIR) return process.env.MAIL_DATA_DIR;
+  const isExe = !!process.pkg;
+  return isExe ? path.dirname(process.execPath) : process.cwd();
+}
+dotenv.config({ path: path.join(getBasePath(), ".env") });
+function boolEnv(val, fallback) {
+  if (val === void 0 || val === "") return fallback;
+  return /^(1|true|yes|on)$/i.test(val.trim());
+}
+function numEnv(val, fallback) {
+  const n = parseInt(val ?? "", 10);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+function decryptPassword(pass) {
+  if (!pass) return "";
+  if (pass.startsWith("ENC:")) {
+    try {
+      if (process.versions && process.versions.electron) {
+        const { safeStorage } = require("electron");
+        if (safeStorage.isEncryptionAvailable()) {
+          const buffer = Buffer.from(pass.substring(4), "base64");
+          return safeStorage.decryptString(buffer);
+        }
+      }
+    } catch (err) {
+      console.error("safeStorage decryption failed:", err);
+    }
+    console.warn("Could not decrypt password (not in Electron or decryption unavailable).");
+  }
+  return pass;
+}
+function loadConfig() {
+  const {
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_USER,
+    OUTLOOK_USER,
+    SMTP_PASS,
+    OUTLOOK_PASS,
+    RECIPIENTS_CSV_PATH,
+    RECIPIENTS_JSON_PATH,
+    TEMPLATE_HTML_PATH,
+    CV_PATH,
+    ENROLLMENT_PATH,
+    EMAIL_SUBJECT,
+    CRON_SCHEDULE,
+    USER_NAME,
+    MAX_EMAILS_PER_DAY,
+    MAX_EMAILS_PER_WINDOW,
+    MAX_WINDOWS_PER_DAY,
+    MIN_DELAY_MIN,
+    MAX_DELAY_MIN,
+    MAX_ATTACHMENT_MB,
+    MAX_RECIPIENT_PER_DAY,
+    WARMUP_ENABLED,
+    WARMUP_CURVE,
+    PHYSICAL_ADDRESS,
+    UNSUBSCRIBE_ENABLED,
+    INBOX_PLACEMENT,
+    TEST_MODE
+  } = process.env;
+  const basePath = getBasePath();
+  const smtp = {
+    host: SMTP_HOST || "smtp.office365.com",
+    port: parseInt(SMTP_PORT || "587", 10),
+    user: SMTP_USER || OUTLOOK_USER || "",
+    pass: decryptPassword(SMTP_PASS || OUTLOOK_PASS || "")
+  };
+  const defaultAccount = {
+    id: "default",
+    label: USER_NAME || smtp.user || "Primary",
+    host: smtp.host,
+    port: smtp.port,
+    user: smtp.user,
+    pass: smtp.pass,
+    enabled: true
+  };
+  const extras = readAccounts(basePath).map((a) => ({ ...a, pass: decryptPassword(a.pass) }));
+  const accounts = [defaultAccount, ...extras];
+  return {
+    userName: USER_NAME || "",
+    smtp,
+    accounts,
+    campaigns: readCampaigns(basePath),
+    paths: {
+      recipientsCsv: RECIPIENTS_CSV_PATH ? path.resolve(basePath, RECIPIENTS_CSV_PATH) : path.join(basePath, "recipients.csv"),
+      recipientsJson: RECIPIENTS_JSON_PATH ? path.resolve(basePath, RECIPIENTS_JSON_PATH) : path.join(basePath, "recipients.json"),
+      templateHtml: TEMPLATE_HTML_PATH ? path.resolve(basePath, TEMPLATE_HTML_PATH) : path.join(basePath, "template.html"),
+      cvPath: CV_PATH ? path.resolve(basePath, CV_PATH) : void 0,
+      enrollmentPath: ENROLLMENT_PATH ? path.resolve(basePath, ENROLLMENT_PATH) : void 0
+    },
+    email: {
+      subject: EMAIL_SUBJECT || "Daily Update"
+    },
+    limits: {
+      // Safe Defaults for v1
+      maxPerDay: numEnv(MAX_EMAILS_PER_DAY, 50),
+      maxPerWindow: numEnv(MAX_EMAILS_PER_WINDOW, 10),
+      maxWindowsPerDay: numEnv(MAX_WINDOWS_PER_DAY, 5),
+      minDelayMs: numEnv(MIN_DELAY_MIN, 1) * 60 * 1e3,
+      maxDelayMs: numEnv(MAX_DELAY_MIN, 10) * 60 * 1e3,
+      maxAttachmentBytes: numEnv(MAX_ATTACHMENT_MB, 10) * 1024 * 1024,
+      maxPerRecipientPerDay: numEnv(MAX_RECIPIENT_PER_DAY, 3),
+      // Conservative warmup: day-indexed daily cap for new accounts, then maxPerDay.
+      warmupEnabled: boolEnv(WARMUP_ENABLED, true),
+      warmupCurve: WARMUP_CURVE ? WARMUP_CURVE.split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n) && n >= 0) : [5, 5, 10, 10, 15, 20, 25, 30, 40, 50]
+    },
+    sender: {
+      physicalAddress: PHYSICAL_ADDRESS || "",
+      unsubscribeEnabled: boolEnv(UNSUBSCRIBE_ENABLED, true),
+      // Default 'primary'; only the explicit string 'bulk' opts back into the
+      // List-Unsubscribe header + CAN-SPAM footer.
+      inboxPlacement: (INBOX_PLACEMENT || "primary").trim().toLowerCase() === "bulk" ? "bulk" : "primary"
+    },
+    cronSchedule: CRON_SCHEDULE || "0 9 * * *",
+    testMode: boolEnv(TEST_MODE, false)
+  };
+}
+var nodemailer$1 = {};
+var shared = { exports: {} };
+var fetch = { exports: {} };
+var cookies;
+var hasRequiredCookies;
+function requireCookies() {
+  if (hasRequiredCookies) return cookies;
+  hasRequiredCookies = 1;
+  const urllib = require$$0$1;
+  const SESSION_TIMEOUT = 1800;
+  class Cookies {
+    constructor(options) {
+      this.options = options || {};
+      this.cookies = [];
+    }
+    /**
+     * Stores a cookie string to the cookie storage
+     *
+     * @param {String} cookieStr Value from the 'Set-Cookie:' header
+     * @param {String} url Current URL
+     */
+    set(cookieStr, url) {
+      let urlparts = urllib.parse(url || "");
+      let cookie = this.parse(cookieStr);
+      let domain;
+      if (cookie.domain) {
+        domain = cookie.domain.replace(/^\./, "");
+        if (
+          // can't be valid if the requested domain is shorter than current hostname
+          urlparts.hostname.length < domain.length || // prefix domains with dot to be sure that partial matches are not used
+          ("." + urlparts.hostname).substr(-domain.length + 1) !== "." + domain
+        ) {
+          cookie.domain = urlparts.hostname;
+        }
+      } else {
+        cookie.domain = urlparts.hostname;
+      }
+      if (!cookie.path) {
+        cookie.path = this.getPath(urlparts.pathname);
+      }
+      if (!cookie.expires) {
+        cookie.expires = new Date(Date.now() + (Number(this.options.sessionTimeout || SESSION_TIMEOUT) || SESSION_TIMEOUT) * 1e3);
+      }
+      return this.add(cookie);
+    }
+    /**
+     * Returns cookie string for the 'Cookie:' header.
+     *
+     * @param {String} url URL to check for
+     * @returns {String} Cookie header or empty string if no matches were found
+     */
+    get(url) {
+      return this.list(url).map((cookie) => cookie.name + "=" + cookie.value).join("; ");
+    }
+    /**
+     * Lists all valied cookie objects for the specified URL
+     *
+     * @param {String} url URL to check for
+     * @returns {Array} An array of cookie objects
+     */
+    list(url) {
+      let result = [];
+      let i;
+      let cookie;
+      for (i = this.cookies.length - 1; i >= 0; i--) {
+        cookie = this.cookies[i];
+        if (this.isExpired(cookie)) {
+          this.cookies.splice(i, i);
+          continue;
+        }
+        if (this.match(cookie, url)) {
+          result.unshift(cookie);
+        }
+      }
+      return result;
+    }
+    /**
+     * Parses cookie string from the 'Set-Cookie:' header
+     *
+     * @param {String} cookieStr String from the 'Set-Cookie:' header
+     * @returns {Object} Cookie object
+     */
+    parse(cookieStr) {
+      let cookie = {};
+      (cookieStr || "").toString().split(";").forEach((cookiePart) => {
+        let valueParts = cookiePart.split("=");
+        let key = valueParts.shift().trim().toLowerCase();
+        let value = valueParts.join("=").trim();
+        let domain;
+        if (!key) {
+          return;
+        }
+        switch (key) {
+          case "expires":
+            value = new Date(value);
+            if (value.toString() !== "Invalid Date") {
+              cookie.expires = value;
+            }
+            break;
+          case "path":
+            cookie.path = value;
+            break;
+          case "domain":
+            domain = value.toLowerCase();
+            if (domain.length && domain.charAt(0) !== ".") {
+              domain = "." + domain;
+            }
+            cookie.domain = domain;
+            break;
+          case "max-age":
+            cookie.expires = new Date(Date.now() + (Number(value) || 0) * 1e3);
+            break;
+          case "secure":
+            cookie.secure = true;
+            break;
+          case "httponly":
+            cookie.httponly = true;
+            break;
+          default:
+            if (!cookie.name) {
+              cookie.name = key;
+              cookie.value = value;
+            }
+        }
+      });
+      return cookie;
+    }
+    /**
+     * Checks if a cookie object is valid for a specified URL
+     *
+     * @param {Object} cookie Cookie object
+     * @param {String} url URL to check for
+     * @returns {Boolean} true if cookie is valid for specifiec URL
+     */
+    match(cookie, url) {
+      let urlparts = urllib.parse(url || "");
+      if (urlparts.hostname !== cookie.domain && (cookie.domain.charAt(0) !== "." || ("." + urlparts.hostname).substr(-cookie.domain.length) !== cookie.domain)) {
+        return false;
+      }
+      let path2 = this.getPath(urlparts.pathname);
+      if (path2.substr(0, cookie.path.length) !== cookie.path) {
+        return false;
+      }
+      if (cookie.secure && urlparts.protocol !== "https:") {
+        return false;
+      }
+      return true;
+    }
+    /**
+     * Adds (or updates/removes if needed) a cookie object to the cookie storage
+     *
+     * @param {Object} cookie Cookie value to be stored
+     */
+    add(cookie) {
+      let i;
+      let len;
+      if (!cookie || !cookie.name) {
+        return false;
+      }
+      for (i = 0, len = this.cookies.length; i < len; i++) {
+        if (this.compare(this.cookies[i], cookie)) {
+          if (this.isExpired(cookie)) {
+            this.cookies.splice(i, 1);
+            return false;
+          }
+          this.cookies[i] = cookie;
+          return true;
+        }
+      }
+      if (!this.isExpired(cookie)) {
+        this.cookies.push(cookie);
+      }
+      return true;
+    }
+    /**
+     * Checks if two cookie objects are the same
+     *
+     * @param {Object} a Cookie to check against
+     * @param {Object} b Cookie to check against
+     * @returns {Boolean} True, if the cookies are the same
+     */
+    compare(a, b) {
+      return a.name === b.name && a.path === b.path && a.domain === b.domain && a.secure === b.secure && a.httponly === a.httponly;
+    }
+    /**
+     * Checks if a cookie is expired
+     *
+     * @param {Object} cookie Cookie object to check against
+     * @returns {Boolean} True, if the cookie is expired
+     */
+    isExpired(cookie) {
+      return cookie.expires && cookie.expires < /* @__PURE__ */ new Date() || !cookie.value;
+    }
+    /**
+     * Returns normalized cookie path for an URL path argument
+     *
+     * @param {String} pathname
+     * @returns {String} Normalized path
+     */
+    getPath(pathname) {
+      let path2 = (pathname || "/").split("/");
+      path2.pop();
+      path2 = path2.join("/").trim();
+      if (path2.charAt(0) !== "/") {
+        path2 = "/" + path2;
+      }
+      if (path2.substr(-1) !== "/") {
+        path2 += "/";
+      }
+      return path2;
+    }
+  }
+  cookies = Cookies;
+  return cookies;
+}
+const name = "nodemailer";
+const version = "8.0.2";
+const homepage = "https://nodemailer.com/";
+const require$$10 = {
+  name,
+  version,
+  homepage
+};
+var errors;
+var hasRequiredErrors;
+function requireErrors() {
+  if (hasRequiredErrors) return errors;
+  hasRequiredErrors = 1;
+  const ERROR_CODES = {
+    // Connection errors
+    ECONNECTION: "Connection closed unexpectedly",
+    ETIMEDOUT: "Connection or operation timed out",
+    ESOCKET: "Socket-level error",
+    EDNS: "DNS resolution failed",
+    // TLS/Security errors
+    ETLS: "TLS handshake or STARTTLS failed",
+    EREQUIRETLS: "REQUIRETLS not supported by server (RFC 8689)",
+    // Protocol errors
+    EPROTOCOL: "Invalid SMTP server response",
+    EENVELOPE: "Invalid mail envelope (sender or recipients)",
+    EMESSAGE: "Message delivery error",
+    ESTREAM: "Stream processing error",
+    // Authentication errors
+    EAUTH: "Authentication failed",
+    ENOAUTH: "Authentication credentials not provided",
+    EOAUTH2: "OAuth2 token generation or refresh error",
+    // Resource errors
+    EMAXLIMIT: "Pool resource limit reached (max messages per connection)",
+    // Transport-specific errors
+    ESENDMAIL: "Sendmail command error",
+    ESES: "AWS SES transport error",
+    // Configuration and access errors
+    ECONFIG: "Invalid configuration",
+    EPROXY: "Proxy connection error",
+    EFILEACCESS: "File access rejected (disableFileAccess is set)",
+    EURLACCESS: "URL access rejected (disableUrlAccess is set)",
+    EFETCH: "HTTP fetch error"
+  };
+  errors = Object.keys(ERROR_CODES).reduce(
+    (exports$1, code) => {
+      exports$1[code] = code;
+      return exports$1;
+    },
+    { ERROR_CODES }
+  );
+  return errors;
+}
+var hasRequiredFetch;
+function requireFetch() {
+  if (hasRequiredFetch) return fetch.exports;
+  hasRequiredFetch = 1;
+  const http = require$$0$3;
+  const https = require$$1;
+  const urllib = require$$0$1;
+  const zlib = require$$3;
+  const PassThrough = require$$0$2.PassThrough;
+  const Cookies = requireCookies();
+  const packageData = require$$10;
+  const net = require$$7;
+  const errors2 = requireErrors();
+  const MAX_REDIRECTS = 5;
+  fetch.exports = function(url, options) {
+    return nmfetch(url, options);
+  };
+  fetch.exports.Cookies = Cookies;
+  function nmfetch(url, options) {
+    options = options || {};
+    options.fetchRes = options.fetchRes || new PassThrough();
+    options.cookies = options.cookies || new Cookies();
+    options.redirects = options.redirects || 0;
+    options.maxRedirects = isNaN(options.maxRedirects) ? MAX_REDIRECTS : options.maxRedirects;
+    if (options.cookie) {
+      [].concat(options.cookie || []).forEach((cookie) => {
+        options.cookies.set(cookie, url);
+      });
+      options.cookie = false;
+    }
+    let fetchRes = options.fetchRes;
+    let parsed = urllib.parse(url);
+    let method = (options.method || "").toString().trim().toUpperCase() || "GET";
+    let finished = false;
+    let cookies2;
+    let body;
+    let handler = parsed.protocol === "https:" ? https : http;
+    let headers = {
+      "accept-encoding": "gzip,deflate",
+      "user-agent": "nodemailer/" + packageData.version
+    };
+    Object.keys(options.headers || {}).forEach((key) => {
+      headers[key.toLowerCase().trim()] = options.headers[key];
+    });
+    if (options.userAgent) {
+      headers["user-agent"] = options.userAgent;
+    }
+    if (parsed.auth) {
+      headers.Authorization = "Basic " + Buffer.from(parsed.auth).toString("base64");
+    }
+    if (cookies2 = options.cookies.get(url)) {
+      headers.cookie = cookies2;
+    }
+    if (options.body) {
+      if (options.contentType !== false) {
+        headers["Content-Type"] = options.contentType || "application/x-www-form-urlencoded";
+      }
+      if (typeof options.body.pipe === "function") {
+        headers["Transfer-Encoding"] = "chunked";
+        body = options.body;
+        body.on("error", (err) => {
+          if (finished) {
+            return;
+          }
+          finished = true;
+          err.code = errors2.EFETCH;
+          err.sourceUrl = url;
+          fetchRes.emit("error", err);
+        });
+      } else {
+        if (options.body instanceof Buffer) {
+          body = options.body;
+        } else if (typeof options.body === "object") {
+          try {
+            body = Buffer.from(
+              Object.keys(options.body).map((key) => {
+                let value = options.body[key].toString().trim();
+                return encodeURIComponent(key) + "=" + encodeURIComponent(value);
+              }).join("&")
+            );
+          } catch (E) {
+            if (finished) {
+              return;
+            }
+            finished = true;
+            E.code = errors2.EFETCH;
+            E.sourceUrl = url;
+            fetchRes.emit("error", E);
+            return;
+          }
+        } else {
+          body = Buffer.from(options.body.toString().trim());
+        }
+        headers["Content-Type"] = options.contentType || "application/x-www-form-urlencoded";
+        headers["Content-Length"] = body.length;
+      }
+      method = (options.method || "").toString().trim().toUpperCase() || "POST";
+    }
+    let req;
+    let reqOptions = {
+      method,
+      host: parsed.hostname,
+      path: parsed.path,
+      port: parsed.port ? parsed.port : parsed.protocol === "https:" ? 443 : 80,
+      headers,
+      rejectUnauthorized: false,
+      agent: false
+    };
+    if (options.tls) {
+      Object.keys(options.tls).forEach((key) => {
+        reqOptions[key] = options.tls[key];
+      });
+    }
+    if (parsed.protocol === "https:" && parsed.hostname && parsed.hostname !== reqOptions.host && !net.isIP(parsed.hostname) && !reqOptions.servername) {
+      reqOptions.servername = parsed.hostname;
+    }
+    try {
+      req = handler.request(reqOptions);
+    } catch (E) {
+      finished = true;
+      setImmediate(() => {
+        E.code = errors2.EFETCH;
+        E.sourceUrl = url;
+        fetchRes.emit("error", E);
+      });
+      return fetchRes;
+    }
+    if (options.timeout) {
+      req.setTimeout(options.timeout, () => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        req.abort();
+        let err = new Error("Request Timeout");
+        err.code = errors2.EFETCH;
+        err.sourceUrl = url;
+        fetchRes.emit("error", err);
+      });
+    }
+    req.on("error", (err) => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      err.code = errors2.EFETCH;
+      err.sourceUrl = url;
+      fetchRes.emit("error", err);
+    });
+    req.on("response", (res) => {
+      let inflate;
+      if (finished) {
+        return;
+      }
+      switch (res.headers["content-encoding"]) {
+        case "gzip":
+        case "deflate":
+          inflate = zlib.createUnzip();
+          break;
+      }
+      if (res.headers["set-cookie"]) {
+        [].concat(res.headers["set-cookie"] || []).forEach((cookie) => {
+          options.cookies.set(cookie, url);
+        });
+      }
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        options.redirects++;
+        if (options.redirects > options.maxRedirects) {
+          finished = true;
+          let err = new Error("Maximum redirect count exceeded");
+          err.code = errors2.EFETCH;
+          err.sourceUrl = url;
+          fetchRes.emit("error", err);
+          req.abort();
+          return;
+        }
+        options.method = "GET";
+        options.body = false;
+        return nmfetch(urllib.resolve(url, res.headers.location), options);
+      }
+      fetchRes.statusCode = res.statusCode;
+      fetchRes.headers = res.headers;
+      if (res.statusCode >= 300 && !options.allowErrorResponse) {
+        finished = true;
+        let err = new Error("Invalid status code " + res.statusCode);
+        err.code = errors2.EFETCH;
+        err.sourceUrl = url;
+        fetchRes.emit("error", err);
+        req.abort();
+        return;
+      }
+      res.on("error", (err) => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        err.code = errors2.EFETCH;
+        err.sourceUrl = url;
+        fetchRes.emit("error", err);
+        req.abort();
+      });
+      if (inflate) {
+        res.pipe(inflate).pipe(fetchRes);
+        inflate.on("error", (err) => {
+          if (finished) {
+            return;
+          }
+          finished = true;
+          err.code = errors2.EFETCH;
+          err.sourceUrl = url;
+          fetchRes.emit("error", err);
+          req.abort();
+        });
+      } else {
+        res.pipe(fetchRes);
+      }
+    });
+    setImmediate(() => {
+      if (body) {
+        try {
+          if (typeof body.pipe === "function") {
+            return body.pipe(req);
+          } else {
+            req.write(body);
+          }
+        } catch (err) {
+          finished = true;
+          err.code = errors2.EFETCH;
+          err.sourceUrl = url;
+          fetchRes.emit("error", err);
+          return;
+        }
+      }
+      req.end();
+    });
+    return fetchRes;
+  }
+  return fetch.exports;
+}
+var hasRequiredShared;
+function requireShared() {
+  if (hasRequiredShared) return shared.exports;
+  hasRequiredShared = 1;
+  (function(module) {
+    const urllib = require$$0$1;
+    const util = require$$1$1;
+    const fs$1 = fs;
+    const nmfetch = requireFetch();
+    const dns$1 = dns;
+    const net = require$$7;
+    const os = require$$2$1;
+    const DNS_TTL = 5 * 60 * 1e3;
+    const CACHE_CLEANUP_INTERVAL = 30 * 1e3;
+    const MAX_CACHE_SIZE = 1e3;
+    let lastCacheCleanup = 0;
+    module.exports._lastCacheCleanup = () => lastCacheCleanup;
+    module.exports._resetCacheCleanup = () => {
+      lastCacheCleanup = 0;
+    };
+    let networkInterfaces;
+    try {
+      networkInterfaces = os.networkInterfaces();
+    } catch (_err) {
+    }
+    module.exports.networkInterfaces = networkInterfaces;
+    const isFamilySupported = (family, allowInternal) => {
+      let networkInterfaces2 = module.exports.networkInterfaces;
+      if (!networkInterfaces2) {
+        return true;
+      }
+      const familySupported = (
+        // crux that replaces Object.values(networkInterfaces) as Object.values is not supported in nodejs v6
+        Object.keys(networkInterfaces2).map((key) => networkInterfaces2[key]).reduce((acc, val) => acc.concat(val), []).filter((i) => !i.internal || allowInternal).filter((i) => i.family === "IPv" + family || i.family === family).length > 0
+      );
+      return familySupported;
+    };
+    const resolver = (family, hostname, options, callback) => {
+      options = options || {};
+      const familySupported = isFamilySupported(family, options.allowInternalNetworkInterfaces);
+      if (!familySupported) {
+        return callback(null, []);
+      }
+      const resolver2 = dns$1.Resolver ? new dns$1.Resolver(options) : dns$1;
+      resolver2["resolve" + family](hostname, (err, addresses) => {
+        if (err) {
+          switch (err.code) {
+            case dns$1.NODATA:
+            case dns$1.NOTFOUND:
+            case dns$1.NOTIMP:
+            case dns$1.SERVFAIL:
+            case dns$1.CONNREFUSED:
+            case dns$1.REFUSED:
+            case "EAI_AGAIN":
+              return callback(null, []);
+          }
+          return callback(err);
+        }
+        return callback(null, Array.isArray(addresses) ? addresses : [].concat(addresses || []));
+      });
+    };
+    const dnsCache = module.exports.dnsCache = /* @__PURE__ */ new Map();
+    const formatDNSValue = (value, extra) => {
+      if (!value) {
+        return Object.assign({}, extra || {});
+      }
+      let addresses = value.addresses || [];
+      let host = null;
+      if (addresses.length === 1) {
+        host = addresses[0];
+      } else if (addresses.length > 1) {
+        host = addresses[Math.floor(Math.random() * addresses.length)];
+      }
+      return Object.assign(
+        {
+          servername: value.servername,
+          host,
+          // Include all addresses for connection fallback support
+          _addresses: addresses
+        },
+        extra || {}
+      );
+    };
+    module.exports.resolveHostname = (options, callback) => {
+      options = options || {};
+      if (!options.host && options.servername) {
+        options.host = options.servername;
+      }
+      if (!options.host || net.isIP(options.host)) {
+        let value = {
+          addresses: [options.host],
+          servername: options.servername || false
+        };
+        return callback(
+          null,
+          formatDNSValue(value, {
+            cached: false
+          })
+        );
+      }
+      let cached;
+      if (dnsCache.has(options.host)) {
+        cached = dnsCache.get(options.host);
+        const now = Date.now();
+        if (now - lastCacheCleanup > CACHE_CLEANUP_INTERVAL) {
+          lastCacheCleanup = now;
+          for (const [host, entry] of dnsCache.entries()) {
+            if (entry.expires && entry.expires < now) {
+              dnsCache.delete(host);
+            }
+          }
+          if (dnsCache.size > MAX_CACHE_SIZE) {
+            const toDelete = Math.floor(MAX_CACHE_SIZE * 0.1);
+            const keys = Array.from(dnsCache.keys()).slice(0, toDelete);
+            keys.forEach((key) => dnsCache.delete(key));
+          }
+        }
+        if (!cached.expires || cached.expires >= now) {
+          return callback(
+            null,
+            formatDNSValue(cached.value, {
+              cached: true
+            })
+          );
+        }
+      }
+      let ipv4Addresses = [];
+      let ipv6Addresses = [];
+      let ipv4Error = null;
+      let ipv6Error = null;
+      resolver(4, options.host, options, (err, addresses) => {
+        if (err) {
+          ipv4Error = err;
+        } else {
+          ipv4Addresses = addresses || [];
+        }
+        resolver(6, options.host, options, (err2, addresses2) => {
+          if (err2) {
+            ipv6Error = err2;
+          } else {
+            ipv6Addresses = addresses2 || [];
+          }
+          let allAddresses = ipv4Addresses.concat(ipv6Addresses);
+          if (allAddresses.length) {
+            let value = {
+              addresses: allAddresses,
+              servername: options.servername || options.host
+            };
+            dnsCache.set(options.host, {
+              value,
+              expires: Date.now() + (options.dnsTtl || DNS_TTL)
+            });
+            return callback(
+              null,
+              formatDNSValue(value, {
+                cached: false
+              })
+            );
+          }
+          if (ipv4Error && ipv6Error) {
+            if (cached) {
+              dnsCache.set(options.host, {
+                value: cached.value,
+                expires: Date.now() + (options.dnsTtl || DNS_TTL)
+              });
+              return callback(
+                null,
+                formatDNSValue(cached.value, {
+                  cached: true,
+                  error: ipv4Error
+                })
+              );
+            }
+          }
+          try {
+            dns$1.lookup(options.host, { all: true }, (err3, addresses3) => {
+              if (err3) {
+                if (cached) {
+                  dnsCache.set(options.host, {
+                    value: cached.value,
+                    expires: Date.now() + (options.dnsTtl || DNS_TTL)
+                  });
+                  return callback(
+                    null,
+                    formatDNSValue(cached.value, {
+                      cached: true,
+                      error: err3
+                    })
+                  );
+                }
+                return callback(err3);
+              }
+              let supportedAddresses = addresses3 ? addresses3.filter((addr) => isFamilySupported(addr.family)).map((addr) => addr.address) : [];
+              if (addresses3 && addresses3.length && !supportedAddresses.length) {
+                console.warn(`Failed to resolve IPv${addresses3[0].family} addresses with current network`);
+              }
+              if (!supportedAddresses.length && cached) {
+                return callback(
+                  null,
+                  formatDNSValue(cached.value, {
+                    cached: true
+                  })
+                );
+              }
+              let value = {
+                addresses: supportedAddresses.length ? supportedAddresses : [options.host],
+                servername: options.servername || options.host
+              };
+              dnsCache.set(options.host, {
+                value,
+                expires: Date.now() + (options.dnsTtl || DNS_TTL)
+              });
+              return callback(
+                null,
+                formatDNSValue(value, {
+                  cached: false
+                })
+              );
+            });
+          } catch (lookupErr) {
+            if (cached) {
+              dnsCache.set(options.host, {
+                value: cached.value,
+                expires: Date.now() + (options.dnsTtl || DNS_TTL)
+              });
+              return callback(
+                null,
+                formatDNSValue(cached.value, {
+                  cached: true,
+                  error: lookupErr
+                })
+              );
+            }
+            return callback(ipv4Error || ipv6Error || lookupErr);
+          }
+        });
+      });
+    };
+    module.exports.parseConnectionUrl = (str) => {
+      str = str || "";
+      let options = {};
+      [urllib.parse(str, true)].forEach((url) => {
+        let auth;
+        switch (url.protocol) {
+          case "smtp:":
+            options.secure = false;
+            break;
+          case "smtps:":
+            options.secure = true;
+            break;
+          case "direct:":
+            options.direct = true;
+            break;
+        }
+        if (!isNaN(url.port) && Number(url.port)) {
+          options.port = Number(url.port);
+        }
+        if (url.hostname) {
+          options.host = url.hostname;
+        }
+        if (url.auth) {
+          auth = url.auth.split(":");
+          if (!options.auth) {
+            options.auth = {};
+          }
+          options.auth.user = auth.shift();
+          options.auth.pass = auth.join(":");
+        }
+        Object.keys(url.query || {}).forEach((key) => {
+          let obj = options;
+          let lKey = key;
+          let value = url.query[key];
+          if (!isNaN(value)) {
+            value = Number(value);
+          }
+          switch (value) {
+            case "true":
+              value = true;
+              break;
+            case "false":
+              value = false;
+              break;
+          }
+          if (key.indexOf("tls.") === 0) {
+            lKey = key.substr(4);
+            if (!options.tls) {
+              options.tls = {};
+            }
+            obj = options.tls;
+          } else if (key.indexOf(".") >= 0) {
+            return;
+          }
+          if (!(lKey in obj)) {
+            obj[lKey] = value;
+          }
+        });
+      });
+      return options;
+    };
+    module.exports._logFunc = (logger2, level, defaults, data, message, ...args) => {
+      let entry = {};
+      Object.keys(defaults || {}).forEach((key) => {
+        if (key !== "level") {
+          entry[key] = defaults[key];
+        }
+      });
+      Object.keys(data || {}).forEach((key) => {
+        if (key !== "level") {
+          entry[key] = data[key];
+        }
+      });
+      logger2[level](entry, message, ...args);
+    };
+    module.exports.getLogger = (options, defaults) => {
+      options = options || {};
+      let response = {};
+      let levels = ["trace", "debug", "info", "warn", "error", "fatal"];
+      if (!options.logger) {
+        levels.forEach((level) => {
+          response[level] = () => false;
+        });
+        return response;
+      }
+      let logger2 = options.logger;
+      if (options.logger === true) {
+        logger2 = createDefaultLogger(levels);
+      }
+      levels.forEach((level) => {
+        response[level] = (data, message, ...args) => {
+          module.exports._logFunc(logger2, level, defaults, data, message, ...args);
+        };
+      });
+      return response;
+    };
+    module.exports.callbackPromise = (resolve, reject) => function() {
+      let args = Array.from(arguments);
+      let err = args.shift();
+      if (err) {
+        reject(err);
+      } else {
+        resolve(...args);
+      }
+    };
+    module.exports.parseDataURI = (uri) => {
+      if (typeof uri !== "string") {
+        return null;
+      }
+      if (!uri.startsWith("data:")) {
+        return null;
+      }
+      const commaPos = uri.indexOf(",");
+      if (commaPos === -1) {
+        return null;
+      }
+      const data = uri.substring(commaPos + 1);
+      const metaStr = uri.substring("data:".length, commaPos);
+      let encoding;
+      const metaEntries = metaStr.split(";");
+      if (metaEntries.length > 0) {
+        const lastEntry = metaEntries[metaEntries.length - 1].toLowerCase().trim();
+        if (["base64", "utf8", "utf-8"].includes(lastEntry) && lastEntry.indexOf("=") === -1) {
+          encoding = lastEntry;
+          metaEntries.pop();
+        }
+      }
+      const contentType = metaEntries.length > 0 ? metaEntries.shift() : "application/octet-stream";
+      const params = {};
+      for (let i = 0; i < metaEntries.length; i++) {
+        const entry = metaEntries[i];
+        const sepPos = entry.indexOf("=");
+        if (sepPos > 0) {
+          const key = entry.substring(0, sepPos).trim();
+          const value = entry.substring(sepPos + 1).trim();
+          if (key) {
+            params[key] = value;
+          }
+        }
+      }
+      let bufferData;
+      try {
+        if (encoding === "base64") {
+          bufferData = Buffer.from(data, "base64");
+        } else {
+          try {
+            bufferData = Buffer.from(decodeURIComponent(data));
+          } catch (_decodeError) {
+            bufferData = Buffer.from(data);
+          }
+        }
+      } catch (_bufferError) {
+        bufferData = Buffer.alloc(0);
+      }
+      return {
+        data: bufferData,
+        encoding: encoding || null,
+        contentType: contentType || "application/octet-stream",
+        params
+      };
+    };
+    module.exports.resolveContent = (data, key, callback) => {
+      let promise;
+      if (!callback) {
+        promise = new Promise((resolve, reject) => {
+          callback = module.exports.callbackPromise(resolve, reject);
+        });
+      }
+      let content = data && data[key] && data[key].content || data[key];
+      let contentStream;
+      let encoding = (typeof data[key] === "object" && data[key].encoding || "utf8").toString().toLowerCase().replace(/[-_\s]/g, "");
+      if (!content) {
+        return callback(null, content);
+      }
+      if (typeof content === "object") {
+        if (typeof content.pipe === "function") {
+          return resolveStream(content, (err, value) => {
+            if (err) {
+              return callback(err);
+            }
+            if (data[key].content) {
+              data[key].content = value;
+            } else {
+              data[key] = value;
+            }
+            callback(null, value);
+          });
+        } else if (/^https?:\/\//i.test(content.path || content.href)) {
+          contentStream = nmfetch(content.path || content.href);
+          return resolveStream(contentStream, callback);
+        } else if (/^data:/i.test(content.path || content.href)) {
+          let parsedDataUri = module.exports.parseDataURI(content.path || content.href);
+          if (!parsedDataUri || !parsedDataUri.data) {
+            return callback(null, Buffer.from(0));
+          }
+          return callback(null, parsedDataUri.data);
+        } else if (content.path) {
+          return resolveStream(fs$1.createReadStream(content.path), callback);
+        }
+      }
+      if (typeof data[key].content === "string" && !["utf8", "usascii", "ascii"].includes(encoding)) {
+        content = Buffer.from(data[key].content, encoding);
+      }
+      setImmediate(() => callback(null, content));
+      return promise;
+    };
+    module.exports.assign = function() {
+      let args = Array.from(arguments);
+      let target = args.shift() || {};
+      args.forEach((source) => {
+        Object.keys(source || {}).forEach((key) => {
+          if (["tls", "auth"].includes(key) && source[key] && typeof source[key] === "object") {
+            if (!target[key]) {
+              target[key] = {};
+            }
+            Object.keys(source[key]).forEach((subKey) => {
+              target[key][subKey] = source[key][subKey];
+            });
+          } else {
+            target[key] = source[key];
+          }
+        });
+      });
+      return target;
+    };
+    module.exports.encodeXText = (str) => {
+      if (!/[^\x21-\x2A\x2C-\x3C\x3E-\x7E]/.test(str)) {
+        return str;
+      }
+      let buf = Buffer.from(str);
+      let result = "";
+      for (let i = 0, len = buf.length; i < len; i++) {
+        let c = buf[i];
+        if (c < 33 || c > 126 || c === 43 || c === 61) {
+          result += "+" + (c < 16 ? "0" : "") + c.toString(16).toUpperCase();
+        } else {
+          result += String.fromCharCode(c);
+        }
+      }
+      return result;
+    };
+    function resolveStream(stream, callback) {
+      let responded = false;
+      let chunks = [];
+      let chunklen = 0;
+      stream.on("error", (err) => {
+        if (responded) {
+          return;
+        }
+        responded = true;
+        callback(err);
+      });
+      stream.on("readable", () => {
+        let chunk;
+        while ((chunk = stream.read()) !== null) {
+          chunks.push(chunk);
+          chunklen += chunk.length;
+        }
+      });
+      stream.on("end", () => {
+        if (responded) {
+          return;
+        }
+        responded = true;
+        let value;
+        try {
+          value = Buffer.concat(chunks, chunklen);
+        } catch (E) {
+          return callback(E);
+        }
+        callback(null, value);
+      });
+    }
+    function createDefaultLogger(levels) {
+      let levelMaxLen = 0;
+      let levelNames = /* @__PURE__ */ new Map();
+      levels.forEach((level) => {
+        if (level.length > levelMaxLen) {
+          levelMaxLen = level.length;
+        }
+      });
+      levels.forEach((level) => {
+        let levelName = level.toUpperCase();
+        if (levelName.length < levelMaxLen) {
+          levelName += " ".repeat(levelMaxLen - levelName.length);
+        }
+        levelNames.set(level, levelName);
+      });
+      let print = (level, entry, message, ...args) => {
+        let prefix = "";
+        if (entry) {
+          if (entry.tnx === "server") {
+            prefix = "S: ";
+          } else if (entry.tnx === "client") {
+            prefix = "C: ";
+          }
+          if (entry.sid) {
+            prefix = "[" + entry.sid + "] " + prefix;
+          }
+          if (entry.cid) {
+            prefix = "[#" + entry.cid + "] " + prefix;
+          }
+        }
+        message = util.format(message, ...args);
+        message.split(/\r?\n/).forEach((line) => {
+          console.log("[%s] %s %s", (/* @__PURE__ */ new Date()).toISOString().substr(0, 19).replace(/T/, " "), levelNames.get(level), prefix + line);
+        });
+      };
+      let logger2 = {};
+      levels.forEach((level) => {
+        logger2[level] = print.bind(null, level);
+      });
+      return logger2;
+    }
+  })(shared);
+  return shared.exports;
+}
+var mimeTypes_1;
+var hasRequiredMimeTypes;
+function requireMimeTypes() {
+  if (hasRequiredMimeTypes) return mimeTypes_1;
+  hasRequiredMimeTypes = 1;
+  const path$1 = path;
+  const defaultMimeType = "application/octet-stream";
+  const defaultExtension = "bin";
+  const mimeTypes = /* @__PURE__ */ new Map([
+    ["application/acad", "dwg"],
+    ["application/applixware", "aw"],
+    ["application/arj", "arj"],
+    ["application/atom+xml", "xml"],
+    ["application/atomcat+xml", "atomcat"],
+    ["application/atomsvc+xml", "atomsvc"],
+    ["application/base64", ["mm", "mme"]],
+    ["application/binhex", "hqx"],
+    ["application/binhex4", "hqx"],
+    ["application/book", ["book", "boo"]],
+    ["application/ccxml+xml,", "ccxml"],
+    ["application/cdf", "cdf"],
+    ["application/cdmi-capability", "cdmia"],
+    ["application/cdmi-container", "cdmic"],
+    ["application/cdmi-domain", "cdmid"],
+    ["application/cdmi-object", "cdmio"],
+    ["application/cdmi-queue", "cdmiq"],
+    ["application/clariscad", "ccad"],
+    ["application/commonground", "dp"],
+    ["application/cu-seeme", "cu"],
+    ["application/davmount+xml", "davmount"],
+    ["application/drafting", "drw"],
+    ["application/dsptype", "tsp"],
+    ["application/dssc+der", "dssc"],
+    ["application/dssc+xml", "xdssc"],
+    ["application/dxf", "dxf"],
+    ["application/ecmascript", ["js", "es"]],
+    ["application/emma+xml", "emma"],
+    ["application/envoy", "evy"],
+    ["application/epub+zip", "epub"],
+    ["application/excel", ["xls", "xl", "xla", "xlb", "xlc", "xld", "xlk", "xll", "xlm", "xlt", "xlv", "xlw"]],
+    ["application/exi", "exi"],
+    ["application/font-tdpfr", "pfr"],
+    ["application/fractals", "fif"],
+    ["application/freeloader", "frl"],
+    ["application/futuresplash", "spl"],
+    ["application/geo+json", "geojson"],
+    ["application/gnutar", "tgz"],
+    ["application/groupwise", "vew"],
+    ["application/hlp", "hlp"],
+    ["application/hta", "hta"],
+    ["application/hyperstudio", "stk"],
+    ["application/i-deas", "unv"],
+    ["application/iges", ["iges", "igs"]],
+    ["application/inf", "inf"],
+    ["application/internet-property-stream", "acx"],
+    ["application/ipfix", "ipfix"],
+    ["application/java", "class"],
+    ["application/java-archive", "jar"],
+    ["application/java-byte-code", "class"],
+    ["application/java-serialized-object", "ser"],
+    ["application/java-vm", "class"],
+    ["application/javascript", "js"],
+    ["application/json", "json"],
+    ["application/lha", "lha"],
+    ["application/lzx", "lzx"],
+    ["application/mac-binary", "bin"],
+    ["application/mac-binhex", "hqx"],
+    ["application/mac-binhex40", "hqx"],
+    ["application/mac-compactpro", "cpt"],
+    ["application/macbinary", "bin"],
+    ["application/mads+xml", "mads"],
+    ["application/marc", "mrc"],
+    ["application/marcxml+xml", "mrcx"],
+    ["application/mathematica", "ma"],
+    ["application/mathml+xml", "mathml"],
+    ["application/mbedlet", "mbd"],
+    ["application/mbox", "mbox"],
+    ["application/mcad", "mcd"],
+    ["application/mediaservercontrol+xml", "mscml"],
+    ["application/metalink4+xml", "meta4"],
+    ["application/mets+xml", "mets"],
+    ["application/mime", "aps"],
+    ["application/mods+xml", "mods"],
+    ["application/mp21", "m21"],
+    ["application/mp4", "mp4"],
+    ["application/mspowerpoint", ["ppt", "pot", "pps", "ppz"]],
+    ["application/msword", ["doc", "dot", "w6w", "wiz", "word"]],
+    ["application/mswrite", "wri"],
+    ["application/mxf", "mxf"],
+    ["application/netmc", "mcp"],
+    ["application/octet-stream", ["*"]],
+    ["application/oda", "oda"],
+    ["application/oebps-package+xml", "opf"],
+    ["application/ogg", "ogx"],
+    ["application/olescript", "axs"],
+    ["application/onenote", "onetoc"],
+    ["application/patch-ops-error+xml", "xer"],
+    ["application/pdf", "pdf"],
+    ["application/pgp-encrypted", "asc"],
+    ["application/pgp-signature", "pgp"],
+    ["application/pics-rules", "prf"],
+    ["application/pkcs-12", "p12"],
+    ["application/pkcs-crl", "crl"],
+    ["application/pkcs10", "p10"],
+    ["application/pkcs7-mime", ["p7c", "p7m"]],
+    ["application/pkcs7-signature", "p7s"],
+    ["application/pkcs8", "p8"],
+    ["application/pkix-attr-cert", "ac"],
+    ["application/pkix-cert", ["cer", "crt"]],
+    ["application/pkix-crl", "crl"],
+    ["application/pkix-pkipath", "pkipath"],
+    ["application/pkixcmp", "pki"],
+    ["application/plain", "text"],
+    ["application/pls+xml", "pls"],
+    ["application/postscript", ["ps", "ai", "eps"]],
+    ["application/powerpoint", "ppt"],
+    ["application/pro_eng", ["part", "prt"]],
+    ["application/prs.cww", "cww"],
+    ["application/pskc+xml", "pskcxml"],
+    ["application/rdf+xml", "rdf"],
+    ["application/reginfo+xml", "rif"],
+    ["application/relax-ng-compact-syntax", "rnc"],
+    ["application/resource-lists+xml", "rl"],
+    ["application/resource-lists-diff+xml", "rld"],
+    ["application/ringing-tones", "rng"],
+    ["application/rls-services+xml", "rs"],
+    ["application/rsd+xml", "rsd"],
+    ["application/rss+xml", "xml"],
+    ["application/rtf", ["rtf", "rtx"]],
+    ["application/sbml+xml", "sbml"],
+    ["application/scvp-cv-request", "scq"],
+    ["application/scvp-cv-response", "scs"],
+    ["application/scvp-vp-request", "spq"],
+    ["application/scvp-vp-response", "spp"],
+    ["application/sdp", "sdp"],
+    ["application/sea", "sea"],
+    ["application/set", "set"],
+    ["application/set-payment-initiation", "setpay"],
+    ["application/set-registration-initiation", "setreg"],
+    ["application/shf+xml", "shf"],
+    ["application/sla", "stl"],
+    ["application/smil", ["smi", "smil"]],
+    ["application/smil+xml", "smi"],
+    ["application/solids", "sol"],
+    ["application/sounder", "sdr"],
+    ["application/sparql-query", "rq"],
+    ["application/sparql-results+xml", "srx"],
+    ["application/srgs", "gram"],
+    ["application/srgs+xml", "grxml"],
+    ["application/sru+xml", "sru"],
+    ["application/ssml+xml", "ssml"],
+    ["application/step", ["step", "stp"]],
+    ["application/streamingmedia", "ssm"],
+    ["application/tei+xml", "tei"],
+    ["application/thraud+xml", "tfi"],
+    ["application/timestamped-data", "tsd"],
+    ["application/toolbook", "tbk"],
+    ["application/vda", "vda"],
+    ["application/vnd.3gpp.pic-bw-large", "plb"],
+    ["application/vnd.3gpp.pic-bw-small", "psb"],
+    ["application/vnd.3gpp.pic-bw-var", "pvb"],
+    ["application/vnd.3gpp2.tcap", "tcap"],
+    ["application/vnd.3m.post-it-notes", "pwn"],
+    ["application/vnd.accpac.simply.aso", "aso"],
+    ["application/vnd.accpac.simply.imp", "imp"],
+    ["application/vnd.acucobol", "acu"],
+    ["application/vnd.acucorp", "atc"],
+    ["application/vnd.adobe.air-application-installer-package+zip", "air"],
+    ["application/vnd.adobe.fxp", "fxp"],
+    ["application/vnd.adobe.xdp+xml", "xdp"],
+    ["application/vnd.adobe.xfdf", "xfdf"],
+    ["application/vnd.ahead.space", "ahead"],
+    ["application/vnd.airzip.filesecure.azf", "azf"],
+    ["application/vnd.airzip.filesecure.azs", "azs"],
+    ["application/vnd.amazon.ebook", "azw"],
+    ["application/vnd.americandynamics.acc", "acc"],
+    ["application/vnd.amiga.ami", "ami"],
+    ["application/vnd.android.package-archive", "apk"],
+    ["application/vnd.anser-web-certificate-issue-initiation", "cii"],
+    ["application/vnd.anser-web-funds-transfer-initiation", "fti"],
+    ["application/vnd.antix.game-component", "atx"],
+    ["application/vnd.apple.installer+xml", "mpkg"],
+    ["application/vnd.apple.mpegurl", "m3u8"],
+    ["application/vnd.aristanetworks.swi", "swi"],
+    ["application/vnd.audiograph", "aep"],
+    ["application/vnd.blueice.multipass", "mpm"],
+    ["application/vnd.bmi", "bmi"],
+    ["application/vnd.businessobjects", "rep"],
+    ["application/vnd.chemdraw+xml", "cdxml"],
+    ["application/vnd.chipnuts.karaoke-mmd", "mmd"],
+    ["application/vnd.cinderella", "cdy"],
+    ["application/vnd.claymore", "cla"],
+    ["application/vnd.cloanto.rp9", "rp9"],
+    ["application/vnd.clonk.c4group", "c4g"],
+    ["application/vnd.cluetrust.cartomobile-config", "c11amc"],
+    ["application/vnd.cluetrust.cartomobile-config-pkg", "c11amz"],
+    ["application/vnd.commonspace", "csp"],
+    ["application/vnd.contact.cmsg", "cdbcmsg"],
+    ["application/vnd.cosmocaller", "cmc"],
+    ["application/vnd.crick.clicker", "clkx"],
+    ["application/vnd.crick.clicker.keyboard", "clkk"],
+    ["application/vnd.crick.clicker.palette", "clkp"],
+    ["application/vnd.crick.clicker.template", "clkt"],
+    ["application/vnd.crick.clicker.wordbank", "clkw"],
+    ["application/vnd.criticaltools.wbs+xml", "wbs"],
+    ["application/vnd.ctc-posml", "pml"],
+    ["application/vnd.cups-ppd", "ppd"],
+    ["application/vnd.curl.car", "car"],
+    ["application/vnd.curl.pcurl", "pcurl"],
+    ["application/vnd.data-vision.rdz", "rdz"],
+    ["application/vnd.denovo.fcselayout-link", "fe_launch"],
+    ["application/vnd.dna", "dna"],
+    ["application/vnd.dolby.mlp", "mlp"],
+    ["application/vnd.dpgraph", "dpg"],
+    ["application/vnd.dreamfactory", "dfac"],
+    ["application/vnd.dvb.ait", "ait"],
+    ["application/vnd.dvb.service", "svc"],
+    ["application/vnd.dynageo", "geo"],
+    ["application/vnd.ecowin.chart", "mag"],
+    ["application/vnd.enliven", "nml"],
+    ["application/vnd.epson.esf", "esf"],
+    ["application/vnd.epson.msf", "msf"],
+    ["application/vnd.epson.quickanime", "qam"],
+    ["application/vnd.epson.salt", "slt"],
+    ["application/vnd.epson.ssf", "ssf"],
+    ["application/vnd.eszigno3+xml", "es3"],
+    ["application/vnd.ezpix-album", "ez2"],
+    ["application/vnd.ezpix-package", "ez3"],
+    ["application/vnd.fdf", "fdf"],
+    ["application/vnd.fdsn.seed", "seed"],
+    ["application/vnd.flographit", "gph"],
+    ["application/vnd.fluxtime.clip", "ftc"],
+    ["application/vnd.framemaker", "fm"],
+    ["application/vnd.frogans.fnc", "fnc"],
+    ["application/vnd.frogans.ltf", "ltf"],
+    ["application/vnd.fsc.weblaunch", "fsc"],
+    ["application/vnd.fujitsu.oasys", "oas"],
+    ["application/vnd.fujitsu.oasys2", "oa2"],
+    ["application/vnd.fujitsu.oasys3", "oa3"],
+    ["application/vnd.fujitsu.oasysgp", "fg5"],
+    ["application/vnd.fujitsu.oasysprs", "bh2"],
+    ["application/vnd.fujixerox.ddd", "ddd"],
+    ["application/vnd.fujixerox.docuworks", "xdw"],
+    ["application/vnd.fujixerox.docuworks.binder", "xbd"],
+    ["application/vnd.fuzzysheet", "fzs"],
+    ["application/vnd.genomatix.tuxedo", "txd"],
+    ["application/vnd.geogebra.file", "ggb"],
+    ["application/vnd.geogebra.tool", "ggt"],
+    ["application/vnd.geometry-explorer", "gex"],
+    ["application/vnd.geonext", "gxt"],
+    ["application/vnd.geoplan", "g2w"],
+    ["application/vnd.geospace", "g3w"],
+    ["application/vnd.gmx", "gmx"],
+    ["application/vnd.google-earth.kml+xml", "kml"],
+    ["application/vnd.google-earth.kmz", "kmz"],
+    ["application/vnd.grafeq", "gqf"],
+    ["application/vnd.groove-account", "gac"],
+    ["application/vnd.groove-help", "ghf"],
+    ["application/vnd.groove-identity-message", "gim"],
+    ["application/vnd.groove-injector", "grv"],
+    ["application/vnd.groove-tool-message", "gtm"],
+    ["application/vnd.groove-tool-template", "tpl"],
+    ["application/vnd.groove-vcard", "vcg"],
+    ["application/vnd.hal+xml", "hal"],
+    ["application/vnd.handheld-entertainment+xml", "zmm"],
+    ["application/vnd.hbci", "hbci"],
+    ["application/vnd.hhe.lesson-player", "les"],
+    ["application/vnd.hp-hpgl", ["hgl", "hpg", "hpgl"]],
+    ["application/vnd.hp-hpid", "hpid"],
+    ["application/vnd.hp-hps", "hps"],
+    ["application/vnd.hp-jlyt", "jlt"],
+    ["application/vnd.hp-pcl", "pcl"],
+    ["application/vnd.hp-pclxl", "pclxl"],
+    ["application/vnd.hydrostatix.sof-data", "sfd-hdstx"],
+    ["application/vnd.hzn-3d-crossword", "x3d"],
+    ["application/vnd.ibm.minipay", "mpy"],
+    ["application/vnd.ibm.modcap", "afp"],
+    ["application/vnd.ibm.rights-management", "irm"],
+    ["application/vnd.ibm.secure-container", "sc"],
+    ["application/vnd.iccprofile", "icc"],
+    ["application/vnd.igloader", "igl"],
+    ["application/vnd.immervision-ivp", "ivp"],
+    ["application/vnd.immervision-ivu", "ivu"],
+    ["application/vnd.insors.igm", "igm"],
+    ["application/vnd.intercon.formnet", "xpw"],
+    ["application/vnd.intergeo", "i2g"],
+    ["application/vnd.intu.qbo", "qbo"],
+    ["application/vnd.intu.qfx", "qfx"],
+    ["application/vnd.ipunplugged.rcprofile", "rcprofile"],
+    ["application/vnd.irepository.package+xml", "irp"],
+    ["application/vnd.is-xpr", "xpr"],
+    ["application/vnd.isac.fcs", "fcs"],
+    ["application/vnd.jam", "jam"],
+    ["application/vnd.jcp.javame.midlet-rms", "rms"],
+    ["application/vnd.jisp", "jisp"],
+    ["application/vnd.joost.joda-archive", "joda"],
+    ["application/vnd.kahootz", "ktz"],
+    ["application/vnd.kde.karbon", "karbon"],
+    ["application/vnd.kde.kchart", "chrt"],
+    ["application/vnd.kde.kformula", "kfo"],
+    ["application/vnd.kde.kivio", "flw"],
+    ["application/vnd.kde.kontour", "kon"],
+    ["application/vnd.kde.kpresenter", "kpr"],
+    ["application/vnd.kde.kspread", "ksp"],
+    ["application/vnd.kde.kword", "kwd"],
+    ["application/vnd.kenameaapp", "htke"],
+    ["application/vnd.kidspiration", "kia"],
+    ["application/vnd.kinar", "kne"],
+    ["application/vnd.koan", "skp"],
+    ["application/vnd.kodak-descriptor", "sse"],
+    ["application/vnd.las.las+xml", "lasxml"],
+    ["application/vnd.llamagraphics.life-balance.desktop", "lbd"],
+    ["application/vnd.llamagraphics.life-balance.exchange+xml", "lbe"],
+    ["application/vnd.lotus-1-2-3", "123"],
+    ["application/vnd.lotus-approach", "apr"],
+    ["application/vnd.lotus-freelance", "pre"],
+    ["application/vnd.lotus-notes", "nsf"],
+    ["application/vnd.lotus-organizer", "org"],
+    ["application/vnd.lotus-screencam", "scm"],
+    ["application/vnd.lotus-wordpro", "lwp"],
+    ["application/vnd.macports.portpkg", "portpkg"],
+    ["application/vnd.mcd", "mcd"],
+    ["application/vnd.medcalcdata", "mc1"],
+    ["application/vnd.mediastation.cdkey", "cdkey"],
+    ["application/vnd.mfer", "mwf"],
+    ["application/vnd.mfmp", "mfm"],
+    ["application/vnd.micrografx.flo", "flo"],
+    ["application/vnd.micrografx.igx", "igx"],
+    ["application/vnd.mif", "mif"],
+    ["application/vnd.mobius.daf", "daf"],
+    ["application/vnd.mobius.dis", "dis"],
+    ["application/vnd.mobius.mbk", "mbk"],
+    ["application/vnd.mobius.mqy", "mqy"],
+    ["application/vnd.mobius.msl", "msl"],
+    ["application/vnd.mobius.plc", "plc"],
+    ["application/vnd.mobius.txf", "txf"],
+    ["application/vnd.mophun.application", "mpn"],
+    ["application/vnd.mophun.certificate", "mpc"],
+    ["application/vnd.mozilla.xul+xml", "xul"],
+    ["application/vnd.ms-artgalry", "cil"],
+    ["application/vnd.ms-cab-compressed", "cab"],
+    ["application/vnd.ms-excel", ["xls", "xla", "xlc", "xlm", "xlt", "xlw", "xlb", "xll"]],
+    ["application/vnd.ms-excel.addin.macroenabled.12", "xlam"],
+    ["application/vnd.ms-excel.sheet.binary.macroenabled.12", "xlsb"],
+    ["application/vnd.ms-excel.sheet.macroenabled.12", "xlsm"],
+    ["application/vnd.ms-excel.template.macroenabled.12", "xltm"],
+    ["application/vnd.ms-fontobject", "eot"],
+    ["application/vnd.ms-htmlhelp", "chm"],
+    ["application/vnd.ms-ims", "ims"],
+    ["application/vnd.ms-lrm", "lrm"],
+    ["application/vnd.ms-officetheme", "thmx"],
+    ["application/vnd.ms-outlook", "msg"],
+    ["application/vnd.ms-pki.certstore", "sst"],
+    ["application/vnd.ms-pki.pko", "pko"],
+    ["application/vnd.ms-pki.seccat", "cat"],
+    ["application/vnd.ms-pki.stl", "stl"],
+    ["application/vnd.ms-pkicertstore", "sst"],
+    ["application/vnd.ms-pkiseccat", "cat"],
+    ["application/vnd.ms-pkistl", "stl"],
+    ["application/vnd.ms-powerpoint", ["ppt", "pot", "pps", "ppa", "pwz"]],
+    ["application/vnd.ms-powerpoint.addin.macroenabled.12", "ppam"],
+    ["application/vnd.ms-powerpoint.presentation.macroenabled.12", "pptm"],
+    ["application/vnd.ms-powerpoint.slide.macroenabled.12", "sldm"],
+    ["application/vnd.ms-powerpoint.slideshow.macroenabled.12", "ppsm"],
+    ["application/vnd.ms-powerpoint.template.macroenabled.12", "potm"],
+    ["application/vnd.ms-project", "mpp"],
+    ["application/vnd.ms-word.document.macroenabled.12", "docm"],
+    ["application/vnd.ms-word.template.macroenabled.12", "dotm"],
+    ["application/vnd.ms-works", ["wks", "wcm", "wdb", "wps"]],
+    ["application/vnd.ms-wpl", "wpl"],
+    ["application/vnd.ms-xpsdocument", "xps"],
+    ["application/vnd.mseq", "mseq"],
+    ["application/vnd.musician", "mus"],
+    ["application/vnd.muvee.style", "msty"],
+    ["application/vnd.neurolanguage.nlu", "nlu"],
+    ["application/vnd.noblenet-directory", "nnd"],
+    ["application/vnd.noblenet-sealer", "nns"],
+    ["application/vnd.noblenet-web", "nnw"],
+    ["application/vnd.nokia.configuration-message", "ncm"],
+    ["application/vnd.nokia.n-gage.data", "ngdat"],
+    ["application/vnd.nokia.n-gage.symbian.install", "n-gage"],
+    ["application/vnd.nokia.radio-preset", "rpst"],
+    ["application/vnd.nokia.radio-presets", "rpss"],
+    ["application/vnd.nokia.ringing-tone", "rng"],
+    ["application/vnd.novadigm.edm", "edm"],
+    ["application/vnd.novadigm.edx", "edx"],
+    ["application/vnd.novadigm.ext", "ext"],
+    ["application/vnd.oasis.opendocument.chart", "odc"],
+    ["application/vnd.oasis.opendocument.chart-template", "otc"],
+    ["application/vnd.oasis.opendocument.database", "odb"],
+    ["application/vnd.oasis.opendocument.formula", "odf"],
+    ["application/vnd.oasis.opendocument.formula-template", "odft"],
+    ["application/vnd.oasis.opendocument.graphics", "odg"],
+    ["application/vnd.oasis.opendocument.graphics-template", "otg"],
+    ["application/vnd.oasis.opendocument.image", "odi"],
+    ["application/vnd.oasis.opendocument.image-template", "oti"],
+    ["application/vnd.oasis.opendocument.presentation", "odp"],
+    ["application/vnd.oasis.opendocument.presentation-template", "otp"],
+    ["application/vnd.oasis.opendocument.spreadsheet", "ods"],
+    ["application/vnd.oasis.opendocument.spreadsheet-template", "ots"],
+    ["application/vnd.oasis.opendocument.text", "odt"],
+    ["application/vnd.oasis.opendocument.text-master", "odm"],
+    ["application/vnd.oasis.opendocument.text-template", "ott"],
+    ["application/vnd.oasis.opendocument.text-web", "oth"],
+    ["application/vnd.olpc-sugar", "xo"],
+    ["application/vnd.oma.dd2+xml", "dd2"],
+    ["application/vnd.openofficeorg.extension", "oxt"],
+    ["application/vnd.openxmlformats-officedocument.presentationml.presentation", "pptx"],
+    ["application/vnd.openxmlformats-officedocument.presentationml.slide", "sldx"],
+    ["application/vnd.openxmlformats-officedocument.presentationml.slideshow", "ppsx"],
+    ["application/vnd.openxmlformats-officedocument.presentationml.template", "potx"],
+    ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"],
+    ["application/vnd.openxmlformats-officedocument.spreadsheetml.template", "xltx"],
+    ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"],
+    ["application/vnd.openxmlformats-officedocument.wordprocessingml.template", "dotx"],
+    ["application/vnd.osgeo.mapguide.package", "mgp"],
+    ["application/vnd.osgi.dp", "dp"],
+    ["application/vnd.palm", "pdb"],
+    ["application/vnd.pawaafile", "paw"],
+    ["application/vnd.pg.format", "str"],
+    ["application/vnd.pg.osasli", "ei6"],
+    ["application/vnd.picsel", "efif"],
+    ["application/vnd.pmi.widget", "wg"],
+    ["application/vnd.pocketlearn", "plf"],
+    ["application/vnd.powerbuilder6", "pbd"],
+    ["application/vnd.previewsystems.box", "box"],
+    ["application/vnd.proteus.magazine", "mgz"],
+    ["application/vnd.publishare-delta-tree", "qps"],
+    ["application/vnd.pvi.ptid1", "ptid"],
+    ["application/vnd.quark.quarkxpress", "qxd"],
+    ["application/vnd.realvnc.bed", "bed"],
+    ["application/vnd.recordare.musicxml", "mxl"],
+    ["application/vnd.recordare.musicxml+xml", "musicxml"],
+    ["application/vnd.rig.cryptonote", "cryptonote"],
+    ["application/vnd.rim.cod", "cod"],
+    ["application/vnd.rn-realmedia", "rm"],
+    ["application/vnd.rn-realplayer", "rnx"],
+    ["application/vnd.route66.link66+xml", "link66"],
+    ["application/vnd.sailingtracker.track", "st"],
+    ["application/vnd.seemail", "see"],
+    ["application/vnd.sema", "sema"],
+    ["application/vnd.semd", "semd"],
+    ["application/vnd.semf", "semf"],
+    ["application/vnd.shana.informed.formdata", "ifm"],
+    ["application/vnd.shana.informed.formtemplate", "itp"],
+    ["application/vnd.shana.informed.interchange", "iif"],
+    ["application/vnd.shana.informed.package", "ipk"],
+    ["application/vnd.simtech-mindmapper", "twd"],
+    ["application/vnd.smaf", "mmf"],
+    ["application/vnd.smart.teacher", "teacher"],
+    ["application/vnd.solent.sdkm+xml", "sdkm"],
+    ["application/vnd.spotfire.dxp", "dxp"],
+    ["application/vnd.spotfire.sfs", "sfs"],
+    ["application/vnd.stardivision.calc", "sdc"],
+    ["application/vnd.stardivision.draw", "sda"],
+    ["application/vnd.stardivision.impress", "sdd"],
+    ["application/vnd.stardivision.math", "smf"],
+    ["application/vnd.stardivision.writer", "sdw"],
+    ["application/vnd.stardivision.writer-global", "sgl"],
+    ["application/vnd.stepmania.stepchart", "sm"],
+    ["application/vnd.sun.xml.calc", "sxc"],
+    ["application/vnd.sun.xml.calc.template", "stc"],
+    ["application/vnd.sun.xml.draw", "sxd"],
+    ["application/vnd.sun.xml.draw.template", "std"],
+    ["application/vnd.sun.xml.impress", "sxi"],
+    ["application/vnd.sun.xml.impress.template", "sti"],
+    ["application/vnd.sun.xml.math", "sxm"],
+    ["application/vnd.sun.xml.writer", "sxw"],
+    ["application/vnd.sun.xml.writer.global", "sxg"],
+    ["application/vnd.sun.xml.writer.template", "stw"],
+    ["application/vnd.sus-calendar", "sus"],
+    ["application/vnd.svd", "svd"],
+    ["application/vnd.symbian.install", "sis"],
+    ["application/vnd.syncml+xml", "xsm"],
+    ["application/vnd.syncml.dm+wbxml", "bdm"],
+    ["application/vnd.syncml.dm+xml", "xdm"],
+    ["application/vnd.tao.intent-module-archive", "tao"],
+    ["application/vnd.tmobile-livetv", "tmo"],
+    ["application/vnd.trid.tpt", "tpt"],
+    ["application/vnd.triscape.mxs", "mxs"],
+    ["application/vnd.trueapp", "tra"],
+    ["application/vnd.ufdl", "ufd"],
+    ["application/vnd.uiq.theme", "utz"],
+    ["application/vnd.umajin", "umj"],
+    ["application/vnd.unity", "unityweb"],
+    ["application/vnd.uoml+xml", "uoml"],
+    ["application/vnd.vcx", "vcx"],
+    ["application/vnd.visio", "vsd"],
+    ["application/vnd.visionary", "vis"],
+    ["application/vnd.vsf", "vsf"],
+    ["application/vnd.wap.wbxml", "wbxml"],
+    ["application/vnd.wap.wmlc", "wmlc"],
+    ["application/vnd.wap.wmlscriptc", "wmlsc"],
+    ["application/vnd.webturbo", "wtb"],
+    ["application/vnd.wolfram.player", "nbp"],
+    ["application/vnd.wordperfect", "wpd"],
+    ["application/vnd.wqd", "wqd"],
+    ["application/vnd.wt.stf", "stf"],
+    ["application/vnd.xara", ["web", "xar"]],
+    ["application/vnd.xfdl", "xfdl"],
+    ["application/vnd.yamaha.hv-dic", "hvd"],
+    ["application/vnd.yamaha.hv-script", "hvs"],
+    ["application/vnd.yamaha.hv-voice", "hvp"],
+    ["application/vnd.yamaha.openscoreformat", "osf"],
+    ["application/vnd.yamaha.openscoreformat.osfpvg+xml", "osfpvg"],
+    ["application/vnd.yamaha.smaf-audio", "saf"],
+    ["application/vnd.yamaha.smaf-phrase", "spf"],
+    ["application/vnd.yellowriver-custom-menu", "cmp"],
+    ["application/vnd.zul", "zir"],
+    ["application/vnd.zzazz.deck+xml", "zaz"],
+    ["application/vocaltec-media-desc", "vmd"],
+    ["application/vocaltec-media-file", "vmf"],
+    ["application/voicexml+xml", "vxml"],
+    ["application/widget", "wgt"],
+    ["application/winhlp", "hlp"],
+    ["application/wordperfect", ["wp", "wp5", "wp6", "wpd"]],
+    ["application/wordperfect6.0", ["w60", "wp5"]],
+    ["application/wordperfect6.1", "w61"],
+    ["application/wsdl+xml", "wsdl"],
+    ["application/wspolicy+xml", "wspolicy"],
+    ["application/x-123", "wk1"],
+    ["application/x-7z-compressed", "7z"],
+    ["application/x-abiword", "abw"],
+    ["application/x-ace-compressed", "ace"],
+    ["application/x-aim", "aim"],
+    ["application/x-authorware-bin", "aab"],
+    ["application/x-authorware-map", "aam"],
+    ["application/x-authorware-seg", "aas"],
+    ["application/x-bcpio", "bcpio"],
+    ["application/x-binary", "bin"],
+    ["application/x-binhex40", "hqx"],
+    ["application/x-bittorrent", "torrent"],
+    ["application/x-bsh", ["bsh", "sh", "shar"]],
+    ["application/x-bytecode.elisp", "elc"],
+    ["application/x-bytecode.python", "pyc"],
+    ["application/x-bzip", "bz"],
+    ["application/x-bzip2", ["boz", "bz2"]],
+    ["application/x-cdf", "cdf"],
+    ["application/x-cdlink", "vcd"],
+    ["application/x-chat", ["cha", "chat"]],
+    ["application/x-chess-pgn", "pgn"],
+    ["application/x-cmu-raster", "ras"],
+    ["application/x-cocoa", "cco"],
+    ["application/x-compactpro", "cpt"],
+    ["application/x-compress", "z"],
+    ["application/x-compressed", ["tgz", "gz", "z", "zip"]],
+    ["application/x-conference", "nsc"],
+    ["application/x-cpio", "cpio"],
+    ["application/x-cpt", "cpt"],
+    ["application/x-csh", "csh"],
+    ["application/x-debian-package", "deb"],
+    ["application/x-deepv", "deepv"],
+    ["application/x-director", ["dir", "dcr", "dxr"]],
+    ["application/x-doom", "wad"],
+    ["application/x-dtbncx+xml", "ncx"],
+    ["application/x-dtbook+xml", "dtb"],
+    ["application/x-dtbresource+xml", "res"],
+    ["application/x-dvi", "dvi"],
+    ["application/x-elc", "elc"],
+    ["application/x-envoy", ["env", "evy"]],
+    ["application/x-esrehber", "es"],
+    ["application/x-excel", ["xls", "xla", "xlb", "xlc", "xld", "xlk", "xll", "xlm", "xlt", "xlv", "xlw"]],
+    ["application/x-font-bdf", "bdf"],
+    ["application/x-font-ghostscript", "gsf"],
+    ["application/x-font-linux-psf", "psf"],
+    ["application/x-font-otf", "otf"],
+    ["application/x-font-pcf", "pcf"],
+    ["application/x-font-snf", "snf"],
+    ["application/x-font-ttf", "ttf"],
+    ["application/x-font-type1", "pfa"],
+    ["application/x-font-woff", "woff"],
+    ["application/x-frame", "mif"],
+    ["application/x-freelance", "pre"],
+    ["application/x-futuresplash", "spl"],
+    ["application/x-gnumeric", "gnumeric"],
+    ["application/x-gsp", "gsp"],
+    ["application/x-gss", "gss"],
+    ["application/x-gtar", "gtar"],
+    ["application/x-gzip", ["gz", "gzip"]],
+    ["application/x-hdf", "hdf"],
+    ["application/x-helpfile", ["help", "hlp"]],
+    ["application/x-httpd-imap", "imap"],
+    ["application/x-ima", "ima"],
+    ["application/x-internet-signup", ["ins", "isp"]],
+    ["application/x-internett-signup", "ins"],
+    ["application/x-inventor", "iv"],
+    ["application/x-ip2", "ip"],
+    ["application/x-iphone", "iii"],
+    ["application/x-java-class", "class"],
+    ["application/x-java-commerce", "jcm"],
+    ["application/x-java-jnlp-file", "jnlp"],
+    ["application/x-javascript", "js"],
+    ["application/x-koan", ["skd", "skm", "skp", "skt"]],
+    ["application/x-ksh", "ksh"],
+    ["application/x-latex", ["latex", "ltx"]],
+    ["application/x-lha", "lha"],
+    ["application/x-lisp", "lsp"],
+    ["application/x-livescreen", "ivy"],
+    ["application/x-lotus", "wq1"],
+    ["application/x-lotusscreencam", "scm"],
+    ["application/x-lzh", "lzh"],
+    ["application/x-lzx", "lzx"],
+    ["application/x-mac-binhex40", "hqx"],
+    ["application/x-macbinary", "bin"],
+    ["application/x-magic-cap-package-1.0", "mc$"],
+    ["application/x-mathcad", "mcd"],
+    ["application/x-meme", "mm"],
+    ["application/x-midi", ["mid", "midi"]],
+    ["application/x-mif", "mif"],
+    ["application/x-mix-transfer", "nix"],
+    ["application/x-mobipocket-ebook", "prc"],
+    ["application/x-mplayer2", "asx"],
+    ["application/x-ms-application", "application"],
+    ["application/x-ms-wmd", "wmd"],
+    ["application/x-ms-wmz", "wmz"],
+    ["application/x-ms-xbap", "xbap"],
+    ["application/x-msaccess", "mdb"],
+    ["application/x-msbinder", "obd"],
+    ["application/x-mscardfile", "crd"],
+    ["application/x-msclip", "clp"],
+    ["application/x-msdownload", ["exe", "dll"]],
+    ["application/x-msexcel", ["xls", "xla", "xlw"]],
+    ["application/x-msmediaview", ["mvb", "m13", "m14"]],
+    ["application/x-msmetafile", "wmf"],
+    ["application/x-msmoney", "mny"],
+    ["application/x-mspowerpoint", "ppt"],
+    ["application/x-mspublisher", "pub"],
+    ["application/x-msschedule", "scd"],
+    ["application/x-msterminal", "trm"],
+    ["application/x-mswrite", "wri"],
+    ["application/x-navi-animation", "ani"],
+    ["application/x-navidoc", "nvd"],
+    ["application/x-navimap", "map"],
+    ["application/x-navistyle", "stl"],
+    ["application/x-netcdf", ["cdf", "nc"]],
+    ["application/x-newton-compatible-pkg", "pkg"],
+    ["application/x-nokia-9000-communicator-add-on-software", "aos"],
+    ["application/x-omc", "omc"],
+    ["application/x-omcdatamaker", "omcd"],
+    ["application/x-omcregerator", "omcr"],
+    ["application/x-pagemaker", ["pm4", "pm5"]],
+    ["application/x-pcl", "pcl"],
+    ["application/x-perfmon", ["pma", "pmc", "pml", "pmr", "pmw"]],
+    ["application/x-pixclscript", "plx"],
+    ["application/x-pkcs10", "p10"],
+    ["application/x-pkcs12", ["p12", "pfx"]],
+    ["application/x-pkcs7-certificates", ["p7b", "spc"]],
+    ["application/x-pkcs7-certreqresp", "p7r"],
+    ["application/x-pkcs7-mime", ["p7m", "p7c"]],
+    ["application/x-pkcs7-signature", ["p7s", "p7a"]],
+    ["application/x-pointplus", "css"],
+    ["application/x-portable-anymap", "pnm"],
+    ["application/x-project", ["mpc", "mpt", "mpv", "mpx"]],
+    ["application/x-qpro", "wb1"],
+    ["application/x-rar-compressed", "rar"],
+    ["application/x-rtf", "rtf"],
+    ["application/x-sdp", "sdp"],
+    ["application/x-sea", "sea"],
+    ["application/x-seelogo", "sl"],
+    ["application/x-sh", "sh"],
+    ["application/x-shar", ["shar", "sh"]],
+    ["application/x-shockwave-flash", "swf"],
+    ["application/x-silverlight-app", "xap"],
+    ["application/x-sit", "sit"],
+    ["application/x-sprite", ["spr", "sprite"]],
+    ["application/x-stuffit", "sit"],
+    ["application/x-stuffitx", "sitx"],
+    ["application/x-sv4cpio", "sv4cpio"],
+    ["application/x-sv4crc", "sv4crc"],
+    ["application/x-tar", "tar"],
+    ["application/x-tbook", ["sbk", "tbk"]],
+    ["application/x-tcl", "tcl"],
+    ["application/x-tex", "tex"],
+    ["application/x-tex-tfm", "tfm"],
+    ["application/x-texinfo", ["texi", "texinfo"]],
+    ["application/x-troff", ["roff", "t", "tr"]],
+    ["application/x-troff-man", "man"],
+    ["application/x-troff-me", "me"],
+    ["application/x-troff-ms", "ms"],
+    ["application/x-troff-msvideo", "avi"],
+    ["application/x-ustar", "ustar"],
+    ["application/x-visio", ["vsd", "vst", "vsw"]],
+    ["application/x-vnd.audioexplosion.mzz", "mzz"],
+    ["application/x-vnd.ls-xpix", "xpix"],
+    ["application/x-vrml", "vrml"],
+    ["application/x-wais-source", ["src", "wsrc"]],
+    ["application/x-winhelp", "hlp"],
+    ["application/x-wintalk", "wtk"],
+    ["application/x-world", ["wrl", "svr"]],
+    ["application/x-wpwin", "wpd"],
+    ["application/x-wri", "wri"],
+    ["application/x-x509-ca-cert", ["cer", "crt", "der"]],
+    ["application/x-x509-user-cert", "crt"],
+    ["application/x-xfig", "fig"],
+    ["application/x-xpinstall", "xpi"],
+    ["application/x-zip-compressed", "zip"],
+    ["application/xcap-diff+xml", "xdf"],
+    ["application/xenc+xml", "xenc"],
+    ["application/xhtml+xml", "xhtml"],
+    ["application/xml", "xml"],
+    ["application/xml-dtd", "dtd"],
+    ["application/xop+xml", "xop"],
+    ["application/xslt+xml", "xslt"],
+    ["application/xspf+xml", "xspf"],
+    ["application/xv+xml", "mxml"],
+    ["application/yang", "yang"],
+    ["application/yin+xml", "yin"],
+    ["application/ynd.ms-pkipko", "pko"],
+    ["application/zip", "zip"],
+    ["audio/adpcm", "adp"],
+    ["audio/aiff", ["aiff", "aif", "aifc"]],
+    ["audio/basic", ["snd", "au"]],
+    ["audio/it", "it"],
+    ["audio/make", ["funk", "my", "pfunk"]],
+    ["audio/make.my.funk", "pfunk"],
+    ["audio/mid", ["mid", "rmi"]],
+    ["audio/midi", ["midi", "kar", "mid"]],
+    ["audio/mod", "mod"],
+    ["audio/mp4", "mp4a"],
+    ["audio/mpeg", ["mpga", "mp3", "m2a", "mp2", "mpa", "mpg"]],
+    ["audio/mpeg3", "mp3"],
+    ["audio/nspaudio", ["la", "lma"]],
+    ["audio/ogg", "oga"],
+    ["audio/s3m", "s3m"],
+    ["audio/tsp-audio", "tsi"],
+    ["audio/tsplayer", "tsp"],
+    ["audio/vnd.dece.audio", "uva"],
+    ["audio/vnd.digital-winds", "eol"],
+    ["audio/vnd.dra", "dra"],
+    ["audio/vnd.dts", "dts"],
+    ["audio/vnd.dts.hd", "dtshd"],
+    ["audio/vnd.lucent.voice", "lvp"],
+    ["audio/vnd.ms-playready.media.pya", "pya"],
+    ["audio/vnd.nuera.ecelp4800", "ecelp4800"],
+    ["audio/vnd.nuera.ecelp7470", "ecelp7470"],
+    ["audio/vnd.nuera.ecelp9600", "ecelp9600"],
+    ["audio/vnd.qcelp", "qcp"],
+    ["audio/vnd.rip", "rip"],
+    ["audio/voc", "voc"],
+    ["audio/voxware", "vox"],
+    ["audio/wav", "wav"],
+    ["audio/webm", "weba"],
+    ["audio/x-aac", "aac"],
+    ["audio/x-adpcm", "snd"],
+    ["audio/x-aiff", ["aiff", "aif", "aifc"]],
+    ["audio/x-au", "au"],
+    ["audio/x-gsm", ["gsd", "gsm"]],
+    ["audio/x-jam", "jam"],
+    ["audio/x-liveaudio", "lam"],
+    ["audio/x-mid", ["mid", "midi"]],
+    ["audio/x-midi", ["midi", "mid"]],
+    ["audio/x-mod", "mod"],
+    ["audio/x-mpeg", "mp2"],
+    ["audio/x-mpeg-3", "mp3"],
+    ["audio/x-mpegurl", "m3u"],
+    ["audio/x-mpequrl", "m3u"],
+    ["audio/x-ms-wax", "wax"],
+    ["audio/x-ms-wma", "wma"],
+    ["audio/x-nspaudio", ["la", "lma"]],
+    ["audio/x-pn-realaudio", ["ra", "ram", "rm", "rmm", "rmp"]],
+    ["audio/x-pn-realaudio-plugin", ["ra", "rmp", "rpm"]],
+    ["audio/x-psid", "sid"],
+    ["audio/x-realaudio", "ra"],
+    ["audio/x-twinvq", "vqf"],
+    ["audio/x-twinvq-plugin", ["vqe", "vql"]],
+    ["audio/x-vnd.audioexplosion.mjuicemediafile", "mjf"],
+    ["audio/x-voc", "voc"],
+    ["audio/x-wav", "wav"],
+    ["audio/xm", "xm"],
+    ["chemical/x-cdx", "cdx"],
+    ["chemical/x-cif", "cif"],
+    ["chemical/x-cmdf", "cmdf"],
+    ["chemical/x-cml", "cml"],
+    ["chemical/x-csml", "csml"],
+    ["chemical/x-pdb", ["pdb", "xyz"]],
+    ["chemical/x-xyz", "xyz"],
+    ["drawing/x-dwf", "dwf"],
+    ["i-world/i-vrml", "ivr"],
+    ["image/bmp", ["bmp", "bm"]],
+    ["image/cgm", "cgm"],
+    ["image/cis-cod", "cod"],
+    ["image/cmu-raster", ["ras", "rast"]],
+    ["image/fif", "fif"],
+    ["image/florian", ["flo", "turbot"]],
+    ["image/g3fax", "g3"],
+    ["image/gif", "gif"],
+    ["image/ief", ["ief", "iefs"]],
+    ["image/jpeg", ["jpeg", "jpe", "jpg", "jfif", "jfif-tbnl"]],
+    ["image/jutvision", "jut"],
+    ["image/ktx", "ktx"],
+    ["image/naplps", ["nap", "naplps"]],
+    ["image/pict", ["pic", "pict"]],
+    ["image/pipeg", "jfif"],
+    ["image/pjpeg", ["jfif", "jpe", "jpeg", "jpg"]],
+    ["image/png", ["png", "x-png"]],
+    ["image/prs.btif", "btif"],
+    ["image/svg+xml", "svg"],
+    ["image/tiff", ["tif", "tiff"]],
+    ["image/vasa", "mcf"],
+    ["image/vnd.adobe.photoshop", "psd"],
+    ["image/vnd.dece.graphic", "uvi"],
+    ["image/vnd.djvu", "djvu"],
+    ["image/vnd.dvb.subtitle", "sub"],
+    ["image/vnd.dwg", ["dwg", "dxf", "svf"]],
+    ["image/vnd.dxf", "dxf"],
+    ["image/vnd.fastbidsheet", "fbs"],
+    ["image/vnd.fpx", "fpx"],
+    ["image/vnd.fst", "fst"],
+    ["image/vnd.fujixerox.edmics-mmr", "mmr"],
+    ["image/vnd.fujixerox.edmics-rlc", "rlc"],
+    ["image/vnd.ms-modi", "mdi"],
+    ["image/vnd.net-fpx", ["fpx", "npx"]],
+    ["image/vnd.rn-realflash", "rf"],
+    ["image/vnd.rn-realpix", "rp"],
+    ["image/vnd.wap.wbmp", "wbmp"],
+    ["image/vnd.xiff", "xif"],
+    ["image/webp", "webp"],
+    ["image/x-cmu-raster", "ras"],
+    ["image/x-cmx", "cmx"],
+    ["image/x-dwg", ["dwg", "dxf", "svf"]],
+    ["image/x-freehand", "fh"],
+    ["image/x-icon", "ico"],
+    ["image/x-jg", "art"],
+    ["image/x-jps", "jps"],
+    ["image/x-niff", ["niff", "nif"]],
+    ["image/x-pcx", "pcx"],
+    ["image/x-pict", ["pct", "pic"]],
+    ["image/x-portable-anymap", "pnm"],
+    ["image/x-portable-bitmap", "pbm"],
+    ["image/x-portable-graymap", "pgm"],
+    ["image/x-portable-greymap", "pgm"],
+    ["image/x-portable-pixmap", "ppm"],
+    ["image/x-quicktime", ["qif", "qti", "qtif"]],
+    ["image/x-rgb", "rgb"],
+    ["image/x-tiff", ["tif", "tiff"]],
+    ["image/x-windows-bmp", "bmp"],
+    ["image/x-xbitmap", "xbm"],
+    ["image/x-xbm", "xbm"],
+    ["image/x-xpixmap", ["xpm", "pm"]],
+    ["image/x-xwd", "xwd"],
+    ["image/x-xwindowdump", "xwd"],
+    ["image/xbm", "xbm"],
+    ["image/xpm", "xpm"],
+    ["message/rfc822", ["eml", "mht", "mhtml", "nws", "mime"]],
+    ["model/iges", ["iges", "igs"]],
+    ["model/mesh", "msh"],
+    ["model/vnd.collada+xml", "dae"],
+    ["model/vnd.dwf", "dwf"],
+    ["model/vnd.gdl", "gdl"],
+    ["model/vnd.gtw", "gtw"],
+    ["model/vnd.mts", "mts"],
+    ["model/vnd.vtu", "vtu"],
+    ["model/vrml", ["vrml", "wrl", "wrz"]],
+    ["model/x-pov", "pov"],
+    ["multipart/x-gzip", "gzip"],
+    ["multipart/x-ustar", "ustar"],
+    ["multipart/x-zip", "zip"],
+    ["music/crescendo", ["mid", "midi"]],
+    ["music/x-karaoke", "kar"],
+    ["paleovu/x-pv", "pvu"],
+    ["text/asp", "asp"],
+    ["text/calendar", "ics"],
+    ["text/css", "css"],
+    ["text/csv", "csv"],
+    ["text/ecmascript", "js"],
+    ["text/h323", "323"],
+    ["text/html", ["html", "htm", "stm", "acgi", "htmls", "htx", "shtml"]],
+    ["text/iuls", "uls"],
+    ["text/javascript", "js"],
+    ["text/mcf", "mcf"],
+    ["text/n3", "n3"],
+    ["text/pascal", "pas"],
+    [
+      "text/plain",
+      [
+        "txt",
+        "bas",
+        "c",
+        "h",
+        "c++",
+        "cc",
+        "com",
+        "conf",
+        "cxx",
+        "def",
+        "f",
+        "f90",
+        "for",
+        "g",
+        "hh",
+        "idc",
+        "jav",
+        "java",
+        "list",
+        "log",
+        "lst",
+        "m",
+        "mar",
+        "pl",
+        "sdml",
+        "text"
+      ]
+    ],
+    ["text/plain-bas", "par"],
+    ["text/prs.lines.tag", "dsc"],
+    ["text/richtext", ["rtx", "rt", "rtf"]],
+    ["text/scriplet", "wsc"],
+    ["text/scriptlet", "sct"],
+    ["text/sgml", ["sgm", "sgml"]],
+    ["text/tab-separated-values", "tsv"],
+    ["text/troff", "t"],
+    ["text/turtle", "ttl"],
+    ["text/uri-list", ["uni", "unis", "uri", "uris"]],
+    ["text/vnd.abc", "abc"],
+    ["text/vnd.curl", "curl"],
+    ["text/vnd.curl.dcurl", "dcurl"],
+    ["text/vnd.curl.mcurl", "mcurl"],
+    ["text/vnd.curl.scurl", "scurl"],
+    ["text/vnd.fly", "fly"],
+    ["text/vnd.fmi.flexstor", "flx"],
+    ["text/vnd.graphviz", "gv"],
+    ["text/vnd.in3d.3dml", "3dml"],
+    ["text/vnd.in3d.spot", "spot"],
+    ["text/vnd.rn-realtext", "rt"],
+    ["text/vnd.sun.j2me.app-descriptor", "jad"],
+    ["text/vnd.wap.wml", "wml"],
+    ["text/vnd.wap.wmlscript", "wmls"],
+    ["text/webviewhtml", "htt"],
+    ["text/x-asm", ["asm", "s"]],
+    ["text/x-audiosoft-intra", "aip"],
+    ["text/x-c", ["c", "cc", "cpp"]],
+    ["text/x-component", "htc"],
+    ["text/x-fortran", ["for", "f", "f77", "f90"]],
+    ["text/x-h", ["h", "hh"]],
+    ["text/x-java-source", ["java", "jav"]],
+    ["text/x-java-source,java", "java"],
+    ["text/x-la-asf", "lsx"],
+    ["text/x-m", "m"],
+    ["text/x-pascal", "p"],
+    ["text/x-script", "hlb"],
+    ["text/x-script.csh", "csh"],
+    ["text/x-script.elisp", "el"],
+    ["text/x-script.guile", "scm"],
+    ["text/x-script.ksh", "ksh"],
+    ["text/x-script.lisp", "lsp"],
+    ["text/x-script.perl", "pl"],
+    ["text/x-script.perl-module", "pm"],
+    ["text/x-script.phyton", "py"],
+    ["text/x-script.rexx", "rexx"],
+    ["text/x-script.scheme", "scm"],
+    ["text/x-script.sh", "sh"],
+    ["text/x-script.tcl", "tcl"],
+    ["text/x-script.tcsh", "tcsh"],
+    ["text/x-script.zsh", "zsh"],
+    ["text/x-server-parsed-html", ["shtml", "ssi"]],
+    ["text/x-setext", "etx"],
+    ["text/x-sgml", ["sgm", "sgml"]],
+    ["text/x-speech", ["spc", "talk"]],
+    ["text/x-uil", "uil"],
+    ["text/x-uuencode", ["uu", "uue"]],
+    ["text/x-vcalendar", "vcs"],
+    ["text/x-vcard", "vcf"],
+    ["text/xml", "xml"],
+    ["video/3gpp", "3gp"],
+    ["video/3gpp2", "3g2"],
+    ["video/animaflex", "afl"],
+    ["video/avi", "avi"],
+    ["video/avs-video", "avs"],
+    ["video/dl", "dl"],
+    ["video/fli", "fli"],
+    ["video/gl", "gl"],
+    ["video/h261", "h261"],
+    ["video/h263", "h263"],
+    ["video/h264", "h264"],
+    ["video/jpeg", "jpgv"],
+    ["video/jpm", "jpm"],
+    ["video/mj2", "mj2"],
+    ["video/mp4", "mp4"],
+    ["video/mpeg", ["mpeg", "mp2", "mpa", "mpe", "mpg", "mpv2", "m1v", "m2v", "mp3"]],
+    ["video/msvideo", "avi"],
+    ["video/ogg", "ogv"],
+    ["video/quicktime", ["mov", "qt", "moov"]],
+    ["video/vdo", "vdo"],
+    ["video/vivo", ["viv", "vivo"]],
+    ["video/vnd.dece.hd", "uvh"],
+    ["video/vnd.dece.mobile", "uvm"],
+    ["video/vnd.dece.pd", "uvp"],
+    ["video/vnd.dece.sd", "uvs"],
+    ["video/vnd.dece.video", "uvv"],
+    ["video/vnd.fvt", "fvt"],
+    ["video/vnd.mpegurl", "mxu"],
+    ["video/vnd.ms-playready.media.pyv", "pyv"],
+    ["video/vnd.rn-realvideo", "rv"],
+    ["video/vnd.uvvu.mp4", "uvu"],
+    ["video/vnd.vivo", ["viv", "vivo"]],
+    ["video/vosaic", "vos"],
+    ["video/webm", "webm"],
+    ["video/x-amt-demorun", "xdr"],
+    ["video/x-amt-showrun", "xsr"],
+    ["video/x-atomic3d-feature", "fmf"],
+    ["video/x-dl", "dl"],
+    ["video/x-dv", ["dif", "dv"]],
+    ["video/x-f4v", "f4v"],
+    ["video/x-fli", "fli"],
+    ["video/x-flv", "flv"],
+    ["video/x-gl", "gl"],
+    ["video/x-isvideo", "isu"],
+    ["video/x-la-asf", ["lsf", "lsx"]],
+    ["video/x-m4v", "m4v"],
+    ["video/x-motion-jpeg", "mjpg"],
+    ["video/x-mpeg", ["mp3", "mp2"]],
+    ["video/x-mpeq2a", "mp2"],
+    ["video/x-ms-asf", ["asf", "asr", "asx"]],
+    ["video/x-ms-asf-plugin", "asx"],
+    ["video/x-ms-wm", "wm"],
+    ["video/x-ms-wmv", "wmv"],
+    ["video/x-ms-wmx", "wmx"],
+    ["video/x-ms-wvx", "wvx"],
+    ["video/x-msvideo", "avi"],
+    ["video/x-qtc", "qtc"],
+    ["video/x-scm", "scm"],
+    ["video/x-sgi-movie", ["movie", "mv"]],
+    ["windows/metafile", "wmf"],
+    ["www/mime", "mime"],
+    ["x-conference/x-cooltalk", "ice"],
+    ["x-music/x-midi", ["mid", "midi"]],
+    ["x-world/x-3dmf", ["3dm", "3dmf", "qd3", "qd3d"]],
+    ["x-world/x-svr", "svr"],
+    ["x-world/x-vrml", ["flr", "vrml", "wrl", "wrz", "xaf", "xof"]],
+    ["x-world/x-vrt", "vrt"],
+    ["xgl/drawing", "xgz"],
+    ["xgl/movie", "xmz"]
+  ]);
+  const extensions = /* @__PURE__ */ new Map([
+    ["123", "application/vnd.lotus-1-2-3"],
+    ["323", "text/h323"],
+    ["*", "application/octet-stream"],
+    ["3dm", "x-world/x-3dmf"],
+    ["3dmf", "x-world/x-3dmf"],
+    ["3dml", "text/vnd.in3d.3dml"],
+    ["3g2", "video/3gpp2"],
+    ["3gp", "video/3gpp"],
+    ["7z", "application/x-7z-compressed"],
+    ["a", "application/octet-stream"],
+    ["aab", "application/x-authorware-bin"],
+    ["aac", "audio/x-aac"],
+    ["aam", "application/x-authorware-map"],
+    ["aas", "application/x-authorware-seg"],
+    ["abc", "text/vnd.abc"],
+    ["abw", "application/x-abiword"],
+    ["ac", "application/pkix-attr-cert"],
+    ["acc", "application/vnd.americandynamics.acc"],
+    ["ace", "application/x-ace-compressed"],
+    ["acgi", "text/html"],
+    ["acu", "application/vnd.acucobol"],
+    ["acx", "application/internet-property-stream"],
+    ["adp", "audio/adpcm"],
+    ["aep", "application/vnd.audiograph"],
+    ["afl", "video/animaflex"],
+    ["afp", "application/vnd.ibm.modcap"],
+    ["ahead", "application/vnd.ahead.space"],
+    ["ai", "application/postscript"],
+    ["aif", ["audio/aiff", "audio/x-aiff"]],
+    ["aifc", ["audio/aiff", "audio/x-aiff"]],
+    ["aiff", ["audio/aiff", "audio/x-aiff"]],
+    ["aim", "application/x-aim"],
+    ["aip", "text/x-audiosoft-intra"],
+    ["air", "application/vnd.adobe.air-application-installer-package+zip"],
+    ["ait", "application/vnd.dvb.ait"],
+    ["ami", "application/vnd.amiga.ami"],
+    ["ani", "application/x-navi-animation"],
+    ["aos", "application/x-nokia-9000-communicator-add-on-software"],
+    ["apk", "application/vnd.android.package-archive"],
+    ["application", "application/x-ms-application"],
+    ["apr", "application/vnd.lotus-approach"],
+    ["aps", "application/mime"],
+    ["arc", "application/octet-stream"],
+    ["arj", ["application/arj", "application/octet-stream"]],
+    ["art", "image/x-jg"],
+    ["asf", "video/x-ms-asf"],
+    ["asm", "text/x-asm"],
+    ["aso", "application/vnd.accpac.simply.aso"],
+    ["asp", "text/asp"],
+    ["asr", "video/x-ms-asf"],
+    ["asx", ["video/x-ms-asf", "application/x-mplayer2", "video/x-ms-asf-plugin"]],
+    ["atc", "application/vnd.acucorp"],
+    ["atomcat", "application/atomcat+xml"],
+    ["atomsvc", "application/atomsvc+xml"],
+    ["atx", "application/vnd.antix.game-component"],
+    ["au", ["audio/basic", "audio/x-au"]],
+    ["avi", ["video/avi", "video/msvideo", "application/x-troff-msvideo", "video/x-msvideo"]],
+    ["avs", "video/avs-video"],
+    ["aw", "application/applixware"],
+    ["axs", "application/olescript"],
+    ["azf", "application/vnd.airzip.filesecure.azf"],
+    ["azs", "application/vnd.airzip.filesecure.azs"],
+    ["azw", "application/vnd.amazon.ebook"],
+    ["bas", "text/plain"],
+    ["bcpio", "application/x-bcpio"],
+    ["bdf", "application/x-font-bdf"],
+    ["bdm", "application/vnd.syncml.dm+wbxml"],
+    ["bed", "application/vnd.realvnc.bed"],
+    ["bh2", "application/vnd.fujitsu.oasysprs"],
+    [
+      "bin",
+      ["application/octet-stream", "application/mac-binary", "application/macbinary", "application/x-macbinary", "application/x-binary"]
+    ],
+    ["bm", "image/bmp"],
+    ["bmi", "application/vnd.bmi"],
+    ["bmp", ["image/bmp", "image/x-windows-bmp"]],
+    ["boo", "application/book"],
+    ["book", "application/book"],
+    ["box", "application/vnd.previewsystems.box"],
+    ["boz", "application/x-bzip2"],
+    ["bsh", "application/x-bsh"],
+    ["btif", "image/prs.btif"],
+    ["bz", "application/x-bzip"],
+    ["bz2", "application/x-bzip2"],
+    ["c", ["text/plain", "text/x-c"]],
+    ["c++", "text/plain"],
+    ["c11amc", "application/vnd.cluetrust.cartomobile-config"],
+    ["c11amz", "application/vnd.cluetrust.cartomobile-config-pkg"],
+    ["c4g", "application/vnd.clonk.c4group"],
+    ["cab", "application/vnd.ms-cab-compressed"],
+    ["car", "application/vnd.curl.car"],
+    ["cat", ["application/vnd.ms-pkiseccat", "application/vnd.ms-pki.seccat"]],
+    ["cc", ["text/plain", "text/x-c"]],
+    ["ccad", "application/clariscad"],
+    ["cco", "application/x-cocoa"],
+    ["ccxml", "application/ccxml+xml,"],
+    ["cdbcmsg", "application/vnd.contact.cmsg"],
+    ["cdf", ["application/cdf", "application/x-cdf", "application/x-netcdf"]],
+    ["cdkey", "application/vnd.mediastation.cdkey"],
+    ["cdmia", "application/cdmi-capability"],
+    ["cdmic", "application/cdmi-container"],
+    ["cdmid", "application/cdmi-domain"],
+    ["cdmio", "application/cdmi-object"],
+    ["cdmiq", "application/cdmi-queue"],
+    ["cdx", "chemical/x-cdx"],
+    ["cdxml", "application/vnd.chemdraw+xml"],
+    ["cdy", "application/vnd.cinderella"],
+    ["cer", ["application/pkix-cert", "application/x-x509-ca-cert"]],
+    ["cgm", "image/cgm"],
+    ["cha", "application/x-chat"],
+    ["chat", "application/x-chat"],
+    ["chm", "application/vnd.ms-htmlhelp"],
+    ["chrt", "application/vnd.kde.kchart"],
+    ["cif", "chemical/x-cif"],
+    ["cii", "application/vnd.anser-web-certificate-issue-initiation"],
+    ["cil", "application/vnd.ms-artgalry"],
+    ["cla", "application/vnd.claymore"],
+    [
+      "class",
+      ["application/octet-stream", "application/java", "application/java-byte-code", "application/java-vm", "application/x-java-class"]
+    ],
+    ["clkk", "application/vnd.crick.clicker.keyboard"],
+    ["clkp", "application/vnd.crick.clicker.palette"],
+    ["clkt", "application/vnd.crick.clicker.template"],
+    ["clkw", "application/vnd.crick.clicker.wordbank"],
+    ["clkx", "application/vnd.crick.clicker"],
+    ["clp", "application/x-msclip"],
+    ["cmc", "application/vnd.cosmocaller"],
+    ["cmdf", "chemical/x-cmdf"],
+    ["cml", "chemical/x-cml"],
+    ["cmp", "application/vnd.yellowriver-custom-menu"],
+    ["cmx", "image/x-cmx"],
+    ["cod", ["image/cis-cod", "application/vnd.rim.cod"]],
+    ["com", ["application/octet-stream", "text/plain"]],
+    ["conf", "text/plain"],
+    ["cpio", "application/x-cpio"],
+    ["cpp", "text/x-c"],
+    ["cpt", ["application/mac-compactpro", "application/x-compactpro", "application/x-cpt"]],
+    ["crd", "application/x-mscardfile"],
+    ["crl", ["application/pkix-crl", "application/pkcs-crl"]],
+    ["crt", ["application/pkix-cert", "application/x-x509-user-cert", "application/x-x509-ca-cert"]],
+    ["cryptonote", "application/vnd.rig.cryptonote"],
+    ["csh", ["text/x-script.csh", "application/x-csh"]],
+    ["csml", "chemical/x-csml"],
+    ["csp", "application/vnd.commonspace"],
+    ["css", ["text/css", "application/x-pointplus"]],
+    ["csv", "text/csv"],
+    ["cu", "application/cu-seeme"],
+    ["curl", "text/vnd.curl"],
+    ["cww", "application/prs.cww"],
+    ["cxx", "text/plain"],
+    ["dae", "model/vnd.collada+xml"],
+    ["daf", "application/vnd.mobius.daf"],
+    ["davmount", "application/davmount+xml"],
+    ["dcr", "application/x-director"],
+    ["dcurl", "text/vnd.curl.dcurl"],
+    ["dd2", "application/vnd.oma.dd2+xml"],
+    ["ddd", "application/vnd.fujixerox.ddd"],
+    ["deb", "application/x-debian-package"],
+    ["deepv", "application/x-deepv"],
+    ["def", "text/plain"],
+    ["der", "application/x-x509-ca-cert"],
+    ["dfac", "application/vnd.dreamfactory"],
+    ["dif", "video/x-dv"],
+    ["dir", "application/x-director"],
+    ["dis", "application/vnd.mobius.dis"],
+    ["djvu", "image/vnd.djvu"],
+    ["dl", ["video/dl", "video/x-dl"]],
+    ["dll", "application/x-msdownload"],
+    ["dms", "application/octet-stream"],
+    ["dna", "application/vnd.dna"],
+    ["doc", "application/msword"],
+    ["docm", "application/vnd.ms-word.document.macroenabled.12"],
+    ["docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+    ["dot", "application/msword"],
+    ["dotm", "application/vnd.ms-word.template.macroenabled.12"],
+    ["dotx", "application/vnd.openxmlformats-officedocument.wordprocessingml.template"],
+    ["dp", ["application/commonground", "application/vnd.osgi.dp"]],
+    ["dpg", "application/vnd.dpgraph"],
+    ["dra", "audio/vnd.dra"],
+    ["drw", "application/drafting"],
+    ["dsc", "text/prs.lines.tag"],
+    ["dssc", "application/dssc+der"],
+    ["dtb", "application/x-dtbook+xml"],
+    ["dtd", "application/xml-dtd"],
+    ["dts", "audio/vnd.dts"],
+    ["dtshd", "audio/vnd.dts.hd"],
+    ["dump", "application/octet-stream"],
+    ["dv", "video/x-dv"],
+    ["dvi", "application/x-dvi"],
+    ["dwf", ["model/vnd.dwf", "drawing/x-dwf"]],
+    ["dwg", ["application/acad", "image/vnd.dwg", "image/x-dwg"]],
+    ["dxf", ["application/dxf", "image/vnd.dwg", "image/vnd.dxf", "image/x-dwg"]],
+    ["dxp", "application/vnd.spotfire.dxp"],
+    ["dxr", "application/x-director"],
+    ["ecelp4800", "audio/vnd.nuera.ecelp4800"],
+    ["ecelp7470", "audio/vnd.nuera.ecelp7470"],
+    ["ecelp9600", "audio/vnd.nuera.ecelp9600"],
+    ["edm", "application/vnd.novadigm.edm"],
+    ["edx", "application/vnd.novadigm.edx"],
+    ["efif", "application/vnd.picsel"],
+    ["ei6", "application/vnd.pg.osasli"],
+    ["el", "text/x-script.elisp"],
+    ["elc", ["application/x-elc", "application/x-bytecode.elisp"]],
+    ["eml", "message/rfc822"],
+    ["emma", "application/emma+xml"],
+    ["env", "application/x-envoy"],
+    ["eol", "audio/vnd.digital-winds"],
+    ["eot", "application/vnd.ms-fontobject"],
+    ["eps", "application/postscript"],
+    ["epub", "application/epub+zip"],
+    ["es", ["application/ecmascript", "application/x-esrehber"]],
+    ["es3", "application/vnd.eszigno3+xml"],
+    ["esf", "application/vnd.epson.esf"],
+    ["etx", "text/x-setext"],
+    ["evy", ["application/envoy", "application/x-envoy"]],
+    ["exe", ["application/octet-stream", "application/x-msdownload"]],
+    ["exi", "application/exi"],
+    ["ext", "application/vnd.novadigm.ext"],
+    ["ez2", "application/vnd.ezpix-album"],
+    ["ez3", "application/vnd.ezpix-package"],
+    ["f", ["text/plain", "text/x-fortran"]],
+    ["f4v", "video/x-f4v"],
+    ["f77", "text/x-fortran"],
+    ["f90", ["text/plain", "text/x-fortran"]],
+    ["fbs", "image/vnd.fastbidsheet"],
+    ["fcs", "application/vnd.isac.fcs"],
+    ["fdf", "application/vnd.fdf"],
+    ["fe_launch", "application/vnd.denovo.fcselayout-link"],
+    ["fg5", "application/vnd.fujitsu.oasysgp"],
+    ["fh", "image/x-freehand"],
+    ["fif", ["application/fractals", "image/fif"]],
+    ["fig", "application/x-xfig"],
+    ["fli", ["video/fli", "video/x-fli"]],
+    ["flo", ["image/florian", "application/vnd.micrografx.flo"]],
+    ["flr", "x-world/x-vrml"],
+    ["flv", "video/x-flv"],
+    ["flw", "application/vnd.kde.kivio"],
+    ["flx", "text/vnd.fmi.flexstor"],
+    ["fly", "text/vnd.fly"],
+    ["fm", "application/vnd.framemaker"],
+    ["fmf", "video/x-atomic3d-feature"],
+    ["fnc", "application/vnd.frogans.fnc"],
+    ["for", ["text/plain", "text/x-fortran"]],
+    ["fpx", ["image/vnd.fpx", "image/vnd.net-fpx"]],
+    ["frl", "application/freeloader"],
+    ["fsc", "application/vnd.fsc.weblaunch"],
+    ["fst", "image/vnd.fst"],
+    ["ftc", "application/vnd.fluxtime.clip"],
+    ["fti", "application/vnd.anser-web-funds-transfer-initiation"],
+    ["funk", "audio/make"],
+    ["fvt", "video/vnd.fvt"],
+    ["fxp", "application/vnd.adobe.fxp"],
+    ["fzs", "application/vnd.fuzzysheet"],
+    ["g", "text/plain"],
+    ["g2w", "application/vnd.geoplan"],
+    ["g3", "image/g3fax"],
+    ["g3w", "application/vnd.geospace"],
+    ["gac", "application/vnd.groove-account"],
+    ["gdl", "model/vnd.gdl"],
+    ["geo", "application/vnd.dynageo"],
+    ["geojson", "application/geo+json"],
+    ["gex", "application/vnd.geometry-explorer"],
+    ["ggb", "application/vnd.geogebra.file"],
+    ["ggt", "application/vnd.geogebra.tool"],
+    ["ghf", "application/vnd.groove-help"],
+    ["gif", "image/gif"],
+    ["gim", "application/vnd.groove-identity-message"],
+    ["gl", ["video/gl", "video/x-gl"]],
+    ["gmx", "application/vnd.gmx"],
+    ["gnumeric", "application/x-gnumeric"],
+    ["gph", "application/vnd.flographit"],
+    ["gqf", "application/vnd.grafeq"],
+    ["gram", "application/srgs"],
+    ["grv", "application/vnd.groove-injector"],
+    ["grxml", "application/srgs+xml"],
+    ["gsd", "audio/x-gsm"],
+    ["gsf", "application/x-font-ghostscript"],
+    ["gsm", "audio/x-gsm"],
+    ["gsp", "application/x-gsp"],
+    ["gss", "application/x-gss"],
+    ["gtar", "application/x-gtar"],
+    ["gtm", "application/vnd.groove-tool-message"],
+    ["gtw", "model/vnd.gtw"],
+    ["gv", "text/vnd.graphviz"],
+    ["gxt", "application/vnd.geonext"],
+    ["gz", ["application/x-gzip", "application/x-compressed"]],
+    ["gzip", ["multipart/x-gzip", "application/x-gzip"]],
+    ["h", ["text/plain", "text/x-h"]],
+    ["h261", "video/h261"],
+    ["h263", "video/h263"],
+    ["h264", "video/h264"],
+    ["hal", "application/vnd.hal+xml"],
+    ["hbci", "application/vnd.hbci"],
+    ["hdf", "application/x-hdf"],
+    ["help", "application/x-helpfile"],
+    ["hgl", "application/vnd.hp-hpgl"],
+    ["hh", ["text/plain", "text/x-h"]],
+    ["hlb", "text/x-script"],
+    ["hlp", ["application/winhlp", "application/hlp", "application/x-helpfile", "application/x-winhelp"]],
+    ["hpg", "application/vnd.hp-hpgl"],
+    ["hpgl", "application/vnd.hp-hpgl"],
+    ["hpid", "application/vnd.hp-hpid"],
+    ["hps", "application/vnd.hp-hps"],
+    [
+      "hqx",
+      [
+        "application/mac-binhex40",
+        "application/binhex",
+        "application/binhex4",
+        "application/mac-binhex",
+        "application/x-binhex40",
+        "application/x-mac-binhex40"
+      ]
+    ],
+    ["hta", "application/hta"],
+    ["htc", "text/x-component"],
+    ["htke", "application/vnd.kenameaapp"],
+    ["htm", "text/html"],
+    ["html", "text/html"],
+    ["htmls", "text/html"],
+    ["htt", "text/webviewhtml"],
+    ["htx", "text/html"],
+    ["hvd", "application/vnd.yamaha.hv-dic"],
+    ["hvp", "application/vnd.yamaha.hv-voice"],
+    ["hvs", "application/vnd.yamaha.hv-script"],
+    ["i2g", "application/vnd.intergeo"],
+    ["icc", "application/vnd.iccprofile"],
+    ["ice", "x-conference/x-cooltalk"],
+    ["ico", "image/x-icon"],
+    ["ics", "text/calendar"],
+    ["idc", "text/plain"],
+    ["ief", "image/ief"],
+    ["iefs", "image/ief"],
+    ["ifm", "application/vnd.shana.informed.formdata"],
+    ["iges", ["application/iges", "model/iges"]],
+    ["igl", "application/vnd.igloader"],
+    ["igm", "application/vnd.insors.igm"],
+    ["igs", ["application/iges", "model/iges"]],
+    ["igx", "application/vnd.micrografx.igx"],
+    ["iif", "application/vnd.shana.informed.interchange"],
+    ["iii", "application/x-iphone"],
+    ["ima", "application/x-ima"],
+    ["imap", "application/x-httpd-imap"],
+    ["imp", "application/vnd.accpac.simply.imp"],
+    ["ims", "application/vnd.ms-ims"],
+    ["inf", "application/inf"],
+    ["ins", ["application/x-internet-signup", "application/x-internett-signup"]],
+    ["ip", "application/x-ip2"],
+    ["ipfix", "application/ipfix"],
+    ["ipk", "application/vnd.shana.informed.package"],
+    ["irm", "application/vnd.ibm.rights-management"],
+    ["irp", "application/vnd.irepository.package+xml"],
+    ["isp", "application/x-internet-signup"],
+    ["isu", "video/x-isvideo"],
+    ["it", "audio/it"],
+    ["itp", "application/vnd.shana.informed.formtemplate"],
+    ["iv", "application/x-inventor"],
+    ["ivp", "application/vnd.immervision-ivp"],
+    ["ivr", "i-world/i-vrml"],
+    ["ivu", "application/vnd.immervision-ivu"],
+    ["ivy", "application/x-livescreen"],
+    ["jad", "text/vnd.sun.j2me.app-descriptor"],
+    ["jam", ["application/vnd.jam", "audio/x-jam"]],
+    ["jar", "application/java-archive"],
+    ["jav", ["text/plain", "text/x-java-source"]],
+    ["java", ["text/plain", "text/x-java-source,java", "text/x-java-source"]],
+    ["jcm", "application/x-java-commerce"],
+    ["jfif", ["image/pipeg", "image/jpeg", "image/pjpeg"]],
+    ["jfif-tbnl", "image/jpeg"],
+    ["jisp", "application/vnd.jisp"],
+    ["jlt", "application/vnd.hp-jlyt"],
+    ["jnlp", "application/x-java-jnlp-file"],
+    ["joda", "application/vnd.joost.joda-archive"],
+    ["jpe", ["image/jpeg", "image/pjpeg"]],
+    ["jpeg", ["image/jpeg", "image/pjpeg"]],
+    ["jpg", ["image/jpeg", "image/pjpeg"]],
+    ["jpgv", "video/jpeg"],
+    ["jpm", "video/jpm"],
+    ["jps", "image/x-jps"],
+    ["js", ["application/javascript", "application/ecmascript", "text/javascript", "text/ecmascript", "application/x-javascript"]],
+    ["json", "application/json"],
+    ["jut", "image/jutvision"],
+    ["kar", ["audio/midi", "music/x-karaoke"]],
+    ["karbon", "application/vnd.kde.karbon"],
+    ["kfo", "application/vnd.kde.kformula"],
+    ["kia", "application/vnd.kidspiration"],
+    ["kml", "application/vnd.google-earth.kml+xml"],
+    ["kmz", "application/vnd.google-earth.kmz"],
+    ["kne", "application/vnd.kinar"],
+    ["kon", "application/vnd.kde.kontour"],
+    ["kpr", "application/vnd.kde.kpresenter"],
+    ["ksh", ["application/x-ksh", "text/x-script.ksh"]],
+    ["ksp", "application/vnd.kde.kspread"],
+    ["ktx", "image/ktx"],
+    ["ktz", "application/vnd.kahootz"],
+    ["kwd", "application/vnd.kde.kword"],
+    ["la", ["audio/nspaudio", "audio/x-nspaudio"]],
+    ["lam", "audio/x-liveaudio"],
+    ["lasxml", "application/vnd.las.las+xml"],
+    ["latex", "application/x-latex"],
+    ["lbd", "application/vnd.llamagraphics.life-balance.desktop"],
+    ["lbe", "application/vnd.llamagraphics.life-balance.exchange+xml"],
+    ["les", "application/vnd.hhe.lesson-player"],
+    ["lha", ["application/octet-stream", "application/lha", "application/x-lha"]],
+    ["lhx", "application/octet-stream"],
+    ["link66", "application/vnd.route66.link66+xml"],
+    ["list", "text/plain"],
+    ["lma", ["audio/nspaudio", "audio/x-nspaudio"]],
+    ["log", "text/plain"],
+    ["lrm", "application/vnd.ms-lrm"],
+    ["lsf", "video/x-la-asf"],
+    ["lsp", ["application/x-lisp", "text/x-script.lisp"]],
+    ["lst", "text/plain"],
+    ["lsx", ["video/x-la-asf", "text/x-la-asf"]],
+    ["ltf", "application/vnd.frogans.ltf"],
+    ["ltx", "application/x-latex"],
+    ["lvp", "audio/vnd.lucent.voice"],
+    ["lwp", "application/vnd.lotus-wordpro"],
+    ["lzh", ["application/octet-stream", "application/x-lzh"]],
+    ["lzx", ["application/lzx", "application/octet-stream", "application/x-lzx"]],
+    ["m", ["text/plain", "text/x-m"]],
+    ["m13", "application/x-msmediaview"],
+    ["m14", "application/x-msmediaview"],
+    ["m1v", "video/mpeg"],
+    ["m21", "application/mp21"],
+    ["m2a", "audio/mpeg"],
+    ["m2v", "video/mpeg"],
+    ["m3u", ["audio/x-mpegurl", "audio/x-mpequrl"]],
+    ["m3u8", "application/vnd.apple.mpegurl"],
+    ["m4v", "video/x-m4v"],
+    ["ma", "application/mathematica"],
+    ["mads", "application/mads+xml"],
+    ["mag", "application/vnd.ecowin.chart"],
+    ["man", "application/x-troff-man"],
+    ["map", "application/x-navimap"],
+    ["mar", "text/plain"],
+    ["mathml", "application/mathml+xml"],
+    ["mbd", "application/mbedlet"],
+    ["mbk", "application/vnd.mobius.mbk"],
+    ["mbox", "application/mbox"],
+    ["mc$", "application/x-magic-cap-package-1.0"],
+    ["mc1", "application/vnd.medcalcdata"],
+    ["mcd", ["application/mcad", "application/vnd.mcd", "application/x-mathcad"]],
+    ["mcf", ["image/vasa", "text/mcf"]],
+    ["mcp", "application/netmc"],
+    ["mcurl", "text/vnd.curl.mcurl"],
+    ["mdb", "application/x-msaccess"],
+    ["mdi", "image/vnd.ms-modi"],
+    ["me", "application/x-troff-me"],
+    ["meta4", "application/metalink4+xml"],
+    ["mets", "application/mets+xml"],
+    ["mfm", "application/vnd.mfmp"],
+    ["mgp", "application/vnd.osgeo.mapguide.package"],
+    ["mgz", "application/vnd.proteus.magazine"],
+    ["mht", "message/rfc822"],
+    ["mhtml", "message/rfc822"],
+    ["mid", ["audio/mid", "audio/midi", "music/crescendo", "x-music/x-midi", "audio/x-midi", "application/x-midi", "audio/x-mid"]],
+    ["midi", ["audio/midi", "music/crescendo", "x-music/x-midi", "audio/x-midi", "application/x-midi", "audio/x-mid"]],
+    ["mif", ["application/vnd.mif", "application/x-mif", "application/x-frame"]],
+    ["mime", ["message/rfc822", "www/mime"]],
+    ["mj2", "video/mj2"],
+    ["mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"],
+    ["mjpg", "video/x-motion-jpeg"],
+    ["mlp", "application/vnd.dolby.mlp"],
+    ["mm", ["application/base64", "application/x-meme"]],
+    ["mmd", "application/vnd.chipnuts.karaoke-mmd"],
+    ["mme", "application/base64"],
+    ["mmf", "application/vnd.smaf"],
+    ["mmr", "image/vnd.fujixerox.edmics-mmr"],
+    ["mny", "application/x-msmoney"],
+    ["mod", ["audio/mod", "audio/x-mod"]],
+    ["mods", "application/mods+xml"],
+    ["moov", "video/quicktime"],
+    ["mov", "video/quicktime"],
+    ["movie", "video/x-sgi-movie"],
+    ["mp2", ["video/mpeg", "audio/mpeg", "video/x-mpeg", "audio/x-mpeg", "video/x-mpeq2a"]],
+    ["mp3", ["audio/mpeg", "audio/mpeg3", "video/mpeg", "audio/x-mpeg-3", "video/x-mpeg"]],
+    ["mp4", ["video/mp4", "application/mp4"]],
+    ["mp4a", "audio/mp4"],
+    ["mpa", ["video/mpeg", "audio/mpeg"]],
+    ["mpc", ["application/vnd.mophun.certificate", "application/x-project"]],
+    ["mpe", "video/mpeg"],
+    ["mpeg", "video/mpeg"],
+    ["mpg", ["video/mpeg", "audio/mpeg"]],
+    ["mpga", "audio/mpeg"],
+    ["mpkg", "application/vnd.apple.installer+xml"],
+    ["mpm", "application/vnd.blueice.multipass"],
+    ["mpn", "application/vnd.mophun.application"],
+    ["mpp", "application/vnd.ms-project"],
+    ["mpt", "application/x-project"],
+    ["mpv", "application/x-project"],
+    ["mpv2", "video/mpeg"],
+    ["mpx", "application/x-project"],
+    ["mpy", "application/vnd.ibm.minipay"],
+    ["mqy", "application/vnd.mobius.mqy"],
+    ["mrc", "application/marc"],
+    ["mrcx", "application/marcxml+xml"],
+    ["ms", "application/x-troff-ms"],
+    ["mscml", "application/mediaservercontrol+xml"],
+    ["mseq", "application/vnd.mseq"],
+    ["msf", "application/vnd.epson.msf"],
+    ["msg", "application/vnd.ms-outlook"],
+    ["msh", "model/mesh"],
+    ["msl", "application/vnd.mobius.msl"],
+    ["msty", "application/vnd.muvee.style"],
+    ["mts", "model/vnd.mts"],
+    ["mus", "application/vnd.musician"],
+    ["musicxml", "application/vnd.recordare.musicxml+xml"],
+    ["mv", "video/x-sgi-movie"],
+    ["mvb", "application/x-msmediaview"],
+    ["mwf", "application/vnd.mfer"],
+    ["mxf", "application/mxf"],
+    ["mxl", "application/vnd.recordare.musicxml"],
+    ["mxml", "application/xv+xml"],
+    ["mxs", "application/vnd.triscape.mxs"],
+    ["mxu", "video/vnd.mpegurl"],
+    ["my", "audio/make"],
+    ["mzz", "application/x-vnd.audioexplosion.mzz"],
+    ["n-gage", "application/vnd.nokia.n-gage.symbian.install"],
+    ["n3", "text/n3"],
+    ["nap", "image/naplps"],
+    ["naplps", "image/naplps"],
+    ["nbp", "application/vnd.wolfram.player"],
+    ["nc", "application/x-netcdf"],
+    ["ncm", "application/vnd.nokia.configuration-message"],
+    ["ncx", "application/x-dtbncx+xml"],
+    ["ngdat", "application/vnd.nokia.n-gage.data"],
+    ["nif", "image/x-niff"],
+    ["niff", "image/x-niff"],
+    ["nix", "application/x-mix-transfer"],
+    ["nlu", "application/vnd.neurolanguage.nlu"],
+    ["nml", "application/vnd.enliven"],
+    ["nnd", "application/vnd.noblenet-directory"],
+    ["nns", "application/vnd.noblenet-sealer"],
+    ["nnw", "application/vnd.noblenet-web"],
+    ["npx", "image/vnd.net-fpx"],
+    ["nsc", "application/x-conference"],
+    ["nsf", "application/vnd.lotus-notes"],
+    ["nvd", "application/x-navidoc"],
+    ["nws", "message/rfc822"],
+    ["o", "application/octet-stream"],
+    ["oa2", "application/vnd.fujitsu.oasys2"],
+    ["oa3", "application/vnd.fujitsu.oasys3"],
+    ["oas", "application/vnd.fujitsu.oasys"],
+    ["obd", "application/x-msbinder"],
+    ["oda", "application/oda"],
+    ["odb", "application/vnd.oasis.opendocument.database"],
+    ["odc", "application/vnd.oasis.opendocument.chart"],
+    ["odf", "application/vnd.oasis.opendocument.formula"],
+    ["odft", "application/vnd.oasis.opendocument.formula-template"],
+    ["odg", "application/vnd.oasis.opendocument.graphics"],
+    ["odi", "application/vnd.oasis.opendocument.image"],
+    ["odm", "application/vnd.oasis.opendocument.text-master"],
+    ["odp", "application/vnd.oasis.opendocument.presentation"],
+    ["ods", "application/vnd.oasis.opendocument.spreadsheet"],
+    ["odt", "application/vnd.oasis.opendocument.text"],
+    ["oga", "audio/ogg"],
+    ["ogv", "video/ogg"],
+    ["ogx", "application/ogg"],
+    ["omc", "application/x-omc"],
+    ["omcd", "application/x-omcdatamaker"],
+    ["omcr", "application/x-omcregerator"],
+    ["onetoc", "application/onenote"],
+    ["opf", "application/oebps-package+xml"],
+    ["org", "application/vnd.lotus-organizer"],
+    ["osf", "application/vnd.yamaha.openscoreformat"],
+    ["osfpvg", "application/vnd.yamaha.openscoreformat.osfpvg+xml"],
+    ["otc", "application/vnd.oasis.opendocument.chart-template"],
+    ["otf", "application/x-font-otf"],
+    ["otg", "application/vnd.oasis.opendocument.graphics-template"],
+    ["oth", "application/vnd.oasis.opendocument.text-web"],
+    ["oti", "application/vnd.oasis.opendocument.image-template"],
+    ["otp", "application/vnd.oasis.opendocument.presentation-template"],
+    ["ots", "application/vnd.oasis.opendocument.spreadsheet-template"],
+    ["ott", "application/vnd.oasis.opendocument.text-template"],
+    ["oxt", "application/vnd.openofficeorg.extension"],
+    ["p", "text/x-pascal"],
+    ["p10", ["application/pkcs10", "application/x-pkcs10"]],
+    ["p12", ["application/pkcs-12", "application/x-pkcs12"]],
+    ["p7a", "application/x-pkcs7-signature"],
+    ["p7b", "application/x-pkcs7-certificates"],
+    ["p7c", ["application/pkcs7-mime", "application/x-pkcs7-mime"]],
+    ["p7m", ["application/pkcs7-mime", "application/x-pkcs7-mime"]],
+    ["p7r", "application/x-pkcs7-certreqresp"],
+    ["p7s", ["application/pkcs7-signature", "application/x-pkcs7-signature"]],
+    ["p8", "application/pkcs8"],
+    ["par", "text/plain-bas"],
+    ["part", "application/pro_eng"],
+    ["pas", "text/pascal"],
+    ["paw", "application/vnd.pawaafile"],
+    ["pbd", "application/vnd.powerbuilder6"],
+    ["pbm", "image/x-portable-bitmap"],
+    ["pcf", "application/x-font-pcf"],
+    ["pcl", ["application/vnd.hp-pcl", "application/x-pcl"]],
+    ["pclxl", "application/vnd.hp-pclxl"],
+    ["pct", "image/x-pict"],
+    ["pcurl", "application/vnd.curl.pcurl"],
+    ["pcx", "image/x-pcx"],
+    ["pdb", ["application/vnd.palm", "chemical/x-pdb"]],
+    ["pdf", "application/pdf"],
+    ["pfa", "application/x-font-type1"],
+    ["pfr", "application/font-tdpfr"],
+    ["pfunk", ["audio/make", "audio/make.my.funk"]],
+    ["pfx", "application/x-pkcs12"],
+    ["pgm", ["image/x-portable-graymap", "image/x-portable-greymap"]],
+    ["pgn", "application/x-chess-pgn"],
+    ["pgp", "application/pgp-signature"],
+    ["pic", ["image/pict", "image/x-pict"]],
+    ["pict", "image/pict"],
+    ["pkg", "application/x-newton-compatible-pkg"],
+    ["pki", "application/pkixcmp"],
+    ["pkipath", "application/pkix-pkipath"],
+    ["pko", ["application/ynd.ms-pkipko", "application/vnd.ms-pki.pko"]],
+    ["pl", ["text/plain", "text/x-script.perl"]],
+    ["plb", "application/vnd.3gpp.pic-bw-large"],
+    ["plc", "application/vnd.mobius.plc"],
+    ["plf", "application/vnd.pocketlearn"],
+    ["pls", "application/pls+xml"],
+    ["plx", "application/x-pixclscript"],
+    ["pm", ["text/x-script.perl-module", "image/x-xpixmap"]],
+    ["pm4", "application/x-pagemaker"],
+    ["pm5", "application/x-pagemaker"],
+    ["pma", "application/x-perfmon"],
+    ["pmc", "application/x-perfmon"],
+    ["pml", ["application/vnd.ctc-posml", "application/x-perfmon"]],
+    ["pmr", "application/x-perfmon"],
+    ["pmw", "application/x-perfmon"],
+    ["png", "image/png"],
+    ["pnm", ["application/x-portable-anymap", "image/x-portable-anymap"]],
+    ["portpkg", "application/vnd.macports.portpkg"],
+    ["pot", ["application/vnd.ms-powerpoint", "application/mspowerpoint"]],
+    ["potm", "application/vnd.ms-powerpoint.template.macroenabled.12"],
+    ["potx", "application/vnd.openxmlformats-officedocument.presentationml.template"],
+    ["pov", "model/x-pov"],
+    ["ppa", "application/vnd.ms-powerpoint"],
+    ["ppam", "application/vnd.ms-powerpoint.addin.macroenabled.12"],
+    ["ppd", "application/vnd.cups-ppd"],
+    ["ppm", "image/x-portable-pixmap"],
+    ["pps", ["application/vnd.ms-powerpoint", "application/mspowerpoint"]],
+    ["ppsm", "application/vnd.ms-powerpoint.slideshow.macroenabled.12"],
+    ["ppsx", "application/vnd.openxmlformats-officedocument.presentationml.slideshow"],
+    ["ppt", ["application/vnd.ms-powerpoint", "application/mspowerpoint", "application/powerpoint", "application/x-mspowerpoint"]],
+    ["pptm", "application/vnd.ms-powerpoint.presentation.macroenabled.12"],
+    ["pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+    ["ppz", "application/mspowerpoint"],
+    ["prc", "application/x-mobipocket-ebook"],
+    ["pre", ["application/vnd.lotus-freelance", "application/x-freelance"]],
+    ["prf", "application/pics-rules"],
+    ["prt", "application/pro_eng"],
+    ["ps", "application/postscript"],
+    ["psb", "application/vnd.3gpp.pic-bw-small"],
+    ["psd", ["application/octet-stream", "image/vnd.adobe.photoshop"]],
+    ["psf", "application/x-font-linux-psf"],
+    ["pskcxml", "application/pskc+xml"],
+    ["ptid", "application/vnd.pvi.ptid1"],
+    ["pub", "application/x-mspublisher"],
+    ["pvb", "application/vnd.3gpp.pic-bw-var"],
+    ["pvu", "paleovu/x-pv"],
+    ["pwn", "application/vnd.3m.post-it-notes"],
+    ["pwz", "application/vnd.ms-powerpoint"],
+    ["py", "text/x-script.phyton"],
+    ["pya", "audio/vnd.ms-playready.media.pya"],
+    ["pyc", "application/x-bytecode.python"],
+    ["pyv", "video/vnd.ms-playready.media.pyv"],
+    ["qam", "application/vnd.epson.quickanime"],
+    ["qbo", "application/vnd.intu.qbo"],
+    ["qcp", "audio/vnd.qcelp"],
+    ["qd3", "x-world/x-3dmf"],
+    ["qd3d", "x-world/x-3dmf"],
+    ["qfx", "application/vnd.intu.qfx"],
+    ["qif", "image/x-quicktime"],
+    ["qps", "application/vnd.publishare-delta-tree"],
+    ["qt", "video/quicktime"],
+    ["qtc", "video/x-qtc"],
+    ["qti", "image/x-quicktime"],
+    ["qtif", "image/x-quicktime"],
+    ["qxd", "application/vnd.quark.quarkxpress"],
+    ["ra", ["audio/x-realaudio", "audio/x-pn-realaudio", "audio/x-pn-realaudio-plugin"]],
+    ["ram", "audio/x-pn-realaudio"],
+    ["rar", "application/x-rar-compressed"],
+    ["ras", ["image/cmu-raster", "application/x-cmu-raster", "image/x-cmu-raster"]],
+    ["rast", "image/cmu-raster"],
+    ["rcprofile", "application/vnd.ipunplugged.rcprofile"],
+    ["rdf", "application/rdf+xml"],
+    ["rdz", "application/vnd.data-vision.rdz"],
+    ["rep", "application/vnd.businessobjects"],
+    ["res", "application/x-dtbresource+xml"],
+    ["rexx", "text/x-script.rexx"],
+    ["rf", "image/vnd.rn-realflash"],
+    ["rgb", "image/x-rgb"],
+    ["rif", "application/reginfo+xml"],
+    ["rip", "audio/vnd.rip"],
+    ["rl", "application/resource-lists+xml"],
+    ["rlc", "image/vnd.fujixerox.edmics-rlc"],
+    ["rld", "application/resource-lists-diff+xml"],
+    ["rm", ["application/vnd.rn-realmedia", "audio/x-pn-realaudio"]],
+    ["rmi", "audio/mid"],
+    ["rmm", "audio/x-pn-realaudio"],
+    ["rmp", ["audio/x-pn-realaudio-plugin", "audio/x-pn-realaudio"]],
+    ["rms", "application/vnd.jcp.javame.midlet-rms"],
+    ["rnc", "application/relax-ng-compact-syntax"],
+    ["rng", ["application/ringing-tones", "application/vnd.nokia.ringing-tone"]],
+    ["rnx", "application/vnd.rn-realplayer"],
+    ["roff", "application/x-troff"],
+    ["rp", "image/vnd.rn-realpix"],
+    ["rp9", "application/vnd.cloanto.rp9"],
+    ["rpm", "audio/x-pn-realaudio-plugin"],
+    ["rpss", "application/vnd.nokia.radio-presets"],
+    ["rpst", "application/vnd.nokia.radio-preset"],
+    ["rq", "application/sparql-query"],
+    ["rs", "application/rls-services+xml"],
+    ["rsd", "application/rsd+xml"],
+    ["rt", ["text/richtext", "text/vnd.rn-realtext"]],
+    ["rtf", ["application/rtf", "text/richtext", "application/x-rtf"]],
+    ["rtx", ["text/richtext", "application/rtf"]],
+    ["rv", "video/vnd.rn-realvideo"],
+    ["s", "text/x-asm"],
+    ["s3m", "audio/s3m"],
+    ["saf", "application/vnd.yamaha.smaf-audio"],
+    ["saveme", "application/octet-stream"],
+    ["sbk", "application/x-tbook"],
+    ["sbml", "application/sbml+xml"],
+    ["sc", "application/vnd.ibm.secure-container"],
+    ["scd", "application/x-msschedule"],
+    [
+      "scm",
+      ["application/vnd.lotus-screencam", "video/x-scm", "text/x-script.guile", "application/x-lotusscreencam", "text/x-script.scheme"]
+    ],
+    ["scq", "application/scvp-cv-request"],
+    ["scs", "application/scvp-cv-response"],
+    ["sct", "text/scriptlet"],
+    ["scurl", "text/vnd.curl.scurl"],
+    ["sda", "application/vnd.stardivision.draw"],
+    ["sdc", "application/vnd.stardivision.calc"],
+    ["sdd", "application/vnd.stardivision.impress"],
+    ["sdkm", "application/vnd.solent.sdkm+xml"],
+    ["sdml", "text/plain"],
+    ["sdp", ["application/sdp", "application/x-sdp"]],
+    ["sdr", "application/sounder"],
+    ["sdw", "application/vnd.stardivision.writer"],
+    ["sea", ["application/sea", "application/x-sea"]],
+    ["see", "application/vnd.seemail"],
+    ["seed", "application/vnd.fdsn.seed"],
+    ["sema", "application/vnd.sema"],
+    ["semd", "application/vnd.semd"],
+    ["semf", "application/vnd.semf"],
+    ["ser", "application/java-serialized-object"],
+    ["set", "application/set"],
+    ["setpay", "application/set-payment-initiation"],
+    ["setreg", "application/set-registration-initiation"],
+    ["sfd-hdstx", "application/vnd.hydrostatix.sof-data"],
+    ["sfs", "application/vnd.spotfire.sfs"],
+    ["sgl", "application/vnd.stardivision.writer-global"],
+    ["sgm", ["text/sgml", "text/x-sgml"]],
+    ["sgml", ["text/sgml", "text/x-sgml"]],
+    ["sh", ["application/x-shar", "application/x-bsh", "application/x-sh", "text/x-script.sh"]],
+    ["shar", ["application/x-bsh", "application/x-shar"]],
+    ["shf", "application/shf+xml"],
+    ["shtml", ["text/html", "text/x-server-parsed-html"]],
+    ["sid", "audio/x-psid"],
+    ["sis", "application/vnd.symbian.install"],
+    ["sit", ["application/x-stuffit", "application/x-sit"]],
+    ["sitx", "application/x-stuffitx"],
+    ["skd", "application/x-koan"],
+    ["skm", "application/x-koan"],
+    ["skp", ["application/vnd.koan", "application/x-koan"]],
+    ["skt", "application/x-koan"],
+    ["sl", "application/x-seelogo"],
+    ["sldm", "application/vnd.ms-powerpoint.slide.macroenabled.12"],
+    ["sldx", "application/vnd.openxmlformats-officedocument.presentationml.slide"],
+    ["slt", "application/vnd.epson.salt"],
+    ["sm", "application/vnd.stepmania.stepchart"],
+    ["smf", "application/vnd.stardivision.math"],
+    ["smi", ["application/smil", "application/smil+xml"]],
+    ["smil", "application/smil"],
+    ["snd", ["audio/basic", "audio/x-adpcm"]],
+    ["snf", "application/x-font-snf"],
+    ["sol", "application/solids"],
+    ["spc", ["text/x-speech", "application/x-pkcs7-certificates"]],
+    ["spf", "application/vnd.yamaha.smaf-phrase"],
+    ["spl", ["application/futuresplash", "application/x-futuresplash"]],
+    ["spot", "text/vnd.in3d.spot"],
+    ["spp", "application/scvp-vp-response"],
+    ["spq", "application/scvp-vp-request"],
+    ["spr", "application/x-sprite"],
+    ["sprite", "application/x-sprite"],
+    ["src", "application/x-wais-source"],
+    ["sru", "application/sru+xml"],
+    ["srx", "application/sparql-results+xml"],
+    ["sse", "application/vnd.kodak-descriptor"],
+    ["ssf", "application/vnd.epson.ssf"],
+    ["ssi", "text/x-server-parsed-html"],
+    ["ssm", "application/streamingmedia"],
+    ["ssml", "application/ssml+xml"],
+    ["sst", ["application/vnd.ms-pkicertstore", "application/vnd.ms-pki.certstore"]],
+    ["st", "application/vnd.sailingtracker.track"],
+    ["stc", "application/vnd.sun.xml.calc.template"],
+    ["std", "application/vnd.sun.xml.draw.template"],
+    ["step", "application/step"],
+    ["stf", "application/vnd.wt.stf"],
+    ["sti", "application/vnd.sun.xml.impress.template"],
+    ["stk", "application/hyperstudio"],
+    ["stl", ["application/vnd.ms-pkistl", "application/sla", "application/vnd.ms-pki.stl", "application/x-navistyle"]],
+    ["stm", "text/html"],
+    ["stp", "application/step"],
+    ["str", "application/vnd.pg.format"],
+    ["stw", "application/vnd.sun.xml.writer.template"],
+    ["sub", "image/vnd.dvb.subtitle"],
+    ["sus", "application/vnd.sus-calendar"],
+    ["sv4cpio", "application/x-sv4cpio"],
+    ["sv4crc", "application/x-sv4crc"],
+    ["svc", "application/vnd.dvb.service"],
+    ["svd", "application/vnd.svd"],
+    ["svf", ["image/vnd.dwg", "image/x-dwg"]],
+    ["svg", "image/svg+xml"],
+    ["svr", ["x-world/x-svr", "application/x-world"]],
+    ["swf", "application/x-shockwave-flash"],
+    ["swi", "application/vnd.aristanetworks.swi"],
+    ["sxc", "application/vnd.sun.xml.calc"],
+    ["sxd", "application/vnd.sun.xml.draw"],
+    ["sxg", "application/vnd.sun.xml.writer.global"],
+    ["sxi", "application/vnd.sun.xml.impress"],
+    ["sxm", "application/vnd.sun.xml.math"],
+    ["sxw", "application/vnd.sun.xml.writer"],
+    ["t", ["text/troff", "application/x-troff"]],
+    ["talk", "text/x-speech"],
+    ["tao", "application/vnd.tao.intent-module-archive"],
+    ["tar", "application/x-tar"],
+    ["tbk", ["application/toolbook", "application/x-tbook"]],
+    ["tcap", "application/vnd.3gpp2.tcap"],
+    ["tcl", ["text/x-script.tcl", "application/x-tcl"]],
+    ["tcsh", "text/x-script.tcsh"],
+    ["teacher", "application/vnd.smart.teacher"],
+    ["tei", "application/tei+xml"],
+    ["tex", "application/x-tex"],
+    ["texi", "application/x-texinfo"],
+    ["texinfo", "application/x-texinfo"],
+    ["text", ["application/plain", "text/plain"]],
+    ["tfi", "application/thraud+xml"],
+    ["tfm", "application/x-tex-tfm"],
+    ["tgz", ["application/gnutar", "application/x-compressed"]],
+    ["thmx", "application/vnd.ms-officetheme"],
+    ["tif", ["image/tiff", "image/x-tiff"]],
+    ["tiff", ["image/tiff", "image/x-tiff"]],
+    ["tmo", "application/vnd.tmobile-livetv"],
+    ["torrent", "application/x-bittorrent"],
+    ["tpl", "application/vnd.groove-tool-template"],
+    ["tpt", "application/vnd.trid.tpt"],
+    ["tr", "application/x-troff"],
+    ["tra", "application/vnd.trueapp"],
+    ["trm", "application/x-msterminal"],
+    ["tsd", "application/timestamped-data"],
+    ["tsi", "audio/tsp-audio"],
+    ["tsp", ["application/dsptype", "audio/tsplayer"]],
+    ["tsv", "text/tab-separated-values"],
+    ["ttf", "application/x-font-ttf"],
+    ["ttl", "text/turtle"],
+    ["turbot", "image/florian"],
+    ["twd", "application/vnd.simtech-mindmapper"],
+    ["txd", "application/vnd.genomatix.tuxedo"],
+    ["txf", "application/vnd.mobius.txf"],
+    ["txt", "text/plain"],
+    ["ufd", "application/vnd.ufdl"],
+    ["uil", "text/x-uil"],
+    ["uls", "text/iuls"],
+    ["umj", "application/vnd.umajin"],
+    ["uni", "text/uri-list"],
+    ["unis", "text/uri-list"],
+    ["unityweb", "application/vnd.unity"],
+    ["unv", "application/i-deas"],
+    ["uoml", "application/vnd.uoml+xml"],
+    ["uri", "text/uri-list"],
+    ["uris", "text/uri-list"],
+    ["ustar", ["application/x-ustar", "multipart/x-ustar"]],
+    ["utz", "application/vnd.uiq.theme"],
+    ["uu", ["application/octet-stream", "text/x-uuencode"]],
+    ["uue", "text/x-uuencode"],
+    ["uva", "audio/vnd.dece.audio"],
+    ["uvh", "video/vnd.dece.hd"],
+    ["uvi", "image/vnd.dece.graphic"],
+    ["uvm", "video/vnd.dece.mobile"],
+    ["uvp", "video/vnd.dece.pd"],
+    ["uvs", "video/vnd.dece.sd"],
+    ["uvu", "video/vnd.uvvu.mp4"],
+    ["uvv", "video/vnd.dece.video"],
+    ["vcd", "application/x-cdlink"],
+    ["vcf", "text/x-vcard"],
+    ["vcg", "application/vnd.groove-vcard"],
+    ["vcs", "text/x-vcalendar"],
+    ["vcx", "application/vnd.vcx"],
+    ["vda", "application/vda"],
+    ["vdo", "video/vdo"],
+    ["vew", "application/groupwise"],
+    ["vis", "application/vnd.visionary"],
+    ["viv", ["video/vivo", "video/vnd.vivo"]],
+    ["vivo", ["video/vivo", "video/vnd.vivo"]],
+    ["vmd", "application/vocaltec-media-desc"],
+    ["vmf", "application/vocaltec-media-file"],
+    ["voc", ["audio/voc", "audio/x-voc"]],
+    ["vos", "video/vosaic"],
+    ["vox", "audio/voxware"],
+    ["vqe", "audio/x-twinvq-plugin"],
+    ["vqf", "audio/x-twinvq"],
+    ["vql", "audio/x-twinvq-plugin"],
+    ["vrml", ["model/vrml", "x-world/x-vrml", "application/x-vrml"]],
+    ["vrt", "x-world/x-vrt"],
+    ["vsd", ["application/vnd.visio", "application/x-visio"]],
+    ["vsf", "application/vnd.vsf"],
+    ["vst", "application/x-visio"],
+    ["vsw", "application/x-visio"],
+    ["vtu", "model/vnd.vtu"],
+    ["vxml", "application/voicexml+xml"],
+    ["w60", "application/wordperfect6.0"],
+    ["w61", "application/wordperfect6.1"],
+    ["w6w", "application/msword"],
+    ["wad", "application/x-doom"],
+    ["wav", ["audio/wav", "audio/x-wav"]],
+    ["wax", "audio/x-ms-wax"],
+    ["wb1", "application/x-qpro"],
+    ["wbmp", "image/vnd.wap.wbmp"],
+    ["wbs", "application/vnd.criticaltools.wbs+xml"],
+    ["wbxml", "application/vnd.wap.wbxml"],
+    ["wcm", "application/vnd.ms-works"],
+    ["wdb", "application/vnd.ms-works"],
+    ["web", "application/vnd.xara"],
+    ["weba", "audio/webm"],
+    ["webm", "video/webm"],
+    ["webp", "image/webp"],
+    ["wg", "application/vnd.pmi.widget"],
+    ["wgt", "application/widget"],
+    ["wiz", "application/msword"],
+    ["wk1", "application/x-123"],
+    ["wks", "application/vnd.ms-works"],
+    ["wm", "video/x-ms-wm"],
+    ["wma", "audio/x-ms-wma"],
+    ["wmd", "application/x-ms-wmd"],
+    ["wmf", ["windows/metafile", "application/x-msmetafile"]],
+    ["wml", "text/vnd.wap.wml"],
+    ["wmlc", "application/vnd.wap.wmlc"],
+    ["wmls", "text/vnd.wap.wmlscript"],
+    ["wmlsc", "application/vnd.wap.wmlscriptc"],
+    ["wmv", "video/x-ms-wmv"],
+    ["wmx", "video/x-ms-wmx"],
+    ["wmz", "application/x-ms-wmz"],
+    ["woff", "application/x-font-woff"],
+    ["word", "application/msword"],
+    ["wp", "application/wordperfect"],
+    ["wp5", ["application/wordperfect", "application/wordperfect6.0"]],
+    ["wp6", "application/wordperfect"],
+    ["wpd", ["application/wordperfect", "application/vnd.wordperfect", "application/x-wpwin"]],
+    ["wpl", "application/vnd.ms-wpl"],
+    ["wps", "application/vnd.ms-works"],
+    ["wq1", "application/x-lotus"],
+    ["wqd", "application/vnd.wqd"],
+    ["wri", ["application/mswrite", "application/x-wri", "application/x-mswrite"]],
+    ["wrl", ["model/vrml", "x-world/x-vrml", "application/x-world"]],
+    ["wrz", ["model/vrml", "x-world/x-vrml"]],
+    ["wsc", "text/scriplet"],
+    ["wsdl", "application/wsdl+xml"],
+    ["wspolicy", "application/wspolicy+xml"],
+    ["wsrc", "application/x-wais-source"],
+    ["wtb", "application/vnd.webturbo"],
+    ["wtk", "application/x-wintalk"],
+    ["wvx", "video/x-ms-wvx"],
+    ["x-png", "image/png"],
+    ["x3d", "application/vnd.hzn-3d-crossword"],
+    ["xaf", "x-world/x-vrml"],
+    ["xap", "application/x-silverlight-app"],
+    ["xar", "application/vnd.xara"],
+    ["xbap", "application/x-ms-xbap"],
+    ["xbd", "application/vnd.fujixerox.docuworks.binder"],
+    ["xbm", ["image/xbm", "image/x-xbm", "image/x-xbitmap"]],
+    ["xdf", "application/xcap-diff+xml"],
+    ["xdm", "application/vnd.syncml.dm+xml"],
+    ["xdp", "application/vnd.adobe.xdp+xml"],
+    ["xdr", "video/x-amt-demorun"],
+    ["xdssc", "application/dssc+xml"],
+    ["xdw", "application/vnd.fujixerox.docuworks"],
+    ["xenc", "application/xenc+xml"],
+    ["xer", "application/patch-ops-error+xml"],
+    ["xfdf", "application/vnd.adobe.xfdf"],
+    ["xfdl", "application/vnd.xfdl"],
+    ["xgz", "xgl/drawing"],
+    ["xhtml", "application/xhtml+xml"],
+    ["xif", "image/vnd.xiff"],
+    ["xl", "application/excel"],
+    ["xla", ["application/vnd.ms-excel", "application/excel", "application/x-msexcel", "application/x-excel"]],
+    ["xlam", "application/vnd.ms-excel.addin.macroenabled.12"],
+    ["xlb", ["application/excel", "application/vnd.ms-excel", "application/x-excel"]],
+    ["xlc", ["application/vnd.ms-excel", "application/excel", "application/x-excel"]],
+    ["xld", ["application/excel", "application/x-excel"]],
+    ["xlk", ["application/excel", "application/x-excel"]],
+    ["xll", ["application/excel", "application/vnd.ms-excel", "application/x-excel"]],
+    ["xlm", ["application/vnd.ms-excel", "application/excel", "application/x-excel"]],
+    ["xls", ["application/vnd.ms-excel", "application/excel", "application/x-msexcel", "application/x-excel"]],
+    ["xlsb", "application/vnd.ms-excel.sheet.binary.macroenabled.12"],
+    ["xlsm", "application/vnd.ms-excel.sheet.macroenabled.12"],
+    ["xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+    ["xlt", ["application/vnd.ms-excel", "application/excel", "application/x-excel"]],
+    ["xltm", "application/vnd.ms-excel.template.macroenabled.12"],
+    ["xltx", "application/vnd.openxmlformats-officedocument.spreadsheetml.template"],
+    ["xlv", ["application/excel", "application/x-excel"]],
+    ["xlw", ["application/vnd.ms-excel", "application/excel", "application/x-msexcel", "application/x-excel"]],
+    ["xm", "audio/xm"],
+    ["xml", ["application/xml", "text/xml", "application/atom+xml", "application/rss+xml"]],
+    ["xmz", "xgl/movie"],
+    ["xo", "application/vnd.olpc-sugar"],
+    ["xof", "x-world/x-vrml"],
+    ["xop", "application/xop+xml"],
+    ["xpi", "application/x-xpinstall"],
+    ["xpix", "application/x-vnd.ls-xpix"],
+    ["xpm", ["image/xpm", "image/x-xpixmap"]],
+    ["xpr", "application/vnd.is-xpr"],
+    ["xps", "application/vnd.ms-xpsdocument"],
+    ["xpw", "application/vnd.intercon.formnet"],
+    ["xslt", "application/xslt+xml"],
+    ["xsm", "application/vnd.syncml+xml"],
+    ["xspf", "application/xspf+xml"],
+    ["xsr", "video/x-amt-showrun"],
+    ["xul", "application/vnd.mozilla.xul+xml"],
+    ["xwd", ["image/x-xwd", "image/x-xwindowdump"]],
+    ["xyz", ["chemical/x-xyz", "chemical/x-pdb"]],
+    ["yang", "application/yang"],
+    ["yin", "application/yin+xml"],
+    ["z", ["application/x-compressed", "application/x-compress"]],
+    ["zaz", "application/vnd.zzazz.deck+xml"],
+    ["zip", ["application/zip", "multipart/x-zip", "application/x-zip-compressed", "application/x-compressed"]],
+    ["zir", "application/vnd.zul"],
+    ["zmm", "application/vnd.handheld-entertainment+xml"],
+    ["zoo", "application/octet-stream"],
+    ["zsh", "text/x-script.zsh"]
+  ]);
+  mimeTypes_1 = {
+    detectMimeType(filename) {
+      if (!filename) {
+        return defaultMimeType;
+      }
+      let parsed = path$1.parse(filename);
+      let extension = (parsed.ext.substr(1) || parsed.name || "").split("?").shift().trim().toLowerCase();
+      let value = defaultMimeType;
+      if (extensions.has(extension)) {
+        value = extensions.get(extension);
+      }
+      if (Array.isArray(value)) {
+        return value[0];
+      }
+      return value;
+    },
+    detectExtension(mimeType) {
+      if (!mimeType) {
+        return defaultExtension;
+      }
+      let parts = (mimeType || "").toLowerCase().trim().split("/");
+      let rootType = parts.shift().trim();
+      let subType = parts.join("/").trim();
+      if (mimeTypes.has(rootType + "/" + subType)) {
+        let value = mimeTypes.get(rootType + "/" + subType);
+        if (Array.isArray(value)) {
+          return value[0];
+        }
+        return value;
+      }
+      switch (rootType) {
+        case "text":
+          return "txt";
+        default:
+          return "bin";
+      }
+    }
+  };
+  return mimeTypes_1;
+}
+var punycode_1;
+var hasRequiredPunycode;
+function requirePunycode() {
+  if (hasRequiredPunycode) return punycode_1;
+  hasRequiredPunycode = 1;
+  const maxInt = 2147483647;
+  const base = 36;
+  const tMin = 1;
+  const tMax = 26;
+  const skew = 38;
+  const damp = 700;
+  const initialBias = 72;
+  const initialN = 128;
+  const delimiter = "-";
+  const regexPunycode = /^xn--/;
+  const regexNonASCII = /[^\0-\x7F]/;
+  const regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g;
+  const errors2 = {
+    overflow: "Overflow: input needs wider integers to process",
+    "not-basic": "Illegal input >= 0x80 (not a basic code point)",
+    "invalid-input": "Invalid input"
+  };
+  const baseMinusTMin = base - tMin;
+  const floor = Math.floor;
+  const stringFromCharCode = String.fromCharCode;
+  function error(type) {
+    throw new RangeError(errors2[type]);
+  }
+  function map(array, callback) {
+    const result = [];
+    let length = array.length;
+    while (length--) {
+      result[length] = callback(array[length]);
+    }
+    return result;
+  }
+  function mapDomain(domain, callback) {
+    const parts = domain.split("@");
+    let result = "";
+    if (parts.length > 1) {
+      result = parts[0] + "@";
+      domain = parts[1];
+    }
+    domain = domain.replace(regexSeparators, ".");
+    const labels = domain.split(".");
+    const encoded = map(labels, callback).join(".");
+    return result + encoded;
+  }
+  function ucs2decode(string) {
+    const output = [];
+    let counter = 0;
+    const length = string.length;
+    while (counter < length) {
+      const value = string.charCodeAt(counter++);
+      if (value >= 55296 && value <= 56319 && counter < length) {
+        const extra = string.charCodeAt(counter++);
+        if ((extra & 64512) == 56320) {
+          output.push(((value & 1023) << 10) + (extra & 1023) + 65536);
+        } else {
+          output.push(value);
+          counter--;
+        }
+      } else {
+        output.push(value);
+      }
+    }
+    return output;
+  }
+  const ucs2encode = (codePoints) => String.fromCodePoint(...codePoints);
+  const basicToDigit = function(codePoint) {
+    if (codePoint >= 48 && codePoint < 58) {
+      return 26 + (codePoint - 48);
+    }
+    if (codePoint >= 65 && codePoint < 91) {
+      return codePoint - 65;
+    }
+    if (codePoint >= 97 && codePoint < 123) {
+      return codePoint - 97;
+    }
+    return base;
+  };
+  const digitToBasic = function(digit, flag) {
+    return digit + 22 + 75 * (digit < 26) - ((flag != 0) << 5);
+  };
+  const adapt = function(delta, numPoints, firstTime) {
+    let k = 0;
+    delta = firstTime ? floor(delta / damp) : delta >> 1;
+    delta += floor(delta / numPoints);
+    for (
+      ;
+      /* no initialization */
+      delta > baseMinusTMin * tMax >> 1;
+      k += base
+    ) {
+      delta = floor(delta / baseMinusTMin);
+    }
+    return floor(k + (baseMinusTMin + 1) * delta / (delta + skew));
+  };
+  const decode = function(input) {
+    const output = [];
+    const inputLength = input.length;
+    let i = 0;
+    let n = initialN;
+    let bias = initialBias;
+    let basic = input.lastIndexOf(delimiter);
+    if (basic < 0) {
+      basic = 0;
+    }
+    for (let j = 0; j < basic; ++j) {
+      if (input.charCodeAt(j) >= 128) {
+        error("not-basic");
+      }
+      output.push(input.charCodeAt(j));
+    }
+    for (let index = basic > 0 ? basic + 1 : 0; index < inputLength; ) {
+      const oldi = i;
+      for (let w = 1, k = base; ; k += base) {
+        if (index >= inputLength) {
+          error("invalid-input");
+        }
+        const digit = basicToDigit(input.charCodeAt(index++));
+        if (digit >= base) {
+          error("invalid-input");
+        }
+        if (digit > floor((maxInt - i) / w)) {
+          error("overflow");
+        }
+        i += digit * w;
+        const t = k <= bias ? tMin : k >= bias + tMax ? tMax : k - bias;
+        if (digit < t) {
+          break;
+        }
+        const baseMinusT = base - t;
+        if (w > floor(maxInt / baseMinusT)) {
+          error("overflow");
+        }
+        w *= baseMinusT;
+      }
+      const out = output.length + 1;
+      bias = adapt(i - oldi, out, oldi == 0);
+      if (floor(i / out) > maxInt - n) {
+        error("overflow");
+      }
+      n += floor(i / out);
+      i %= out;
+      output.splice(i++, 0, n);
+    }
+    return String.fromCodePoint(...output);
+  };
+  const encode = function(input) {
+    const output = [];
+    input = ucs2decode(input);
+    const inputLength = input.length;
+    let n = initialN;
+    let delta = 0;
+    let bias = initialBias;
+    for (const currentValue of input) {
+      if (currentValue < 128) {
+        output.push(stringFromCharCode(currentValue));
+      }
+    }
+    const basicLength = output.length;
+    let handledCPCount = basicLength;
+    if (basicLength) {
+      output.push(delimiter);
+    }
+    while (handledCPCount < inputLength) {
+      let m = maxInt;
+      for (const currentValue of input) {
+        if (currentValue >= n && currentValue < m) {
+          m = currentValue;
+        }
+      }
+      const handledCPCountPlusOne = handledCPCount + 1;
+      if (m - n > floor((maxInt - delta) / handledCPCountPlusOne)) {
+        error("overflow");
+      }
+      delta += (m - n) * handledCPCountPlusOne;
+      n = m;
+      for (const currentValue of input) {
+        if (currentValue < n && ++delta > maxInt) {
+          error("overflow");
+        }
+        if (currentValue === n) {
+          let q = delta;
+          for (let k = base; ; k += base) {
+            const t = k <= bias ? tMin : k >= bias + tMax ? tMax : k - bias;
+            if (q < t) {
+              break;
+            }
+            const qMinusT = q - t;
+            const baseMinusT = base - t;
+            output.push(stringFromCharCode(digitToBasic(t + qMinusT % baseMinusT, 0)));
+            q = floor(qMinusT / baseMinusT);
+          }
+          output.push(stringFromCharCode(digitToBasic(q, 0)));
+          bias = adapt(delta, handledCPCountPlusOne, handledCPCount === basicLength);
+          delta = 0;
+          ++handledCPCount;
+        }
+      }
+      ++delta;
+      ++n;
+    }
+    return output.join("");
+  };
+  const toUnicode = function(input) {
+    return mapDomain(input, function(string) {
+      return regexPunycode.test(string) ? decode(string.slice(4).toLowerCase()) : string;
+    });
+  };
+  const toASCII = function(input) {
+    return mapDomain(input, function(string) {
+      return regexNonASCII.test(string) ? "xn--" + encode(string) : string;
+    });
+  };
+  const punycode = {
+    /**
+     * A string representing the current Punycode.js version number.
+     * @memberOf punycode
+     * @type String
+     */
+    version: "2.3.1",
+    /**
+     * An object of methods to convert from JavaScript's internal character
+     * representation (UCS-2) to Unicode code points, and back.
+     * @see <https://mathiasbynens.be/notes/javascript-encoding>
+     * @memberOf punycode
+     * @type Object
+     */
+    ucs2: {
+      decode: ucs2decode,
+      encode: ucs2encode
+    },
+    decode,
+    encode,
+    toASCII,
+    toUnicode
+  };
+  punycode_1 = punycode;
+  return punycode_1;
+}
+var base64;
+var hasRequiredBase64;
+function requireBase64() {
+  if (hasRequiredBase64) return base64;
+  hasRequiredBase64 = 1;
+  const Transform = require$$0$2.Transform;
+  function encode(buffer) {
+    if (typeof buffer === "string") {
+      buffer = Buffer.from(buffer, "utf-8");
+    }
+    return buffer.toString("base64");
+  }
+  function wrap(str, lineLength) {
+    str = (str || "").toString();
+    lineLength = lineLength || 76;
+    if (str.length <= lineLength) {
+      return str;
+    }
+    let result = [];
+    let pos = 0;
+    let chunkLength = lineLength * 1024;
+    while (pos < str.length) {
+      let wrappedLines = str.substr(pos, chunkLength).replace(new RegExp(".{" + lineLength + "}", "g"), "$&\r\n");
+      result.push(wrappedLines);
+      pos += chunkLength;
+    }
+    return result.join("");
+  }
+  class Encoder extends Transform {
+    constructor(options) {
+      super();
+      this.options = options || {};
+      if (this.options.lineLength !== false) {
+        this.options.lineLength = this.options.lineLength || 76;
+      }
+      this._curLine = "";
+      this._remainingBytes = false;
+      this.inputBytes = 0;
+      this.outputBytes = 0;
+    }
+    _transform(chunk, encoding, done) {
+      if (encoding !== "buffer") {
+        chunk = Buffer.from(chunk, encoding);
+      }
+      if (!chunk || !chunk.length) {
+        return setImmediate(done);
+      }
+      this.inputBytes += chunk.length;
+      if (this._remainingBytes && this._remainingBytes.length) {
+        chunk = Buffer.concat([this._remainingBytes, chunk], this._remainingBytes.length + chunk.length);
+        this._remainingBytes = false;
+      }
+      if (chunk.length % 3) {
+        this._remainingBytes = chunk.slice(chunk.length - chunk.length % 3);
+        chunk = chunk.slice(0, chunk.length - chunk.length % 3);
+      } else {
+        this._remainingBytes = false;
+      }
+      let b64 = this._curLine + encode(chunk);
+      if (this.options.lineLength) {
+        b64 = wrap(b64, this.options.lineLength);
+        let lastLF = b64.lastIndexOf("\n");
+        if (lastLF < 0) {
+          this._curLine = b64;
+          b64 = "";
+        } else {
+          this._curLine = b64.substring(lastLF + 1);
+          b64 = b64.substring(0, lastLF + 1);
+          if (b64 && !b64.endsWith("\r\n")) {
+            b64 += "\r\n";
+          }
+        }
+      } else {
+        this._curLine = "";
+      }
+      if (b64) {
+        this.outputBytes += b64.length;
+        this.push(Buffer.from(b64, "ascii"));
+      }
+      setImmediate(done);
+    }
+    _flush(done) {
+      if (this._remainingBytes && this._remainingBytes.length) {
+        this._curLine += encode(this._remainingBytes);
+      }
+      if (this._curLine) {
+        this.outputBytes += this._curLine.length;
+        this.push(Buffer.from(this._curLine, "ascii"));
+        this._curLine = "";
+      }
+      done();
+    }
+  }
+  base64 = {
+    encode,
+    wrap,
+    Encoder
+  };
+  return base64;
+}
+var qp;
+var hasRequiredQp;
+function requireQp() {
+  if (hasRequiredQp) return qp;
+  hasRequiredQp = 1;
+  const Transform = require$$0$2.Transform;
+  function encode(buffer) {
+    if (typeof buffer === "string") {
+      buffer = Buffer.from(buffer, "utf-8");
+    }
+    let ranges = [
+      // https://tools.ietf.org/html/rfc2045#section-6.7
+      [9],
+      // <TAB>
+      [10],
+      // <LF>
+      [13],
+      // <CR>
+      [32, 60],
+      // <SP>!"#$%&'()*+,-./0123456789:;
+      [62, 126]
+      // >?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}
+    ];
+    let result = "";
+    let ord;
+    for (let i = 0, len = buffer.length; i < len; i++) {
+      ord = buffer[i];
+      if (checkRanges(ord, ranges) && !((ord === 32 || ord === 9) && (i === len - 1 || buffer[i + 1] === 10 || buffer[i + 1] === 13))) {
+        result += String.fromCharCode(ord);
+        continue;
+      }
+      result += "=" + (ord < 16 ? "0" : "") + ord.toString(16).toUpperCase();
+    }
+    return result;
+  }
+  function wrap(str, lineLength) {
+    str = (str || "").toString();
+    lineLength = lineLength || 76;
+    if (str.length <= lineLength) {
+      return str;
+    }
+    let pos = 0;
+    let len = str.length;
+    let match, code, line;
+    let lineMargin = Math.floor(lineLength / 3);
+    let result = "";
+    while (pos < len) {
+      line = str.substr(pos, lineLength);
+      if (match = line.match(/\r\n/)) {
+        line = line.substr(0, match.index + match[0].length);
+        result += line;
+        pos += line.length;
+        continue;
+      }
+      if (line.substr(-1) === "\n") {
+        result += line;
+        pos += line.length;
+        continue;
+      } else if (match = line.substr(-lineMargin).match(/\n.*?$/)) {
+        line = line.substr(0, line.length - (match[0].length - 1));
+        result += line;
+        pos += line.length;
+        continue;
+      } else if (line.length > lineLength - lineMargin && (match = line.substr(-lineMargin).match(/[ \t.,!?][^ \t.,!?]*$/))) {
+        line = line.substr(0, line.length - (match[0].length - 1));
+      } else if (line.match(/[=][\da-f]{0,2}$/i)) {
+        if (match = line.match(/[=][\da-f]{0,1}$/i)) {
+          line = line.substr(0, line.length - match[0].length);
+        }
+        while (line.length > 3 && line.length < len - pos && !line.match(/^(?:=[\da-f]{2}){1,4}$/i) && (match = line.match(/[=][\da-f]{2}$/gi))) {
+          code = parseInt(match[0].substr(1, 2), 16);
+          if (code < 128) {
+            break;
+          }
+          line = line.substr(0, line.length - 3);
+          if (code >= 192) {
+            break;
+          }
+        }
+      }
+      if (pos + line.length < len && line.substr(-1) !== "\n") {
+        if (line.length === lineLength && line.match(/[=][\da-f]{2}$/i)) {
+          line = line.substr(0, line.length - 3);
+        } else if (line.length === lineLength) {
+          line = line.substr(0, line.length - 1);
+        }
+        pos += line.length;
+        line += "=\r\n";
+      } else {
+        pos += line.length;
+      }
+      result += line;
+    }
+    return result;
+  }
+  function checkRanges(nr, ranges) {
+    for (let i = ranges.length - 1; i >= 0; i--) {
+      if (!ranges[i].length) {
+        continue;
+      }
+      if (ranges[i].length === 1 && nr === ranges[i][0]) {
+        return true;
+      }
+      if (ranges[i].length === 2 && nr >= ranges[i][0] && nr <= ranges[i][1]) {
+        return true;
+      }
+    }
+    return false;
+  }
+  class Encoder extends Transform {
+    constructor(options) {
+      super();
+      this.options = options || {};
+      if (this.options.lineLength !== false) {
+        this.options.lineLength = this.options.lineLength || 76;
+      }
+      this._curLine = "";
+      this.inputBytes = 0;
+      this.outputBytes = 0;
+    }
+    _transform(chunk, encoding, done) {
+      let qp2;
+      if (encoding !== "buffer") {
+        chunk = Buffer.from(chunk, encoding);
+      }
+      if (!chunk || !chunk.length) {
+        return done();
+      }
+      this.inputBytes += chunk.length;
+      if (this.options.lineLength) {
+        qp2 = this._curLine + encode(chunk);
+        qp2 = wrap(qp2, this.options.lineLength);
+        qp2 = qp2.replace(/(^|\n)([^\n]*)$/, (match, lineBreak, lastLine) => {
+          this._curLine = lastLine;
+          return lineBreak;
+        });
+        if (qp2) {
+          this.outputBytes += qp2.length;
+          this.push(qp2);
+        }
+      } else {
+        qp2 = encode(chunk);
+        this.outputBytes += qp2.length;
+        this.push(qp2, "ascii");
+      }
+      done();
+    }
+    _flush(done) {
+      if (this._curLine) {
+        this.outputBytes += this._curLine.length;
+        this.push(this._curLine, "ascii");
+      }
+      done();
+    }
+  }
+  qp = {
+    encode,
+    wrap,
+    Encoder
+  };
+  return qp;
+}
+var mimeFuncs;
+var hasRequiredMimeFuncs;
+function requireMimeFuncs() {
+  if (hasRequiredMimeFuncs) return mimeFuncs;
+  hasRequiredMimeFuncs = 1;
+  const base642 = requireBase64();
+  const qp2 = requireQp();
+  const mimeTypes = requireMimeTypes();
+  mimeFuncs = {
+    /**
+     * Checks if a value is plaintext string (uses only printable 7bit chars)
+     *
+     * @param {String} value String to be tested
+     * @returns {Boolean} true if it is a plaintext string
+     */
+    isPlainText(value, isParam) {
+      const re = isParam ? /[\x00-\x08\x0b\x0c\x0e-\x1f"\u0080-\uFFFF]/ : /[\x00-\x08\x0b\x0c\x0e-\x1f\u0080-\uFFFF]/;
+      if (typeof value !== "string" || re.test(value)) {
+        return false;
+      } else {
+        return true;
+      }
+    },
+    /**
+     * Checks if a multi line string containes lines longer than the selected value.
+     *
+     * Useful when detecting if a mail message needs any processing at all –
+     * if only plaintext characters are used and lines are short, then there is
+     * no need to encode the values in any way. If the value is plaintext but has
+     * longer lines then allowed, then use format=flowed
+     *
+     * @param {Number} lineLength Max line length to check for
+     * @returns {Boolean} Returns true if there is at least one line longer than lineLength chars
+     */
+    hasLongerLines(str, lineLength) {
+      if (str.length > 128 * 1024) {
+        return true;
+      }
+      return new RegExp("^.{" + (lineLength + 1) + ",}", "m").test(str);
+    },
+    /**
+     * Encodes a string or an Buffer to an UTF-8 MIME Word (rfc2047)
+     *
+     * @param {String|Buffer} data String to be encoded
+     * @param {String} mimeWordEncoding='Q' Encoding for the mime word, either Q or B
+     * @param {Number} [maxLength=0] If set, split mime words into several chunks if needed
+     * @return {String} Single or several mime words joined together
+     */
+    encodeWord(data, mimeWordEncoding, maxLength) {
+      mimeWordEncoding = (mimeWordEncoding || "Q").toString().toUpperCase().trim().charAt(0);
+      maxLength = maxLength || 0;
+      let encodedStr;
+      let toCharset = "UTF-8";
+      if (maxLength && maxLength > 7 + toCharset.length) {
+        maxLength -= 7 + toCharset.length;
+      }
+      if (mimeWordEncoding === "Q") {
+        encodedStr = qp2.encode(data).replace(/[^a-z0-9!*+\-/=]/gi, (chr) => {
+          let ord = chr.charCodeAt(0).toString(16).toUpperCase();
+          if (chr === " ") {
+            return "_";
+          } else {
+            return "=" + (ord.length === 1 ? "0" + ord : ord);
+          }
+        });
+      } else if (mimeWordEncoding === "B") {
+        encodedStr = typeof data === "string" ? data : base642.encode(data);
+        maxLength = maxLength ? Math.max(3, (maxLength - maxLength % 4) / 4 * 3) : 0;
+      }
+      if (maxLength && (mimeWordEncoding !== "B" ? encodedStr : base642.encode(data)).length > maxLength) {
+        if (mimeWordEncoding === "Q") {
+          encodedStr = this.splitMimeEncodedString(encodedStr, maxLength).join("?= =?" + toCharset + "?" + mimeWordEncoding + "?");
+        } else {
+          let parts = [];
+          let lpart = "";
+          for (let i = 0, len = encodedStr.length; i < len; i++) {
+            let chr = encodedStr.charAt(i);
+            if (/[\ud83c\ud83d\ud83e]/.test(chr) && i < len - 1) {
+              chr += encodedStr.charAt(++i);
+            }
+            if (Buffer.byteLength(lpart + chr) <= maxLength || i === 0) {
+              lpart += chr;
+            } else {
+              parts.push(base642.encode(lpart));
+              lpart = chr;
+            }
+          }
+          if (lpart) {
+            parts.push(base642.encode(lpart));
+          }
+          if (parts.length > 1) {
+            encodedStr = parts.join("?= =?" + toCharset + "?" + mimeWordEncoding + "?");
+          } else {
+            encodedStr = parts.join("");
+          }
+        }
+      } else if (mimeWordEncoding === "B") {
+        encodedStr = base642.encode(data);
+      }
+      return "=?" + toCharset + "?" + mimeWordEncoding + "?" + encodedStr + (encodedStr.substr(-2) === "?=" ? "" : "?=");
+    },
+    /**
+     * Finds word sequences with non ascii text and converts these to mime words
+     *
+     * @param {String} value String to be encoded
+     * @param {String} mimeWordEncoding='Q' Encoding for the mime word, either Q or B
+     * @param {Number} [maxLength=0] If set, split mime words into several chunks if needed
+     * @param {Boolean} [encodeAll=false] If true and the value needs encoding then encodes entire string, not just the smallest match
+     * @return {String} String with possible mime words
+     */
+    encodeWords(value, mimeWordEncoding, maxLength, encodeAll) {
+      maxLength = maxLength || 0;
+      let encodedValue;
+      let firstMatch = value.match(/(?:^|\s)([^\s]*["\u0080-\uFFFF])/);
+      if (!firstMatch) {
+        return value;
+      }
+      if (encodeAll) {
+        return this.encodeWord(value, mimeWordEncoding, maxLength);
+      }
+      let lastMatch = value.match(/(["\u0080-\uFFFF][^\s]*)[^"\u0080-\uFFFF]*$/);
+      if (!lastMatch) {
+        return value;
+      }
+      let startIndex = firstMatch.index + (firstMatch[0].match(/[^\s]/) || {
+        index: 0
+      }).index;
+      let endIndex = lastMatch.index + (lastMatch[1] || "").length;
+      encodedValue = (startIndex ? value.substr(0, startIndex) : "") + this.encodeWord(value.substring(startIndex, endIndex), mimeWordEncoding || "Q", maxLength) + (endIndex < value.length ? value.substr(endIndex) : "");
+      return encodedValue;
+    },
+    /**
+     * Joins parsed header value together as 'value; param1=value1; param2=value2'
+     * PS: We are following RFC 822 for the list of special characters that we need to keep in quotes.
+     *      Refer: https://www.w3.org/Protocols/rfc1341/4_Content-Type.html
+     * @param {Object} structured Parsed header value
+     * @return {String} joined header value
+     */
+    buildHeaderValue(structured) {
+      let paramsArray = [];
+      Object.keys(structured.params || {}).forEach((param) => {
+        let value = structured.params[param];
+        if (!this.isPlainText(value, true) || value.length >= 75) {
+          this.buildHeaderParam(param, value, 50).forEach((encodedParam) => {
+            if (!/[\s"\\;:/=(),<>@[\]?]|^[-']|'$/.test(encodedParam.value) || encodedParam.key.substr(-1) === "*") {
+              paramsArray.push(encodedParam.key + "=" + encodedParam.value);
+            } else {
+              paramsArray.push(encodedParam.key + "=" + JSON.stringify(encodedParam.value));
+            }
+          });
+        } else if (/[\s'"\\;:/=(),<>@[\]?]|^-/.test(value)) {
+          paramsArray.push(param + "=" + JSON.stringify(value));
+        } else {
+          paramsArray.push(param + "=" + value);
+        }
+      });
+      return structured.value + (paramsArray.length ? "; " + paramsArray.join("; ") : "");
+    },
+    /**
+     * Encodes a string or an Buffer to an UTF-8 Parameter Value Continuation encoding (rfc2231)
+     * Useful for splitting long parameter values.
+     *
+     * For example
+     *      title="unicode string"
+     * becomes
+     *     title*0*=utf-8''unicode
+     *     title*1*=%20string
+     *
+     * @param {String|Buffer} data String to be encoded
+     * @param {Number} [maxLength=50] Max length for generated chunks
+     * @param {String} [fromCharset='UTF-8'] Source sharacter set
+     * @return {Array} A list of encoded keys and headers
+     */
+    buildHeaderParam(key, data, maxLength) {
+      let list = [];
+      let encodedStr = typeof data === "string" ? data : (data || "").toString();
+      let encodedStrArr;
+      let chr, ord;
+      let line;
+      let startPos = 0;
+      let i, len;
+      maxLength = maxLength || 50;
+      if (this.isPlainText(data, true)) {
+        if (encodedStr.length <= maxLength) {
+          return [
+            {
+              key,
+              value: encodedStr
+            }
+          ];
+        }
+        encodedStr = encodedStr.replace(new RegExp(".{" + maxLength + "}", "g"), (str) => {
+          list.push({
+            line: str
+          });
+          return "";
+        });
+        if (encodedStr) {
+          list.push({
+            line: encodedStr
+          });
+        }
+      } else {
+        if (/[\uD800-\uDBFF]/.test(encodedStr)) {
+          encodedStrArr = [];
+          for (i = 0, len = encodedStr.length; i < len; i++) {
+            chr = encodedStr.charAt(i);
+            ord = chr.charCodeAt(0);
+            if (ord >= 55296 && ord <= 56319 && i < len - 1) {
+              chr += encodedStr.charAt(i + 1);
+              encodedStrArr.push(chr);
+              i++;
+            } else {
+              encodedStrArr.push(chr);
+            }
+          }
+          encodedStr = encodedStrArr;
+        }
+        line = "utf-8''";
+        let encoded = true;
+        startPos = 0;
+        for (i = 0, len = encodedStr.length; i < len; i++) {
+          chr = encodedStr[i];
+          if (encoded) {
+            chr = this.safeEncodeURIComponent(chr);
+          } else {
+            chr = chr === " " ? chr : this.safeEncodeURIComponent(chr);
+            if (chr !== encodedStr[i]) {
+              if ((this.safeEncodeURIComponent(line) + chr).length >= maxLength) {
+                list.push({
+                  line,
+                  encoded
+                });
+                line = "";
+                startPos = i - 1;
+              } else {
+                encoded = true;
+                i = startPos;
+                line = "";
+                continue;
+              }
+            }
+          }
+          if ((line + chr).length >= maxLength) {
+            list.push({
+              line,
+              encoded
+            });
+            line = chr = encodedStr[i] === " " ? " " : this.safeEncodeURIComponent(encodedStr[i]);
+            if (chr === encodedStr[i]) {
+              encoded = false;
+              startPos = i - 1;
+            } else {
+              encoded = true;
+            }
+          } else {
+            line += chr;
+          }
+        }
+        if (line) {
+          list.push({
+            line,
+            encoded
+          });
+        }
+      }
+      return list.map((item, i2) => ({
+        // encoded lines: {name}*{part}*
+        // unencoded lines: {name}*{part}
+        // if any line needs to be encoded then the first line (part==0) is always encoded
+        key: key + "*" + i2 + (item.encoded ? "*" : ""),
+        value: item.line
+      }));
+    },
+    /**
+     * Parses a header value with key=value arguments into a structured
+     * object.
+     *
+     *   parseHeaderValue('content-type: text/plain; CHARSET='UTF-8'') ->
+     *   {
+     *     'value': 'text/plain',
+     *     'params': {
+     *       'charset': 'UTF-8'
+     *     }
+     *   }
+     *
+     * @param {String} str Header value
+     * @return {Object} Header value as a parsed structure
+     */
+    parseHeaderValue(str) {
+      let response = {
+        value: false,
+        params: {}
+      };
+      let key = false;
+      let value = "";
+      let type = "value";
+      let quote = false;
+      let escaped = false;
+      let chr;
+      for (let i = 0, len = str.length; i < len; i++) {
+        chr = str.charAt(i);
+        if (type === "key") {
+          if (chr === "=") {
+            key = value.trim().toLowerCase();
+            type = "value";
+            value = "";
+            continue;
+          }
+          value += chr;
+        } else {
+          if (escaped) {
+            value += chr;
+          } else if (chr === "\\") {
+            escaped = true;
+            continue;
+          } else if (quote && chr === quote) {
+            quote = false;
+          } else if (!quote && chr === '"') {
+            quote = chr;
+          } else if (!quote && chr === ";") {
+            if (key === false) {
+              response.value = value.trim();
+            } else {
+              response.params[key] = value.trim();
+            }
+            type = "key";
+            value = "";
+          } else {
+            value += chr;
+          }
+          escaped = false;
+        }
+      }
+      if (type === "value") {
+        if (key === false) {
+          response.value = value.trim();
+        } else {
+          response.params[key] = value.trim();
+        }
+      } else if (value.trim()) {
+        response.params[value.trim().toLowerCase()] = "";
+      }
+      Object.keys(response.params).forEach((key2) => {
+        let actualKey, nr, match, value2;
+        if (match = key2.match(/(\*(\d+)|\*(\d+)\*|\*)$/)) {
+          actualKey = key2.substr(0, match.index);
+          nr = Number(match[2] || match[3]) || 0;
+          if (!response.params[actualKey] || typeof response.params[actualKey] !== "object") {
+            response.params[actualKey] = {
+              charset: false,
+              values: []
+            };
+          }
+          value2 = response.params[key2];
+          if (nr === 0 && match[0].substr(-1) === "*" && (match = value2.match(/^([^']*)'[^']*'(.*)$/))) {
+            response.params[actualKey].charset = match[1] || "iso-8859-1";
+            value2 = match[2];
+          }
+          response.params[actualKey].values[nr] = value2;
+          delete response.params[key2];
+        }
+      });
+      Object.keys(response.params).forEach((key2) => {
+        let value2;
+        if (response.params[key2] && Array.isArray(response.params[key2].values)) {
+          value2 = response.params[key2].values.map((val) => val || "").join("");
+          if (response.params[key2].charset) {
+            response.params[key2] = "=?" + response.params[key2].charset + "?Q?" + value2.replace(/[=?_\s]/g, (s) => {
+              let c = s.charCodeAt(0).toString(16);
+              if (s === " ") {
+                return "_";
+              } else {
+                return "%" + (c.length < 2 ? "0" : "") + c;
+              }
+            }).replace(/%/g, "=") + "?=";
+          } else {
+            response.params[key2] = value2;
+          }
+        }
+      });
+      return response;
+    },
+    /**
+     * Returns file extension for a content type string. If no suitable extensions
+     * are found, 'bin' is used as the default extension
+     *
+     * @param {String} mimeType Content type to be checked for
+     * @return {String} File extension
+     */
+    detectExtension: (mimeType) => mimeTypes.detectExtension(mimeType),
+    /**
+     * Returns content type for a file extension. If no suitable content types
+     * are found, 'application/octet-stream' is used as the default content type
+     *
+     * @param {String} extension Extension to be checked for
+     * @return {String} File extension
+     */
+    detectMimeType: (extension) => mimeTypes.detectMimeType(extension),
+    /**
+     * Folds long lines, useful for folding header lines (afterSpace=false) and
+     * flowed text (afterSpace=true)
+     *
+     * @param {String} str String to be folded
+     * @param {Number} [lineLength=76] Maximum length of a line
+     * @param {Boolean} afterSpace If true, leave a space in th end of a line
+     * @return {String} String with folded lines
+     */
+    foldLines(str, lineLength, afterSpace) {
+      str = (str || "").toString();
+      lineLength = lineLength || 76;
+      let pos = 0, len = str.length, result = "", line, match;
+      while (pos < len) {
+        line = str.substr(pos, lineLength);
+        if (line.length < lineLength) {
+          result += line;
+          break;
+        }
+        if (match = line.match(/^[^\n\r]*(\r?\n|\r)/)) {
+          line = match[0];
+          result += line;
+          pos += line.length;
+          continue;
+        } else if ((match = line.match(/(\s+)[^\s]*$/)) && match[0].length - (afterSpace ? (match[1] || "").length : 0) < line.length) {
+          line = line.substr(0, line.length - (match[0].length - (afterSpace ? (match[1] || "").length : 0)));
+        } else if (match = str.substr(pos + line.length).match(/^[^\s]+(\s*)/)) {
+          line = line + match[0].substr(0, match[0].length - (!afterSpace ? (match[1] || "").length : 0));
+        }
+        result += line;
+        pos += line.length;
+        if (pos < len) {
+          result += "\r\n";
+        }
+      }
+      return result;
+    },
+    /**
+     * Splits a mime encoded string. Needed for dividing mime words into smaller chunks
+     *
+     * @param {String} str Mime encoded string to be split up
+     * @param {Number} maxlen Maximum length of characters for one part (minimum 12)
+     * @return {Array} Split string
+     */
+    splitMimeEncodedString: (str, maxlen) => {
+      let curLine, match, chr, done, lines = [];
+      maxlen = Math.max(maxlen || 0, 12);
+      while (str.length) {
+        curLine = str.substr(0, maxlen);
+        if (match = curLine.match(/[=][0-9A-F]?$/i)) {
+          curLine = curLine.substr(0, match.index);
+        }
+        done = false;
+        while (!done) {
+          done = true;
+          if (match = str.substr(curLine.length).match(/^[=]([0-9A-F]{2})/i)) {
+            chr = parseInt(match[1], 16);
+            if (chr < 194 && chr > 127) {
+              curLine = curLine.substr(0, curLine.length - 3);
+              done = false;
+            }
+          }
+        }
+        if (curLine.length) {
+          lines.push(curLine);
+        }
+        str = str.substr(curLine.length);
+      }
+      return lines;
+    },
+    encodeURICharComponent: (chr) => {
+      let res = "";
+      let ord = chr.charCodeAt(0).toString(16).toUpperCase();
+      if (ord.length % 2) {
+        ord = "0" + ord;
+      }
+      if (ord.length > 2) {
+        for (let i = 0, len = ord.length / 2; i < len; i++) {
+          res += "%" + ord.substr(i, 2);
+        }
+      } else {
+        res += "%" + ord;
+      }
+      return res;
+    },
+    safeEncodeURIComponent(str) {
+      str = (str || "").toString();
+      try {
+        str = encodeURIComponent(str);
+      } catch (_E) {
+        return str.replace(/[^\x00-\x1F *'()<>@,;:\\"[\]?=\u007F-\uFFFF]+/g, "");
+      }
+      return str.replace(/[\x00-\x1F *'()<>@,;:\\"[\]?=\u007F-\uFFFF]/g, (chr) => this.encodeURICharComponent(chr));
+    }
+  };
+  return mimeFuncs;
+}
+var addressparser_1;
+var hasRequiredAddressparser;
+function requireAddressparser() {
+  if (hasRequiredAddressparser) return addressparser_1;
+  hasRequiredAddressparser = 1;
+  function _handleAddress(tokens, depth) {
+    let isGroup = false;
+    let state = "text";
+    let address;
+    let addresses = [];
+    let data = {
+      address: [],
+      comment: [],
+      group: [],
+      text: [],
+      textWasQuoted: []
+      // Track which text tokens came from inside quotes
+    };
+    let i;
+    let len;
+    let insideQuotes = false;
+    for (i = 0, len = tokens.length; i < len; i++) {
+      let token = tokens[i];
+      let prevToken = i ? tokens[i - 1] : null;
+      if (token.type === "operator") {
+        switch (token.value) {
+          case "<":
+            state = "address";
+            insideQuotes = false;
+            break;
+          case "(":
+            state = "comment";
+            insideQuotes = false;
+            break;
+          case ":":
+            state = "group";
+            isGroup = true;
+            insideQuotes = false;
+            break;
+          case '"':
+            insideQuotes = !insideQuotes;
+            state = "text";
+            break;
+          default:
+            state = "text";
+            insideQuotes = false;
+            break;
+        }
+      } else if (token.value) {
+        if (state === "address") {
+          token.value = token.value.replace(/^[^<]*<\s*/, "");
+        }
+        if (prevToken && prevToken.noBreak && data[state].length) {
+          data[state][data[state].length - 1] += token.value;
+          if (state === "text" && insideQuotes) {
+            data.textWasQuoted[data.textWasQuoted.length - 1] = true;
+          }
+        } else {
+          data[state].push(token.value);
+          if (state === "text") {
+            data.textWasQuoted.push(insideQuotes);
+          }
+        }
+      }
+    }
+    if (!data.text.length && data.comment.length) {
+      data.text = data.comment;
+      data.comment = [];
+    }
+    if (isGroup) {
+      data.text = data.text.join(" ");
+      let groupMembers = [];
+      if (data.group.length) {
+        let parsedGroup = addressparser(data.group.join(","), { _depth: depth + 1 });
+        parsedGroup.forEach((member) => {
+          if (member.group) {
+            groupMembers = groupMembers.concat(member.group);
+          } else {
+            groupMembers.push(member);
+          }
+        });
+      }
+      addresses.push({
+        name: data.text || address && address.name,
+        group: groupMembers
+      });
+    } else {
+      if (!data.address.length && data.text.length) {
+        for (i = data.text.length - 1; i >= 0; i--) {
+          if (!data.textWasQuoted[i] && data.text[i].match(/^[^@\s]+@[^@\s]+$/)) {
+            data.address = data.text.splice(i, 1);
+            data.textWasQuoted.splice(i, 1);
+            break;
+          }
+        }
+        let _regexHandler = function(address2) {
+          if (!data.address.length) {
+            data.address = [address2.trim()];
+            return " ";
+          } else {
+            return address2;
+          }
+        };
+        if (!data.address.length) {
+          for (i = data.text.length - 1; i >= 0; i--) {
+            if (!data.textWasQuoted[i]) {
+              data.text[i] = data.text[i].replace(/\s*\b[^@\s]+@[^\s]+\b\s*/, _regexHandler).trim();
+              if (data.address.length) {
+                break;
+              }
+            }
+          }
+        }
+      }
+      if (!data.text.length && data.comment.length) {
+        data.text = data.comment;
+        data.comment = [];
+      }
+      if (data.address.length > 1) {
+        data.text = data.text.concat(data.address.splice(1));
+      }
+      data.text = data.text.join(" ");
+      data.address = data.address.join(" ");
+      if (!data.address && isGroup) {
+        return [];
+      } else {
+        address = {
+          address: data.address || data.text || "",
+          name: data.text || data.address || ""
+        };
+        if (address.address === address.name) {
+          if ((address.address || "").match(/@/)) {
+            address.name = "";
+          } else {
+            address.address = "";
+          }
+        }
+        addresses.push(address);
+      }
+    }
+    return addresses;
+  }
+  class Tokenizer {
+    constructor(str) {
+      this.str = (str || "").toString();
+      this.operatorCurrent = "";
+      this.operatorExpecting = "";
+      this.node = null;
+      this.escaped = false;
+      this.list = [];
+      this.operators = {
+        '"': '"',
+        "(": ")",
+        "<": ">",
+        ",": "",
+        ":": ";",
+        // Semicolons are not a legal delimiter per the RFC2822 grammar other
+        // than for terminating a group, but they are also not valid for any
+        // other use in this context.  Given that some mail clients have
+        // historically allowed the semicolon as a delimiter equivalent to the
+        // comma in their UI, it makes sense to treat them the same as a comma
+        // when used outside of a group.
+        ";": ""
+      };
+    }
+    /**
+     * Tokenizes the original input string
+     *
+     * @return {Array} An array of operator|text tokens
+     */
+    tokenize() {
+      let list = [];
+      for (let i = 0, len = this.str.length; i < len; i++) {
+        let chr = this.str.charAt(i);
+        let nextChr = i < len - 1 ? this.str.charAt(i + 1) : null;
+        this.checkChar(chr, nextChr);
+      }
+      this.list.forEach((node) => {
+        node.value = (node.value || "").toString().trim();
+        if (node.value) {
+          list.push(node);
+        }
+      });
+      return list;
+    }
+    /**
+     * Checks if a character is an operator or text and acts accordingly
+     *
+     * @param {String} chr Character from the address field
+     */
+    checkChar(chr, nextChr) {
+      if (this.escaped) ;
+      else if (chr === this.operatorExpecting) {
+        this.node = {
+          type: "operator",
+          value: chr
+        };
+        if (nextChr && ![" ", "	", "\r", "\n", ",", ";"].includes(nextChr)) {
+          this.node.noBreak = true;
+        }
+        this.list.push(this.node);
+        this.node = null;
+        this.operatorExpecting = "";
+        this.escaped = false;
+        return;
+      } else if (!this.operatorExpecting && chr in this.operators) {
+        this.node = {
+          type: "operator",
+          value: chr
+        };
+        this.list.push(this.node);
+        this.node = null;
+        this.operatorExpecting = this.operators[chr];
+        this.escaped = false;
+        return;
+      } else if (['"', "'"].includes(this.operatorExpecting) && chr === "\\") {
+        this.escaped = true;
+        return;
+      }
+      if (!this.node) {
+        this.node = {
+          type: "text",
+          value: ""
+        };
+        this.list.push(this.node);
+      }
+      if (chr === "\n") {
+        chr = " ";
+      }
+      if (chr.charCodeAt(0) >= 33 || [" ", "	"].includes(chr)) {
+        this.node.value += chr;
+      }
+      this.escaped = false;
+    }
+  }
+  const MAX_NESTED_GROUP_DEPTH = 50;
+  function addressparser(str, options) {
+    options = options || {};
+    let depth = options._depth || 0;
+    if (depth > MAX_NESTED_GROUP_DEPTH) {
+      return [];
+    }
+    let tokenizer = new Tokenizer(str);
+    let tokens = tokenizer.tokenize();
+    let addresses = [];
+    let address = [];
+    let parsedAddresses = [];
+    tokens.forEach((token) => {
+      if (token.type === "operator" && (token.value === "," || token.value === ";")) {
+        if (address.length) {
+          addresses.push(address);
+        }
+        address = [];
+      } else {
+        address.push(token);
+      }
+    });
+    if (address.length) {
+      addresses.push(address);
+    }
+    addresses.forEach((address2) => {
+      address2 = _handleAddress(address2, depth);
+      if (address2.length) {
+        parsedAddresses = parsedAddresses.concat(address2);
+      }
+    });
+    for (let i = parsedAddresses.length - 2; i >= 0; i--) {
+      let current = parsedAddresses[i];
+      let next = parsedAddresses[i + 1];
+      if (current.address === "" && current.name && !current.group && next.address && next.name && !next.group) {
+        next.name = current.name + ", " + next.name;
+        parsedAddresses.splice(i, 1);
+      }
+    }
+    if (options.flatten) {
+      let addresses2 = [];
+      let walkAddressList = (list) => {
+        list.forEach((address2) => {
+          if (address2.group) {
+            return walkAddressList(address2.group);
+          } else {
+            addresses2.push(address2);
+          }
+        });
+      };
+      walkAddressList(parsedAddresses);
+      return addresses2;
+    }
+    return parsedAddresses;
+  }
+  addressparser_1 = addressparser;
+  return addressparser_1;
+}
+var lastNewline;
+var hasRequiredLastNewline;
+function requireLastNewline() {
+  if (hasRequiredLastNewline) return lastNewline;
+  hasRequiredLastNewline = 1;
+  const Transform = require$$0$2.Transform;
+  class LastNewline extends Transform {
+    constructor() {
+      super();
+      this.lastByte = false;
+    }
+    _transform(chunk, encoding, done) {
+      if (chunk.length) {
+        this.lastByte = chunk[chunk.length - 1];
+      }
+      this.push(chunk);
+      done();
+    }
+    _flush(done) {
+      if (this.lastByte === 10) {
+        return done();
+      }
+      if (this.lastByte === 13) {
+        this.push(Buffer.from("\n"));
+        return done();
+      }
+      this.push(Buffer.from("\r\n"));
+      return done();
+    }
+  }
+  lastNewline = LastNewline;
+  return lastNewline;
+}
+var leWindows;
+var hasRequiredLeWindows;
+function requireLeWindows() {
+  if (hasRequiredLeWindows) return leWindows;
+  hasRequiredLeWindows = 1;
+  const stream = require$$0$2;
+  const Transform = stream.Transform;
+  class LeWindows extends Transform {
+    constructor(options) {
+      super(options);
+      this.options = options || {};
+      this.lastByte = false;
+    }
+    /**
+     * Escapes dots
+     */
+    _transform(chunk, encoding, done) {
+      let buf;
+      let lastPos = 0;
+      for (let i = 0, len = chunk.length; i < len; i++) {
+        if (chunk[i] === 10) {
+          if (i && chunk[i - 1] !== 13 || !i && this.lastByte !== 13) {
+            if (i > lastPos) {
+              buf = chunk.slice(lastPos, i);
+              this.push(buf);
+            }
+            this.push(Buffer.from("\r\n"));
+            lastPos = i + 1;
+          }
+        }
+      }
+      if (lastPos && lastPos < chunk.length) {
+        buf = chunk.slice(lastPos);
+        this.push(buf);
+      } else if (!lastPos) {
+        this.push(chunk);
+      }
+      this.lastByte = chunk[chunk.length - 1];
+      done();
+    }
+  }
+  leWindows = LeWindows;
+  return leWindows;
+}
+var leUnix;
+var hasRequiredLeUnix;
+function requireLeUnix() {
+  if (hasRequiredLeUnix) return leUnix;
+  hasRequiredLeUnix = 1;
+  const stream = require$$0$2;
+  const Transform = stream.Transform;
+  class LeWindows extends Transform {
+    constructor(options) {
+      super(options);
+      this.options = options || {};
+    }
+    /**
+     * Escapes dots
+     */
+    _transform(chunk, encoding, done) {
+      let buf;
+      let lastPos = 0;
+      for (let i = 0, len = chunk.length; i < len; i++) {
+        if (chunk[i] === 13) {
+          buf = chunk.slice(lastPos, i);
+          lastPos = i + 1;
+          this.push(buf);
+        }
+      }
+      if (lastPos && lastPos < chunk.length) {
+        buf = chunk.slice(lastPos);
+        this.push(buf);
+      } else if (!lastPos) {
+        this.push(chunk);
+      }
+      done();
+    }
+  }
+  leUnix = LeWindows;
+  return leUnix;
+}
+var mimeNode;
+var hasRequiredMimeNode;
+function requireMimeNode() {
+  if (hasRequiredMimeNode) return mimeNode;
+  hasRequiredMimeNode = 1;
+  const crypto = require$$2;
+  const fs$1 = fs;
+  const punycode = requirePunycode();
+  const PassThrough = require$$0$2.PassThrough;
+  const shared2 = requireShared();
+  const mimeFuncs2 = requireMimeFuncs();
+  const qp2 = requireQp();
+  const base642 = requireBase64();
+  const addressparser = requireAddressparser();
+  const nmfetch = requireFetch();
+  const errors2 = requireErrors();
+  const LastNewline = requireLastNewline();
+  const LeWindows = requireLeWindows();
+  const LeUnix = requireLeUnix();
+  class MimeNode {
+    constructor(contentType, options) {
+      this.nodeCounter = 0;
+      options = options || {};
+      this.baseBoundary = options.baseBoundary || crypto.randomBytes(8).toString("hex");
+      this.boundaryPrefix = options.boundaryPrefix || "--_NmP";
+      this.disableFileAccess = !!options.disableFileAccess;
+      this.disableUrlAccess = !!options.disableUrlAccess;
+      this.normalizeHeaderKey = options.normalizeHeaderKey;
+      this.date = /* @__PURE__ */ new Date();
+      this.rootNode = options.rootNode || this;
+      this.keepBcc = !!options.keepBcc;
+      if (options.filename) {
+        this.filename = options.filename;
+        if (!contentType) {
+          contentType = mimeFuncs2.detectMimeType(this.filename.split(".").pop());
+        }
+      }
+      this.textEncoding = (options.textEncoding || "").toString().trim().charAt(0).toUpperCase();
+      this.parentNode = options.parentNode;
+      this.hostname = options.hostname;
+      this.newline = options.newline;
+      this.childNodes = [];
+      this._nodeId = ++this.rootNode.nodeCounter;
+      this._headers = [];
+      this._isPlainText = false;
+      this._hasLongLines = false;
+      this._envelope = false;
+      this._raw = false;
+      this._transforms = [];
+      this._processFuncs = [];
+      if (contentType) {
+        this.setHeader("Content-Type", contentType);
+      }
+    }
+    /////// PUBLIC METHODS
+    /**
+     * Creates and appends a child node.Arguments provided are passed to MimeNode constructor
+     *
+     * @param {String} [contentType] Optional content type
+     * @param {Object} [options] Optional options object
+     * @return {Object} Created node object
+     */
+    createChild(contentType, options) {
+      if (!options && typeof contentType === "object") {
+        options = contentType;
+        contentType = void 0;
+      }
+      let node = new MimeNode(contentType, options);
+      this.appendChild(node);
+      return node;
+    }
+    /**
+     * Appends an existing node to the mime tree. Removes the node from an existing
+     * tree if needed
+     *
+     * @param {Object} childNode node to be appended
+     * @return {Object} Appended node object
+     */
+    appendChild(childNode) {
+      if (childNode.rootNode !== this.rootNode) {
+        childNode.rootNode = this.rootNode;
+        childNode._nodeId = ++this.rootNode.nodeCounter;
+      }
+      childNode.parentNode = this;
+      this.childNodes.push(childNode);
+      return childNode;
+    }
+    /**
+     * Replaces current node with another node
+     *
+     * @param {Object} node Replacement node
+     * @return {Object} Replacement node
+     */
+    replace(node) {
+      if (node === this) {
+        return this;
+      }
+      this.parentNode.childNodes.forEach((childNode, i) => {
+        if (childNode === this) {
+          node.rootNode = this.rootNode;
+          node.parentNode = this.parentNode;
+          node._nodeId = this._nodeId;
+          this.rootNode = this;
+          this.parentNode = void 0;
+          node.parentNode.childNodes[i] = node;
+        }
+      });
+      return node;
+    }
+    /**
+     * Removes current node from the mime tree
+     *
+     * @return {Object} removed node
+     */
+    remove() {
+      if (!this.parentNode) {
+        return this;
+      }
+      for (let i = this.parentNode.childNodes.length - 1; i >= 0; i--) {
+        if (this.parentNode.childNodes[i] === this) {
+          this.parentNode.childNodes.splice(i, 1);
+          this.parentNode = void 0;
+          this.rootNode = this;
+          return this;
+        }
+      }
+    }
+    /**
+     * Sets a header value. If the value for selected key exists, it is overwritten.
+     * You can set multiple values as well by using [{key:'', value:''}] or
+     * {key: 'value'} as the first argument.
+     *
+     * @param {String|Array|Object} key Header key or a list of key value pairs
+     * @param {String} value Header value
+     * @return {Object} current node
+     */
+    setHeader(key, value) {
+      let added = false, headerValue;
+      if (!value && key && typeof key === "object") {
+        if (key.key && "value" in key) {
+          this.setHeader(key.key, key.value);
+        } else if (Array.isArray(key)) {
+          key.forEach((i) => {
+            this.setHeader(i.key, i.value);
+          });
+        } else {
+          Object.keys(key).forEach((i) => {
+            this.setHeader(i, key[i]);
+          });
+        }
+        return this;
+      }
+      key = this._normalizeHeaderKey(key);
+      headerValue = {
+        key,
+        value
+      };
+      for (let i = 0, len = this._headers.length; i < len; i++) {
+        if (this._headers[i].key === key) {
+          if (!added) {
+            this._headers[i] = headerValue;
+            added = true;
+          } else {
+            this._headers.splice(i, 1);
+            i--;
+            len--;
+          }
+        }
+      }
+      if (!added) {
+        this._headers.push(headerValue);
+      }
+      return this;
+    }
+    /**
+     * Adds a header value. If the value for selected key exists, the value is appended
+     * as a new field and old one is not touched.
+     * You can set multiple values as well by using [{key:'', value:''}] or
+     * {key: 'value'} as the first argument.
+     *
+     * @param {String|Array|Object} key Header key or a list of key value pairs
+     * @param {String} value Header value
+     * @return {Object} current node
+     */
+    addHeader(key, value) {
+      if (!value && key && typeof key === "object") {
+        if (key.key && key.value) {
+          this.addHeader(key.key, key.value);
+        } else if (Array.isArray(key)) {
+          key.forEach((i) => {
+            this.addHeader(i.key, i.value);
+          });
+        } else {
+          Object.keys(key).forEach((i) => {
+            this.addHeader(i, key[i]);
+          });
+        }
+        return this;
+      } else if (Array.isArray(value)) {
+        value.forEach((val) => {
+          this.addHeader(key, val);
+        });
+        return this;
+      }
+      this._headers.push({
+        key: this._normalizeHeaderKey(key),
+        value
+      });
+      return this;
+    }
+    /**
+     * Retrieves the first mathcing value of a selected key
+     *
+     * @param {String} key Key to search for
+     * @retun {String} Value for the key
+     */
+    getHeader(key) {
+      key = this._normalizeHeaderKey(key);
+      for (let i = 0, len = this._headers.length; i < len; i++) {
+        if (this._headers[i].key === key) {
+          return this._headers[i].value;
+        }
+      }
+    }
+    /**
+     * Sets body content for current node. If the value is a string, charset is added automatically
+     * to Content-Type (if it is text/*). If the value is a Buffer, you need to specify
+     * the charset yourself
+     *
+     * @param (String|Buffer) content Body content
+     * @return {Object} current node
+     */
+    setContent(content) {
+      this.content = content;
+      if (typeof this.content.pipe === "function") {
+        this._contentErrorHandler = (err) => {
+          this.content.removeListener("error", this._contentErrorHandler);
+          this.content = err;
+        };
+        this.content.once("error", this._contentErrorHandler);
+      } else if (typeof this.content === "string") {
+        this._isPlainText = mimeFuncs2.isPlainText(this.content);
+        if (this._isPlainText && mimeFuncs2.hasLongerLines(this.content, 76)) {
+          this._hasLongLines = true;
+        }
+      }
+      return this;
+    }
+    build(callback) {
+      let promise;
+      if (!callback) {
+        promise = new Promise((resolve, reject) => {
+          callback = shared2.callbackPromise(resolve, reject);
+        });
+      }
+      let stream = this.createReadStream();
+      let buf = [];
+      let buflen = 0;
+      let returned = false;
+      stream.on("readable", () => {
+        let chunk;
+        while ((chunk = stream.read()) !== null) {
+          buf.push(chunk);
+          buflen += chunk.length;
+        }
+      });
+      stream.once("error", (err) => {
+        if (returned) {
+          return;
+        }
+        returned = true;
+        return callback(err);
+      });
+      stream.once("end", (chunk) => {
+        if (returned) {
+          return;
+        }
+        returned = true;
+        if (chunk && chunk.length) {
+          buf.push(chunk);
+          buflen += chunk.length;
+        }
+        return callback(null, Buffer.concat(buf, buflen));
+      });
+      return promise;
+    }
+    getTransferEncoding() {
+      let transferEncoding = false;
+      let contentType = (this.getHeader("Content-Type") || "").toString().toLowerCase().trim();
+      if (this.content) {
+        transferEncoding = (this.getHeader("Content-Transfer-Encoding") || "").toString().toLowerCase().trim();
+        if (!transferEncoding || !["base64", "quoted-printable"].includes(transferEncoding)) {
+          if (/^text\//i.test(contentType)) {
+            if (this._isPlainText && !this._hasLongLines) {
+              transferEncoding = "7bit";
+            } else if (typeof this.content === "string" || this.content instanceof Buffer) {
+              transferEncoding = this._getTextEncoding(this.content) === "Q" ? "quoted-printable" : "base64";
+            } else {
+              transferEncoding = this.textEncoding === "B" ? "base64" : "quoted-printable";
+            }
+          } else if (!/^(multipart|message)\//i.test(contentType)) {
+            transferEncoding = transferEncoding || "base64";
+          }
+        }
+      }
+      return transferEncoding;
+    }
+    /**
+     * Builds the header block for the mime node. Append \r\n\r\n before writing the content
+     *
+     * @returns {String} Headers
+     */
+    buildHeaders() {
+      let transferEncoding = this.getTransferEncoding();
+      let headers = [];
+      if (transferEncoding) {
+        this.setHeader("Content-Transfer-Encoding", transferEncoding);
+      }
+      if (this.filename && !this.getHeader("Content-Disposition")) {
+        this.setHeader("Content-Disposition", "attachment");
+      }
+      if (this.rootNode === this) {
+        if (!this.getHeader("Date")) {
+          this.setHeader("Date", this.date.toUTCString().replace(/GMT/, "+0000"));
+        }
+        this.messageId();
+        if (!this.getHeader("MIME-Version")) {
+          this.setHeader("MIME-Version", "1.0");
+        }
+        for (let i = this._headers.length - 2; i >= 0; i--) {
+          let header = this._headers[i];
+          if (header.key === "Content-Type") {
+            this._headers.splice(i, 1);
+            this._headers.push(header);
+          }
+        }
+      }
+      this._headers.forEach((header) => {
+        let key = header.key;
+        let value = header.value;
+        let structured;
+        let param;
+        let options = {};
+        let formattedHeaders = ["From", "Sender", "To", "Cc", "Bcc", "Reply-To", "Date", "References"];
+        if (value && typeof value === "object" && !formattedHeaders.includes(key)) {
+          Object.keys(value).forEach((key2) => {
+            if (key2 !== "value") {
+              options[key2] = value[key2];
+            }
+          });
+          value = (value.value || "").toString();
+          if (!value.trim()) {
+            return;
+          }
+        }
+        if (options.prepared) {
+          if (options.foldLines) {
+            headers.push(mimeFuncs2.foldLines(key + ": " + value));
+          } else {
+            headers.push(key + ": " + value);
+          }
+          return;
+        }
+        switch (header.key) {
+          case "Content-Disposition":
+            structured = mimeFuncs2.parseHeaderValue(value);
+            if (this.filename) {
+              structured.params.filename = this.filename;
+            }
+            value = mimeFuncs2.buildHeaderValue(structured);
+            break;
+          case "Content-Type":
+            structured = mimeFuncs2.parseHeaderValue(value);
+            this._handleContentType(structured);
+            if (structured.value.match(/^text\/plain\b/) && typeof this.content === "string" && /[\u0080-\uFFFF]/.test(this.content)) {
+              structured.params.charset = "utf-8";
+            }
+            value = mimeFuncs2.buildHeaderValue(structured);
+            if (this.filename) {
+              param = this._encodeWords(this.filename);
+              if (param !== this.filename || /[\s'"\\;:/=(),<>@[\]?]|^-/.test(param)) {
+                param = '"' + param + '"';
+              }
+              value += "; name=" + param;
+            }
+            break;
+          case "Bcc":
+            if (!this.keepBcc) {
+              return;
+            }
+            break;
+        }
+        value = this._encodeHeaderValue(key, value);
+        if (!(value || "").toString().trim()) {
+          return;
+        }
+        if (typeof this.normalizeHeaderKey === "function") {
+          let normalized = this.normalizeHeaderKey(key, value);
+          if (normalized && typeof normalized === "string" && normalized.length) {
+            key = normalized;
+          }
+        }
+        headers.push(mimeFuncs2.foldLines(key + ": " + value, 76));
+      });
+      return headers.join("\r\n");
+    }
+    /**
+     * Streams the rfc2822 message from the current node. If this is a root node,
+     * mandatory header fields are set if missing (Date, Message-Id, MIME-Version)
+     *
+     * @return {String} Compiled message
+     */
+    createReadStream(options) {
+      options = options || {};
+      let stream = new PassThrough(options);
+      let outputStream = stream;
+      let transform2;
+      this.stream(stream, options, (err) => {
+        if (err) {
+          outputStream.emit("error", err);
+          return;
+        }
+        stream.end();
+      });
+      for (let i = 0, len = this._transforms.length; i < len; i++) {
+        transform2 = typeof this._transforms[i] === "function" ? this._transforms[i]() : this._transforms[i];
+        outputStream.once("error", (err) => {
+          transform2.emit("error", err);
+        });
+        outputStream = outputStream.pipe(transform2);
+      }
+      transform2 = new LastNewline();
+      outputStream.once("error", (err) => {
+        transform2.emit("error", err);
+      });
+      outputStream = outputStream.pipe(transform2);
+      for (let i = 0, len = this._processFuncs.length; i < len; i++) {
+        transform2 = this._processFuncs[i];
+        outputStream = transform2(outputStream);
+      }
+      if (this.newline) {
+        const winbreak = ["win", "windows", "dos", "\r\n"].includes(this.newline.toString().toLowerCase());
+        const newlineTransform = winbreak ? new LeWindows() : new LeUnix();
+        const stream2 = outputStream.pipe(newlineTransform);
+        outputStream.on("error", (err) => stream2.emit("error", err));
+        return stream2;
+      }
+      return outputStream;
+    }
+    /**
+     * Appends a transform stream object to the transforms list. Final output
+     * is passed through this stream before exposing
+     *
+     * @param {Object} transform Read-Write stream
+     */
+    transform(transform2) {
+      this._transforms.push(transform2);
+    }
+    /**
+     * Appends a post process function. The functon is run after transforms and
+     * uses the following syntax
+     *
+     *   processFunc(input) -> outputStream
+     *
+     * @param {Object} processFunc Read-Write stream
+     */
+    processFunc(processFunc) {
+      this._processFuncs.push(processFunc);
+    }
+    stream(outputStream, options, done) {
+      let transferEncoding = this.getTransferEncoding();
+      let contentStream;
+      let localStream;
+      let returned = false;
+      let callback = (err) => {
+        if (returned) {
+          return;
+        }
+        returned = true;
+        done(err);
+      };
+      let finalize = () => {
+        let childId = 0;
+        let processChildNode = () => {
+          if (childId >= this.childNodes.length) {
+            outputStream.write("\r\n--" + this.boundary + "--\r\n");
+            return callback();
+          }
+          let child = this.childNodes[childId++];
+          outputStream.write((childId > 1 ? "\r\n" : "") + "--" + this.boundary + "\r\n");
+          child.stream(outputStream, options, (err) => {
+            if (err) {
+              return callback(err);
+            }
+            setImmediate(processChildNode);
+          });
+        };
+        if (this.multipart) {
+          setImmediate(processChildNode);
+        } else {
+          return callback();
+        }
+      };
+      let sendContent = () => {
+        if (this.content) {
+          if (Object.prototype.toString.call(this.content) === "[object Error]") {
+            return callback(this.content);
+          }
+          if (typeof this.content.pipe === "function") {
+            this.content.removeListener("error", this._contentErrorHandler);
+            this._contentErrorHandler = (err) => callback(err);
+            this.content.once("error", this._contentErrorHandler);
+          }
+          let createStream = () => {
+            if (["quoted-printable", "base64"].includes(transferEncoding)) {
+              contentStream = new (transferEncoding === "base64" ? base642 : qp2).Encoder(options);
+              contentStream.pipe(outputStream, {
+                end: false
+              });
+              contentStream.once("end", finalize);
+              contentStream.once("error", (err) => callback(err));
+              localStream = this._getStream(this.content);
+              localStream.pipe(contentStream);
+            } else {
+              localStream = this._getStream(this.content);
+              localStream.pipe(outputStream, {
+                end: false
+              });
+              localStream.once("end", finalize);
+            }
+            localStream.once("error", (err) => callback(err));
+          };
+          if (this.content._resolve) {
+            let chunks = [];
+            let chunklen = 0;
+            let returned2 = false;
+            let sourceStream = this._getStream(this.content);
+            sourceStream.on("error", (err) => {
+              if (returned2) {
+                return;
+              }
+              returned2 = true;
+              callback(err);
+            });
+            sourceStream.on("readable", () => {
+              let chunk;
+              while ((chunk = sourceStream.read()) !== null) {
+                chunks.push(chunk);
+                chunklen += chunk.length;
+              }
+            });
+            sourceStream.on("end", () => {
+              if (returned2) {
+                return;
+              }
+              returned2 = true;
+              this.content._resolve = false;
+              this.content._resolvedValue = Buffer.concat(chunks, chunklen);
+              setImmediate(createStream);
+            });
+          } else {
+            setImmediate(createStream);
+          }
+          return;
+        } else {
+          return setImmediate(finalize);
+        }
+      };
+      if (this._raw) {
+        setImmediate(() => {
+          if (Object.prototype.toString.call(this._raw) === "[object Error]") {
+            return callback(this._raw);
+          }
+          if (typeof this._raw.pipe === "function") {
+            this._raw.removeListener("error", this._contentErrorHandler);
+          }
+          let raw = this._getStream(this._raw);
+          raw.pipe(outputStream, {
+            end: false
+          });
+          raw.on("error", (err) => outputStream.emit("error", err));
+          raw.on("end", finalize);
+        });
+      } else {
+        outputStream.write(this.buildHeaders() + "\r\n\r\n");
+        setImmediate(sendContent);
+      }
+    }
+    /**
+     * Sets envelope to be used instead of the generated one
+     *
+     * @return {Object} SMTP envelope in the form of {from: 'from@example.com', to: ['to@example.com']}
+     */
+    setEnvelope(envelope) {
+      let list;
+      this._envelope = {
+        from: false,
+        to: []
+      };
+      if (envelope.from) {
+        list = [];
+        this._convertAddresses(this._parseAddresses(envelope.from), list);
+        list = list.filter((address) => address && address.address);
+        if (list.length && list[0]) {
+          this._envelope.from = list[0].address;
+        }
+      }
+      ["to", "cc", "bcc"].forEach((key) => {
+        if (envelope[key]) {
+          this._convertAddresses(this._parseAddresses(envelope[key]), this._envelope.to);
+        }
+      });
+      this._envelope.to = this._envelope.to.map((to) => to.address).filter((address) => address);
+      let standardFields = ["to", "cc", "bcc", "from"];
+      Object.keys(envelope).forEach((key) => {
+        if (!standardFields.includes(key)) {
+          this._envelope[key] = envelope[key];
+        }
+      });
+      return this;
+    }
+    /**
+     * Generates and returns an object with parsed address fields
+     *
+     * @return {Object} Address object
+     */
+    getAddresses() {
+      let addresses = {};
+      this._headers.forEach((header) => {
+        let key = header.key.toLowerCase();
+        if (["from", "sender", "reply-to", "to", "cc", "bcc"].includes(key)) {
+          if (!Array.isArray(addresses[key])) {
+            addresses[key] = [];
+          }
+          this._convertAddresses(this._parseAddresses(header.value), addresses[key]);
+        }
+      });
+      return addresses;
+    }
+    /**
+     * Generates and returns SMTP envelope with the sender address and a list of recipients addresses
+     *
+     * @return {Object} SMTP envelope in the form of {from: 'from@example.com', to: ['to@example.com']}
+     */
+    getEnvelope() {
+      if (this._envelope) {
+        return this._envelope;
+      }
+      let envelope = {
+        from: false,
+        to: []
+      };
+      this._headers.forEach((header) => {
+        let list = [];
+        if (header.key === "From" || !envelope.from && ["Reply-To", "Sender"].includes(header.key)) {
+          this._convertAddresses(this._parseAddresses(header.value), list);
+          if (list.length && list[0]) {
+            envelope.from = list[0].address;
+          }
+        } else if (["To", "Cc", "Bcc"].includes(header.key)) {
+          this._convertAddresses(this._parseAddresses(header.value), envelope.to);
+        }
+      });
+      envelope.to = envelope.to.map((to) => to.address);
+      return envelope;
+    }
+    /**
+     * Returns Message-Id value. If it does not exist, then creates one
+     *
+     * @return {String} Message-Id value
+     */
+    messageId() {
+      let messageId = this.getHeader("Message-ID");
+      if (!messageId) {
+        messageId = this._generateMessageId();
+        this.setHeader("Message-ID", messageId);
+      }
+      return messageId;
+    }
+    /**
+     * Sets pregenerated content that will be used as the output of this node
+     *
+     * @param {String|Buffer|Stream} Raw MIME contents
+     */
+    setRaw(raw) {
+      this._raw = raw;
+      if (this._raw && typeof this._raw.pipe === "function") {
+        this._contentErrorHandler = (err) => {
+          this._raw.removeListener("error", this._contentErrorHandler);
+          this._raw = err;
+        };
+        this._raw.once("error", this._contentErrorHandler);
+      }
+      return this;
+    }
+    /////// PRIVATE METHODS
+    /**
+     * Detects and returns handle to a stream related with the content.
+     *
+     * @param {Mixed} content Node content
+     * @returns {Object} Stream object
+     */
+    _getStream(content) {
+      let contentStream;
+      if (content._resolvedValue) {
+        contentStream = new PassThrough();
+        setImmediate(() => {
+          try {
+            contentStream.end(content._resolvedValue);
+          } catch (_err) {
+            contentStream.emit("error", _err);
+          }
+        });
+        return contentStream;
+      } else if (typeof content.pipe === "function") {
+        return content;
+      } else if (content && typeof content.path === "string" && !content.href) {
+        if (this.disableFileAccess) {
+          contentStream = new PassThrough();
+          setImmediate(() => {
+            let err = new Error("File access rejected for " + content.path);
+            err.code = errors2.EFILEACCESS;
+            contentStream.emit("error", err);
+          });
+          return contentStream;
+        }
+        return fs$1.createReadStream(content.path);
+      } else if (content && typeof content.href === "string") {
+        if (this.disableUrlAccess) {
+          contentStream = new PassThrough();
+          setImmediate(() => {
+            let err = new Error("Url access rejected for " + content.href);
+            err.code = errors2.EURLACCESS;
+            contentStream.emit("error", err);
+          });
+          return contentStream;
+        }
+        return nmfetch(content.href, { headers: content.httpHeaders });
+      } else {
+        contentStream = new PassThrough();
+        setImmediate(() => {
+          try {
+            contentStream.end(content || "");
+          } catch (_err) {
+            contentStream.emit("error", _err);
+          }
+        });
+        return contentStream;
+      }
+    }
+    /**
+     * Parses addresses. Takes in a single address or an array or an
+     * array of address arrays (eg. To: [[first group], [second group],...])
+     *
+     * @param {Mixed} addresses Addresses to be parsed
+     * @return {Array} An array of address objects
+     */
+    _parseAddresses(addresses) {
+      return [].concat.apply(
+        [],
+        [].concat(addresses).map((address) => {
+          if (address && address.address) {
+            address.address = this._normalizeAddress(address.address);
+            address.name = address.name || "";
+            return [address];
+          }
+          return addressparser(address);
+        })
+      );
+    }
+    /**
+     * Normalizes a header key, uses Camel-Case form, except for uppercase MIME-
+     *
+     * @param {String} key Key to be normalized
+     * @return {String} key in Camel-Case form
+     */
+    _normalizeHeaderKey(key) {
+      key = (key || "").toString().replace(/\r?\n|\r/g, " ").trim().toLowerCase().replace(/^X-SMTPAPI$|^(MIME|DKIM|ARC|BIMI)\b|^[a-z]|-(SPF|FBL|ID|MD5)$|-[a-z]/gi, (c) => c.toUpperCase()).replace(/^Content-Features$/i, "Content-features");
+      return key;
+    }
+    /**
+     * Checks if the content type is multipart and defines boundary if needed.
+     * Doesn't return anything, modifies object argument instead.
+     *
+     * @param {Object} structured Parsed header value for 'Content-Type' key
+     */
+    _handleContentType(structured) {
+      this.contentType = structured.value.trim().toLowerCase();
+      this.multipart = /^multipart\//i.test(this.contentType) ? this.contentType.substr(this.contentType.indexOf("/") + 1) : false;
+      if (this.multipart) {
+        this.boundary = structured.params.boundary = structured.params.boundary || this.boundary || this._generateBoundary();
+      } else {
+        this.boundary = false;
+      }
+    }
+    /**
+     * Generates a multipart boundary value
+     *
+     * @return {String} boundary value
+     */
+    _generateBoundary() {
+      return this.rootNode.boundaryPrefix + "-" + this.rootNode.baseBoundary + "-Part_" + this._nodeId;
+    }
+    /**
+     * Encodes a header value for use in the generated rfc2822 email.
+     *
+     * @param {String} key Header key
+     * @param {String} value Header value
+     */
+    _encodeHeaderValue(key, value) {
+      key = this._normalizeHeaderKey(key);
+      switch (key) {
+        // Structured headers
+        case "From":
+        case "Sender":
+        case "To":
+        case "Cc":
+        case "Bcc":
+        case "Reply-To":
+          return this._convertAddresses(this._parseAddresses(value));
+        // values enclosed in <>
+        case "Message-ID":
+        case "In-Reply-To":
+        case "Content-Id":
+          value = (value || "").toString().replace(/\r?\n|\r/g, " ");
+          if (value.charAt(0) !== "<") {
+            value = "<" + value;
+          }
+          if (value.charAt(value.length - 1) !== ">") {
+            value = value + ">";
+          }
+          return value;
+        // space separated list of values enclosed in <>
+        case "References":
+          value = [].concat.apply(
+            [],
+            [].concat(value || "").map((elm) => {
+              elm = (elm || "").toString().replace(/\r?\n|\r/g, " ").trim();
+              return elm.replace(/<[^>]*>/g, (str) => str.replace(/\s/g, "")).split(/\s+/);
+            })
+          ).map((elm) => {
+            if (elm.charAt(0) !== "<") {
+              elm = "<" + elm;
+            }
+            if (elm.charAt(elm.length - 1) !== ">") {
+              elm = elm + ">";
+            }
+            return elm;
+          });
+          return value.join(" ").trim();
+        case "Date":
+          if (Object.prototype.toString.call(value) === "[object Date]") {
+            return value.toUTCString().replace(/GMT/, "+0000");
+          }
+          value = (value || "").toString().replace(/\r?\n|\r/g, " ");
+          return this._encodeWords(value);
+        case "Content-Type":
+        case "Content-Disposition":
+          return (value || "").toString().replace(/\r?\n|\r/g, " ");
+        default:
+          value = (value || "").toString().replace(/\r?\n|\r/g, " ");
+          return this._encodeWords(value);
+      }
+    }
+    /**
+     * Rebuilds address object using punycode and other adjustments
+     *
+     * @param {Array} addresses An array of address objects
+     * @param {Array} [uniqueList] An array to be populated with addresses
+     * @return {String} address string
+     */
+    _convertAddresses(addresses, uniqueList) {
+      let values = [];
+      uniqueList = uniqueList || [];
+      [].concat(addresses || []).forEach((address) => {
+        if (address.address) {
+          address.address = this._normalizeAddress(address.address);
+          if (!address.name) {
+            values.push(address.address.indexOf(" ") >= 0 ? `<${address.address}>` : `${address.address}`);
+          } else if (address.name) {
+            values.push(`${this._encodeAddressName(address.name)} <${address.address}>`);
+          }
+          if (address.address) {
+            if (!uniqueList.filter((a) => a.address === address.address).length) {
+              uniqueList.push(address);
+            }
+          }
+        } else if (address.group) {
+          let groupListAddresses = (address.group.length ? this._convertAddresses(address.group, uniqueList) : "").trim();
+          values.push(`${this._encodeAddressName(address.name)}:${groupListAddresses};`);
+        }
+      });
+      return values.join(", ");
+    }
+    /**
+     * Normalizes an email address
+     *
+     * @param {Array} address An array of address objects
+     * @return {String} address string
+     */
+    _normalizeAddress(address) {
+      address = (address || "").toString().replace(/[\x00-\x1F<>]+/g, " ").trim();
+      let lastAt = address.lastIndexOf("@");
+      if (lastAt < 0) {
+        return address;
+      }
+      let user = address.substr(0, lastAt);
+      let domain = address.substr(lastAt + 1);
+      let encodedDomain;
+      try {
+        encodedDomain = punycode.toASCII(domain.toLowerCase());
+      } catch (_err) {
+      }
+      if (user.indexOf(" ") >= 0) {
+        if (user.charAt(0) !== '"') {
+          user = '"' + user;
+        }
+        if (user.substr(-1) !== '"') {
+          user = user + '"';
+        }
+      }
+      return `${user}@${encodedDomain}`;
+    }
+    /**
+     * If needed, mime encodes the name part
+     *
+     * @param {String} name Name part of an address
+     * @returns {String} Mime word encoded string if needed
+     */
+    _encodeAddressName(name2) {
+      if (!/^[\w ]*$/.test(name2)) {
+        if (/^[\x20-\x7e]*$/.test(name2)) {
+          return '"' + name2.replace(/([\\"])/g, "\\$1") + '"';
+        } else {
+          return mimeFuncs2.encodeWord(name2, this._getTextEncoding(name2), 52);
+        }
+      }
+      return name2;
+    }
+    /**
+     * If needed, mime encodes the name part
+     *
+     * @param {String} name Name part of an address
+     * @returns {String} Mime word encoded string if needed
+     */
+    _encodeWords(value) {
+      return mimeFuncs2.encodeWords(value, this._getTextEncoding(value), 52, true);
+    }
+    /**
+     * Detects best mime encoding for a text value
+     *
+     * @param {String} value Value to check for
+     * @return {String} either 'Q' or 'B'
+     */
+    _getTextEncoding(value) {
+      value = (value || "").toString();
+      let encoding = this.textEncoding;
+      let latinLen;
+      let nonLatinLen;
+      if (!encoding) {
+        nonLatinLen = (value.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\u0080-\uFFFF]/g) || []).length;
+        latinLen = (value.match(/[a-z]/gi) || []).length;
+        encoding = nonLatinLen < latinLen ? "Q" : "B";
+      }
+      return encoding;
+    }
+    /**
+     * Generates a message id
+     *
+     * @return {String} Random Message-ID value
+     */
+    _generateMessageId() {
+      return "<" + [2, 2, 2, 6].reduce(
+        // crux to generate UUID-like random strings
+        (prev, len) => prev + "-" + crypto.randomBytes(len).toString("hex"),
+        crypto.randomBytes(4).toString("hex")
+      ) + "@" + // try to use the domain of the FROM address or fallback to server hostname
+      (this.getEnvelope().from || this.hostname || "localhost").split("@").pop() + ">";
+    }
+  }
+  mimeNode = MimeNode;
+  return mimeNode;
+}
+var mailComposer;
+var hasRequiredMailComposer;
+function requireMailComposer() {
+  if (hasRequiredMailComposer) return mailComposer;
+  hasRequiredMailComposer = 1;
+  const MimeNode = requireMimeNode();
+  const mimeFuncs2 = requireMimeFuncs();
+  const parseDataURI = requireShared().parseDataURI;
+  class MailComposer {
+    constructor(mail) {
+      this.mail = mail || {};
+      this.message = false;
+    }
+    /**
+     * Builds MimeNode instance
+     */
+    compile() {
+      this._alternatives = this.getAlternatives();
+      this._htmlNode = this._alternatives.filter((alternative) => /^text\/html\b/i.test(alternative.contentType)).pop();
+      this._attachments = this.getAttachments(!!this._htmlNode);
+      this._useRelated = !!(this._htmlNode && this._attachments.related.length);
+      this._useAlternative = this._alternatives.length > 1;
+      this._useMixed = this._attachments.attached.length > 1 || this._alternatives.length && this._attachments.attached.length === 1;
+      if (this.mail.raw) {
+        this.message = new MimeNode("message/rfc822", { newline: this.mail.newline }).setRaw(this.mail.raw);
+      } else if (this._useMixed) {
+        this.message = this._createMixed();
+      } else if (this._useAlternative) {
+        this.message = this._createAlternative();
+      } else if (this._useRelated) {
+        this.message = this._createRelated();
+      } else {
+        this.message = this._createContentNode(
+          false,
+          [].concat(this._alternatives || []).concat(this._attachments.attached || []).shift() || {
+            contentType: "text/plain",
+            content: ""
+          }
+        );
+      }
+      if (this.mail.headers) {
+        this.message.addHeader(this.mail.headers);
+      }
+      ["from", "sender", "to", "cc", "bcc", "reply-to", "in-reply-to", "references", "subject", "message-id", "date"].forEach((header) => {
+        let key = header.replace(/-(\w)/g, (o, c) => c.toUpperCase());
+        if (this.mail[key]) {
+          this.message.setHeader(header, this.mail[key]);
+        }
+      });
+      if (this.mail.envelope) {
+        this.message.setEnvelope(this.mail.envelope);
+      }
+      this.message.messageId();
+      return this.message;
+    }
+    /**
+     * List all attachments. Resulting attachment objects can be used as input for MimeNode nodes
+     *
+     * @param {Boolean} findRelated If true separate related attachments from attached ones
+     * @returns {Object} An object of arrays (`related` and `attached`)
+     */
+    getAttachments(findRelated) {
+      let icalEvent, eventObject;
+      let attachments = [].concat(this.mail.attachments || []).map((attachment, i) => {
+        let data;
+        if (/^data:/i.test(attachment.path || attachment.href)) {
+          attachment = this._processDataUrl(attachment);
+        }
+        let contentType = attachment.contentType || mimeFuncs2.detectMimeType(attachment.filename || attachment.path || attachment.href || "bin");
+        let isImage = /^image\//i.test(contentType);
+        let isMessageNode = /^message\//i.test(contentType);
+        let contentDisposition = attachment.contentDisposition || (isMessageNode || isImage && attachment.cid ? "inline" : "attachment");
+        let contentTransferEncoding;
+        if ("contentTransferEncoding" in attachment) {
+          contentTransferEncoding = attachment.contentTransferEncoding;
+        } else if (isMessageNode) {
+          contentTransferEncoding = "8bit";
+        } else {
+          contentTransferEncoding = "base64";
+        }
+        data = {
+          contentType,
+          contentDisposition,
+          contentTransferEncoding
+        };
+        if (attachment.filename) {
+          data.filename = attachment.filename;
+        } else if (!isMessageNode && attachment.filename !== false) {
+          data.filename = (attachment.path || attachment.href || "").split("/").pop().split("?").shift() || "attachment-" + (i + 1);
+          if (data.filename.indexOf(".") < 0) {
+            data.filename += "." + mimeFuncs2.detectExtension(data.contentType);
+          }
+        }
+        if (/^https?:\/\//i.test(attachment.path)) {
+          attachment.href = attachment.path;
+          attachment.path = void 0;
+        }
+        if (attachment.cid) {
+          data.cid = attachment.cid;
+        }
+        if (attachment.raw) {
+          data.raw = attachment.raw;
+        } else if (attachment.path) {
+          data.content = {
+            path: attachment.path
+          };
+        } else if (attachment.href) {
+          data.content = {
+            href: attachment.href,
+            httpHeaders: attachment.httpHeaders
+          };
+        } else {
+          data.content = attachment.content || "";
+        }
+        if (attachment.encoding) {
+          data.encoding = attachment.encoding;
+        }
+        if (attachment.headers) {
+          data.headers = attachment.headers;
+        }
+        return data;
+      });
+      if (this.mail.icalEvent) {
+        if (typeof this.mail.icalEvent === "object" && (this.mail.icalEvent.content || this.mail.icalEvent.path || this.mail.icalEvent.href || this.mail.icalEvent.raw)) {
+          icalEvent = this.mail.icalEvent;
+        } else {
+          icalEvent = {
+            content: this.mail.icalEvent
+          };
+        }
+        eventObject = {};
+        Object.keys(icalEvent).forEach((key) => {
+          eventObject[key] = icalEvent[key];
+        });
+        eventObject.contentType = "application/ics";
+        if (!eventObject.headers) {
+          eventObject.headers = {};
+        }
+        eventObject.filename = eventObject.filename || "invite.ics";
+        eventObject.headers["Content-Disposition"] = "attachment";
+        eventObject.headers["Content-Transfer-Encoding"] = "base64";
+      }
+      if (!findRelated) {
+        return {
+          attached: attachments.concat(eventObject || []),
+          related: []
+        };
+      } else {
+        return {
+          attached: attachments.filter((attachment) => !attachment.cid).concat(eventObject || []),
+          related: attachments.filter((attachment) => !!attachment.cid)
+        };
+      }
+    }
+    /**
+     * List alternatives. Resulting objects can be used as input for MimeNode nodes
+     *
+     * @returns {Array} An array of alternative elements. Includes the `text` and `html` values as well
+     */
+    getAlternatives() {
+      let alternatives = [], text, html, watchHtml, amp, icalEvent, eventObject;
+      if (this.mail.text) {
+        if (typeof this.mail.text === "object" && (this.mail.text.content || this.mail.text.path || this.mail.text.href || this.mail.text.raw)) {
+          text = this.mail.text;
+        } else {
+          text = {
+            content: this.mail.text
+          };
+        }
+        text.contentType = "text/plain; charset=utf-8";
+      }
+      if (this.mail.watchHtml) {
+        if (typeof this.mail.watchHtml === "object" && (this.mail.watchHtml.content || this.mail.watchHtml.path || this.mail.watchHtml.href || this.mail.watchHtml.raw)) {
+          watchHtml = this.mail.watchHtml;
+        } else {
+          watchHtml = {
+            content: this.mail.watchHtml
+          };
+        }
+        watchHtml.contentType = "text/watch-html; charset=utf-8";
+      }
+      if (this.mail.amp) {
+        if (typeof this.mail.amp === "object" && (this.mail.amp.content || this.mail.amp.path || this.mail.amp.href || this.mail.amp.raw)) {
+          amp = this.mail.amp;
+        } else {
+          amp = {
+            content: this.mail.amp
+          };
+        }
+        amp.contentType = "text/x-amp-html; charset=utf-8";
+      }
+      if (this.mail.icalEvent) {
+        if (typeof this.mail.icalEvent === "object" && (this.mail.icalEvent.content || this.mail.icalEvent.path || this.mail.icalEvent.href || this.mail.icalEvent.raw)) {
+          icalEvent = this.mail.icalEvent;
+        } else {
+          icalEvent = {
+            content: this.mail.icalEvent
+          };
+        }
+        eventObject = {};
+        Object.keys(icalEvent).forEach((key) => {
+          eventObject[key] = icalEvent[key];
+        });
+        if (eventObject.content && typeof eventObject.content === "object") {
+          eventObject.content._resolve = true;
+        }
+        eventObject.filename = false;
+        eventObject.contentType = "text/calendar; charset=utf-8; method=" + (eventObject.method || "PUBLISH").toString().trim().toUpperCase();
+        if (!eventObject.headers) {
+          eventObject.headers = {};
+        }
+      }
+      if (this.mail.html) {
+        if (typeof this.mail.html === "object" && (this.mail.html.content || this.mail.html.path || this.mail.html.href || this.mail.html.raw)) {
+          html = this.mail.html;
+        } else {
+          html = {
+            content: this.mail.html
+          };
+        }
+        html.contentType = "text/html; charset=utf-8";
+      }
+      [].concat(text || []).concat(watchHtml || []).concat(amp || []).concat(html || []).concat(eventObject || []).concat(this.mail.alternatives || []).forEach((alternative) => {
+        let data;
+        if (/^data:/i.test(alternative.path || alternative.href)) {
+          alternative = this._processDataUrl(alternative);
+        }
+        data = {
+          contentType: alternative.contentType || mimeFuncs2.detectMimeType(alternative.filename || alternative.path || alternative.href || "txt"),
+          contentTransferEncoding: alternative.contentTransferEncoding
+        };
+        if (alternative.filename) {
+          data.filename = alternative.filename;
+        }
+        if (/^https?:\/\//i.test(alternative.path)) {
+          alternative.href = alternative.path;
+          alternative.path = void 0;
+        }
+        if (alternative.raw) {
+          data.raw = alternative.raw;
+        } else if (alternative.path) {
+          data.content = {
+            path: alternative.path
+          };
+        } else if (alternative.href) {
+          data.content = {
+            href: alternative.href
+          };
+        } else {
+          data.content = alternative.content || "";
+        }
+        if (alternative.encoding) {
+          data.encoding = alternative.encoding;
+        }
+        if (alternative.headers) {
+          data.headers = alternative.headers;
+        }
+        alternatives.push(data);
+      });
+      return alternatives;
+    }
+    /**
+     * Builds multipart/mixed node. It should always contain different type of elements on the same level
+     * eg. text + attachments
+     *
+     * @param {Object} parentNode Parent for this note. If it does not exist, a root node is created
+     * @returns {Object} MimeNode node element
+     */
+    _createMixed(parentNode) {
+      let node;
+      if (!parentNode) {
+        node = new MimeNode("multipart/mixed", {
+          baseBoundary: this.mail.baseBoundary,
+          textEncoding: this.mail.textEncoding,
+          boundaryPrefix: this.mail.boundaryPrefix,
+          disableUrlAccess: this.mail.disableUrlAccess,
+          disableFileAccess: this.mail.disableFileAccess,
+          normalizeHeaderKey: this.mail.normalizeHeaderKey,
+          newline: this.mail.newline
+        });
+      } else {
+        node = parentNode.createChild("multipart/mixed", {
+          disableUrlAccess: this.mail.disableUrlAccess,
+          disableFileAccess: this.mail.disableFileAccess,
+          normalizeHeaderKey: this.mail.normalizeHeaderKey,
+          newline: this.mail.newline
+        });
+      }
+      if (this._useAlternative) {
+        this._createAlternative(node);
+      } else if (this._useRelated) {
+        this._createRelated(node);
+      }
+      [].concat(!this._useAlternative && this._alternatives || []).concat(this._attachments.attached || []).forEach((element) => {
+        if (!this._useRelated || element !== this._htmlNode) {
+          this._createContentNode(node, element);
+        }
+      });
+      return node;
+    }
+    /**
+     * Builds multipart/alternative node. It should always contain same type of elements on the same level
+     * eg. text + html view of the same data
+     *
+     * @param {Object} parentNode Parent for this note. If it does not exist, a root node is created
+     * @returns {Object} MimeNode node element
+     */
+    _createAlternative(parentNode) {
+      let node;
+      if (!parentNode) {
+        node = new MimeNode("multipart/alternative", {
+          baseBoundary: this.mail.baseBoundary,
+          textEncoding: this.mail.textEncoding,
+          boundaryPrefix: this.mail.boundaryPrefix,
+          disableUrlAccess: this.mail.disableUrlAccess,
+          disableFileAccess: this.mail.disableFileAccess,
+          normalizeHeaderKey: this.mail.normalizeHeaderKey,
+          newline: this.mail.newline
+        });
+      } else {
+        node = parentNode.createChild("multipart/alternative", {
+          disableUrlAccess: this.mail.disableUrlAccess,
+          disableFileAccess: this.mail.disableFileAccess,
+          normalizeHeaderKey: this.mail.normalizeHeaderKey,
+          newline: this.mail.newline
+        });
+      }
+      this._alternatives.forEach((alternative) => {
+        if (this._useRelated && this._htmlNode === alternative) {
+          this._createRelated(node);
+        } else {
+          this._createContentNode(node, alternative);
+        }
+      });
+      return node;
+    }
+    /**
+     * Builds multipart/related node. It should always contain html node with related attachments
+     *
+     * @param {Object} parentNode Parent for this note. If it does not exist, a root node is created
+     * @returns {Object} MimeNode node element
+     */
+    _createRelated(parentNode) {
+      let node;
+      if (!parentNode) {
+        node = new MimeNode('multipart/related; type="text/html"', {
+          baseBoundary: this.mail.baseBoundary,
+          textEncoding: this.mail.textEncoding,
+          boundaryPrefix: this.mail.boundaryPrefix,
+          disableUrlAccess: this.mail.disableUrlAccess,
+          disableFileAccess: this.mail.disableFileAccess,
+          normalizeHeaderKey: this.mail.normalizeHeaderKey,
+          newline: this.mail.newline
+        });
+      } else {
+        node = parentNode.createChild('multipart/related; type="text/html"', {
+          disableUrlAccess: this.mail.disableUrlAccess,
+          disableFileAccess: this.mail.disableFileAccess,
+          normalizeHeaderKey: this.mail.normalizeHeaderKey,
+          newline: this.mail.newline
+        });
+      }
+      this._createContentNode(node, this._htmlNode);
+      this._attachments.related.forEach((alternative) => this._createContentNode(node, alternative));
+      return node;
+    }
+    /**
+     * Creates a regular node with contents
+     *
+     * @param {Object} parentNode Parent for this note. If it does not exist, a root node is created
+     * @param {Object} element Node data
+     * @returns {Object} MimeNode node element
+     */
+    _createContentNode(parentNode, element) {
+      element = element || {};
+      element.content = element.content || "";
+      let node;
+      let encoding = (element.encoding || "utf8").toString().toLowerCase().replace(/[-_\s]/g, "");
+      if (!parentNode) {
+        node = new MimeNode(element.contentType, {
+          filename: element.filename,
+          baseBoundary: this.mail.baseBoundary,
+          textEncoding: this.mail.textEncoding,
+          boundaryPrefix: this.mail.boundaryPrefix,
+          disableUrlAccess: this.mail.disableUrlAccess,
+          disableFileAccess: this.mail.disableFileAccess,
+          normalizeHeaderKey: this.mail.normalizeHeaderKey,
+          newline: this.mail.newline
+        });
+      } else {
+        node = parentNode.createChild(element.contentType, {
+          filename: element.filename,
+          textEncoding: this.mail.textEncoding,
+          disableUrlAccess: this.mail.disableUrlAccess,
+          disableFileAccess: this.mail.disableFileAccess,
+          normalizeHeaderKey: this.mail.normalizeHeaderKey,
+          newline: this.mail.newline
+        });
+      }
+      if (element.headers) {
+        node.addHeader(element.headers);
+      }
+      if (element.cid) {
+        node.setHeader("Content-Id", "<" + element.cid.replace(/[<>]/g, "") + ">");
+      }
+      if (element.contentTransferEncoding) {
+        node.setHeader("Content-Transfer-Encoding", element.contentTransferEncoding);
+      } else if (this.mail.encoding && /^text\//i.test(element.contentType)) {
+        node.setHeader("Content-Transfer-Encoding", this.mail.encoding);
+      }
+      if (!/^text\//i.test(element.contentType) || element.contentDisposition) {
+        node.setHeader(
+          "Content-Disposition",
+          element.contentDisposition || (element.cid && /^image\//i.test(element.contentType) ? "inline" : "attachment")
+        );
+      }
+      if (typeof element.content === "string" && !["utf8", "usascii", "ascii"].includes(encoding)) {
+        element.content = Buffer.from(element.content, encoding);
+      }
+      if (element.raw) {
+        node.setRaw(element.raw);
+      } else {
+        node.setContent(element.content);
+      }
+      return node;
+    }
+    /**
+     * Parses data uri and converts it to a Buffer
+     *
+     * @param {Object} element Content element
+     * @return {Object} Parsed element
+     */
+    _processDataUrl(element) {
+      const dataUrl = element.path || element.href;
+      if (!dataUrl || typeof dataUrl !== "string") {
+        return element;
+      }
+      if (!dataUrl.startsWith("data:")) {
+        return element;
+      }
+      if (dataUrl.length > 52428800) {
+        let detectedType = "application/octet-stream";
+        const commaPos = dataUrl.indexOf(",");
+        if (commaPos > 0 && commaPos < 200) {
+          const header = dataUrl.substring(5, commaPos);
+          const parts = header.split(";");
+          if (parts[0] && parts[0].includes("/")) {
+            detectedType = parts[0].trim();
+          }
+        }
+        return Object.assign({}, element, {
+          path: false,
+          href: false,
+          content: Buffer.alloc(0),
+          contentType: element.contentType || detectedType
+        });
+      }
+      let parsedDataUri;
+      try {
+        parsedDataUri = parseDataURI(dataUrl);
+      } catch (_err) {
+        return element;
+      }
+      if (!parsedDataUri) {
+        return element;
+      }
+      element.content = parsedDataUri.data;
+      element.contentType = element.contentType || parsedDataUri.contentType;
+      if ("path" in element) {
+        element.path = false;
+      }
+      if ("href" in element) {
+        element.href = false;
+      }
+      return element;
+    }
+  }
+  mailComposer = MailComposer;
+  return mailComposer;
+}
+var messageParser;
+var hasRequiredMessageParser;
+function requireMessageParser() {
+  if (hasRequiredMessageParser) return messageParser;
+  hasRequiredMessageParser = 1;
+  const Transform = require$$0$2.Transform;
+  class MessageParser extends Transform {
+    constructor(options) {
+      super(options);
+      this.lastBytes = Buffer.alloc(4);
+      this.headersParsed = false;
+      this.headerBytes = 0;
+      this.headerChunks = [];
+      this.rawHeaders = false;
+      this.bodySize = 0;
+    }
+    /**
+     * Keeps count of the last 4 bytes in order to detect line breaks on chunk boundaries
+     *
+     * @param {Buffer} data Next data chunk from the stream
+     */
+    updateLastBytes(data) {
+      let lblen = this.lastBytes.length;
+      let nblen = Math.min(data.length, lblen);
+      for (let i = 0, len = lblen - nblen; i < len; i++) {
+        this.lastBytes[i] = this.lastBytes[i + nblen];
+      }
+      for (let i = 1; i <= nblen; i++) {
+        this.lastBytes[lblen - i] = data[data.length - i];
+      }
+    }
+    /**
+     * Finds and removes message headers from the remaining body. We want to keep
+     * headers separated until final delivery to be able to modify these
+     *
+     * @param {Buffer} data Next chunk of data
+     * @return {Boolean} Returns true if headers are already found or false otherwise
+     */
+    checkHeaders(data) {
+      if (this.headersParsed) {
+        return true;
+      }
+      let lblen = this.lastBytes.length;
+      let headerPos = 0;
+      this.curLinePos = 0;
+      for (let i = 0, len = this.lastBytes.length + data.length; i < len; i++) {
+        let chr;
+        if (i < lblen) {
+          chr = this.lastBytes[i];
+        } else {
+          chr = data[i - lblen];
+        }
+        if (chr === 10 && i) {
+          let pr1 = i - 1 < lblen ? this.lastBytes[i - 1] : data[i - 1 - lblen];
+          let pr2 = i > 1 ? i - 2 < lblen ? this.lastBytes[i - 2] : data[i - 2 - lblen] : false;
+          if (pr1 === 10) {
+            this.headersParsed = true;
+            headerPos = i - lblen + 1;
+            this.headerBytes += headerPos;
+            break;
+          } else if (pr1 === 13 && pr2 === 10) {
+            this.headersParsed = true;
+            headerPos = i - lblen + 1;
+            this.headerBytes += headerPos;
+            break;
+          }
+        }
+      }
+      if (this.headersParsed) {
+        this.headerChunks.push(data.slice(0, headerPos));
+        this.rawHeaders = Buffer.concat(this.headerChunks, this.headerBytes);
+        this.headerChunks = null;
+        this.emit("headers", this.parseHeaders());
+        if (data.length - 1 > headerPos) {
+          let chunk = data.slice(headerPos);
+          this.bodySize += chunk.length;
+          setImmediate(() => this.push(chunk));
+        }
+        return false;
+      } else {
+        this.headerBytes += data.length;
+        this.headerChunks.push(data);
+      }
+      this.updateLastBytes(data);
+      return false;
+    }
+    _transform(chunk, encoding, callback) {
+      if (!chunk || !chunk.length) {
+        return callback();
+      }
+      if (typeof chunk === "string") {
+        chunk = Buffer.from(chunk, encoding);
+      }
+      let headersFound;
+      try {
+        headersFound = this.checkHeaders(chunk);
+      } catch (E) {
+        return callback(E);
+      }
+      if (headersFound) {
+        this.bodySize += chunk.length;
+        this.push(chunk);
+      }
+      setImmediate(callback);
+    }
+    _flush(callback) {
+      if (this.headerChunks) {
+        let chunk = Buffer.concat(this.headerChunks, this.headerBytes);
+        this.bodySize += chunk.length;
+        this.push(chunk);
+        this.headerChunks = null;
+      }
+      callback();
+    }
+    parseHeaders() {
+      let lines = (this.rawHeaders || "").toString().split(/\r?\n/);
+      for (let i = lines.length - 1; i > 0; i--) {
+        if (/^\s/.test(lines[i])) {
+          lines[i - 1] += "\n" + lines[i];
+          lines.splice(i, 1);
+        }
+      }
+      return lines.filter((line) => line.trim()).map((line) => ({
+        key: line.substr(0, line.indexOf(":")).trim().toLowerCase(),
+        line
+      }));
+    }
+  }
+  messageParser = MessageParser;
+  return messageParser;
+}
+var relaxedBody;
+var hasRequiredRelaxedBody;
+function requireRelaxedBody() {
+  if (hasRequiredRelaxedBody) return relaxedBody;
+  hasRequiredRelaxedBody = 1;
+  const Transform = require$$0$2.Transform;
+  const crypto = require$$2;
+  class RelaxedBody extends Transform {
+    constructor(options) {
+      super();
+      options = options || {};
+      this.chunkBuffer = [];
+      this.chunkBufferLen = 0;
+      this.bodyHash = crypto.createHash(options.hashAlgo || "sha1");
+      this.remainder = "";
+      this.byteLength = 0;
+      this.debug = options.debug;
+      this._debugBody = options.debug ? [] : false;
+    }
+    updateHash(chunk) {
+      let bodyStr;
+      let nextRemainder = "";
+      let state = "file";
+      for (let i = chunk.length - 1; i >= 0; i--) {
+        let c = chunk[i];
+        if (state === "file" && (c === 10 || c === 13)) ;
+        else if (state === "file" && (c === 9 || c === 32)) {
+          state = "line";
+        } else if (state === "line" && (c === 9 || c === 32)) ;
+        else if (state === "file" || state === "line") {
+          state = "body";
+          if (i === chunk.length - 1) {
+            break;
+          }
+        }
+        if (i === 0) {
+          if (state === "file" && (!this.remainder || /[\r\n]$/.test(this.remainder)) || state === "line" && (!this.remainder || /[ \t]$/.test(this.remainder))) {
+            this.remainder += chunk.toString("binary");
+            return;
+          } else if (state === "line" || state === "file") {
+            nextRemainder = chunk.toString("binary");
+            chunk = false;
+            break;
+          }
+        }
+        if (state !== "body") {
+          continue;
+        }
+        nextRemainder = chunk.slice(i + 1).toString("binary");
+        chunk = chunk.slice(0, i + 1);
+        break;
+      }
+      let needsFixing = !!this.remainder;
+      if (chunk && !needsFixing) {
+        for (let i = 0, len = chunk.length; i < len; i++) {
+          if (i && chunk[i] === 10 && chunk[i - 1] !== 13) {
+            needsFixing = true;
+            break;
+          } else if (i && chunk[i] === 13 && chunk[i - 1] === 32) {
+            needsFixing = true;
+            break;
+          } else if (i && chunk[i] === 32 && chunk[i - 1] === 32) {
+            needsFixing = true;
+            break;
+          } else if (chunk[i] === 9) {
+            needsFixing = true;
+            break;
+          }
+        }
+      }
+      if (needsFixing) {
+        bodyStr = this.remainder + (chunk ? chunk.toString("binary") : "");
+        this.remainder = nextRemainder;
+        bodyStr = bodyStr.replace(/\r?\n/g, "\n").replace(/[ \t]*$/gm, "").replace(/[ \t]+/gm, " ").replace(/\n/g, "\r\n");
+        chunk = Buffer.from(bodyStr, "binary");
+      } else if (nextRemainder) {
+        this.remainder = nextRemainder;
+      }
+      if (this.debug) {
+        this._debugBody.push(chunk);
+      }
+      this.bodyHash.update(chunk);
+    }
+    _transform(chunk, encoding, callback) {
+      if (!chunk || !chunk.length) {
+        return callback();
+      }
+      if (typeof chunk === "string") {
+        chunk = Buffer.from(chunk, encoding);
+      }
+      this.updateHash(chunk);
+      this.byteLength += chunk.length;
+      this.push(chunk);
+      callback();
+    }
+    _flush(callback) {
+      if (/[\r\n]$/.test(this.remainder) && this.byteLength > 2) {
+        this.bodyHash.update(Buffer.from("\r\n"));
+      }
+      if (!this.byteLength) {
+        this.push(Buffer.from("\r\n"));
+      }
+      this.emit("hash", this.bodyHash.digest("base64"), this.debug ? Buffer.concat(this._debugBody) : false);
+      callback();
+    }
+  }
+  relaxedBody = RelaxedBody;
+  return relaxedBody;
+}
+var sign = { exports: {} };
+var hasRequiredSign;
+function requireSign() {
+  if (hasRequiredSign) return sign.exports;
+  hasRequiredSign = 1;
+  const punycode = requirePunycode();
+  const mimeFuncs2 = requireMimeFuncs();
+  const crypto = require$$2;
+  sign.exports = (headers, hashAlgo, bodyHash, options) => {
+    options = options || {};
+    let defaultFieldNames = "From:Sender:Reply-To:Subject:Date:Message-ID:To:Cc:MIME-Version:Content-Type:Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive";
+    let fieldNames = options.headerFieldNames || defaultFieldNames;
+    let canonicalizedHeaderData = relaxedHeaders(headers, fieldNames, options.skipFields);
+    let dkimHeader = generateDKIMHeader(options.domainName, options.keySelector, canonicalizedHeaderData.fieldNames, hashAlgo, bodyHash);
+    let signer, signature;
+    canonicalizedHeaderData.headers += "dkim-signature:" + relaxedHeaderLine(dkimHeader);
+    signer = crypto.createSign(("rsa-" + hashAlgo).toUpperCase());
+    signer.update(canonicalizedHeaderData.headers);
+    try {
+      signature = signer.sign(options.privateKey, "base64");
+    } catch (_E) {
+      return false;
+    }
+    return dkimHeader + signature.replace(/(^.{73}|.{75}(?!\r?\n|\r))/g, "$&\r\n ").trim();
+  };
+  sign.exports.relaxedHeaders = relaxedHeaders;
+  function generateDKIMHeader(domainName, keySelector, fieldNames, hashAlgo, bodyHash) {
+    let dkim2 = [
+      "v=1",
+      "a=rsa-" + hashAlgo,
+      "c=relaxed/relaxed",
+      "d=" + punycode.toASCII(domainName),
+      "q=dns/txt",
+      "s=" + keySelector,
+      "bh=" + bodyHash,
+      "h=" + fieldNames
+    ].join("; ");
+    return mimeFuncs2.foldLines("DKIM-Signature: " + dkim2, 76) + ";\r\n b=";
+  }
+  function relaxedHeaders(headers, fieldNames, skipFields) {
+    let includedFields = /* @__PURE__ */ new Set();
+    let skip = /* @__PURE__ */ new Set();
+    let headerFields = /* @__PURE__ */ new Map();
+    (skipFields || "").toLowerCase().split(":").forEach((field) => {
+      skip.add(field.trim());
+    });
+    (fieldNames || "").toLowerCase().split(":").filter((field) => !skip.has(field.trim())).forEach((field) => {
+      includedFields.add(field.trim());
+    });
+    for (let i = headers.length - 1; i >= 0; i--) {
+      let line = headers[i];
+      if (includedFields.has(line.key) && !headerFields.has(line.key)) {
+        headerFields.set(line.key, relaxedHeaderLine(line.line));
+      }
+    }
+    let headersList = [];
+    let fields = [];
+    includedFields.forEach((field) => {
+      if (headerFields.has(field)) {
+        fields.push(field);
+        headersList.push(field + ":" + headerFields.get(field));
+      }
+    });
+    return {
+      headers: headersList.join("\r\n") + "\r\n",
+      fieldNames: fields.join(":")
+    };
+  }
+  function relaxedHeaderLine(line) {
+    return line.substr(line.indexOf(":") + 1).replace(/\r?\n/g, "").replace(/\s+/g, " ").trim();
+  }
+  return sign.exports;
+}
+var dkim;
+var hasRequiredDkim;
+function requireDkim() {
+  if (hasRequiredDkim) return dkim;
+  hasRequiredDkim = 1;
+  const MessageParser = requireMessageParser();
+  const RelaxedBody = requireRelaxedBody();
+  const sign2 = requireSign();
+  const PassThrough = require$$0$2.PassThrough;
+  const fs$1 = fs;
+  const path$1 = path;
+  const crypto = require$$2;
+  const DKIM_ALGO = "sha256";
+  const MAX_MESSAGE_SIZE = 2 * 1024 * 1024;
+  class DKIMSigner {
+    constructor(options, keys, input, output) {
+      this.options = options || {};
+      this.keys = keys;
+      this.cacheTreshold = Number(this.options.cacheTreshold) || MAX_MESSAGE_SIZE;
+      this.hashAlgo = this.options.hashAlgo || DKIM_ALGO;
+      this.cacheDir = this.options.cacheDir || false;
+      this.chunks = [];
+      this.chunklen = 0;
+      this.readPos = 0;
+      this.cachePath = this.cacheDir ? path$1.join(this.cacheDir, "message." + Date.now() + "-" + crypto.randomBytes(14).toString("hex")) : false;
+      this.cache = false;
+      this.headers = false;
+      this.bodyHash = false;
+      this.parser = false;
+      this.relaxedBody = false;
+      this.input = input;
+      this.output = output;
+      this.output.usingCache = false;
+      this.hasErrored = false;
+      this.input.on("error", (err) => {
+        this.hasErrored = true;
+        this.cleanup();
+        output.emit("error", err);
+      });
+    }
+    cleanup() {
+      if (!this.cache || !this.cachePath) {
+        return;
+      }
+      fs$1.unlink(this.cachePath, () => false);
+    }
+    createReadCache() {
+      this.cache = fs$1.createReadStream(this.cachePath);
+      this.cache.once("error", (err) => {
+        this.cleanup();
+        this.output.emit("error", err);
+      });
+      this.cache.once("close", () => {
+        this.cleanup();
+      });
+      this.cache.pipe(this.output);
+    }
+    sendNextChunk() {
+      if (this.hasErrored) {
+        return;
+      }
+      if (this.readPos >= this.chunks.length) {
+        if (!this.cache) {
+          return this.output.end();
+        }
+        return this.createReadCache();
+      }
+      let chunk = this.chunks[this.readPos++];
+      if (this.output.write(chunk) === false) {
+        return this.output.once("drain", () => {
+          this.sendNextChunk();
+        });
+      }
+      setImmediate(() => this.sendNextChunk());
+    }
+    sendSignedOutput() {
+      let keyPos = 0;
+      let signNextKey = () => {
+        if (keyPos >= this.keys.length) {
+          this.output.write(this.parser.rawHeaders);
+          return setImmediate(() => this.sendNextChunk());
+        }
+        let key = this.keys[keyPos++];
+        let dkimField = sign2(this.headers, this.hashAlgo, this.bodyHash, {
+          domainName: key.domainName,
+          keySelector: key.keySelector,
+          privateKey: key.privateKey,
+          headerFieldNames: this.options.headerFieldNames,
+          skipFields: this.options.skipFields
+        });
+        if (dkimField) {
+          this.output.write(Buffer.from(dkimField + "\r\n"));
+        }
+        return setImmediate(signNextKey);
+      };
+      if (this.bodyHash && this.headers) {
+        return signNextKey();
+      }
+      this.output.write(this.parser.rawHeaders);
+      this.sendNextChunk();
+    }
+    createWriteCache() {
+      this.output.usingCache = true;
+      this.cache = fs$1.createWriteStream(this.cachePath);
+      this.cache.once("error", (err) => {
+        this.cleanup();
+        this.relaxedBody.unpipe(this.cache);
+        this.relaxedBody.on("readable", () => {
+          while (this.relaxedBody.read() !== null) {
+          }
+        });
+        this.hasErrored = true;
+        this.output.emit("error", err);
+      });
+      this.cache.once("close", () => {
+        this.sendSignedOutput();
+      });
+      this.relaxedBody.removeAllListeners("readable");
+      this.relaxedBody.pipe(this.cache);
+    }
+    signStream() {
+      this.parser = new MessageParser();
+      this.relaxedBody = new RelaxedBody({
+        hashAlgo: this.hashAlgo
+      });
+      this.parser.on("headers", (value) => {
+        this.headers = value;
+      });
+      this.relaxedBody.on("hash", (value) => {
+        this.bodyHash = value;
+      });
+      this.relaxedBody.on("readable", () => {
+        let chunk;
+        if (this.cache) {
+          return;
+        }
+        while ((chunk = this.relaxedBody.read()) !== null) {
+          this.chunks.push(chunk);
+          this.chunklen += chunk.length;
+          if (this.chunklen >= this.cacheTreshold && this.cachePath) {
+            return this.createWriteCache();
+          }
+        }
+      });
+      this.relaxedBody.on("end", () => {
+        if (this.cache) {
+          return;
+        }
+        this.sendSignedOutput();
+      });
+      this.parser.pipe(this.relaxedBody);
+      setImmediate(() => this.input.pipe(this.parser));
+    }
+  }
+  class DKIM {
+    constructor(options) {
+      this.options = options || {};
+      this.keys = [].concat(
+        this.options.keys || {
+          domainName: options.domainName,
+          keySelector: options.keySelector,
+          privateKey: options.privateKey
+        }
+      );
+    }
+    sign(input, extraOptions) {
+      let output = new PassThrough();
+      let inputStream = input;
+      let writeValue = false;
+      if (Buffer.isBuffer(input)) {
+        writeValue = input;
+        inputStream = new PassThrough();
+      } else if (typeof input === "string") {
+        writeValue = Buffer.from(input);
+        inputStream = new PassThrough();
+      }
+      let options = this.options;
+      if (extraOptions && Object.keys(extraOptions).length) {
+        options = {};
+        Object.keys(this.options || {}).forEach((key) => {
+          options[key] = this.options[key];
+        });
+        Object.keys(extraOptions || {}).forEach((key) => {
+          if (!(key in options)) {
+            options[key] = extraOptions[key];
+          }
+        });
+      }
+      let signer = new DKIMSigner(options, this.keys, inputStream, output);
+      setImmediate(() => {
+        signer.signStream();
+        if (writeValue) {
+          setImmediate(() => {
+            inputStream.end(writeValue);
+          });
+        }
+      });
+      return output;
+    }
+  }
+  dkim = DKIM;
+  return dkim;
+}
+var httpProxyClient_1;
+var hasRequiredHttpProxyClient;
+function requireHttpProxyClient() {
+  if (hasRequiredHttpProxyClient) return httpProxyClient_1;
+  hasRequiredHttpProxyClient = 1;
+  const net = require$$7;
+  const tls = require$$1$2;
+  const urllib = require$$0$1;
+  const errors2 = requireErrors();
+  function httpProxyClient(proxyUrl, destinationPort, destinationHost, callback) {
+    let proxy = urllib.parse(proxyUrl);
+    let options;
+    let connect;
+    let socket;
+    options = {
+      host: proxy.hostname,
+      port: Number(proxy.port) ? Number(proxy.port) : proxy.protocol === "https:" ? 443 : 80
+    };
+    if (proxy.protocol === "https:") {
+      options.rejectUnauthorized = false;
+      connect = tls.connect.bind(tls);
+    } else {
+      connect = net.connect.bind(net);
+    }
+    let finished = false;
+    let tempSocketErr = (err) => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      try {
+        socket.destroy();
+      } catch (_E) {
+      }
+      callback(err);
+    };
+    let timeoutErr = () => {
+      let err = new Error("Proxy socket timed out");
+      err.code = "ETIMEDOUT";
+      tempSocketErr(err);
+    };
+    socket = connect(options, () => {
+      if (finished) {
+        return;
+      }
+      let reqHeaders = {
+        Host: destinationHost + ":" + destinationPort,
+        Connection: "close"
+      };
+      if (proxy.auth) {
+        reqHeaders["Proxy-Authorization"] = "Basic " + Buffer.from(proxy.auth).toString("base64");
+      }
+      socket.write(
+        // HTTP method
+        "CONNECT " + destinationHost + ":" + destinationPort + " HTTP/1.1\r\n" + // HTTP request headers
+        Object.keys(reqHeaders).map((key) => key + ": " + reqHeaders[key]).join("\r\n") + // End request
+        "\r\n\r\n"
+      );
+      let headers = "";
+      let onSocketData = (chunk) => {
+        let match;
+        let remainder;
+        if (finished) {
+          return;
+        }
+        headers += chunk.toString("binary");
+        if (match = headers.match(/\r\n\r\n/)) {
+          socket.removeListener("data", onSocketData);
+          remainder = headers.substr(match.index + match[0].length);
+          headers = headers.substr(0, match.index);
+          if (remainder) {
+            socket.unshift(Buffer.from(remainder, "binary"));
+          }
+          finished = true;
+          match = headers.match(/^HTTP\/\d+\.\d+ (\d+)/i);
+          if (!match || (match[1] || "").charAt(0) !== "2") {
+            try {
+              socket.destroy();
+            } catch (_E) {
+            }
+            let err = new Error("Invalid response from proxy" + (match && ": " + match[1] || ""));
+            err.code = errors2.EPROXY;
+            return callback(err);
+          }
+          socket.removeListener("error", tempSocketErr);
+          socket.removeListener("timeout", timeoutErr);
+          socket.setTimeout(0);
+          return callback(null, socket);
+        }
+      };
+      socket.on("data", onSocketData);
+    });
+    socket.setTimeout(httpProxyClient.timeout || 30 * 1e3);
+    socket.on("timeout", timeoutErr);
+    socket.once("error", tempSocketErr);
+  }
+  httpProxyClient_1 = httpProxyClient;
+  return httpProxyClient_1;
+}
+var mailMessage;
+var hasRequiredMailMessage;
+function requireMailMessage() {
+  if (hasRequiredMailMessage) return mailMessage;
+  hasRequiredMailMessage = 1;
+  const shared2 = requireShared();
+  const MimeNode = requireMimeNode();
+  const mimeFuncs2 = requireMimeFuncs();
+  class MailMessage {
+    constructor(mailer2, data) {
+      this.mailer = mailer2;
+      this.data = {};
+      this.message = null;
+      data = data || {};
+      let options = mailer2.options || {};
+      let defaults = mailer2._defaults || {};
+      Object.keys(data).forEach((key) => {
+        this.data[key] = data[key];
+      });
+      this.data.headers = this.data.headers || {};
+      Object.keys(defaults).forEach((key) => {
+        if (!(key in this.data)) {
+          this.data[key] = defaults[key];
+        } else if (key === "headers") {
+          Object.keys(defaults.headers).forEach((key2) => {
+            if (!(key2 in this.data.headers)) {
+              this.data.headers[key2] = defaults.headers[key2];
+            }
+          });
+        }
+      });
+      ["disableFileAccess", "disableUrlAccess", "normalizeHeaderKey"].forEach((key) => {
+        if (key in options) {
+          this.data[key] = options[key];
+        }
+      });
+    }
+    resolveContent(...args) {
+      return shared2.resolveContent(...args);
+    }
+    resolveAll(callback) {
+      let keys = [
+        [this.data, "html"],
+        [this.data, "text"],
+        [this.data, "watchHtml"],
+        [this.data, "amp"],
+        [this.data, "icalEvent"]
+      ];
+      if (this.data.alternatives && this.data.alternatives.length) {
+        this.data.alternatives.forEach((alternative, i) => {
+          keys.push([this.data.alternatives, i]);
+        });
+      }
+      if (this.data.attachments && this.data.attachments.length) {
+        this.data.attachments.forEach((attachment, i) => {
+          if (!attachment.filename) {
+            attachment.filename = (attachment.path || attachment.href || "").split("/").pop().split("?").shift() || "attachment-" + (i + 1);
+            if (attachment.filename.indexOf(".") < 0) {
+              attachment.filename += "." + mimeFuncs2.detectExtension(attachment.contentType);
+            }
+          }
+          if (!attachment.contentType) {
+            attachment.contentType = mimeFuncs2.detectMimeType(attachment.filename || attachment.path || attachment.href || "bin");
+          }
+          keys.push([this.data.attachments, i]);
+        });
+      }
+      let mimeNode2 = new MimeNode();
+      let addressKeys = ["from", "to", "cc", "bcc", "sender", "replyTo"];
+      addressKeys.forEach((address) => {
+        let value;
+        if (this.message) {
+          value = [].concat(mimeNode2._parseAddresses(this.message.getHeader(address === "replyTo" ? "reply-to" : address)) || []);
+        } else if (this.data[address]) {
+          value = [].concat(mimeNode2._parseAddresses(this.data[address]) || []);
+        }
+        if (value && value.length) {
+          this.data[address] = value;
+        } else if (address in this.data) {
+          this.data[address] = null;
+        }
+      });
+      let singleKeys = ["from", "sender"];
+      singleKeys.forEach((address) => {
+        if (this.data[address]) {
+          this.data[address] = this.data[address].shift();
+        }
+      });
+      let pos = 0;
+      let resolveNext = () => {
+        if (pos >= keys.length) {
+          return callback(null, this.data);
+        }
+        let args = keys[pos++];
+        if (!args[0] || !args[0][args[1]]) {
+          return resolveNext();
+        }
+        shared2.resolveContent(...args, (err, value) => {
+          if (err) {
+            return callback(err);
+          }
+          let node = {
+            content: value
+          };
+          if (args[0][args[1]] && typeof args[0][args[1]] === "object" && !Buffer.isBuffer(args[0][args[1]])) {
+            Object.keys(args[0][args[1]]).forEach((key) => {
+              if (!(key in node) && !["content", "path", "href", "raw"].includes(key)) {
+                node[key] = args[0][args[1]][key];
+              }
+            });
+          }
+          args[0][args[1]] = node;
+          resolveNext();
+        });
+      };
+      setImmediate(() => resolveNext());
+    }
+    normalize(callback) {
+      let envelope = this.data.envelope || this.message.getEnvelope();
+      let messageId = this.message.messageId();
+      this.resolveAll((err, data) => {
+        if (err) {
+          return callback(err);
+        }
+        data.envelope = envelope;
+        data.messageId = messageId;
+        ["html", "text", "watchHtml", "amp"].forEach((key) => {
+          if (data[key] && data[key].content) {
+            if (typeof data[key].content === "string") {
+              data[key] = data[key].content;
+            } else if (Buffer.isBuffer(data[key].content)) {
+              data[key] = data[key].content.toString();
+            }
+          }
+        });
+        if (data.icalEvent && Buffer.isBuffer(data.icalEvent.content)) {
+          data.icalEvent.content = data.icalEvent.content.toString("base64");
+          data.icalEvent.encoding = "base64";
+        }
+        if (data.alternatives && data.alternatives.length) {
+          data.alternatives.forEach((alternative) => {
+            if (alternative && alternative.content && Buffer.isBuffer(alternative.content)) {
+              alternative.content = alternative.content.toString("base64");
+              alternative.encoding = "base64";
+            }
+          });
+        }
+        if (data.attachments && data.attachments.length) {
+          data.attachments.forEach((attachment) => {
+            if (attachment && attachment.content && Buffer.isBuffer(attachment.content)) {
+              attachment.content = attachment.content.toString("base64");
+              attachment.encoding = "base64";
+            }
+          });
+        }
+        data.normalizedHeaders = {};
+        Object.keys(data.headers || {}).forEach((key) => {
+          let value = [].concat(data.headers[key] || []).shift();
+          value = value && value.value || value;
+          if (value) {
+            if (["references", "in-reply-to", "message-id", "content-id"].includes(key)) {
+              value = this.message._encodeHeaderValue(key, value);
+            }
+            data.normalizedHeaders[key] = value;
+          }
+        });
+        if (data.list && typeof data.list === "object") {
+          let listHeaders = this._getListHeaders(data.list);
+          listHeaders.forEach((entry) => {
+            data.normalizedHeaders[entry.key] = entry.value.map((val) => val && val.value || val).join(", ");
+          });
+        }
+        if (data.references) {
+          data.normalizedHeaders.references = this.message._encodeHeaderValue("references", data.references);
+        }
+        if (data.inReplyTo) {
+          data.normalizedHeaders["in-reply-to"] = this.message._encodeHeaderValue("in-reply-to", data.inReplyTo);
+        }
+        return callback(null, data);
+      });
+    }
+    setMailerHeader() {
+      if (!this.message || !this.data.xMailer) {
+        return;
+      }
+      this.message.setHeader("X-Mailer", this.data.xMailer);
+    }
+    setPriorityHeaders() {
+      if (!this.message || !this.data.priority) {
+        return;
+      }
+      switch ((this.data.priority || "").toString().toLowerCase()) {
+        case "high":
+          this.message.setHeader("X-Priority", "1 (Highest)");
+          this.message.setHeader("X-MSMail-Priority", "High");
+          this.message.setHeader("Importance", "High");
+          break;
+        case "low":
+          this.message.setHeader("X-Priority", "5 (Lowest)");
+          this.message.setHeader("X-MSMail-Priority", "Low");
+          this.message.setHeader("Importance", "Low");
+          break;
+      }
+    }
+    setListHeaders() {
+      if (!this.message || !this.data.list || typeof this.data.list !== "object") {
+        return;
+      }
+      if (this.data.list && typeof this.data.list === "object") {
+        this._getListHeaders(this.data.list).forEach((listHeader) => {
+          listHeader.value.forEach((value) => {
+            this.message.addHeader(listHeader.key, value);
+          });
+        });
+      }
+    }
+    _getListHeaders(listData) {
+      return Object.keys(listData).map((key) => ({
+        key: "list-" + key.toLowerCase().trim(),
+        value: [].concat(listData[key] || []).map((value) => ({
+          prepared: true,
+          foldLines: true,
+          value: [].concat(value || []).map((value2) => {
+            if (typeof value2 === "string") {
+              value2 = {
+                url: value2
+              };
+            }
+            if (value2 && value2.url) {
+              if (key.toLowerCase().trim() === "id") {
+                let comment2 = value2.comment || "";
+                if (mimeFuncs2.isPlainText(comment2)) {
+                  comment2 = '"' + comment2 + '"';
+                } else {
+                  comment2 = mimeFuncs2.encodeWord(comment2);
+                }
+                return (value2.comment ? comment2 + " " : "") + this._formatListUrl(value2.url).replace(/^<[^:]+\/{,2}/, "");
+              }
+              let comment = value2.comment || "";
+              if (!mimeFuncs2.isPlainText(comment)) {
+                comment = mimeFuncs2.encodeWord(comment);
+              }
+              return this._formatListUrl(value2.url) + (value2.comment ? " (" + comment + ")" : "");
+            }
+            return "";
+          }).filter((value2) => value2).join(", ")
+        }))
+      }));
+    }
+    _formatListUrl(url) {
+      url = url.replace(/[\s<]+|[\s>]+/g, "");
+      if (/^(https?|mailto|ftp):/.test(url)) {
+        return "<" + url + ">";
+      }
+      if (/^[^@]+@[^@]+$/.test(url)) {
+        return "<mailto:" + url + ">";
+      }
+      return "<http://" + url + ">";
+    }
+  }
+  mailMessage = MailMessage;
+  return mailMessage;
+}
+var mailer;
+var hasRequiredMailer;
+function requireMailer() {
+  if (hasRequiredMailer) return mailer;
+  hasRequiredMailer = 1;
+  const EventEmitter = require$$0$4;
+  const shared2 = requireShared();
+  const mimeTypes = requireMimeTypes();
+  const MailComposer = requireMailComposer();
+  const DKIM = requireDkim();
+  const httpProxyClient = requireHttpProxyClient();
+  const errors2 = requireErrors();
+  const util = require$$1$1;
+  const urllib = require$$0$1;
+  const packageData = require$$10;
+  const MailMessage = requireMailMessage();
+  const net = require$$7;
+  const dns$1 = dns;
+  const crypto = require$$2;
+  class Mail extends EventEmitter {
+    constructor(transporter, options, defaults) {
+      super();
+      this.options = options || {};
+      this._defaults = defaults || {};
+      this._defaultPlugins = {
+        compile: [(...args) => this._convertDataImages(...args)],
+        stream: []
+      };
+      this._userPlugins = {
+        compile: [],
+        stream: []
+      };
+      this.meta = /* @__PURE__ */ new Map();
+      this.dkim = this.options.dkim ? new DKIM(this.options.dkim) : false;
+      this.transporter = transporter;
+      this.transporter.mailer = this;
+      this.logger = shared2.getLogger(this.options, {
+        component: this.options.component || "mail"
+      });
+      this.logger.debug(
+        {
+          tnx: "create"
+        },
+        "Creating transport: %s",
+        this.getVersionString()
+      );
+      if (typeof this.transporter.on === "function") {
+        this.transporter.on("log", (log) => {
+          this.logger.debug(
+            {
+              tnx: "transport"
+            },
+            "%s: %s",
+            log.type,
+            log.message
+          );
+        });
+        this.transporter.on("error", (err) => {
+          this.logger.error(
+            {
+              err,
+              tnx: "transport"
+            },
+            "Transport Error: %s",
+            err.message
+          );
+          this.emit("error", err);
+        });
+        this.transporter.on("idle", (...args) => {
+          this.emit("idle", ...args);
+        });
+        this.transporter.on("clear", (...args) => {
+          this.emit("clear", ...args);
+        });
+      }
+      ["close", "isIdle", "verify"].forEach((method) => {
+        this[method] = (...args) => {
+          if (typeof this.transporter[method] === "function") {
+            if (method === "verify" && typeof this.getSocket === "function") {
+              this.transporter.getSocket = this.getSocket;
+              this.getSocket = false;
+            }
+            return this.transporter[method](...args);
+          } else {
+            this.logger.warn(
+              {
+                tnx: "transport",
+                methodName: method
+              },
+              "Non existing method %s called for transport",
+              method
+            );
+            return false;
+          }
+        };
+      });
+      if (this.options.proxy && typeof this.options.proxy === "string") {
+        this.setupProxy(this.options.proxy);
+      }
+    }
+    use(step, plugin) {
+      step = (step || "").toString();
+      if (!this._userPlugins.hasOwnProperty(step)) {
+        this._userPlugins[step] = [plugin];
+      } else {
+        this._userPlugins[step].push(plugin);
+      }
+      return this;
+    }
+    /**
+     * Sends an email using the preselected transport object
+     *
+     * @param {Object} data E-data description
+     * @param {Function?} callback Callback to run once the sending succeeded or failed
+     */
+    sendMail(data, callback = null) {
+      let promise;
+      if (!callback) {
+        promise = new Promise((resolve, reject) => {
+          callback = shared2.callbackPromise(resolve, reject);
+        });
+      }
+      if (typeof this.getSocket === "function") {
+        this.transporter.getSocket = this.getSocket;
+        this.getSocket = false;
+      }
+      let mail = new MailMessage(this, data);
+      this.logger.debug(
+        {
+          tnx: "transport",
+          name: this.transporter.name,
+          version: this.transporter.version,
+          action: "send"
+        },
+        "Sending mail using %s/%s",
+        this.transporter.name,
+        this.transporter.version
+      );
+      this._processPlugins("compile", mail, (err) => {
+        if (err) {
+          this.logger.error(
+            {
+              err,
+              tnx: "plugin",
+              action: "compile"
+            },
+            "PluginCompile Error: %s",
+            err.message
+          );
+          return callback(err);
+        }
+        mail.message = new MailComposer(mail.data).compile();
+        mail.setMailerHeader();
+        mail.setPriorityHeaders();
+        mail.setListHeaders();
+        this._processPlugins("stream", mail, (err2) => {
+          if (err2) {
+            this.logger.error(
+              {
+                err: err2,
+                tnx: "plugin",
+                action: "stream"
+              },
+              "PluginStream Error: %s",
+              err2.message
+            );
+            return callback(err2);
+          }
+          if (mail.data.dkim || this.dkim) {
+            mail.message.processFunc((input) => {
+              let dkim2 = mail.data.dkim ? new DKIM(mail.data.dkim) : this.dkim;
+              this.logger.debug(
+                {
+                  tnx: "DKIM",
+                  messageId: mail.message.messageId(),
+                  dkimDomains: dkim2.keys.map((key) => key.keySelector + "." + key.domainName).join(", ")
+                },
+                "Signing outgoing message with %s keys",
+                dkim2.keys.length
+              );
+              return dkim2.sign(input, mail.data._dkim);
+            });
+          }
+          this.transporter.send(mail, (...args) => {
+            if (args[0]) {
+              this.logger.error(
+                {
+                  err: args[0],
+                  tnx: "transport",
+                  action: "send"
+                },
+                "Send Error: %s",
+                args[0].message
+              );
+            }
+            callback(...args);
+          });
+        });
+      });
+      return promise;
+    }
+    getVersionString() {
+      return util.format(
+        "%s (%s; +%s; %s/%s)",
+        packageData.name,
+        packageData.version,
+        packageData.homepage,
+        this.transporter.name,
+        this.transporter.version
+      );
+    }
+    _processPlugins(step, mail, callback) {
+      step = (step || "").toString();
+      if (!this._userPlugins.hasOwnProperty(step)) {
+        return callback();
+      }
+      let userPlugins = this._userPlugins[step] || [];
+      let defaultPlugins = this._defaultPlugins[step] || [];
+      if (userPlugins.length) {
+        this.logger.debug(
+          {
+            tnx: "transaction",
+            pluginCount: userPlugins.length,
+            step
+          },
+          "Using %s plugins for %s",
+          userPlugins.length,
+          step
+        );
+      }
+      if (userPlugins.length + defaultPlugins.length === 0) {
+        return callback();
+      }
+      let pos = 0;
+      let block = "default";
+      let processPlugins = () => {
+        let curplugins = block === "default" ? defaultPlugins : userPlugins;
+        if (pos >= curplugins.length) {
+          if (block === "default" && userPlugins.length) {
+            block = "user";
+            pos = 0;
+            curplugins = userPlugins;
+          } else {
+            return callback();
+          }
+        }
+        let plugin = curplugins[pos++];
+        plugin(mail, (err) => {
+          if (err) {
+            return callback(err);
+          }
+          processPlugins();
+        });
+      };
+      processPlugins();
+    }
+    /**
+     * Sets up proxy handler for a Nodemailer object
+     *
+     * @param {String} proxyUrl Proxy configuration url
+     */
+    setupProxy(proxyUrl) {
+      let proxy = urllib.parse(proxyUrl);
+      this.getSocket = (options, callback) => {
+        let protocol = proxy.protocol.replace(/:$/, "").toLowerCase();
+        if (this.meta.has("proxy_handler_" + protocol)) {
+          return this.meta.get("proxy_handler_" + protocol)(proxy, options, callback);
+        }
+        switch (protocol) {
+          // Connect using a HTTP CONNECT method
+          case "http":
+          case "https":
+            httpProxyClient(proxy.href, options.port, options.host, (err2, socket) => {
+              if (err2) {
+                return callback(err2);
+              }
+              return callback(null, {
+                connection: socket
+              });
+            });
+            return;
+          case "socks":
+          case "socks5":
+          case "socks4":
+          case "socks4a": {
+            if (!this.meta.has("proxy_socks_module")) {
+              let err2 = new Error("Socks module not loaded");
+              err2.code = errors2.EPROXY;
+              return callback(err2);
+            }
+            let connect = (ipaddress) => {
+              let proxyV2 = !!this.meta.get("proxy_socks_module").SocksClient;
+              let socksClient = proxyV2 ? this.meta.get("proxy_socks_module").SocksClient : this.meta.get("proxy_socks_module");
+              let proxyType = Number(proxy.protocol.replace(/\D/g, "")) || 5;
+              let connectionOpts = {
+                proxy: {
+                  ipaddress,
+                  port: Number(proxy.port),
+                  type: proxyType
+                },
+                [proxyV2 ? "destination" : "target"]: {
+                  host: options.host,
+                  port: options.port
+                },
+                command: "connect"
+              };
+              if (proxy.auth) {
+                let username = decodeURIComponent(proxy.auth.split(":").shift());
+                let password = decodeURIComponent(proxy.auth.split(":").pop());
+                if (proxyV2) {
+                  connectionOpts.proxy.userId = username;
+                  connectionOpts.proxy.password = password;
+                } else if (proxyType === 4) {
+                  connectionOpts.userid = username;
+                } else {
+                  connectionOpts.authentication = {
+                    username,
+                    password
+                  };
+                }
+              }
+              socksClient.createConnection(connectionOpts, (err2, info) => {
+                if (err2) {
+                  return callback(err2);
+                }
+                return callback(null, {
+                  connection: info.socket || info
+                });
+              });
+            };
+            if (net.isIP(proxy.hostname)) {
+              return connect(proxy.hostname);
+            }
+            return dns$1.resolve(proxy.hostname, (err2, address) => {
+              if (err2) {
+                return callback(err2);
+              }
+              connect(Array.isArray(address) ? address[0] : address);
+            });
+          }
+        }
+        let err = new Error("Unknown proxy configuration");
+        err.code = errors2.EPROXY;
+        callback(err);
+      };
+    }
+    _convertDataImages(mail, callback) {
+      if (!this.options.attachDataUrls && !mail.data.attachDataUrls || !mail.data.html) {
+        return callback();
+      }
+      mail.resolveContent(mail.data, "html", (err, html) => {
+        if (err) {
+          return callback(err);
+        }
+        let cidCounter = 0;
+        html = (html || "").toString().replace(/(<img\b[^<>]{0,1024} src\s{0,20}=[\s"']{0,20})(data:([^;]+);[^"'>\s]+)/gi, (match, prefix, dataUri, mimeType) => {
+          let cid = crypto.randomBytes(10).toString("hex") + "@localhost";
+          if (!mail.data.attachments) {
+            mail.data.attachments = [];
+          }
+          if (!Array.isArray(mail.data.attachments)) {
+            mail.data.attachments = [].concat(mail.data.attachments || []);
+          }
+          mail.data.attachments.push({
+            path: dataUri,
+            cid,
+            filename: "image-" + ++cidCounter + "." + mimeTypes.detectExtension(mimeType)
+          });
+          return prefix + "cid:" + cid;
+        });
+        mail.data.html = html;
+        callback();
+      });
+    }
+    set(key, value) {
+      return this.meta.set(key, value);
+    }
+    get(key) {
+      return this.meta.get(key);
+    }
+  }
+  mailer = Mail;
+  return mailer;
+}
+var dataStream;
+var hasRequiredDataStream;
+function requireDataStream() {
+  if (hasRequiredDataStream) return dataStream;
+  hasRequiredDataStream = 1;
+  const stream = require$$0$2;
+  const Transform = stream.Transform;
+  class DataStream extends Transform {
+    constructor(options) {
+      super(options);
+      this.options = options || {};
+      this._curLine = "";
+      this.inByteCount = 0;
+      this.outByteCount = 0;
+      this.lastByte = false;
+    }
+    /**
+     * Escapes dots
+     */
+    _transform(chunk, encoding, done) {
+      let chunks = [];
+      let chunklen = 0;
+      let i, len, lastPos = 0;
+      let buf;
+      if (!chunk || !chunk.length) {
+        return done();
+      }
+      if (typeof chunk === "string") {
+        chunk = Buffer.from(chunk);
+      }
+      this.inByteCount += chunk.length;
+      for (i = 0, len = chunk.length; i < len; i++) {
+        if (chunk[i] === 46) {
+          if (i && chunk[i - 1] === 10 || !i && (!this.lastByte || this.lastByte === 10)) {
+            buf = chunk.slice(lastPos, i + 1);
+            chunks.push(buf);
+            chunks.push(Buffer.from("."));
+            chunklen += buf.length + 1;
+            lastPos = i + 1;
+          }
+        } else if (chunk[i] === 10) {
+          if (i && chunk[i - 1] !== 13 || !i && this.lastByte !== 13) {
+            if (i > lastPos) {
+              buf = chunk.slice(lastPos, i);
+              chunks.push(buf);
+              chunklen += buf.length + 2;
+            } else {
+              chunklen += 2;
+            }
+            chunks.push(Buffer.from("\r\n"));
+            lastPos = i + 1;
+          }
+        }
+      }
+      if (chunklen) {
+        if (lastPos < chunk.length) {
+          buf = chunk.slice(lastPos);
+          chunks.push(buf);
+          chunklen += buf.length;
+        }
+        this.outByteCount += chunklen;
+        this.push(Buffer.concat(chunks, chunklen));
+      } else {
+        this.outByteCount += chunk.length;
+        this.push(chunk);
+      }
+      this.lastByte = chunk[chunk.length - 1];
+      done();
+    }
+    /**
+     * Finalizes the stream with a dot on a single line
+     */
+    _flush(done) {
+      let buf;
+      if (this.lastByte === 10) {
+        buf = Buffer.from(".\r\n");
+      } else if (this.lastByte === 13) {
+        buf = Buffer.from("\n.\r\n");
+      } else {
+        buf = Buffer.from("\r\n.\r\n");
+      }
+      this.outByteCount += buf.length;
+      this.push(buf);
+      done();
+    }
+  }
+  dataStream = DataStream;
+  return dataStream;
+}
+var smtpConnection;
+var hasRequiredSmtpConnection;
+function requireSmtpConnection() {
+  if (hasRequiredSmtpConnection) return smtpConnection;
+  hasRequiredSmtpConnection = 1;
+  const packageInfo = require$$10;
+  const EventEmitter = require$$0$4.EventEmitter;
+  const net = require$$7;
+  const tls = require$$1$2;
+  const os = require$$2$1;
+  const crypto = require$$2;
+  const DataStream = requireDataStream();
+  const PassThrough = require$$0$2.PassThrough;
+  const shared2 = requireShared();
+  const CONNECTION_TIMEOUT = 2 * 60 * 1e3;
+  const SOCKET_TIMEOUT = 10 * 60 * 1e3;
+  const GREETING_TIMEOUT = 30 * 1e3;
+  const DNS_TIMEOUT = 30 * 1e3;
+  const TEARDOWN_NOOP = () => {
+  };
+  class SMTPConnection extends EventEmitter {
+    constructor(options) {
+      super(options);
+      this.id = crypto.randomBytes(8).toString("base64").replace(/\W/g, "");
+      this.stage = "init";
+      this.options = options || {};
+      this.secureConnection = !!this.options.secure;
+      this.alreadySecured = !!this.options.secured;
+      this.port = Number(this.options.port) || (this.secureConnection ? 465 : 587);
+      this.host = this.options.host || "localhost";
+      this.servername = this.options.servername ? this.options.servername : !net.isIP(this.host) ? this.host : false;
+      this.allowInternalNetworkInterfaces = this.options.allowInternalNetworkInterfaces || false;
+      if (typeof this.options.secure === "undefined" && this.port === 465) {
+        this.secureConnection = true;
+      }
+      this.name = this.options.name || this._getHostname();
+      this.logger = shared2.getLogger(this.options, {
+        component: this.options.component || "smtp-connection",
+        sid: this.id
+      });
+      this.customAuth = /* @__PURE__ */ new Map();
+      Object.keys(this.options.customAuth || {}).forEach((key) => {
+        let mapKey = (key || "").toString().trim().toUpperCase();
+        if (!mapKey) {
+          return;
+        }
+        this.customAuth.set(mapKey, this.options.customAuth[key]);
+      });
+      this.version = packageInfo.version;
+      this.authenticated = false;
+      this.destroyed = false;
+      this.secure = !!this.secureConnection;
+      this._remainder = "";
+      this._responseQueue = [];
+      this.lastServerResponse = false;
+      this._socket = false;
+      this._supportedAuth = [];
+      this.allowsAuth = false;
+      this._envelope = false;
+      this._supportedExtensions = [];
+      this._maxAllowedSize = 0;
+      this._responseActions = [];
+      this._recipientQueue = [];
+      this._greetingTimeout = false;
+      this._connectionTimeout = false;
+      this._destroyed = false;
+      this._closing = false;
+      this._onSocketData = (chunk) => this._onData(chunk);
+      this._onSocketError = (error) => this._onError(error, "ESOCKET", false, "CONN");
+      this._onSocketClose = () => this._onClose();
+      this._onSocketEnd = () => this._onEnd();
+      this._onSocketTimeout = () => this._onTimeout();
+      this._onConnectionSocketError = (err) => this._onConnectionError(err, "ESOCKET");
+      this._connectionAttemptId = 0;
+    }
+    /**
+     * Creates a connection to a SMTP server and sets up connection
+     * listener
+     */
+    connect(connectCallback) {
+      if (typeof connectCallback === "function") {
+        this.once("connect", () => {
+          this.logger.debug(
+            {
+              tnx: "smtp"
+            },
+            "SMTP handshake finished"
+          );
+          connectCallback();
+        });
+        const isDestroyedMessage = this._isDestroyedMessage("connect");
+        if (isDestroyedMessage) {
+          return connectCallback(this._formatError(isDestroyedMessage, "ECONNECTION", false, "CONN"));
+        }
+      }
+      let opts = {
+        port: this.port,
+        host: this.host,
+        allowInternalNetworkInterfaces: this.allowInternalNetworkInterfaces,
+        timeout: this.options.dnsTimeout || DNS_TIMEOUT
+      };
+      if (this.options.localAddress) {
+        opts.localAddress = this.options.localAddress;
+      }
+      if (this.options.connection) {
+        this._socket = this.options.connection;
+        this._setupConnectionHandlers();
+        if (this.secureConnection && !this.alreadySecured) {
+          setImmediate(
+            () => this._upgradeConnection((err) => {
+              if (err) {
+                this._onError(new Error("Error initiating TLS - " + (err.message || err)), "ETLS", false, "CONN");
+                return;
+              }
+              this._onConnect();
+            })
+          );
+        } else {
+          setImmediate(() => this._onConnect());
+        }
+        return;
+      } else if (this.options.socket) {
+        this._socket = this.options.socket;
+        return shared2.resolveHostname(opts, (err, resolved) => {
+          if (err) {
+            return setImmediate(() => this._onError(err, "EDNS", false, "CONN"));
+          }
+          this.logger.debug(
+            {
+              tnx: "dns",
+              source: opts.host,
+              resolved: resolved.host,
+              cached: !!resolved.cached
+            },
+            "Resolved %s as %s [cache %s]",
+            opts.host,
+            resolved.host,
+            resolved.cached ? "hit" : "miss"
+          );
+          Object.keys(resolved).forEach((key) => {
+            if (key.charAt(0) !== "_" && resolved[key]) {
+              opts[key] = resolved[key];
+            }
+          });
+          try {
+            this._socket.connect(this.port, this.host, () => {
+              this._socket.setKeepAlive(true);
+              this._onConnect();
+            });
+            this._setupConnectionHandlers();
+          } catch (E) {
+            return setImmediate(() => this._onError(E, "ECONNECTION", false, "CONN"));
+          }
+        });
+      } else if (this.secureConnection) {
+        if (this.options.tls) {
+          Object.keys(this.options.tls).forEach((key) => {
+            opts[key] = this.options.tls[key];
+          });
+        }
+        if (this.servername && !opts.servername) {
+          opts.servername = this.servername;
+        }
+        return shared2.resolveHostname(opts, (err, resolved) => {
+          if (err) {
+            return setImmediate(() => this._onError(err, "EDNS", false, "CONN"));
+          }
+          this.logger.debug(
+            {
+              tnx: "dns",
+              source: opts.host,
+              resolved: resolved.host,
+              cached: !!resolved.cached
+            },
+            "Resolved %s as %s [cache %s]",
+            opts.host,
+            resolved.host,
+            resolved.cached ? "hit" : "miss"
+          );
+          Object.keys(resolved).forEach((key) => {
+            if (key.charAt(0) !== "_" && resolved[key]) {
+              opts[key] = resolved[key];
+            }
+          });
+          this._fallbackAddresses = (resolved._addresses || []).filter((addr) => addr !== opts.host);
+          this._connectOpts = Object.assign({}, opts);
+          this._connectToHost(opts, true);
+        });
+      } else {
+        return shared2.resolveHostname(opts, (err, resolved) => {
+          if (err) {
+            return setImmediate(() => this._onError(err, "EDNS", false, "CONN"));
+          }
+          this.logger.debug(
+            {
+              tnx: "dns",
+              source: opts.host,
+              resolved: resolved.host,
+              cached: !!resolved.cached
+            },
+            "Resolved %s as %s [cache %s]",
+            opts.host,
+            resolved.host,
+            resolved.cached ? "hit" : "miss"
+          );
+          Object.keys(resolved).forEach((key) => {
+            if (key.charAt(0) !== "_" && resolved[key]) {
+              opts[key] = resolved[key];
+            }
+          });
+          this._fallbackAddresses = (resolved._addresses || []).filter((addr) => addr !== opts.host);
+          this._connectOpts = Object.assign({}, opts);
+          this._connectToHost(opts, false);
+        });
+      }
+    }
+    /**
+     * Attempts to connect to the specified host address
+     *
+     * @param {Object} opts Connection options
+     * @param {Boolean} secure Whether to use TLS
+     */
+    _connectToHost(opts, secure) {
+      this._connectionAttemptId++;
+      const currentAttemptId = this._connectionAttemptId;
+      let connectFn = secure ? tls.connect : net.connect;
+      try {
+        this._socket = connectFn(opts, () => {
+          if (this._connectionAttemptId !== currentAttemptId) {
+            return;
+          }
+          this._socket.setKeepAlive(true);
+          this._onConnect();
+        });
+        this._setupConnectionHandlers();
+      } catch (E) {
+        return setImmediate(() => this._onError(E, "ECONNECTION", false, "CONN"));
+      }
+    }
+    /**
+     * Sets up connection timeout and error handlers
+     */
+    _setupConnectionHandlers() {
+      this._connectionTimeout = setTimeout(() => {
+        this._onConnectionError("Connection timeout", "ETIMEDOUT");
+      }, this.options.connectionTimeout || CONNECTION_TIMEOUT);
+      this._socket.on("error", this._onConnectionSocketError);
+    }
+    /**
+     * Handles connection errors with fallback to alternative addresses
+     *
+     * @param {Error|String} err Error object or message
+     * @param {String} code Error code
+     */
+    _onConnectionError(err, code) {
+      clearTimeout(this._connectionTimeout);
+      let canFallback = this._fallbackAddresses && this._fallbackAddresses.length && this.stage === "init" && !this._destroyed;
+      if (!canFallback) {
+        this._onError(err, code, false, "CONN");
+        return;
+      }
+      let nextHost = this._fallbackAddresses.shift();
+      this.logger.info(
+        {
+          tnx: "network",
+          failedHost: this._connectOpts.host,
+          nextHost,
+          error: err.message || err
+        },
+        "Connection to %s failed, trying %s",
+        this._connectOpts.host,
+        nextHost
+      );
+      if (this._socket) {
+        try {
+          this._socket.removeListener("error", this._onConnectionSocketError);
+          this._socket.destroy();
+        } catch (_E) {
+        }
+        this._socket = null;
+      }
+      this._connectOpts.host = nextHost;
+      this._connectToHost(this._connectOpts, this.secureConnection);
+    }
+    /**
+     * Sends QUIT
+     */
+    quit() {
+      this._sendCommand("QUIT");
+      this._responseActions.push(this.close);
+    }
+    /**
+     * Closes the connection to the server
+     */
+    close() {
+      clearTimeout(this._connectionTimeout);
+      clearTimeout(this._greetingTimeout);
+      this._responseActions = [];
+      if (this._closing) {
+        return;
+      }
+      this._closing = true;
+      let closeMethod = "end";
+      if (this.stage === "init") {
+        closeMethod = "destroy";
+      }
+      this.logger.debug(
+        {
+          tnx: "smtp"
+        },
+        'Closing connection to the server using "%s"',
+        closeMethod
+      );
+      let socket = this._socket && this._socket.socket || this._socket;
+      if (socket && !socket.destroyed) {
+        try {
+          socket.setTimeout(0);
+          socket.removeListener("data", this._onSocketData);
+          socket.removeListener("timeout", this._onSocketTimeout);
+          socket.removeListener("close", this._onSocketClose);
+          socket.removeListener("end", this._onSocketEnd);
+          socket.removeListener("error", this._onSocketError);
+          socket.removeListener("error", this._onConnectionSocketError);
+          socket.on("error", TEARDOWN_NOOP);
+          socket[closeMethod]();
+        } catch (_E) {
+        }
+      }
+      this._destroy();
+    }
+    /**
+     * Authenticate user
+     */
+    login(authData, callback) {
+      const isDestroyedMessage = this._isDestroyedMessage("login");
+      if (isDestroyedMessage) {
+        return callback(this._formatError(isDestroyedMessage, "ECONNECTION", false, "API"));
+      }
+      this._auth = authData || {};
+      this._authMethod = (this._auth.method || "").toString().trim().toUpperCase() || false;
+      if (!this._authMethod && this._auth.oauth2 && !this._auth.credentials) {
+        this._authMethod = "XOAUTH2";
+      } else if (!this._authMethod || this._authMethod === "XOAUTH2" && !this._auth.oauth2) {
+        this._authMethod = (this._supportedAuth[0] || "PLAIN").toUpperCase().trim();
+      }
+      if (this._authMethod !== "XOAUTH2" && (!this._auth.credentials || !this._auth.credentials.user || !this._auth.credentials.pass)) {
+        if (this._auth.user && this._auth.pass || this.customAuth.has(this._authMethod)) {
+          this._auth.credentials = {
+            user: this._auth.user,
+            pass: this._auth.pass,
+            options: this._auth.options
+          };
+        } else {
+          return callback(this._formatError('Missing credentials for "' + this._authMethod + '"', "EAUTH", false, "API"));
+        }
+      }
+      if (this.customAuth.has(this._authMethod)) {
+        let handler = this.customAuth.get(this._authMethod);
+        let lastResponse;
+        let returned = false;
+        let resolve = () => {
+          if (returned) {
+            return;
+          }
+          returned = true;
+          this.logger.info(
+            {
+              tnx: "smtp",
+              username: this._auth.user,
+              action: "authenticated",
+              method: this._authMethod
+            },
+            "User %s authenticated",
+            JSON.stringify(this._auth.user)
+          );
+          this.authenticated = true;
+          callback(null, true);
+        };
+        let reject = (err) => {
+          if (returned) {
+            return;
+          }
+          returned = true;
+          callback(this._formatError(err, "EAUTH", lastResponse, "AUTH " + this._authMethod));
+        };
+        let handlerResponse = handler({
+          auth: this._auth,
+          method: this._authMethod,
+          extensions: [].concat(this._supportedExtensions),
+          authMethods: [].concat(this._supportedAuth),
+          maxAllowedSize: this._maxAllowedSize || false,
+          sendCommand: (cmd, done) => {
+            let promise;
+            if (!done) {
+              promise = new Promise((resolve2, reject2) => {
+                done = shared2.callbackPromise(resolve2, reject2);
+              });
+            }
+            this._responseActions.push((str) => {
+              lastResponse = str;
+              let codes = str.match(/^(\d+)(?:\s(\d+\.\d+\.\d+))?\s/);
+              let data = {
+                command: cmd,
+                response: str
+              };
+              if (codes) {
+                data.status = Number(codes[1]) || 0;
+                if (codes[2]) {
+                  data.code = codes[2];
+                }
+                data.text = str.substr(codes[0].length);
+              } else {
+                data.text = str;
+                data.status = 0;
+              }
+              done(null, data);
+            });
+            setImmediate(() => this._sendCommand(cmd));
+            return promise;
+          },
+          resolve,
+          reject
+        });
+        if (handlerResponse && typeof handlerResponse.catch === "function") {
+          handlerResponse.then(resolve).catch(reject);
+        }
+        return;
+      }
+      switch (this._authMethod) {
+        case "XOAUTH2":
+          this._handleXOauth2Token(false, callback);
+          return;
+        case "LOGIN":
+          this._responseActions.push((str) => {
+            this._actionAUTH_LOGIN_USER(str, callback);
+          });
+          this._sendCommand("AUTH LOGIN");
+          return;
+        case "PLAIN":
+          this._responseActions.push((str) => {
+            this._actionAUTHComplete(str, callback);
+          });
+          this._sendCommand(
+            "AUTH PLAIN " + Buffer.from(
+              //this._auth.user+'\u0000'+
+              "\0" + // skip authorization identity as it causes problems with some servers
+              this._auth.credentials.user + "\0" + this._auth.credentials.pass,
+              "utf-8"
+            ).toString("base64"),
+            // log entry without passwords
+            "AUTH PLAIN " + Buffer.from(
+              //this._auth.user+'\u0000'+
+              "\0" + // skip authorization identity as it causes problems with some servers
+              this._auth.credentials.user + "\0/* secret */",
+              "utf-8"
+            ).toString("base64")
+          );
+          return;
+        case "CRAM-MD5":
+          this._responseActions.push((str) => {
+            this._actionAUTH_CRAM_MD5(str, callback);
+          });
+          this._sendCommand("AUTH CRAM-MD5");
+          return;
+      }
+      return callback(this._formatError('Unknown authentication method "' + this._authMethod + '"', "EAUTH", false, "API"));
+    }
+    /**
+     * Sends a message
+     *
+     * @param {Object} envelope Envelope object, {from: addr, to: [addr]}
+     * @param {Object} message String, Buffer or a Stream
+     * @param {Function} callback Callback to return once sending is completed
+     */
+    send(envelope, message, done) {
+      if (!message) {
+        return done(this._formatError("Empty message", "EMESSAGE", false, "API"));
+      }
+      const isDestroyedMessage = this._isDestroyedMessage("send message");
+      if (isDestroyedMessage) {
+        return done(this._formatError(isDestroyedMessage, "ECONNECTION", false, "API"));
+      }
+      if (this._maxAllowedSize && envelope.size > this._maxAllowedSize) {
+        return setImmediate(() => {
+          done(this._formatError("Message size larger than allowed " + this._maxAllowedSize, "EMESSAGE", false, "MAIL FROM"));
+        });
+      }
+      let returned = false;
+      let callback = function() {
+        if (returned) {
+          return;
+        }
+        returned = true;
+        done(...arguments);
+      };
+      if (typeof message.on === "function") {
+        message.on("error", (err) => callback(this._formatError(err, "ESTREAM", false, "API")));
+      }
+      let startTime = Date.now();
+      this._setEnvelope(envelope, (err, info) => {
+        if (err) {
+          let stream2 = new PassThrough();
+          if (typeof message.pipe === "function") {
+            message.pipe(stream2);
+          } else {
+            stream2.write(message);
+            stream2.end();
+          }
+          return callback(err);
+        }
+        let envelopeTime = Date.now();
+        let stream = this._createSendStream((err2, str) => {
+          if (err2) {
+            return callback(err2);
+          }
+          info.envelopeTime = envelopeTime - startTime;
+          info.messageTime = Date.now() - envelopeTime;
+          info.messageSize = stream.outByteCount;
+          info.response = str;
+          return callback(null, info);
+        });
+        if (typeof message.pipe === "function") {
+          message.pipe(stream);
+        } else {
+          stream.write(message);
+          stream.end();
+        }
+      });
+    }
+    /**
+     * Resets connection state
+     *
+     * @param {Function} callback Callback to return once connection is reset
+     */
+    reset(callback) {
+      this._sendCommand("RSET");
+      this._responseActions.push((str) => {
+        if (str.charAt(0) !== "2") {
+          return callback(this._formatError("Could not reset session state. response=" + str, "EPROTOCOL", str, "RSET"));
+        }
+        this._envelope = false;
+        return callback(null, true);
+      });
+    }
+    /**
+     * Connection listener that is run when the connection to
+     * the server is opened
+     *
+     * @event
+     */
+    _onConnect() {
+      clearTimeout(this._connectionTimeout);
+      this.logger.info(
+        {
+          tnx: "network",
+          localAddress: this._socket.localAddress,
+          localPort: this._socket.localPort,
+          remoteAddress: this._socket.remoteAddress,
+          remotePort: this._socket.remotePort
+        },
+        "%s established to %s:%s",
+        this.secure ? "Secure connection" : "Connection",
+        this._socket.remoteAddress,
+        this._socket.remotePort
+      );
+      if (this._destroyed) {
+        this.close();
+        return;
+      }
+      this.stage = "connected";
+      this._socket.removeListener("data", this._onSocketData);
+      this._socket.removeListener("timeout", this._onSocketTimeout);
+      this._socket.removeListener("close", this._onSocketClose);
+      this._socket.removeListener("end", this._onSocketEnd);
+      this._socket.removeListener("error", this._onConnectionSocketError);
+      this._socket.on("error", this._onSocketError);
+      this._socket.on("data", this._onSocketData);
+      this._socket.once("close", this._onSocketClose);
+      this._socket.once("end", this._onSocketEnd);
+      this._socket.setTimeout(this.options.socketTimeout || SOCKET_TIMEOUT);
+      this._socket.on("timeout", this._onSocketTimeout);
+      this._greetingTimeout = setTimeout(() => {
+        if (this._socket && !this._destroyed && this._responseActions[0] === this._actionGreeting) {
+          this._onError("Greeting never received", "ETIMEDOUT", false, "CONN");
+        }
+      }, this.options.greetingTimeout || GREETING_TIMEOUT);
+      this._responseActions.push(this._actionGreeting);
+      this._socket.resume();
+    }
+    /**
+     * 'data' listener for data coming from the server
+     *
+     * @event
+     * @param {Buffer} chunk Data chunk coming from the server
+     */
+    _onData(chunk) {
+      if (this._destroyed || !chunk || !chunk.length) {
+        return;
+      }
+      let data = (chunk || "").toString("binary");
+      let lines = (this._remainder + data).split(/\r?\n/);
+      let lastline;
+      this._remainder = lines.pop();
+      for (let i = 0, len = lines.length; i < len; i++) {
+        if (this._responseQueue.length) {
+          lastline = this._responseQueue[this._responseQueue.length - 1];
+          if (/^\d+-/.test(lastline.split("\n").pop())) {
+            this._responseQueue[this._responseQueue.length - 1] += "\n" + lines[i];
+            continue;
+          }
+        }
+        this._responseQueue.push(lines[i]);
+      }
+      if (this._responseQueue.length) {
+        lastline = this._responseQueue[this._responseQueue.length - 1];
+        if (/^\d+-/.test(lastline.split("\n").pop())) {
+          return;
+        }
+      }
+      this._processResponse();
+    }
+    /**
+     * 'error' listener for the socket
+     *
+     * @event
+     * @param {Error} err Error object
+     * @param {String} type Error name
+     */
+    _onError(err, type, data, command) {
+      clearTimeout(this._connectionTimeout);
+      clearTimeout(this._greetingTimeout);
+      if (this._destroyed) {
+        return;
+      }
+      err = this._formatError(err, type, data, command);
+      const transientCodes = ["ETIMEDOUT", "ESOCKET", "ECONNECTION"];
+      if (transientCodes.includes(err.code)) {
+        this.logger.warn(data, err.message);
+      } else {
+        this.logger.error(data, err.message);
+      }
+      this.emit("error", err);
+      this.close();
+    }
+    _formatError(message, type, response, command) {
+      let err;
+      if (/Error\]$/i.test(Object.prototype.toString.call(message))) {
+        err = message;
+      } else {
+        err = new Error(message);
+      }
+      if (type && type !== "Error") {
+        err.code = type;
+      }
+      if (response) {
+        err.response = response;
+        err.message += ": " + response;
+      }
+      let responseCode = typeof response === "string" && Number((response.match(/^\d+/) || [])[0]) || false;
+      if (responseCode) {
+        err.responseCode = responseCode;
+      }
+      if (command) {
+        err.command = command;
+      }
+      return err;
+    }
+    /**
+     * 'close' listener for the socket
+     *
+     * @event
+     */
+    _onClose() {
+      let serverResponse = false;
+      if (this._remainder && this._remainder.trim()) {
+        if (this.options.debug || this.options.transactionLog) {
+          this.logger.debug(
+            {
+              tnx: "server"
+            },
+            this._remainder.replace(/\r?\n$/, "")
+          );
+        }
+        this.lastServerResponse = serverResponse = this._remainder.trim();
+      }
+      this.logger.info(
+        {
+          tnx: "network"
+        },
+        "Connection closed"
+      );
+      if (this.upgrading && !this._destroyed) {
+        return this._onError(new Error("Connection closed unexpectedly"), "ETLS", serverResponse, "CONN");
+      } else if (![this._actionGreeting, this.close].includes(this._responseActions[0]) && !this._destroyed) {
+        return this._onError(new Error("Connection closed unexpectedly"), "ECONNECTION", serverResponse, "CONN");
+      } else if (/^[45]\d{2}\b/.test(serverResponse)) {
+        return this._onError(new Error("Connection closed unexpectedly"), "ECONNECTION", serverResponse, "CONN");
+      }
+      this._destroy();
+    }
+    /**
+     * 'end' listener for the socket
+     *
+     * @event
+     */
+    _onEnd() {
+      if (this._socket && !this._socket.destroyed) {
+        this._socket.destroy();
+      }
+    }
+    /**
+     * 'timeout' listener for the socket
+     *
+     * @event
+     */
+    _onTimeout() {
+      return this._onError(new Error("Timeout"), "ETIMEDOUT", false, "CONN");
+    }
+    /**
+     * Destroys the client, emits 'end'
+     */
+    _destroy() {
+      if (this._destroyed) {
+        return;
+      }
+      this._destroyed = true;
+      this.emit("end");
+    }
+    /**
+     * Upgrades the connection to TLS
+     *
+     * @param {Function} callback Callback function to run when the connection
+     *        has been secured
+     */
+    _upgradeConnection(callback) {
+      this._socket.removeListener("data", this._onSocketData);
+      this._socket.removeListener("timeout", this._onSocketTimeout);
+      let socketPlain = this._socket;
+      let opts = {
+        socket: this._socket,
+        host: this.host
+      };
+      Object.keys(this.options.tls || {}).forEach((key) => {
+        opts[key] = this.options.tls[key];
+      });
+      if (this.servername && !opts.servername) {
+        opts.servername = this.servername;
+      }
+      this.upgrading = true;
+      try {
+        this._socket = tls.connect(opts, () => {
+          this.secure = true;
+          this.upgrading = false;
+          this._socket.on("data", this._onSocketData);
+          socketPlain.removeListener("close", this._onSocketClose);
+          socketPlain.removeListener("end", this._onSocketEnd);
+          socketPlain.removeListener("error", this._onSocketError);
+          return callback(null, true);
+        });
+      } catch (err) {
+        return callback(err);
+      }
+      this._socket.on("error", this._onSocketError);
+      this._socket.once("close", this._onSocketClose);
+      this._socket.once("end", this._onSocketEnd);
+      this._socket.setTimeout(this.options.socketTimeout || SOCKET_TIMEOUT);
+      this._socket.on("timeout", this._onSocketTimeout);
+      socketPlain.resume();
+    }
+    /**
+     * Processes queued responses from the server
+     *
+     * @param {Boolean} force If true, ignores _processing flag
+     */
+    _processResponse() {
+      if (!this._responseQueue.length) {
+        return false;
+      }
+      let str = this.lastServerResponse = (this._responseQueue.shift() || "").toString();
+      if (/^\d+-/.test(str.split("\n").pop())) {
+        return;
+      }
+      if (this.options.debug || this.options.transactionLog) {
+        this.logger.debug(
+          {
+            tnx: "server"
+          },
+          str.replace(/\r?\n$/, "")
+        );
+      }
+      if (!str.trim()) {
+        setImmediate(() => this._processResponse());
+      }
+      let action = this._responseActions.shift();
+      if (typeof action === "function") {
+        action.call(this, str);
+        setImmediate(() => this._processResponse());
+      } else {
+        return this._onError(new Error("Unexpected Response"), "EPROTOCOL", str, "CONN");
+      }
+    }
+    /**
+     * Send a command to the server, append \r\n
+     *
+     * @param {String} str String to be sent to the server
+     * @param {String} logStr Optional string to be used for logging instead of the actual string
+     */
+    _sendCommand(str, logStr) {
+      if (this._destroyed) {
+        return;
+      }
+      if (this._socket.destroyed) {
+        return this.close();
+      }
+      if (this.options.debug || this.options.transactionLog) {
+        this.logger.debug(
+          {
+            tnx: "client"
+          },
+          (logStr || str || "").toString().replace(/\r?\n$/, "")
+        );
+      }
+      this._socket.write(Buffer.from(str + "\r\n", "utf-8"));
+    }
+    /**
+     * Initiates a new message by submitting envelope data, starting with
+     * MAIL FROM: command
+     *
+     * @param {Object} envelope Envelope object in the form of
+     *        {from:'...', to:['...']}
+     *        or
+     *        {from:{address:'...',name:'...'}, to:[address:'...',name:'...']}
+     */
+    _setEnvelope(envelope, callback) {
+      let args = [];
+      let useSmtpUtf8 = false;
+      this._envelope = envelope || {};
+      this._envelope.from = (this._envelope.from && this._envelope.from.address || this._envelope.from || "").toString().trim();
+      this._envelope.to = [].concat(this._envelope.to || []).map((to) => (to && to.address || to || "").toString().trim());
+      if (!this._envelope.to.length) {
+        return callback(this._formatError("No recipients defined", "EENVELOPE", false, "API"));
+      }
+      if (this._envelope.from && /[\r\n<>]/.test(this._envelope.from)) {
+        return callback(this._formatError("Invalid sender " + JSON.stringify(this._envelope.from), "EENVELOPE", false, "API"));
+      }
+      if (/[\x80-\uFFFF]/.test(this._envelope.from)) {
+        useSmtpUtf8 = true;
+      }
+      for (let i = 0, len = this._envelope.to.length; i < len; i++) {
+        if (!this._envelope.to[i] || /[\r\n<>]/.test(this._envelope.to[i])) {
+          return callback(this._formatError("Invalid recipient " + JSON.stringify(this._envelope.to[i]), "EENVELOPE", false, "API"));
+        }
+        if (/[\x80-\uFFFF]/.test(this._envelope.to[i])) {
+          useSmtpUtf8 = true;
+        }
+      }
+      this._envelope.rcptQueue = JSON.parse(JSON.stringify(this._envelope.to || []));
+      this._envelope.rejected = [];
+      this._envelope.rejectedErrors = [];
+      this._envelope.accepted = [];
+      if (this._envelope.dsn) {
+        try {
+          this._envelope.dsn = this._setDsnEnvelope(this._envelope.dsn);
+        } catch (err) {
+          return callback(this._formatError("Invalid DSN " + err.message, "EENVELOPE", false, "API"));
+        }
+      }
+      this._responseActions.push((str) => {
+        this._actionMAIL(str, callback);
+      });
+      if (useSmtpUtf8 && this._supportedExtensions.includes("SMTPUTF8")) {
+        args.push("SMTPUTF8");
+        this._usingSmtpUtf8 = true;
+      }
+      if (this._envelope.use8BitMime && this._supportedExtensions.includes("8BITMIME")) {
+        args.push("BODY=8BITMIME");
+        this._using8BitMime = true;
+      }
+      if (this._envelope.size && this._supportedExtensions.includes("SIZE")) {
+        args.push("SIZE=" + this._envelope.size);
+      }
+      if (this._envelope.dsn && this._supportedExtensions.includes("DSN")) {
+        if (this._envelope.dsn.ret) {
+          args.push("RET=" + shared2.encodeXText(this._envelope.dsn.ret));
+        }
+        if (this._envelope.dsn.envid) {
+          args.push("ENVID=" + shared2.encodeXText(this._envelope.dsn.envid));
+        }
+      }
+      if (this._envelope.requireTLSExtensionEnabled) {
+        if (!this.secure) {
+          return callback(
+            this._formatError("REQUIRETLS can only be used over TLS connections (RFC 8689)", "EREQUIRETLS", false, "MAIL FROM")
+          );
+        }
+        if (!this._supportedExtensions.includes("REQUIRETLS")) {
+          return callback(
+            this._formatError("Server does not support REQUIRETLS extension (RFC 8689)", "EREQUIRETLS", false, "MAIL FROM")
+          );
+        }
+        args.push("REQUIRETLS");
+      }
+      this._sendCommand("MAIL FROM:<" + this._envelope.from + ">" + (args.length ? " " + args.join(" ") : ""));
+    }
+    _setDsnEnvelope(params) {
+      let ret = (params.ret || params.return || "").toString().toUpperCase() || null;
+      if (ret) {
+        switch (ret) {
+          case "HDRS":
+          case "HEADERS":
+            ret = "HDRS";
+            break;
+          case "FULL":
+          case "BODY":
+            ret = "FULL";
+            break;
+        }
+      }
+      if (ret && !["FULL", "HDRS"].includes(ret)) {
+        throw new Error("ret: " + JSON.stringify(ret));
+      }
+      let envid = (params.envid || params.id || "").toString() || null;
+      let notify = params.notify || null;
+      if (notify) {
+        if (typeof notify === "string") {
+          notify = notify.split(",");
+        }
+        notify = notify.map((n) => n.trim().toUpperCase());
+        let validNotify = ["NEVER", "SUCCESS", "FAILURE", "DELAY"];
+        let invalidNotify = notify.filter((n) => !validNotify.includes(n));
+        if (invalidNotify.length || notify.length > 1 && notify.includes("NEVER")) {
+          throw new Error("notify: " + JSON.stringify(notify.join(",")));
+        }
+        notify = notify.join(",");
+      }
+      let orcpt = (params.recipient || params.orcpt || "").toString() || null;
+      if (orcpt && orcpt.indexOf(";") < 0) {
+        orcpt = "rfc822;" + orcpt;
+      }
+      return {
+        ret,
+        envid,
+        notify,
+        orcpt
+      };
+    }
+    _getDsnRcptToArgs() {
+      let args = [];
+      if (this._envelope.dsn && this._supportedExtensions.includes("DSN")) {
+        if (this._envelope.dsn.notify) {
+          args.push("NOTIFY=" + shared2.encodeXText(this._envelope.dsn.notify));
+        }
+        if (this._envelope.dsn.orcpt) {
+          args.push("ORCPT=" + shared2.encodeXText(this._envelope.dsn.orcpt));
+        }
+      }
+      return args.length ? " " + args.join(" ") : "";
+    }
+    _createSendStream(callback) {
+      let dataStream2 = new DataStream();
+      let logStream;
+      if (this.options.lmtp) {
+        this._envelope.accepted.forEach((recipient, i) => {
+          let final = i === this._envelope.accepted.length - 1;
+          this._responseActions.push((str) => {
+            this._actionLMTPStream(recipient, final, str, callback);
+          });
+        });
+      } else {
+        this._responseActions.push((str) => {
+          this._actionSMTPStream(str, callback);
+        });
+      }
+      dataStream2.pipe(this._socket, {
+        end: false
+      });
+      if (this.options.debug) {
+        logStream = new PassThrough();
+        logStream.on("readable", () => {
+          let chunk;
+          while (chunk = logStream.read()) {
+            this.logger.debug(
+              {
+                tnx: "message"
+              },
+              chunk.toString("binary").replace(/\r?\n$/, "")
+            );
+          }
+        });
+        dataStream2.pipe(logStream);
+      }
+      dataStream2.once("end", () => {
+        this.logger.info(
+          {
+            tnx: "message",
+            inByteCount: dataStream2.inByteCount,
+            outByteCount: dataStream2.outByteCount
+          },
+          "<%s bytes encoded mime message (source size %s bytes)>",
+          dataStream2.outByteCount,
+          dataStream2.inByteCount
+        );
+      });
+      return dataStream2;
+    }
+    /** ACTIONS **/
+    /**
+     * Will be run after the connection is created and the server sends
+     * a greeting. If the incoming message starts with 220 initiate
+     * SMTP session by sending EHLO command
+     *
+     * @param {String} str Message from the server
+     */
+    _actionGreeting(str) {
+      clearTimeout(this._greetingTimeout);
+      if (str.substr(0, 3) !== "220") {
+        this._onError(new Error("Invalid greeting. response=" + str), "EPROTOCOL", str, "CONN");
+        return;
+      }
+      if (this.options.lmtp) {
+        this._responseActions.push(this._actionLHLO);
+        this._sendCommand("LHLO " + this.name);
+      } else {
+        this._responseActions.push(this._actionEHLO);
+        this._sendCommand("EHLO " + this.name);
+      }
+    }
+    /**
+     * Handles server response for LHLO command. If it yielded in
+     * error, emit 'error', otherwise treat this as an EHLO response
+     *
+     * @param {String} str Message from the server
+     */
+    _actionLHLO(str) {
+      if (str.charAt(0) !== "2") {
+        this._onError(new Error("Invalid LHLO. response=" + str), "EPROTOCOL", str, "LHLO");
+        return;
+      }
+      this._actionEHLO(str);
+    }
+    /**
+     * Handles server response for EHLO command. If it yielded in
+     * error, try HELO instead, otherwise initiate TLS negotiation
+     * if STARTTLS is supported by the server or move into the
+     * authentication phase.
+     *
+     * @param {String} str Message from the server
+     */
+    _actionEHLO(str) {
+      let match;
+      if (str.substr(0, 3) === "421") {
+        this._onError(new Error("Server terminates connection. response=" + str), "ECONNECTION", str, "EHLO");
+        return;
+      }
+      if (str.charAt(0) !== "2") {
+        if (this.options.requireTLS) {
+          this._onError(
+            new Error("EHLO failed but HELO does not support required STARTTLS. response=" + str),
+            "ECONNECTION",
+            str,
+            "EHLO"
+          );
+          return;
+        }
+        this._responseActions.push(this._actionHELO);
+        this._sendCommand("HELO " + this.name);
+        return;
+      }
+      this._ehloLines = str.split(/\r?\n/).map((line) => line.replace(/^\d+[ -]/, "").trim()).filter((line) => line).slice(1);
+      if (!this.secure && !this.options.ignoreTLS && (/[ -]STARTTLS\b/im.test(str) || this.options.requireTLS)) {
+        this._sendCommand("STARTTLS");
+        this._responseActions.push(this._actionSTARTTLS);
+        return;
+      }
+      if (/[ -]SMTPUTF8\b/im.test(str)) {
+        this._supportedExtensions.push("SMTPUTF8");
+      }
+      if (/[ -]DSN\b/im.test(str)) {
+        this._supportedExtensions.push("DSN");
+      }
+      if (/[ -]8BITMIME\b/im.test(str)) {
+        this._supportedExtensions.push("8BITMIME");
+      }
+      if (/[ -]REQUIRETLS\b/im.test(str)) {
+        this._supportedExtensions.push("REQUIRETLS");
+      }
+      if (/[ -]PIPELINING\b/im.test(str)) {
+        this._supportedExtensions.push("PIPELINING");
+      }
+      if (/[ -]AUTH\b/i.test(str)) {
+        this.allowsAuth = true;
+      }
+      if (/[ -]AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)PLAIN/i.test(str)) {
+        this._supportedAuth.push("PLAIN");
+      }
+      if (/[ -]AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)LOGIN/i.test(str)) {
+        this._supportedAuth.push("LOGIN");
+      }
+      if (/[ -]AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)CRAM-MD5/i.test(str)) {
+        this._supportedAuth.push("CRAM-MD5");
+      }
+      if (/[ -]AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)XOAUTH2/i.test(str)) {
+        this._supportedAuth.push("XOAUTH2");
+      }
+      if (match = str.match(/[ -]SIZE(?:[ \t]+(\d+))?/im)) {
+        this._supportedExtensions.push("SIZE");
+        this._maxAllowedSize = Number(match[1]) || 0;
+      }
+      this.emit("connect");
+    }
+    /**
+     * Handles server response for HELO command. If it yielded in
+     * error, emit 'error', otherwise move into the authentication phase.
+     *
+     * @param {String} str Message from the server
+     */
+    _actionHELO(str) {
+      if (str.charAt(0) !== "2") {
+        this._onError(new Error("Invalid HELO. response=" + str), "EPROTOCOL", str, "HELO");
+        return;
+      }
+      this.allowsAuth = true;
+      this.emit("connect");
+    }
+    /**
+     * Handles server response for STARTTLS command. If there's an error
+     * try HELO instead, otherwise initiate TLS upgrade. If the upgrade
+     * succeedes restart the EHLO
+     *
+     * @param {String} str Message from the server
+     */
+    _actionSTARTTLS(str) {
+      if (str.charAt(0) !== "2") {
+        if (this.options.opportunisticTLS) {
+          this.logger.info(
+            {
+              tnx: "smtp"
+            },
+            "Failed STARTTLS upgrade, continuing unencrypted"
+          );
+          return this.emit("connect");
+        }
+        this._onError(new Error("Error upgrading connection with STARTTLS"), "ETLS", str, "STARTTLS");
+        return;
+      }
+      this._upgradeConnection((err, secured) => {
+        if (err) {
+          this._onError(new Error("Error initiating TLS - " + (err.message || err)), "ETLS", false, "STARTTLS");
+          return;
+        }
+        this.logger.info(
+          {
+            tnx: "smtp"
+          },
+          "Connection upgraded with STARTTLS"
+        );
+        if (secured) {
+          if (this.options.lmtp) {
+            this._responseActions.push(this._actionLHLO);
+            this._sendCommand("LHLO " + this.name);
+          } else {
+            this._responseActions.push(this._actionEHLO);
+            this._sendCommand("EHLO " + this.name);
+          }
+        } else {
+          this.emit("connect");
+        }
+      });
+    }
+    /**
+     * Handle the response for AUTH LOGIN command. We are expecting
+     * '334 VXNlcm5hbWU6' (base64 for 'Username:'). Data to be sent as
+     * response needs to be base64 encoded username. We do not need
+     * exact match but settle with 334 response in general as some
+     * hosts invalidly use a longer message than VXNlcm5hbWU6
+     *
+     * @param {String} str Message from the server
+     */
+    _actionAUTH_LOGIN_USER(str, callback) {
+      if (!/^334[ -]/.test(str)) {
+        callback(this._formatError('Invalid login sequence while waiting for "334 VXNlcm5hbWU6"', "EAUTH", str, "AUTH LOGIN"));
+        return;
+      }
+      this._responseActions.push((str2) => {
+        this._actionAUTH_LOGIN_PASS(str2, callback);
+      });
+      this._sendCommand(Buffer.from(this._auth.credentials.user + "", "utf-8").toString("base64"));
+    }
+    /**
+     * Handle the response for AUTH CRAM-MD5 command. We are expecting
+     * '334 <challenge string>'. Data to be sent as response needs to be
+     * base64 decoded challenge string, MD5 hashed using the password as
+     * a HMAC key, prefixed by the username and a space, and finally all
+     * base64 encoded again.
+     *
+     * @param {String} str Message from the server
+     */
+    _actionAUTH_CRAM_MD5(str, callback) {
+      let challengeMatch = str.match(/^334\s+(.+)$/);
+      let challengeString = "";
+      if (!challengeMatch) {
+        return callback(
+          this._formatError("Invalid login sequence while waiting for server challenge string", "EAUTH", str, "AUTH CRAM-MD5")
+        );
+      } else {
+        challengeString = challengeMatch[1];
+      }
+      let base64decoded = Buffer.from(challengeString, "base64").toString("ascii"), hmacMD5 = crypto.createHmac("md5", this._auth.credentials.pass);
+      hmacMD5.update(base64decoded);
+      let prepended = this._auth.credentials.user + " " + hmacMD5.digest("hex");
+      this._responseActions.push((str2) => {
+        this._actionAUTH_CRAM_MD5_PASS(str2, callback);
+      });
+      this._sendCommand(
+        Buffer.from(prepended).toString("base64"),
+        // hidden hash for logs
+        Buffer.from(this._auth.credentials.user + " /* secret */").toString("base64")
+      );
+    }
+    /**
+     * Handles the response to CRAM-MD5 authentication, if there's no error,
+     * the user can be considered logged in. Start waiting for a message to send
+     *
+     * @param {String} str Message from the server
+     */
+    _actionAUTH_CRAM_MD5_PASS(str, callback) {
+      if (!str.match(/^235\s+/)) {
+        return callback(this._formatError('Invalid login sequence while waiting for "235"', "EAUTH", str, "AUTH CRAM-MD5"));
+      }
+      this.logger.info(
+        {
+          tnx: "smtp",
+          username: this._auth.user,
+          action: "authenticated",
+          method: this._authMethod
+        },
+        "User %s authenticated",
+        JSON.stringify(this._auth.user)
+      );
+      this.authenticated = true;
+      callback(null, true);
+    }
+    /**
+     * Handle the response for AUTH LOGIN command. We are expecting
+     * '334 UGFzc3dvcmQ6' (base64 for 'Password:'). Data to be sent as
+     * response needs to be base64 encoded password.
+     *
+     * @param {String} str Message from the server
+     */
+    _actionAUTH_LOGIN_PASS(str, callback) {
+      if (!/^334[ -]/.test(str)) {
+        return callback(this._formatError('Invalid login sequence while waiting for "334 UGFzc3dvcmQ6"', "EAUTH", str, "AUTH LOGIN"));
+      }
+      this._responseActions.push((str2) => {
+        this._actionAUTHComplete(str2, callback);
+      });
+      this._sendCommand(
+        Buffer.from((this._auth.credentials.pass || "").toString(), "utf-8").toString("base64"),
+        // Hidden pass for logs
+        Buffer.from("/* secret */", "utf-8").toString("base64")
+      );
+    }
+    /**
+     * Handles the response for authentication, if there's no error,
+     * the user can be considered logged in. Start waiting for a message to send
+     *
+     * @param {String} str Message from the server
+     */
+    _actionAUTHComplete(str, isRetry, callback) {
+      if (!callback && typeof isRetry === "function") {
+        callback = isRetry;
+        isRetry = false;
+      }
+      if (str.substr(0, 3) === "334") {
+        this._responseActions.push((str2) => {
+          if (isRetry || this._authMethod !== "XOAUTH2") {
+            this._actionAUTHComplete(str2, true, callback);
+          } else {
+            setImmediate(() => this._handleXOauth2Token(true, callback));
+          }
+        });
+        this._sendCommand("");
+        return;
+      }
+      if (str.charAt(0) !== "2") {
+        this.logger.info(
+          {
+            tnx: "smtp",
+            username: this._auth.user,
+            action: "authfail",
+            method: this._authMethod
+          },
+          "User %s failed to authenticate",
+          JSON.stringify(this._auth.user)
+        );
+        return callback(this._formatError("Invalid login", "EAUTH", str, "AUTH " + this._authMethod));
+      }
+      this.logger.info(
+        {
+          tnx: "smtp",
+          username: this._auth.user,
+          action: "authenticated",
+          method: this._authMethod
+        },
+        "User %s authenticated",
+        JSON.stringify(this._auth.user)
+      );
+      this.authenticated = true;
+      callback(null, true);
+    }
+    /**
+     * Handle response for a MAIL FROM: command
+     *
+     * @param {String} str Message from the server
+     */
+    _actionMAIL(str, callback) {
+      let message, curRecipient;
+      if (Number(str.charAt(0)) !== 2) {
+        if (this._usingSmtpUtf8 && /^550 /.test(str) && /[\x80-\uFFFF]/.test(this._envelope.from)) {
+          message = "Internationalized mailbox name not allowed";
+        } else {
+          message = "Mail command failed";
+        }
+        return callback(this._formatError(message, "EENVELOPE", str, "MAIL FROM"));
+      }
+      if (!this._envelope.rcptQueue.length) {
+        return callback(this._formatError("Can't send mail - no recipients defined", "EENVELOPE", false, "API"));
+      } else {
+        this._recipientQueue = [];
+        if (this._supportedExtensions.includes("PIPELINING")) {
+          while (this._envelope.rcptQueue.length) {
+            curRecipient = this._envelope.rcptQueue.shift();
+            this._recipientQueue.push(curRecipient);
+            this._responseActions.push((str2) => {
+              this._actionRCPT(str2, callback);
+            });
+            this._sendCommand("RCPT TO:<" + curRecipient + ">" + this._getDsnRcptToArgs());
+          }
+        } else {
+          curRecipient = this._envelope.rcptQueue.shift();
+          this._recipientQueue.push(curRecipient);
+          this._responseActions.push((str2) => {
+            this._actionRCPT(str2, callback);
+          });
+          this._sendCommand("RCPT TO:<" + curRecipient + ">" + this._getDsnRcptToArgs());
+        }
+      }
+    }
+    /**
+     * Handle response for a RCPT TO: command
+     *
+     * @param {String} str Message from the server
+     */
+    _actionRCPT(str, callback) {
+      let message, err, curRecipient = this._recipientQueue.shift();
+      if (Number(str.charAt(0)) !== 2) {
+        if (this._usingSmtpUtf8 && /^553 /.test(str) && /[\x80-\uFFFF]/.test(curRecipient)) {
+          message = "Internationalized mailbox name not allowed";
+        } else {
+          message = "Recipient command failed";
+        }
+        this._envelope.rejected.push(curRecipient);
+        err = this._formatError(message, "EENVELOPE", str, "RCPT TO");
+        err.recipient = curRecipient;
+        this._envelope.rejectedErrors.push(err);
+      } else {
+        this._envelope.accepted.push(curRecipient);
+      }
+      if (!this._envelope.rcptQueue.length && !this._recipientQueue.length) {
+        if (this._envelope.rejected.length < this._envelope.to.length) {
+          this._responseActions.push((str2) => {
+            this._actionDATA(str2, callback);
+          });
+          this._sendCommand("DATA");
+        } else {
+          err = this._formatError("Can't send mail - all recipients were rejected", "EENVELOPE", str, "RCPT TO");
+          err.rejected = this._envelope.rejected;
+          err.rejectedErrors = this._envelope.rejectedErrors;
+          return callback(err);
+        }
+      } else if (this._envelope.rcptQueue.length) {
+        curRecipient = this._envelope.rcptQueue.shift();
+        this._recipientQueue.push(curRecipient);
+        this._responseActions.push((str2) => {
+          this._actionRCPT(str2, callback);
+        });
+        this._sendCommand("RCPT TO:<" + curRecipient + ">" + this._getDsnRcptToArgs());
+      }
+    }
+    /**
+     * Handle response for a DATA command
+     *
+     * @param {String} str Message from the server
+     */
+    _actionDATA(str, callback) {
+      if (!/^[23]/.test(str)) {
+        return callback(this._formatError("Data command failed", "EENVELOPE", str, "DATA"));
+      }
+      let response = {
+        accepted: this._envelope.accepted,
+        rejected: this._envelope.rejected
+      };
+      if (this._ehloLines && this._ehloLines.length) {
+        response.ehlo = this._ehloLines;
+      }
+      if (this._envelope.rejectedErrors.length) {
+        response.rejectedErrors = this._envelope.rejectedErrors;
+      }
+      callback(null, response);
+    }
+    /**
+     * Handle response for a DATA stream when using SMTP
+     * We expect a single response that defines if the sending succeeded or failed
+     *
+     * @param {String} str Message from the server
+     */
+    _actionSMTPStream(str, callback) {
+      if (Number(str.charAt(0)) !== 2) {
+        return callback(this._formatError("Message failed", "EMESSAGE", str, "DATA"));
+      } else {
+        return callback(null, str);
+      }
+    }
+    /**
+     * Handle response for a DATA stream
+     * We expect a separate response for every recipient. All recipients can either
+     * succeed or fail separately
+     *
+     * @param {String} recipient The recipient this response applies to
+     * @param {Boolean} final Is this the final recipient?
+     * @param {String} str Message from the server
+     */
+    _actionLMTPStream(recipient, final, str, callback) {
+      let err;
+      if (Number(str.charAt(0)) !== 2) {
+        err = this._formatError("Message failed for recipient " + recipient, "EMESSAGE", str, "DATA");
+        err.recipient = recipient;
+        this._envelope.rejected.push(recipient);
+        this._envelope.rejectedErrors.push(err);
+        for (let i = 0, len = this._envelope.accepted.length; i < len; i++) {
+          if (this._envelope.accepted[i] === recipient) {
+            this._envelope.accepted.splice(i, 1);
+          }
+        }
+      }
+      if (final) {
+        return callback(null, str);
+      }
+    }
+    _handleXOauth2Token(isRetry, callback) {
+      this._auth.oauth2.getToken(isRetry, (err, accessToken) => {
+        if (err) {
+          this.logger.info(
+            {
+              tnx: "smtp",
+              username: this._auth.user,
+              action: "authfail",
+              method: this._authMethod
+            },
+            "User %s failed to authenticate",
+            JSON.stringify(this._auth.user)
+          );
+          return callback(this._formatError(err, "EAUTH", false, "AUTH XOAUTH2"));
+        }
+        this._responseActions.push((str) => {
+          this._actionAUTHComplete(str, isRetry, callback);
+        });
+        this._sendCommand(
+          "AUTH XOAUTH2 " + this._auth.oauth2.buildXOAuth2Token(accessToken),
+          //  Hidden for logs
+          "AUTH XOAUTH2 " + this._auth.oauth2.buildXOAuth2Token("/* secret */")
+        );
+      });
+    }
+    /**
+     *
+     * @param {string} command
+     * @private
+     */
+    _isDestroyedMessage(command) {
+      if (this._destroyed) {
+        return "Cannot " + command + " - smtp connection is already destroyed.";
+      }
+      if (this._socket) {
+        if (this._socket.destroyed) {
+          return "Cannot " + command + " - smtp connection socket is already destroyed.";
+        }
+        if (!this._socket.writable) {
+          return "Cannot " + command + " - smtp connection socket is already half-closed.";
+        }
+      }
+    }
+    _getHostname() {
+      let defaultHostname;
+      try {
+        defaultHostname = os.hostname() || "";
+      } catch (_err) {
+        defaultHostname = "localhost";
+      }
+      if (!defaultHostname || defaultHostname.indexOf(".") < 0) {
+        defaultHostname = "[127.0.0.1]";
+      }
+      if (defaultHostname.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+        defaultHostname = "[" + defaultHostname + "]";
+      }
+      return defaultHostname;
+    }
+  }
+  smtpConnection = SMTPConnection;
+  return smtpConnection;
+}
+var xoauth2;
+var hasRequiredXoauth2;
+function requireXoauth2() {
+  if (hasRequiredXoauth2) return xoauth2;
+  hasRequiredXoauth2 = 1;
+  const Stream = require$$0$2.Stream;
+  const nmfetch = requireFetch();
+  const crypto = require$$2;
+  const shared2 = requireShared();
+  const errors2 = requireErrors();
+  class XOAuth2 extends Stream {
+    constructor(options, logger2) {
+      super();
+      this.options = options || {};
+      if (options && options.serviceClient) {
+        if (!options.privateKey || !options.user) {
+          let err = new Error('Options "privateKey" and "user" are required for service account!');
+          err.code = errors2.EOAUTH2;
+          setImmediate(() => this.emit("error", err));
+          return;
+        }
+        let serviceRequestTimeout = Math.min(Math.max(Number(this.options.serviceRequestTimeout) || 0, 0), 3600);
+        this.options.serviceRequestTimeout = serviceRequestTimeout || 5 * 60;
+      }
+      this.logger = shared2.getLogger(
+        {
+          logger: logger2
+        },
+        {
+          component: this.options.component || "OAuth2"
+        }
+      );
+      this.provisionCallback = typeof this.options.provisionCallback === "function" ? this.options.provisionCallback : false;
+      this.options.accessUrl = this.options.accessUrl || "https://accounts.google.com/o/oauth2/token";
+      this.options.customHeaders = this.options.customHeaders || {};
+      this.options.customParams = this.options.customParams || {};
+      this.accessToken = this.options.accessToken || false;
+      if (this.options.expires && Number(this.options.expires)) {
+        this.expires = this.options.expires;
+      } else {
+        let timeout = Math.max(Number(this.options.timeout) || 0, 0);
+        this.expires = timeout && Date.now() + timeout * 1e3 || 0;
+      }
+      this.renewing = false;
+      this.renewalQueue = [];
+    }
+    /**
+     * Returns or generates (if previous has expired) a XOAuth2 token
+     *
+     * @param {Boolean} renew If false then use cached access token (if available)
+     * @param {Function} callback Callback function with error object and token string
+     */
+    getToken(renew, callback) {
+      if (!renew && this.accessToken && (!this.expires || this.expires > Date.now())) {
+        this.logger.debug(
+          {
+            tnx: "OAUTH2",
+            user: this.options.user,
+            action: "reuse"
+          },
+          "Reusing existing access token for %s",
+          this.options.user
+        );
+        return callback(null, this.accessToken);
+      }
+      if (!this.provisionCallback && !this.options.refreshToken && !this.options.serviceClient) {
+        if (this.accessToken) {
+          this.logger.debug(
+            {
+              tnx: "OAUTH2",
+              user: this.options.user,
+              action: "reuse"
+            },
+            "Reusing existing access token (no refresh capability) for %s",
+            this.options.user
+          );
+          return callback(null, this.accessToken);
+        }
+        this.logger.error(
+          {
+            tnx: "OAUTH2",
+            user: this.options.user,
+            action: "renew"
+          },
+          "Cannot renew access token for %s: No refresh mechanism available",
+          this.options.user
+        );
+        let err = new Error("Can't create new access token for user");
+        err.code = errors2.EOAUTH2;
+        return callback(err);
+      }
+      if (this.renewing) {
+        return this.renewalQueue.push({ renew, callback });
+      }
+      this.renewing = true;
+      const generateCallback = (err, accessToken) => {
+        this.renewalQueue.forEach((item) => item.callback(err, accessToken));
+        this.renewalQueue = [];
+        this.renewing = false;
+        if (err) {
+          this.logger.error(
+            {
+              err,
+              tnx: "OAUTH2",
+              user: this.options.user,
+              action: "renew"
+            },
+            "Failed generating new Access Token for %s",
+            this.options.user
+          );
+        } else {
+          this.logger.info(
+            {
+              tnx: "OAUTH2",
+              user: this.options.user,
+              action: "renew"
+            },
+            "Generated new Access Token for %s",
+            this.options.user
+          );
+        }
+        callback(err, accessToken);
+      };
+      if (this.provisionCallback) {
+        this.provisionCallback(this.options.user, !!renew, (err, accessToken, expires) => {
+          if (!err && accessToken) {
+            this.accessToken = accessToken;
+            this.expires = expires || 0;
+          }
+          generateCallback(err, accessToken);
+        });
+      } else {
+        this.generateToken(generateCallback);
+      }
+    }
+    /**
+     * Updates token values
+     *
+     * @param {String} accessToken New access token
+     * @param {Number} timeout Access token lifetime in seconds
+     *
+     * Emits 'token': { user: User email-address, accessToken: the new accessToken, timeout: TTL in seconds}
+     */
+    updateToken(accessToken, timeout) {
+      this.accessToken = accessToken;
+      timeout = Math.max(Number(timeout) || 0, 0);
+      this.expires = timeout && Date.now() + timeout * 1e3 || 0;
+      this.emit("token", {
+        user: this.options.user,
+        accessToken: accessToken || "",
+        expires: this.expires
+      });
+    }
+    /**
+     * Generates a new XOAuth2 token with the credentials provided at initialization
+     *
+     * @param {Function} callback Callback function with error object and token string
+     */
+    generateToken(callback) {
+      let urlOptions;
+      let loggedUrlOptions;
+      if (this.options.serviceClient) {
+        let iat = Math.floor(Date.now() / 1e3);
+        let tokenData = {
+          iss: this.options.serviceClient,
+          scope: this.options.scope || "https://mail.google.com/",
+          sub: this.options.user,
+          aud: this.options.accessUrl,
+          iat,
+          exp: iat + this.options.serviceRequestTimeout
+        };
+        let token;
+        try {
+          token = this.jwtSignRS256(tokenData);
+        } catch (_err) {
+          let err = new Error("Can't generate token. Check your auth options");
+          err.code = errors2.EOAUTH2;
+          return callback(err);
+        }
+        urlOptions = {
+          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          assertion: token
+        };
+        loggedUrlOptions = {
+          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          assertion: tokenData
+        };
+      } else {
+        if (!this.options.refreshToken) {
+          let err = new Error("Can't create new access token for user");
+          err.code = errors2.EOAUTH2;
+          return callback(err);
+        }
+        urlOptions = {
+          client_id: this.options.clientId || "",
+          client_secret: this.options.clientSecret || "",
+          refresh_token: this.options.refreshToken,
+          grant_type: "refresh_token"
+        };
+        loggedUrlOptions = {
+          client_id: this.options.clientId || "",
+          client_secret: (this.options.clientSecret || "").substr(0, 6) + "...",
+          refresh_token: (this.options.refreshToken || "").substr(0, 6) + "...",
+          grant_type: "refresh_token"
+        };
+      }
+      Object.keys(this.options.customParams).forEach((key) => {
+        urlOptions[key] = this.options.customParams[key];
+        loggedUrlOptions[key] = this.options.customParams[key];
+      });
+      this.logger.debug(
+        {
+          tnx: "OAUTH2",
+          user: this.options.user,
+          action: "generate"
+        },
+        "Requesting token using: %s",
+        JSON.stringify(loggedUrlOptions)
+      );
+      this.postRequest(this.options.accessUrl, urlOptions, this.options, (error, body) => {
+        let data;
+        if (error) {
+          return callback(error);
+        }
+        try {
+          data = JSON.parse(body.toString());
+        } catch (E) {
+          return callback(E);
+        }
+        if (!data || typeof data !== "object") {
+          this.logger.debug(
+            {
+              tnx: "OAUTH2",
+              user: this.options.user,
+              action: "post"
+            },
+            "Response: %s",
+            (body || "").toString()
+          );
+          let err2 = new Error("Invalid authentication response");
+          err2.code = errors2.EOAUTH2;
+          return callback(err2);
+        }
+        let logData = {};
+        Object.keys(data).forEach((key) => {
+          if (key !== "access_token") {
+            logData[key] = data[key];
+          } else {
+            logData[key] = (data[key] || "").toString().substr(0, 6) + "...";
+          }
+        });
+        this.logger.debug(
+          {
+            tnx: "OAUTH2",
+            user: this.options.user,
+            action: "post"
+          },
+          "Response: %s",
+          JSON.stringify(logData)
+        );
+        if (data.error) {
+          let errorMessage = data.error;
+          if (data.error_description) {
+            errorMessage += ": " + data.error_description;
+          }
+          if (data.error_uri) {
+            errorMessage += " (" + data.error_uri + ")";
+          }
+          let err2 = new Error(errorMessage);
+          err2.code = errors2.EOAUTH2;
+          return callback(err2);
+        }
+        if (data.access_token) {
+          this.updateToken(data.access_token, data.expires_in);
+          return callback(null, this.accessToken);
+        }
+        let err = new Error("No access token");
+        err.code = errors2.EOAUTH2;
+        return callback(err);
+      });
+    }
+    /**
+     * Converts an access_token and user id into a base64 encoded XOAuth2 token
+     *
+     * @param {String} [accessToken] Access token string
+     * @return {String} Base64 encoded token for IMAP or SMTP login
+     */
+    buildXOAuth2Token(accessToken) {
+      let authData = ["user=" + (this.options.user || ""), "auth=Bearer " + (accessToken || this.accessToken), "", ""];
+      return Buffer.from(authData.join(""), "utf-8").toString("base64");
+    }
+    /**
+     * Custom POST request handler.
+     * This is only needed to keep paths short in Windows – usually this module
+     * is a dependency of a dependency and if it tries to require something
+     * like the request module the paths get way too long to handle for Windows.
+     * As we do only a simple POST request we do not actually require complicated
+     * logic support (no redirects, no nothing) anyway.
+     *
+     * @param {String} url Url to POST to
+     * @param {String|Buffer} payload Payload to POST
+     * @param {Function} callback Callback function with (err, buff)
+     */
+    postRequest(url, payload, params, callback) {
+      let returned = false;
+      let chunks = [];
+      let chunklen = 0;
+      let req = nmfetch(url, {
+        method: "post",
+        headers: params.customHeaders,
+        body: payload,
+        allowErrorResponse: true
+      });
+      req.on("readable", () => {
+        let chunk;
+        while ((chunk = req.read()) !== null) {
+          chunks.push(chunk);
+          chunklen += chunk.length;
+        }
+      });
+      req.once("error", (err) => {
+        if (returned) {
+          return;
+        }
+        returned = true;
+        return callback(err);
+      });
+      req.once("end", () => {
+        if (returned) {
+          return;
+        }
+        returned = true;
+        return callback(null, Buffer.concat(chunks, chunklen));
+      });
+    }
+    /**
+     * Encodes a buffer or a string into Base64url format
+     *
+     * @param {Buffer|String} data The data to convert
+     * @return {String} The encoded string
+     */
+    toBase64URL(data) {
+      if (typeof data === "string") {
+        data = Buffer.from(data);
+      }
+      return data.toString("base64").replace(/[=]+/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    }
+    /**
+     * Creates a JSON Web Token signed with RS256 (SHA256 + RSA)
+     *
+     * @param {Object} payload The payload to include in the generated token
+     * @return {String} The generated and signed token
+     */
+    jwtSignRS256(payload) {
+      payload = ['{"alg":"RS256","typ":"JWT"}', JSON.stringify(payload)].map((val) => this.toBase64URL(val)).join(".");
+      let signature = crypto.createSign("RSA-SHA256").update(payload).sign(this.options.privateKey);
+      return payload + "." + this.toBase64URL(signature);
+    }
+  }
+  xoauth2 = XOAuth2;
+  return xoauth2;
+}
+var poolResource;
+var hasRequiredPoolResource;
+function requirePoolResource() {
+  if (hasRequiredPoolResource) return poolResource;
+  hasRequiredPoolResource = 1;
+  const SMTPConnection = requireSmtpConnection();
+  const assign = requireShared().assign;
+  const XOAuth2 = requireXoauth2();
+  const errors2 = requireErrors();
+  const EventEmitter = require$$0$4;
+  class PoolResource extends EventEmitter {
+    constructor(pool) {
+      super();
+      this.pool = pool;
+      this.options = pool.options;
+      this.logger = this.pool.logger;
+      if (this.options.auth) {
+        switch ((this.options.auth.type || "").toString().toUpperCase()) {
+          case "OAUTH2": {
+            let oauth2 = new XOAuth2(this.options.auth, this.logger);
+            oauth2.provisionCallback = this.pool.mailer && this.pool.mailer.get("oauth2_provision_cb") || oauth2.provisionCallback;
+            this.auth = {
+              type: "OAUTH2",
+              user: this.options.auth.user,
+              oauth2,
+              method: "XOAUTH2"
+            };
+            oauth2.on("token", (token) => this.pool.mailer.emit("token", token));
+            oauth2.on("error", (err) => this.emit("error", err));
+            break;
+          }
+          default:
+            if (!this.options.auth.user && !this.options.auth.pass) {
+              break;
+            }
+            this.auth = {
+              type: (this.options.auth.type || "").toString().toUpperCase() || "LOGIN",
+              user: this.options.auth.user,
+              credentials: {
+                user: this.options.auth.user || "",
+                pass: this.options.auth.pass,
+                options: this.options.auth.options
+              },
+              method: (this.options.auth.method || "").trim().toUpperCase() || this.options.authMethod || false
+            };
+        }
+      }
+      this._connection = false;
+      this._connected = false;
+      this.messages = 0;
+      this.available = true;
+    }
+    /**
+     * Initiates a connection to the SMTP server
+     *
+     * @param {Function} callback Callback function to run once the connection is established or failed
+     */
+    connect(callback) {
+      this.pool.getSocket(this.options, (err, socketOptions) => {
+        if (err) {
+          return callback(err);
+        }
+        let returned = false;
+        let options = this.options;
+        if (socketOptions && socketOptions.connection) {
+          this.logger.info(
+            {
+              tnx: "proxy",
+              remoteAddress: socketOptions.connection.remoteAddress,
+              remotePort: socketOptions.connection.remotePort,
+              destHost: options.host || "",
+              destPort: options.port || "",
+              action: "connected"
+            },
+            "Using proxied socket from %s:%s to %s:%s",
+            socketOptions.connection.remoteAddress,
+            socketOptions.connection.remotePort,
+            options.host || "",
+            options.port || ""
+          );
+          options = assign(false, options);
+          Object.keys(socketOptions).forEach((key) => {
+            options[key] = socketOptions[key];
+          });
+        }
+        this.connection = new SMTPConnection(options);
+        this.connection.once("error", (err2) => {
+          this.emit("error", err2);
+          if (returned) {
+            return;
+          }
+          returned = true;
+          return callback(err2);
+        });
+        this.connection.once("end", () => {
+          this.close();
+          if (returned) {
+            return;
+          }
+          returned = true;
+          let timer = setTimeout(() => {
+            if (returned) {
+              return;
+            }
+            let err2 = new Error("Unexpected socket close");
+            if (this.connection && this.connection._socket && this.connection._socket.upgrading) {
+              err2.code = errors2.ETLS;
+            }
+            callback(err2);
+          }, 1e3);
+          try {
+            timer.unref();
+          } catch (_E) {
+          }
+        });
+        this.connection.connect(() => {
+          if (returned) {
+            return;
+          }
+          if (this.auth && (this.connection.allowsAuth || options.forceAuth)) {
+            this.connection.login(this.auth, (err2) => {
+              if (returned) {
+                return;
+              }
+              returned = true;
+              if (err2) {
+                this.connection.close();
+                this.emit("error", err2);
+                return callback(err2);
+              }
+              this._connected = true;
+              callback(null, true);
+            });
+          } else {
+            returned = true;
+            this._connected = true;
+            return callback(null, true);
+          }
+        });
+      });
+    }
+    /**
+     * Sends an e-mail to be sent using the selected settings
+     *
+     * @param {Object} mail Mail object
+     * @param {Function} callback Callback function
+     */
+    send(mail, callback) {
+      if (!this._connected) {
+        return this.connect((err) => {
+          if (err) {
+            return callback(err);
+          }
+          return this.send(mail, callback);
+        });
+      }
+      let envelope = mail.message.getEnvelope();
+      let messageId = mail.message.messageId();
+      let recipients = [].concat(envelope.to || []);
+      if (recipients.length > 3) {
+        recipients.push("...and " + recipients.splice(2).length + " more");
+      }
+      this.logger.info(
+        {
+          tnx: "send",
+          messageId,
+          cid: this.id
+        },
+        "Sending message %s using #%s to <%s>",
+        messageId,
+        this.id,
+        recipients.join(", ")
+      );
+      if (mail.data.dsn) {
+        envelope.dsn = mail.data.dsn;
+      }
+      if (mail.data.requireTLSExtensionEnabled) {
+        envelope.requireTLSExtensionEnabled = mail.data.requireTLSExtensionEnabled;
+      }
+      this.connection.send(envelope, mail.message.createReadStream(), (err, info) => {
+        this.messages++;
+        if (err) {
+          this.connection.close();
+          this.emit("error", err);
+          return callback(err);
+        }
+        info.envelope = {
+          from: envelope.from,
+          to: envelope.to
+        };
+        info.messageId = messageId;
+        setImmediate(() => {
+          let err2;
+          if (this.messages >= this.options.maxMessages) {
+            err2 = new Error("Resource exhausted");
+            err2.code = errors2.EMAXLIMIT;
+            this.connection.close();
+            this.emit("error", err2);
+          } else {
+            this.pool._checkRateLimit(() => {
+              this.available = true;
+              this.emit("available");
+            });
+          }
+        });
+        callback(null, info);
+      });
+    }
+    /**
+     * Closes the connection
+     */
+    close() {
+      this._connected = false;
+      if (this.auth && this.auth.oauth2) {
+        this.auth.oauth2.removeAllListeners();
+      }
+      if (this.connection) {
+        this.connection.close();
+      }
+      this.emit("close");
+    }
+  }
+  poolResource = PoolResource;
+  return poolResource;
+}
+const Aliyun = { "description": "Alibaba Cloud Mail", "domains": ["aliyun.com"], "host": "smtp.aliyun.com", "port": 465, "secure": true };
+const AliyunQiye = { "description": "Alibaba Cloud Enterprise Mail", "host": "smtp.qiye.aliyun.com", "port": 465, "secure": true };
+const AOL = { "description": "AOL Mail", "domains": ["aol.com"], "host": "smtp.aol.com", "port": 587 };
+const Aruba = { "description": "Aruba PEC (Italian email provider)", "domains": ["aruba.it", "pec.aruba.it"], "aliases": ["Aruba PEC"], "host": "smtps.aruba.it", "port": 465, "secure": true, "authMethod": "LOGIN" };
+const Bluewin = { "description": "Bluewin (Swiss email provider)", "host": "smtpauths.bluewin.ch", "domains": ["bluewin.ch"], "port": 465 };
+const BOL = { "description": "BOL Mail (Brazilian provider)", "domains": ["bol.com.br"], "host": "smtp.bol.com.br", "port": 587, "requireTLS": true };
+const DebugMail = { "description": "DebugMail (email testing service)", "host": "debugmail.io", "port": 25 };
+const Disroot = { "description": "Disroot (privacy-focused provider)", "domains": ["disroot.org"], "host": "disroot.org", "port": 587, "secure": false, "authMethod": "LOGIN" };
+const DynectEmail = { "description": "Dyn Email Delivery", "aliases": ["Dynect"], "host": "smtp.dynect.net", "port": 25 };
+const ElasticEmail = { "description": "Elastic Email", "aliases": ["Elastic Email"], "host": "smtp.elasticemail.com", "port": 465, "secure": true };
+const Ethereal = { "description": "Ethereal Email (email testing service)", "aliases": ["ethereal.email"], "host": "smtp.ethereal.email", "port": 587 };
+const FastMail = { "description": "FastMail", "domains": ["fastmail.fm"], "host": "smtp.fastmail.com", "port": 465, "secure": true };
+const GandiMail = { "description": "Gandi Mail", "aliases": ["Gandi", "Gandi Mail"], "host": "mail.gandi.net", "port": 587 };
+const Gmail = { "description": "Gmail", "aliases": ["Google Mail"], "domains": ["gmail.com", "googlemail.com"], "host": "smtp.gmail.com", "port": 465, "secure": true };
+const GmailWorkspace = { "description": "Gmail Workspace", "aliases": ["Google Workspace Mail"], "host": "smtp-relay.gmail.com", "port": 465, "secure": true };
+const GMX = { "description": "GMX Mail", "domains": ["gmx.com", "gmx.net", "gmx.de"], "host": "mail.gmx.com", "port": 587 };
+const Godaddy = { "description": "GoDaddy Email (US)", "host": "smtpout.secureserver.net", "port": 25 };
+const GodaddyAsia = { "description": "GoDaddy Email (Asia)", "host": "smtp.asia.secureserver.net", "port": 25 };
+const GodaddyEurope = { "description": "GoDaddy Email (Europe)", "host": "smtp.europe.secureserver.net", "port": 25 };
+const Hotmail = { "description": "Outlook.com / Hotmail", "aliases": ["Outlook", "Outlook.com", "Hotmail.com"], "domains": ["hotmail.com", "outlook.com"], "host": "smtp-mail.outlook.com", "port": 587 };
+const iCloud = { "description": "iCloud Mail", "aliases": ["Me", "Mac"], "domains": ["me.com", "mac.com"], "host": "smtp.mail.me.com", "port": 587 };
+const Infomaniak = { "description": "Infomaniak Mail (Swiss hosting provider)", "host": "mail.infomaniak.com", "domains": ["ik.me", "ikmail.com", "etik.com"], "port": 587 };
+const KolabNow = { "description": "KolabNow (secure email service)", "domains": ["kolabnow.com"], "aliases": ["Kolab"], "host": "smtp.kolabnow.com", "port": 465, "secure": true, "authMethod": "LOGIN" };
+const Loopia = { "description": "Loopia (Swedish hosting provider)", "host": "mailcluster.loopia.se", "port": 465 };
+const Loops = { "description": "Loops", "host": "smtp.loops.so", "port": 587 };
+const Maildev = { "description": "MailDev (local email testing)", "port": 1025, "ignoreTLS": true };
+const MailerSend = { "description": "MailerSend", "host": "smtp.mailersend.net", "port": 587 };
+const Mailgun = { "description": "Mailgun", "host": "smtp.mailgun.org", "port": 465, "secure": true };
+const Mailjet = { "description": "Mailjet", "host": "in.mailjet.com", "port": 587 };
+const Mailosaur = { "description": "Mailosaur (email testing service)", "host": "mailosaur.io", "port": 25 };
+const Mailtrap = { "description": "Mailtrap", "host": "live.smtp.mailtrap.io", "port": 587 };
+const Mandrill = { "description": "Mandrill (by Mailchimp)", "host": "smtp.mandrillapp.com", "port": 587 };
+const Naver = { "description": "Naver Mail (Korean email provider)", "host": "smtp.naver.com", "port": 587 };
+const OhMySMTP = { "description": "OhMySMTP (email delivery service)", "host": "smtp.ohmysmtp.com", "port": 587, "secure": false };
+const One = { "description": "One.com Email", "host": "send.one.com", "port": 465, "secure": true };
+const OpenMailBox = { "description": "OpenMailBox", "aliases": ["OMB", "openmailbox.org"], "host": "smtp.openmailbox.org", "port": 465, "secure": true };
+const Outlook365 = { "description": "Microsoft 365 / Office 365", "host": "smtp.office365.com", "port": 587, "secure": false };
+const Postmark = { "description": "Postmark", "aliases": ["PostmarkApp"], "host": "smtp.postmarkapp.com", "port": 2525 };
+const Proton = { "description": "Proton Mail", "aliases": ["ProtonMail", "Proton.me", "Protonmail.com", "Protonmail.ch"], "domains": ["proton.me", "protonmail.com", "pm.me", "protonmail.ch"], "host": "smtp.protonmail.ch", "port": 587, "requireTLS": true };
+const QQ = { "description": "QQ Mail", "domains": ["qq.com"], "host": "smtp.qq.com", "port": 465, "secure": true };
+const QQex = { "description": "QQ Enterprise Mail", "aliases": ["QQ Enterprise"], "domains": ["exmail.qq.com"], "host": "smtp.exmail.qq.com", "port": 465, "secure": true };
+const Resend = { "description": "Resend", "host": "smtp.resend.com", "port": 465, "secure": true };
+const Runbox = { "description": "Runbox (Norwegian email provider)", "domains": ["runbox.com"], "host": "smtp.runbox.com", "port": 465, "secure": true };
+const SendCloud = { "description": "SendCloud (Chinese email delivery)", "host": "smtp.sendcloud.net", "port": 2525 };
+const SendGrid = { "description": "SendGrid", "host": "smtp.sendgrid.net", "port": 587 };
+const SendinBlue = { "description": "Brevo (formerly Sendinblue)", "aliases": ["Brevo"], "host": "smtp-relay.brevo.com", "port": 587 };
+const SendPulse = { "description": "SendPulse", "host": "smtp-pulse.com", "port": 465, "secure": true };
+const SES = { "description": "AWS SES US East (N. Virginia)", "host": "email-smtp.us-east-1.amazonaws.com", "port": 465, "secure": true };
+const Seznam = { "description": "Seznam Email (Czech email provider)", "aliases": ["Seznam Email"], "domains": ["seznam.cz", "email.cz", "post.cz", "spoluzaci.cz"], "host": "smtp.seznam.cz", "port": 465, "secure": true };
+const SMTP2GO = { "description": "SMTP2GO", "host": "mail.smtp2go.com", "port": 2525 };
+const Sparkpost = { "description": "SparkPost", "aliases": ["SparkPost", "SparkPost Mail"], "domains": ["sparkpost.com"], "host": "smtp.sparkpostmail.com", "port": 587, "secure": false };
+const Tipimail = { "description": "Tipimail (email delivery service)", "host": "smtp.tipimail.com", "port": 587 };
+const Tutanota = { "description": "Tutanota (Tuta Mail)", "domains": ["tutanota.com", "tuta.com", "tutanota.de", "tuta.io"], "host": "smtp.tutanota.com", "port": 465, "secure": true };
+const Yahoo = { "description": "Yahoo Mail", "domains": ["yahoo.com"], "host": "smtp.mail.yahoo.com", "port": 465, "secure": true };
+const Yandex = { "description": "Yandex Mail", "domains": ["yandex.ru"], "host": "smtp.yandex.ru", "port": 465, "secure": true };
+const Zimbra = { "description": "Zimbra Mail Server", "aliases": ["Zimbra Collaboration"], "host": "smtp.zimbra.com", "port": 587, "requireTLS": true };
+const Zoho = { "description": "Zoho Mail", "host": "smtp.zoho.com", "port": 465, "secure": true, "authMethod": "LOGIN" };
+const require$$0 = {
+  "126": { "description": "126 Mail (NetEase)", "host": "smtp.126.com", "port": 465, "secure": true },
+  "163": { "description": "163 Mail (NetEase)", "host": "smtp.163.com", "port": 465, "secure": true },
+  "1und1": { "description": "1&1 Mail (German hosting provider)", "host": "smtp.1und1.de", "port": 465, "secure": true, "authMethod": "LOGIN" },
+  Aliyun,
+  AliyunQiye,
+  AOL,
+  Aruba,
+  Bluewin,
+  BOL,
+  DebugMail,
+  Disroot,
+  DynectEmail,
+  ElasticEmail,
+  Ethereal,
+  FastMail,
+  "Feishu Mail": { "description": "Feishu Mail (Lark)", "aliases": ["Feishu", "FeishuMail"], "domains": ["www.feishu.cn"], "host": "smtp.feishu.cn", "port": 465, "secure": true },
+  "Forward Email": { "description": "Forward Email (email forwarding service)", "aliases": ["FE", "ForwardEmail"], "domains": ["forwardemail.net"], "host": "smtp.forwardemail.net", "port": 465, "secure": true },
+  GandiMail,
+  Gmail,
+  GmailWorkspace,
+  GMX,
+  Godaddy,
+  GodaddyAsia,
+  GodaddyEurope,
+  "hot.ee": { "description": "Hot.ee (Estonian email provider)", "host": "mail.hot.ee" },
+  Hotmail,
+  iCloud,
+  Infomaniak,
+  KolabNow,
+  Loopia,
+  Loops,
+  "mail.ee": { "description": "Mail.ee (Estonian email provider)", "host": "smtp.mail.ee" },
+  "Mail.ru": { "description": "Mail.ru", "host": "smtp.mail.ru", "port": 465, "secure": true },
+  "Mailcatch.app": { "description": "Mailcatch (email testing service)", "host": "sandbox-smtp.mailcatch.app", "port": 2525 },
+  Maildev,
+  MailerSend,
+  Mailgun,
+  Mailjet,
+  Mailosaur,
+  Mailtrap,
+  Mandrill,
+  Naver,
+  OhMySMTP,
+  One,
+  OpenMailBox,
+  Outlook365,
+  Postmark,
+  Proton,
+  "qiye.aliyun": { "description": "Alibaba Mail Enterprise Edition", "host": "smtp.mxhichina.com", "port": "465", "secure": true },
+  QQ,
+  QQex,
+  Resend,
+  Runbox,
+  SendCloud,
+  SendGrid,
+  SendinBlue,
+  SendPulse,
+  SES,
+  "SES-AP-NORTHEAST-1": { "description": "AWS SES Asia Pacific (Tokyo)", "host": "email-smtp.ap-northeast-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-AP-NORTHEAST-2": { "description": "AWS SES Asia Pacific (Seoul)", "host": "email-smtp.ap-northeast-2.amazonaws.com", "port": 465, "secure": true },
+  "SES-AP-NORTHEAST-3": { "description": "AWS SES Asia Pacific (Osaka)", "host": "email-smtp.ap-northeast-3.amazonaws.com", "port": 465, "secure": true },
+  "SES-AP-SOUTH-1": { "description": "AWS SES Asia Pacific (Mumbai)", "host": "email-smtp.ap-south-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-AP-SOUTHEAST-1": { "description": "AWS SES Asia Pacific (Singapore)", "host": "email-smtp.ap-southeast-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-AP-SOUTHEAST-2": { "description": "AWS SES Asia Pacific (Sydney)", "host": "email-smtp.ap-southeast-2.amazonaws.com", "port": 465, "secure": true },
+  "SES-CA-CENTRAL-1": { "description": "AWS SES Canada (Central)", "host": "email-smtp.ca-central-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-EU-CENTRAL-1": { "description": "AWS SES Europe (Frankfurt)", "host": "email-smtp.eu-central-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-EU-NORTH-1": { "description": "AWS SES Europe (Stockholm)", "host": "email-smtp.eu-north-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-EU-WEST-1": { "description": "AWS SES Europe (Ireland)", "host": "email-smtp.eu-west-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-EU-WEST-2": { "description": "AWS SES Europe (London)", "host": "email-smtp.eu-west-2.amazonaws.com", "port": 465, "secure": true },
+  "SES-EU-WEST-3": { "description": "AWS SES Europe (Paris)", "host": "email-smtp.eu-west-3.amazonaws.com", "port": 465, "secure": true },
+  "SES-SA-EAST-1": { "description": "AWS SES South America (São Paulo)", "host": "email-smtp.sa-east-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-US-EAST-1": { "description": "AWS SES US East (N. Virginia)", "host": "email-smtp.us-east-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-US-EAST-2": { "description": "AWS SES US East (Ohio)", "host": "email-smtp.us-east-2.amazonaws.com", "port": 465, "secure": true },
+  "SES-US-GOV-EAST-1": { "description": "AWS SES GovCloud (US-East)", "host": "email-smtp.us-gov-east-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-US-GOV-WEST-1": { "description": "AWS SES GovCloud (US-West)", "host": "email-smtp.us-gov-west-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-US-WEST-1": { "description": "AWS SES US West (N. California)", "host": "email-smtp.us-west-1.amazonaws.com", "port": 465, "secure": true },
+  "SES-US-WEST-2": { "description": "AWS SES US West (Oregon)", "host": "email-smtp.us-west-2.amazonaws.com", "port": 465, "secure": true },
+  Seznam,
+  SMTP2GO,
+  Sparkpost,
+  Tipimail,
+  Tutanota,
+  Yahoo,
+  Yandex,
+  Zimbra,
+  Zoho
+};
+var wellKnown;
+var hasRequiredWellKnown;
+function requireWellKnown() {
+  if (hasRequiredWellKnown) return wellKnown;
+  hasRequiredWellKnown = 1;
+  const services = require$$0;
+  const normalized = {};
+  Object.keys(services).forEach((key) => {
+    let service = services[key];
+    normalized[normalizeKey(key)] = normalizeService(service);
+    [].concat(service.aliases || []).forEach((alias) => {
+      normalized[normalizeKey(alias)] = normalizeService(service);
+    });
+    [].concat(service.domains || []).forEach((domain) => {
+      normalized[normalizeKey(domain)] = normalizeService(service);
+    });
+  });
+  function normalizeKey(key) {
+    return key.replace(/[^a-zA-Z0-9.-]/g, "").toLowerCase();
+  }
+  function normalizeService(service) {
+    let filter = ["domains", "aliases"];
+    let response = {};
+    Object.keys(service).forEach((key) => {
+      if (filter.indexOf(key) < 0) {
+        response[key] = service[key];
+      }
+    });
+    return response;
+  }
+  wellKnown = function(key) {
+    key = normalizeKey(key.split("@").pop());
+    return normalized[key] || false;
+  };
+  return wellKnown;
+}
+var smtpPool;
+var hasRequiredSmtpPool;
+function requireSmtpPool() {
+  if (hasRequiredSmtpPool) return smtpPool;
+  hasRequiredSmtpPool = 1;
+  const EventEmitter = require$$0$4;
+  const PoolResource = requirePoolResource();
+  const SMTPConnection = requireSmtpConnection();
+  const wellKnown2 = requireWellKnown();
+  const shared2 = requireShared();
+  const errors2 = requireErrors();
+  const packageData = require$$10;
+  class SMTPPool extends EventEmitter {
+    constructor(options) {
+      super();
+      options = options || {};
+      if (typeof options === "string") {
+        options = {
+          url: options
+        };
+      }
+      let urlData;
+      let service = options.service;
+      if (typeof options.getSocket === "function") {
+        this.getSocket = options.getSocket;
+      }
+      if (options.url) {
+        urlData = shared2.parseConnectionUrl(options.url);
+        service = service || urlData.service;
+      }
+      this.options = shared2.assign(
+        false,
+        // create new object
+        options,
+        // regular options
+        urlData,
+        // url options
+        service && wellKnown2(service)
+        // wellknown options
+      );
+      this.options.maxConnections = this.options.maxConnections || 5;
+      this.options.maxMessages = this.options.maxMessages || 100;
+      this.logger = shared2.getLogger(this.options, {
+        component: this.options.component || "smtp-pool"
+      });
+      let connection = new SMTPConnection(this.options);
+      this.name = "SMTP (pool)";
+      this.version = packageData.version + "[client:" + connection.version + "]";
+      this._rateLimit = {
+        counter: 0,
+        timeout: null,
+        waiting: [],
+        checkpoint: false,
+        delta: Number(this.options.rateDelta) || 1e3,
+        limit: Number(this.options.rateLimit) || 0
+      };
+      this._closed = false;
+      this._queue = [];
+      this._connections = [];
+      this._connectionCounter = 0;
+      this.idling = true;
+      setImmediate(() => {
+        if (this.idling) {
+          this.emit("idle");
+        }
+      });
+    }
+    /**
+     * Placeholder function for creating proxy sockets. This method immediatelly returns
+     * without a socket
+     *
+     * @param {Object} options Connection options
+     * @param {Function} callback Callback function to run with the socket keys
+     */
+    getSocket(options, callback) {
+      return setImmediate(() => callback(null, false));
+    }
+    /**
+     * Queues an e-mail to be sent using the selected settings
+     *
+     * @param {Object} mail Mail object
+     * @param {Function} callback Callback function
+     */
+    send(mail, callback) {
+      if (this._closed) {
+        return false;
+      }
+      this._queue.push({
+        mail,
+        requeueAttempts: 0,
+        callback
+      });
+      if (this.idling && this._queue.length >= this.options.maxConnections) {
+        this.idling = false;
+      }
+      setImmediate(() => this._processMessages());
+      return true;
+    }
+    /**
+     * Closes all connections in the pool. If there is a message being sent, the connection
+     * is closed later
+     */
+    close() {
+      let connection;
+      let len = this._connections.length;
+      this._closed = true;
+      clearTimeout(this._rateLimit.timeout);
+      if (!len && !this._queue.length) {
+        return;
+      }
+      for (let i = len - 1; i >= 0; i--) {
+        if (this._connections[i] && this._connections[i].available) {
+          connection = this._connections[i];
+          connection.close();
+          this.logger.info(
+            {
+              tnx: "connection",
+              cid: connection.id,
+              action: "removed"
+            },
+            "Connection #%s removed",
+            connection.id
+          );
+        }
+      }
+      if (len && !this._connections.length) {
+        this.logger.debug(
+          {
+            tnx: "connection"
+          },
+          "All connections removed"
+        );
+      }
+      if (!this._queue.length) {
+        return;
+      }
+      let invokeCallbacks = () => {
+        if (!this._queue.length) {
+          this.logger.debug(
+            {
+              tnx: "connection"
+            },
+            "Pending queue entries cleared"
+          );
+          return;
+        }
+        let entry = this._queue.shift();
+        if (entry && typeof entry.callback === "function") {
+          try {
+            entry.callback(new Error("Connection pool was closed"));
+          } catch (E) {
+            this.logger.error(
+              {
+                err: E,
+                tnx: "callback",
+                cid: connection.id
+              },
+              "Callback error for #%s: %s",
+              connection.id,
+              E.message
+            );
+          }
+        }
+        setImmediate(invokeCallbacks);
+      };
+      setImmediate(invokeCallbacks);
+    }
+    /**
+     * Check the queue and available connections. If there is a message to be sent and there is
+     * an available connection, then use this connection to send the mail
+     */
+    _processMessages() {
+      let connection;
+      let i, len;
+      if (this._closed) {
+        return;
+      }
+      if (!this._queue.length) {
+        if (!this.idling) {
+          this.idling = true;
+          this.emit("idle");
+        }
+        return;
+      }
+      for (i = 0, len = this._connections.length; i < len; i++) {
+        if (this._connections[i].available) {
+          connection = this._connections[i];
+          break;
+        }
+      }
+      if (!connection && this._connections.length < this.options.maxConnections) {
+        connection = this._createConnection();
+      }
+      if (!connection) {
+        this.idling = false;
+        return;
+      }
+      if (!this.idling && this._queue.length < this.options.maxConnections) {
+        this.idling = true;
+        this.emit("idle");
+      }
+      let entry = connection.queueEntry = this._queue.shift();
+      entry.messageId = (connection.queueEntry.mail.message.getHeader("message-id") || "").replace(/[<>\s]/g, "");
+      connection.available = false;
+      this.logger.debug(
+        {
+          tnx: "pool",
+          cid: connection.id,
+          messageId: entry.messageId,
+          action: "assign"
+        },
+        "Assigned message <%s> to #%s (%s)",
+        entry.messageId,
+        connection.id,
+        connection.messages + 1
+      );
+      if (this._rateLimit.limit) {
+        this._rateLimit.counter++;
+        if (!this._rateLimit.checkpoint) {
+          this._rateLimit.checkpoint = Date.now();
+        }
+      }
+      connection.send(entry.mail, (err, info) => {
+        if (entry === connection.queueEntry) {
+          try {
+            entry.callback(err, info);
+          } catch (E) {
+            this.logger.error(
+              {
+                err: E,
+                tnx: "callback",
+                cid: connection.id
+              },
+              "Callback error for #%s: %s",
+              connection.id,
+              E.message
+            );
+          }
+          connection.queueEntry = false;
+        }
+      });
+    }
+    /**
+     * Creates a new pool resource
+     */
+    _createConnection() {
+      let connection = new PoolResource(this);
+      connection.id = ++this._connectionCounter;
+      this.logger.info(
+        {
+          tnx: "pool",
+          cid: connection.id,
+          action: "conection"
+        },
+        "Created new pool resource #%s",
+        connection.id
+      );
+      connection.on("available", () => {
+        this.logger.debug(
+          {
+            tnx: "connection",
+            cid: connection.id,
+            action: "available"
+          },
+          "Connection #%s became available",
+          connection.id
+        );
+        if (this._closed) {
+          this.close();
+        } else {
+          this._processMessages();
+        }
+      });
+      connection.once("error", (err) => {
+        if (err.code !== "EMAXLIMIT") {
+          this.logger.warn(
+            {
+              err,
+              tnx: "pool",
+              cid: connection.id
+            },
+            "Pool Error for #%s: %s",
+            connection.id,
+            err.message
+          );
+        } else {
+          this.logger.debug(
+            {
+              tnx: "pool",
+              cid: connection.id,
+              action: "maxlimit"
+            },
+            "Max messages limit exchausted for #%s",
+            connection.id
+          );
+        }
+        if (connection.queueEntry) {
+          try {
+            connection.queueEntry.callback(err);
+          } catch (E) {
+            this.logger.error(
+              {
+                err: E,
+                tnx: "callback",
+                cid: connection.id
+              },
+              "Callback error for #%s: %s",
+              connection.id,
+              E.message
+            );
+          }
+          connection.queueEntry = false;
+        }
+        this._removeConnection(connection);
+        this._continueProcessing();
+      });
+      connection.once("close", () => {
+        this.logger.info(
+          {
+            tnx: "connection",
+            cid: connection.id,
+            action: "closed"
+          },
+          "Connection #%s was closed",
+          connection.id
+        );
+        this._removeConnection(connection);
+        if (connection.queueEntry) {
+          setTimeout(() => {
+            if (connection.queueEntry) {
+              if (this._shouldRequeuOnConnectionClose(connection.queueEntry)) {
+                this._requeueEntryOnConnectionClose(connection);
+              } else {
+                this._failDeliveryOnConnectionClose(connection);
+              }
+            }
+            this._continueProcessing();
+          }, 50);
+        } else {
+          if (!this._closed && this.idling && !this._connections.length) {
+            this.emit("clear");
+          }
+          this._continueProcessing();
+        }
+      });
+      this._connections.push(connection);
+      return connection;
+    }
+    _shouldRequeuOnConnectionClose(queueEntry) {
+      if (this.options.maxRequeues === void 0 || this.options.maxRequeues < 0) {
+        return true;
+      }
+      return queueEntry.requeueAttempts < this.options.maxRequeues;
+    }
+    _failDeliveryOnConnectionClose(connection) {
+      if (connection.queueEntry && connection.queueEntry.callback) {
+        try {
+          connection.queueEntry.callback(new Error("Reached maximum number of retries after connection was closed"));
+        } catch (E) {
+          this.logger.error(
+            {
+              err: E,
+              tnx: "callback",
+              messageId: connection.queueEntry.messageId,
+              cid: connection.id
+            },
+            "Callback error for #%s: %s",
+            connection.id,
+            E.message
+          );
+        }
+        connection.queueEntry = false;
+      }
+    }
+    _requeueEntryOnConnectionClose(connection) {
+      connection.queueEntry.requeueAttempts = connection.queueEntry.requeueAttempts + 1;
+      this.logger.debug(
+        {
+          tnx: "pool",
+          cid: connection.id,
+          messageId: connection.queueEntry.messageId,
+          action: "requeue"
+        },
+        "Re-queued message <%s> for #%s. Attempt: #%s",
+        connection.queueEntry.messageId,
+        connection.id,
+        connection.queueEntry.requeueAttempts
+      );
+      this._queue.unshift(connection.queueEntry);
+      connection.queueEntry = false;
+    }
+    /**
+     * Continue to process message if the pool hasn't closed
+     */
+    _continueProcessing() {
+      if (this._closed) {
+        this.close();
+      } else {
+        setTimeout(() => this._processMessages(), 100);
+      }
+    }
+    /**
+     * Remove resource from pool
+     *
+     * @param {Object} connection The PoolResource to remove
+     */
+    _removeConnection(connection) {
+      let index = this._connections.indexOf(connection);
+      if (index !== -1) {
+        this._connections.splice(index, 1);
+      }
+    }
+    /**
+     * Checks if connections have hit current rate limit and if so, queues the availability callback
+     *
+     * @param {Function} callback Callback function to run once rate limiter has been cleared
+     */
+    _checkRateLimit(callback) {
+      if (!this._rateLimit.limit) {
+        return callback();
+      }
+      let now = Date.now();
+      if (this._rateLimit.counter < this._rateLimit.limit) {
+        return callback();
+      }
+      this._rateLimit.waiting.push(callback);
+      if (this._rateLimit.checkpoint <= now - this._rateLimit.delta) {
+        return this._clearRateLimit();
+      } else if (!this._rateLimit.timeout) {
+        this._rateLimit.timeout = setTimeout(() => this._clearRateLimit(), this._rateLimit.delta - (now - this._rateLimit.checkpoint));
+        this._rateLimit.checkpoint = now;
+      }
+    }
+    /**
+     * Clears current rate limit limitation and runs paused callback
+     */
+    _clearRateLimit() {
+      clearTimeout(this._rateLimit.timeout);
+      this._rateLimit.timeout = null;
+      this._rateLimit.counter = 0;
+      this._rateLimit.checkpoint = false;
+      while (this._rateLimit.waiting.length) {
+        let cb = this._rateLimit.waiting.shift();
+        setImmediate(cb);
+      }
+    }
+    /**
+     * Returns true if there are free slots in the queue
+     */
+    isIdle() {
+      return this.idling;
+    }
+    /**
+     * Verifies SMTP configuration
+     *
+     * @param {Function} callback Callback function
+     */
+    verify(callback) {
+      let promise;
+      if (!callback) {
+        promise = new Promise((resolve, reject) => {
+          callback = shared2.callbackPromise(resolve, reject);
+        });
+      }
+      let auth = new PoolResource(this).auth;
+      this.getSocket(this.options, (err, socketOptions) => {
+        if (err) {
+          return callback(err);
+        }
+        let options = this.options;
+        if (socketOptions && socketOptions.connection) {
+          this.logger.info(
+            {
+              tnx: "proxy",
+              remoteAddress: socketOptions.connection.remoteAddress,
+              remotePort: socketOptions.connection.remotePort,
+              destHost: options.host || "",
+              destPort: options.port || "",
+              action: "connected"
+            },
+            "Using proxied socket from %s:%s to %s:%s",
+            socketOptions.connection.remoteAddress,
+            socketOptions.connection.remotePort,
+            options.host || "",
+            options.port || ""
+          );
+          options = shared2.assign(false, options);
+          Object.keys(socketOptions).forEach((key) => {
+            options[key] = socketOptions[key];
+          });
+        }
+        let connection = new SMTPConnection(options);
+        let returned = false;
+        connection.once("error", (err2) => {
+          if (returned) {
+            return;
+          }
+          returned = true;
+          connection.close();
+          return callback(err2);
+        });
+        connection.once("end", () => {
+          if (returned) {
+            return;
+          }
+          returned = true;
+          return callback(new Error("Connection closed"));
+        });
+        let finalize = () => {
+          if (returned) {
+            return;
+          }
+          returned = true;
+          connection.quit();
+          return callback(null, true);
+        };
+        connection.connect(() => {
+          if (returned) {
+            return;
+          }
+          if (auth && (connection.allowsAuth || options.forceAuth)) {
+            connection.login(auth, (err2) => {
+              if (returned) {
+                return;
+              }
+              if (err2) {
+                returned = true;
+                connection.close();
+                return callback(err2);
+              }
+              finalize();
+            });
+          } else if (!auth && connection.allowsAuth && options.forceAuth) {
+            let err2 = new Error("Authentication info was not provided");
+            err2.code = errors2.ENOAUTH;
+            returned = true;
+            connection.close();
+            return callback(err2);
+          } else {
+            finalize();
+          }
+        });
+      });
+      return promise;
+    }
+  }
+  smtpPool = SMTPPool;
+  return smtpPool;
+}
+var smtpTransport;
+var hasRequiredSmtpTransport;
+function requireSmtpTransport() {
+  if (hasRequiredSmtpTransport) return smtpTransport;
+  hasRequiredSmtpTransport = 1;
+  const EventEmitter = require$$0$4;
+  const SMTPConnection = requireSmtpConnection();
+  const wellKnown2 = requireWellKnown();
+  const shared2 = requireShared();
+  const XOAuth2 = requireXoauth2();
+  const errors2 = requireErrors();
+  const packageData = require$$10;
+  class SMTPTransport extends EventEmitter {
+    constructor(options) {
+      super();
+      options = options || {};
+      if (typeof options === "string") {
+        options = {
+          url: options
+        };
+      }
+      let urlData;
+      let service = options.service;
+      if (typeof options.getSocket === "function") {
+        this.getSocket = options.getSocket;
+      }
+      if (options.url) {
+        urlData = shared2.parseConnectionUrl(options.url);
+        service = service || urlData.service;
+      }
+      this.options = shared2.assign(
+        false,
+        // create new object
+        options,
+        // regular options
+        urlData,
+        // url options
+        service && wellKnown2(service)
+        // wellknown options
+      );
+      this.logger = shared2.getLogger(this.options, {
+        component: this.options.component || "smtp-transport"
+      });
+      let connection = new SMTPConnection(this.options);
+      this.name = "SMTP";
+      this.version = packageData.version + "[client:" + connection.version + "]";
+      if (this.options.auth) {
+        this.auth = this.getAuth({});
+      }
+    }
+    /**
+     * Placeholder function for creating proxy sockets. This method immediatelly returns
+     * without a socket
+     *
+     * @param {Object} options Connection options
+     * @param {Function} callback Callback function to run with the socket keys
+     */
+    getSocket(options, callback) {
+      return setImmediate(() => callback(null, false));
+    }
+    getAuth(authOpts) {
+      if (!authOpts) {
+        return this.auth;
+      }
+      let hasAuth = false;
+      let authData = {};
+      if (this.options.auth && typeof this.options.auth === "object") {
+        Object.keys(this.options.auth).forEach((key) => {
+          hasAuth = true;
+          authData[key] = this.options.auth[key];
+        });
+      }
+      if (authOpts && typeof authOpts === "object") {
+        Object.keys(authOpts).forEach((key) => {
+          hasAuth = true;
+          authData[key] = authOpts[key];
+        });
+      }
+      if (!hasAuth) {
+        return false;
+      }
+      switch ((authData.type || "").toString().toUpperCase()) {
+        case "OAUTH2": {
+          if (!authData.service && !authData.user) {
+            return false;
+          }
+          let oauth2 = new XOAuth2(authData, this.logger);
+          oauth2.provisionCallback = this.mailer && this.mailer.get("oauth2_provision_cb") || oauth2.provisionCallback;
+          oauth2.on("token", (token) => this.mailer.emit("token", token));
+          oauth2.on("error", (err) => this.emit("error", err));
+          return {
+            type: "OAUTH2",
+            user: authData.user,
+            oauth2,
+            method: "XOAUTH2"
+          };
+        }
+        default:
+          return {
+            type: (authData.type || "").toString().toUpperCase() || "LOGIN",
+            user: authData.user,
+            credentials: {
+              user: authData.user || "",
+              pass: authData.pass,
+              options: authData.options
+            },
+            method: (authData.method || "").trim().toUpperCase() || this.options.authMethod || false
+          };
+      }
+    }
+    /**
+     * Sends an e-mail using the selected settings
+     *
+     * @param {Object} mail Mail object
+     * @param {Function} callback Callback function
+     */
+    send(mail, callback) {
+      this.getSocket(this.options, (err, socketOptions) => {
+        if (err) {
+          return callback(err);
+        }
+        let returned = false;
+        let options = this.options;
+        if (socketOptions && socketOptions.connection) {
+          this.logger.info(
+            {
+              tnx: "proxy",
+              remoteAddress: socketOptions.connection.remoteAddress,
+              remotePort: socketOptions.connection.remotePort,
+              destHost: options.host || "",
+              destPort: options.port || "",
+              action: "connected"
+            },
+            "Using proxied socket from %s:%s to %s:%s",
+            socketOptions.connection.remoteAddress,
+            socketOptions.connection.remotePort,
+            options.host || "",
+            options.port || ""
+          );
+          options = shared2.assign(false, options);
+          Object.keys(socketOptions).forEach((key) => {
+            options[key] = socketOptions[key];
+          });
+        }
+        let connection = new SMTPConnection(options);
+        connection.once("error", (err2) => {
+          if (returned) {
+            return;
+          }
+          returned = true;
+          connection.close();
+          return callback(err2);
+        });
+        connection.once("end", () => {
+          if (returned) {
+            return;
+          }
+          let timer = setTimeout(() => {
+            if (returned) {
+              return;
+            }
+            returned = true;
+            let err2 = new Error("Unexpected socket close");
+            if (connection && connection._socket && connection._socket.upgrading) {
+              err2.code = errors2.ETLS;
+            }
+            callback(err2);
+          }, 1e3);
+          try {
+            timer.unref();
+          } catch (_E) {
+          }
+        });
+        let sendMessage = () => {
+          let envelope = mail.message.getEnvelope();
+          let messageId = mail.message.messageId();
+          let recipients = [].concat(envelope.to || []);
+          if (recipients.length > 3) {
+            recipients.push("...and " + recipients.splice(2).length + " more");
+          }
+          if (mail.data.dsn) {
+            envelope.dsn = mail.data.dsn;
+          }
+          if (mail.data.requireTLSExtensionEnabled) {
+            envelope.requireTLSExtensionEnabled = mail.data.requireTLSExtensionEnabled;
+          }
+          this.logger.info(
+            {
+              tnx: "send",
+              messageId
+            },
+            "Sending message %s to <%s>",
+            messageId,
+            recipients.join(", ")
+          );
+          connection.send(envelope, mail.message.createReadStream(), (err2, info) => {
+            returned = true;
+            connection.close();
+            if (err2) {
+              this.logger.error(
+                {
+                  err: err2,
+                  tnx: "send"
+                },
+                "Send error for %s: %s",
+                messageId,
+                err2.message
+              );
+              return callback(err2);
+            }
+            info.envelope = {
+              from: envelope.from,
+              to: envelope.to
+            };
+            info.messageId = messageId;
+            try {
+              return callback(null, info);
+            } catch (E) {
+              this.logger.error(
+                {
+                  err: E,
+                  tnx: "callback"
+                },
+                "Callback error for %s: %s",
+                messageId,
+                E.message
+              );
+            }
+          });
+        };
+        connection.connect(() => {
+          if (returned) {
+            return;
+          }
+          let auth = this.getAuth(mail.data.auth);
+          if (auth && (connection.allowsAuth || options.forceAuth)) {
+            connection.login(auth, (err2) => {
+              if (auth && auth !== this.auth && auth.oauth2) {
+                auth.oauth2.removeAllListeners();
+              }
+              if (returned) {
+                return;
+              }
+              if (err2) {
+                returned = true;
+                connection.close();
+                return callback(err2);
+              }
+              sendMessage();
+            });
+          } else {
+            sendMessage();
+          }
+        });
+      });
+    }
+    /**
+     * Verifies SMTP configuration
+     *
+     * @param {Function} callback Callback function
+     */
+    verify(callback) {
+      let promise;
+      if (!callback) {
+        promise = new Promise((resolve, reject) => {
+          callback = shared2.callbackPromise(resolve, reject);
+        });
+      }
+      this.getSocket(this.options, (err, socketOptions) => {
+        if (err) {
+          return callback(err);
+        }
+        let options = this.options;
+        if (socketOptions && socketOptions.connection) {
+          this.logger.info(
+            {
+              tnx: "proxy",
+              remoteAddress: socketOptions.connection.remoteAddress,
+              remotePort: socketOptions.connection.remotePort,
+              destHost: options.host || "",
+              destPort: options.port || "",
+              action: "connected"
+            },
+            "Using proxied socket from %s:%s to %s:%s",
+            socketOptions.connection.remoteAddress,
+            socketOptions.connection.remotePort,
+            options.host || "",
+            options.port || ""
+          );
+          options = shared2.assign(false, options);
+          Object.keys(socketOptions).forEach((key) => {
+            options[key] = socketOptions[key];
+          });
+        }
+        let connection = new SMTPConnection(options);
+        let returned = false;
+        connection.once("error", (err2) => {
+          if (returned) {
+            return;
+          }
+          returned = true;
+          connection.close();
+          return callback(err2);
+        });
+        connection.once("end", () => {
+          if (returned) {
+            return;
+          }
+          returned = true;
+          return callback(new Error("Connection closed"));
+        });
+        let finalize = () => {
+          if (returned) {
+            return;
+          }
+          returned = true;
+          connection.quit();
+          return callback(null, true);
+        };
+        connection.connect(() => {
+          if (returned) {
+            return;
+          }
+          let authData = this.getAuth({});
+          if (authData && (connection.allowsAuth || options.forceAuth)) {
+            connection.login(authData, (err2) => {
+              if (returned) {
+                return;
+              }
+              if (err2) {
+                returned = true;
+                connection.close();
+                return callback(err2);
+              }
+              finalize();
+            });
+          } else if (!authData && connection.allowsAuth && options.forceAuth) {
+            let err2 = new Error("Authentication info was not provided");
+            err2.code = errors2.ENOAUTH;
+            returned = true;
+            connection.close();
+            return callback(err2);
+          } else {
+            finalize();
+          }
+        });
+      });
+      return promise;
+    }
+    /**
+     * Releases resources
+     */
+    close() {
+      if (this.auth && this.auth.oauth2) {
+        this.auth.oauth2.removeAllListeners();
+      }
+      this.emit("close");
+    }
+  }
+  smtpTransport = SMTPTransport;
+  return smtpTransport;
+}
+var sendmailTransport;
+var hasRequiredSendmailTransport;
+function requireSendmailTransport() {
+  if (hasRequiredSendmailTransport) return sendmailTransport;
+  hasRequiredSendmailTransport = 1;
+  const spawn = require$$0$5.spawn;
+  const packageData = require$$10;
+  const shared2 = requireShared();
+  const errors2 = requireErrors();
+  class SendmailTransport {
+    constructor(options) {
+      options = options || {};
+      this._spawn = spawn;
+      this.options = options || {};
+      this.name = "Sendmail";
+      this.version = packageData.version;
+      this.path = "sendmail";
+      this.args = false;
+      this.winbreak = false;
+      this.logger = shared2.getLogger(this.options, {
+        component: this.options.component || "sendmail"
+      });
+      if (options) {
+        if (typeof options === "string") {
+          this.path = options;
+        } else if (typeof options === "object") {
+          if (options.path) {
+            this.path = options.path;
+          }
+          if (Array.isArray(options.args)) {
+            this.args = options.args;
+          }
+          this.winbreak = ["win", "windows", "dos", "\r\n"].includes((options.newline || "").toString().toLowerCase());
+        }
+      }
+    }
+    /**
+     * <p>Compiles a mailcomposer message and forwards it to handler that sends it.</p>
+     *
+     * @param {Object} emailMessage MailComposer object
+     * @param {Function} callback Callback function to run when the sending is completed
+     */
+    send(mail, done) {
+      mail.message.keepBcc = true;
+      let envelope = mail.data.envelope || mail.message.getEnvelope();
+      let messageId = mail.message.messageId();
+      let args;
+      let sendmail;
+      let returned;
+      const hasInvalidAddresses = [].concat(envelope.from || []).concat(envelope.to || []).some((addr) => /^-/.test(addr));
+      if (hasInvalidAddresses) {
+        let err = new Error("Can not send mail. Invalid envelope addresses.");
+        err.code = errors2.ESENDMAIL;
+        return done(err);
+      }
+      if (this.args) {
+        args = ["-i"].concat(this.args).concat(envelope.to);
+      } else {
+        args = ["-i"].concat(envelope.from ? ["-f", envelope.from] : []).concat(envelope.to);
+      }
+      let callback = (err) => {
+        if (returned) {
+          return;
+        }
+        returned = true;
+        if (typeof done === "function") {
+          if (err) {
+            return done(err);
+          } else {
+            return done(null, {
+              envelope: mail.data.envelope || mail.message.getEnvelope(),
+              messageId,
+              response: "Messages queued for delivery"
+            });
+          }
+        }
+      };
+      try {
+        sendmail = this._spawn(this.path, args);
+      } catch (E) {
+        this.logger.error(
+          {
+            err: E,
+            tnx: "spawn",
+            messageId
+          },
+          "Error occurred while spawning sendmail. %s",
+          E.message
+        );
+        return callback(E);
+      }
+      if (sendmail) {
+        sendmail.on("error", (err) => {
+          this.logger.error(
+            {
+              err,
+              tnx: "spawn",
+              messageId
+            },
+            "Error occurred when sending message %s. %s",
+            messageId,
+            err.message
+          );
+          callback(err);
+        });
+        sendmail.once("exit", (code) => {
+          if (!code) {
+            return callback();
+          }
+          let err;
+          if (code === 127) {
+            err = new Error("Sendmail command not found, process exited with code " + code);
+          } else {
+            err = new Error("Sendmail exited with code " + code);
+          }
+          err.code = errors2.ESENDMAIL;
+          this.logger.error(
+            {
+              err,
+              tnx: "stdin",
+              messageId
+            },
+            "Error sending message %s to sendmail. %s",
+            messageId,
+            err.message
+          );
+          callback(err);
+        });
+        sendmail.once("close", callback);
+        sendmail.stdin.on("error", (err) => {
+          this.logger.error(
+            {
+              err,
+              tnx: "stdin",
+              messageId
+            },
+            "Error occurred when piping message %s to sendmail. %s",
+            messageId,
+            err.message
+          );
+          callback(err);
+        });
+        let recipients = [].concat(envelope.to || []);
+        if (recipients.length > 3) {
+          recipients.push("...and " + recipients.splice(2).length + " more");
+        }
+        this.logger.info(
+          {
+            tnx: "send",
+            messageId
+          },
+          "Sending message %s to <%s>",
+          messageId,
+          recipients.join(", ")
+        );
+        let sourceStream = mail.message.createReadStream();
+        sourceStream.once("error", (err) => {
+          this.logger.error(
+            {
+              err,
+              tnx: "stdin",
+              messageId
+            },
+            "Error occurred when generating message %s. %s",
+            messageId,
+            err.message
+          );
+          sendmail.kill("SIGINT");
+          callback(err);
+        });
+        sourceStream.pipe(sendmail.stdin);
+      } else {
+        let err = new Error("sendmail was not found");
+        err.code = errors2.ESENDMAIL;
+        return callback(err);
+      }
+    }
+  }
+  sendmailTransport = SendmailTransport;
+  return sendmailTransport;
+}
+var streamTransport;
+var hasRequiredStreamTransport;
+function requireStreamTransport() {
+  if (hasRequiredStreamTransport) return streamTransport;
+  hasRequiredStreamTransport = 1;
+  const packageData = require$$10;
+  const shared2 = requireShared();
+  class StreamTransport {
+    constructor(options) {
+      options = options || {};
+      this.options = options || {};
+      this.name = "StreamTransport";
+      this.version = packageData.version;
+      this.logger = shared2.getLogger(this.options, {
+        component: this.options.component || "stream-transport"
+      });
+      this.winbreak = ["win", "windows", "dos", "\r\n"].includes((options.newline || "").toString().toLowerCase());
+    }
+    /**
+     * Compiles a mailcomposer message and forwards it to handler that sends it
+     *
+     * @param {Object} emailMessage MailComposer object
+     * @param {Function} callback Callback function to run when the sending is completed
+     */
+    send(mail, done) {
+      mail.message.keepBcc = true;
+      let envelope = mail.data.envelope || mail.message.getEnvelope();
+      let messageId = mail.message.messageId();
+      let recipients = [].concat(envelope.to || []);
+      if (recipients.length > 3) {
+        recipients.push("...and " + recipients.splice(2).length + " more");
+      }
+      this.logger.info(
+        {
+          tnx: "send",
+          messageId
+        },
+        "Sending message %s to <%s> using %s line breaks",
+        messageId,
+        recipients.join(", "),
+        this.winbreak ? "<CR><LF>" : "<LF>"
+      );
+      setImmediate(() => {
+        let stream;
+        try {
+          stream = mail.message.createReadStream();
+        } catch (E) {
+          this.logger.error(
+            {
+              err: E,
+              tnx: "send",
+              messageId
+            },
+            "Creating send stream failed for %s. %s",
+            messageId,
+            E.message
+          );
+          return done(E);
+        }
+        if (!this.options.buffer) {
+          stream.once("error", (err) => {
+            this.logger.error(
+              {
+                err,
+                tnx: "send",
+                messageId
+              },
+              "Failed creating message for %s. %s",
+              messageId,
+              err.message
+            );
+          });
+          return done(null, {
+            envelope: mail.data.envelope || mail.message.getEnvelope(),
+            messageId,
+            message: stream
+          });
+        }
+        let chunks = [];
+        let chunklen = 0;
+        stream.on("readable", () => {
+          let chunk;
+          while ((chunk = stream.read()) !== null) {
+            chunks.push(chunk);
+            chunklen += chunk.length;
+          }
+        });
+        stream.once("error", (err) => {
+          this.logger.error(
+            {
+              err,
+              tnx: "send",
+              messageId
+            },
+            "Failed creating message for %s. %s",
+            messageId,
+            err.message
+          );
+          return done(err);
+        });
+        stream.on(
+          "end",
+          () => done(null, {
+            envelope: mail.data.envelope || mail.message.getEnvelope(),
+            messageId,
+            message: Buffer.concat(chunks, chunklen)
+          })
+        );
+      });
+    }
+  }
+  streamTransport = StreamTransport;
+  return streamTransport;
+}
+var jsonTransport;
+var hasRequiredJsonTransport;
+function requireJsonTransport() {
+  if (hasRequiredJsonTransport) return jsonTransport;
+  hasRequiredJsonTransport = 1;
+  const packageData = require$$10;
+  const shared2 = requireShared();
+  class JSONTransport {
+    constructor(options) {
+      options = options || {};
+      this.options = options || {};
+      this.name = "JSONTransport";
+      this.version = packageData.version;
+      this.logger = shared2.getLogger(this.options, {
+        component: this.options.component || "json-transport"
+      });
+    }
+    /**
+     * <p>Compiles a mailcomposer message and forwards it to handler that sends it.</p>
+     *
+     * @param {Object} emailMessage MailComposer object
+     * @param {Function} callback Callback function to run when the sending is completed
+     */
+    send(mail, done) {
+      mail.message.keepBcc = true;
+      let envelope = mail.data.envelope || mail.message.getEnvelope();
+      let messageId = mail.message.messageId();
+      let recipients = [].concat(envelope.to || []);
+      if (recipients.length > 3) {
+        recipients.push("...and " + recipients.splice(2).length + " more");
+      }
+      this.logger.info(
+        {
+          tnx: "send",
+          messageId
+        },
+        "Composing JSON structure of %s to <%s>",
+        messageId,
+        recipients.join(", ")
+      );
+      setImmediate(() => {
+        mail.normalize((err, data) => {
+          if (err) {
+            this.logger.error(
+              {
+                err,
+                tnx: "send",
+                messageId
+              },
+              "Failed building JSON structure for %s. %s",
+              messageId,
+              err.message
+            );
+            return done(err);
+          }
+          delete data.envelope;
+          delete data.normalizedHeaders;
+          return done(null, {
+            envelope,
+            messageId,
+            message: this.options.skipEncoding ? data : JSON.stringify(data)
+          });
+        });
+      });
+    }
+  }
+  jsonTransport = JSONTransport;
+  return jsonTransport;
+}
+var sesTransport;
+var hasRequiredSesTransport;
+function requireSesTransport() {
+  if (hasRequiredSesTransport) return sesTransport;
+  hasRequiredSesTransport = 1;
+  const EventEmitter = require$$0$4;
+  const packageData = require$$10;
+  const shared2 = requireShared();
+  const LeWindows = requireLeWindows();
+  const MimeNode = requireMimeNode();
+  class SESTransport extends EventEmitter {
+    constructor(options) {
+      super();
+      options = options || {};
+      this.options = options || {};
+      this.ses = this.options.SES;
+      this.name = "SESTransport";
+      this.version = packageData.version;
+      this.logger = shared2.getLogger(this.options, {
+        component: this.options.component || "ses-transport"
+      });
+    }
+    getRegion(cb) {
+      if (this.ses.sesClient.config && typeof this.ses.sesClient.config.region === "function") {
+        return this.ses.sesClient.config.region().then((region) => cb(null, region)).catch((err) => cb(err));
+      }
+      return cb(null, false);
+    }
+    /**
+     * Compiles a mailcomposer message and forwards it to SES
+     *
+     * @param {Object} emailMessage MailComposer object
+     * @param {Function} callback Callback function to run when the sending is completed
+     */
+    send(mail, callback) {
+      let fromHeader = mail.message._headers.find((header) => /^from$/i.test(header.key));
+      if (fromHeader) {
+        let mimeNode2 = new MimeNode("text/plain");
+        fromHeader = mimeNode2._convertAddresses(mimeNode2._parseAddresses(fromHeader.value));
+      }
+      let envelope = mail.data.envelope || mail.message.getEnvelope();
+      let messageId = mail.message.messageId();
+      let recipients = [].concat(envelope.to || []);
+      if (recipients.length > 3) {
+        recipients.push("...and " + recipients.splice(2).length + " more");
+      }
+      this.logger.info(
+        {
+          tnx: "send",
+          messageId
+        },
+        "Sending message %s to <%s>",
+        messageId,
+        recipients.join(", ")
+      );
+      let getRawMessage = (next) => {
+        if (!mail.data._dkim) {
+          mail.data._dkim = {};
+        }
+        if (mail.data._dkim.skipFields && typeof mail.data._dkim.skipFields === "string") {
+          mail.data._dkim.skipFields += ":date:message-id";
+        } else {
+          mail.data._dkim.skipFields = "date:message-id";
+        }
+        let sourceStream = mail.message.createReadStream();
+        let stream = sourceStream.pipe(new LeWindows());
+        let chunks = [];
+        let chunklen = 0;
+        stream.on("readable", () => {
+          let chunk;
+          while ((chunk = stream.read()) !== null) {
+            chunks.push(chunk);
+            chunklen += chunk.length;
+          }
+        });
+        sourceStream.once("error", (err) => stream.emit("error", err));
+        stream.once("error", (err) => {
+          next(err);
+        });
+        stream.once("end", () => next(null, Buffer.concat(chunks, chunklen)));
+      };
+      setImmediate(
+        () => getRawMessage((err, raw) => {
+          if (err) {
+            this.logger.error(
+              {
+                err,
+                tnx: "send",
+                messageId
+              },
+              "Failed creating message for %s. %s",
+              messageId,
+              err.message
+            );
+            return callback(err);
+          }
+          let sesMessage = {
+            Content: {
+              Raw: {
+                // required
+                Data: raw
+                // required
+              }
+            },
+            FromEmailAddress: fromHeader ? fromHeader : envelope.from,
+            Destination: {
+              ToAddresses: envelope.to
+            }
+          };
+          Object.keys(mail.data.ses || {}).forEach((key) => {
+            sesMessage[key] = mail.data.ses[key];
+          });
+          this.getRegion((err2, region) => {
+            if (err2 || !region) {
+              region = "us-east-1";
+            }
+            const command = new this.ses.SendEmailCommand(sesMessage);
+            const sendPromise = this.ses.sesClient.send(command);
+            sendPromise.then((data) => {
+              if (region === "us-east-1") {
+                region = "email";
+              }
+              callback(null, {
+                envelope: {
+                  from: envelope.from,
+                  to: envelope.to
+                },
+                messageId: "<" + data.MessageId + (!/@/.test(data.MessageId) ? "@" + region + ".amazonses.com" : "") + ">",
+                response: data.MessageId,
+                raw
+              });
+            }).catch((err3) => {
+              this.logger.error(
+                {
+                  err: err3,
+                  tnx: "send"
+                },
+                "Send error for %s: %s",
+                messageId,
+                err3.message
+              );
+              callback(err3);
+            });
+          });
+        })
+      );
+    }
+    /**
+     * Verifies SES configuration
+     *
+     * @param {Function} callback Callback function
+     */
+    verify(callback) {
+      let promise;
+      if (!callback) {
+        promise = new Promise((resolve, reject) => {
+          callback = shared2.callbackPromise(resolve, reject);
+        });
+      }
+      const cb = (err) => {
+        if (err && !["InvalidParameterValue", "MessageRejected"].includes(err.code || err.Code || err.name)) {
+          return callback(err);
+        }
+        return callback(null, true);
+      };
+      const sesMessage = {
+        Content: {
+          Raw: {
+            Data: Buffer.from("From: <invalid@invalid>\r\nTo: <invalid@invalid>\r\n Subject: Invalid\r\n\r\nInvalid")
+          }
+        },
+        FromEmailAddress: "invalid@invalid",
+        Destination: {
+          ToAddresses: ["invalid@invalid"]
+        }
+      };
+      this.getRegion((err, region) => {
+        const command = new this.ses.SendEmailCommand(sesMessage);
+        const sendPromise = this.ses.sesClient.send(command);
+        sendPromise.then((data) => cb(null)).catch((err2) => cb(err2));
+      });
+      return promise;
+    }
+  }
+  sesTransport = SESTransport;
+  return sesTransport;
+}
+var hasRequiredNodemailer;
+function requireNodemailer() {
+  if (hasRequiredNodemailer) return nodemailer$1;
+  hasRequiredNodemailer = 1;
+  const Mailer = requireMailer();
+  const shared2 = requireShared();
+  const SMTPPool = requireSmtpPool();
+  const SMTPTransport = requireSmtpTransport();
+  const SendmailTransport = requireSendmailTransport();
+  const StreamTransport = requireStreamTransport();
+  const JSONTransport = requireJsonTransport();
+  const SESTransport = requireSesTransport();
+  const errors2 = requireErrors();
+  const nmfetch = requireFetch();
+  const packageData = require$$10;
+  const ETHEREAL_API = (process.env.ETHEREAL_API || "https://api.nodemailer.com").replace(/\/+$/, "");
+  const ETHEREAL_WEB = (process.env.ETHEREAL_WEB || "https://ethereal.email").replace(/\/+$/, "");
+  const ETHEREAL_API_KEY = (process.env.ETHEREAL_API_KEY || "").replace(/\s*/g, "") || null;
+  const ETHEREAL_CACHE = ["true", "yes", "y", "1"].includes((process.env.ETHEREAL_CACHE || "yes").toString().trim().toLowerCase());
+  let testAccount = false;
+  nodemailer$1.createTransport = function(transporter, defaults) {
+    let urlConfig;
+    let options;
+    let mailer2;
+    if (
+      // provided transporter is a configuration object, not transporter plugin
+      typeof transporter === "object" && typeof transporter.send !== "function" || // provided transporter looks like a connection url
+      typeof transporter === "string" && /^(smtps?|direct):/i.test(transporter)
+    ) {
+      if (urlConfig = typeof transporter === "string" ? transporter : transporter.url) {
+        options = shared2.parseConnectionUrl(urlConfig);
+      } else {
+        options = transporter;
+      }
+      if (options.pool) {
+        transporter = new SMTPPool(options);
+      } else if (options.sendmail) {
+        transporter = new SendmailTransport(options);
+      } else if (options.streamTransport) {
+        transporter = new StreamTransport(options);
+      } else if (options.jsonTransport) {
+        transporter = new JSONTransport(options);
+      } else if (options.SES) {
+        if (options.SES.ses && options.SES.aws) {
+          let error = new Error(
+            "Using legacy SES configuration, expecting @aws-sdk/client-sesv2, see https://nodemailer.com/transports/ses/"
+          );
+          error.code = errors2.ECONFIG;
+          throw error;
+        }
+        transporter = new SESTransport(options);
+      } else {
+        transporter = new SMTPTransport(options);
+      }
+    }
+    mailer2 = new Mailer(transporter, options, defaults);
+    return mailer2;
+  };
+  nodemailer$1.createTestAccount = function(apiUrl, callback) {
+    let promise;
+    if (!callback && typeof apiUrl === "function") {
+      callback = apiUrl;
+      apiUrl = false;
+    }
+    if (!callback) {
+      promise = new Promise((resolve, reject) => {
+        callback = shared2.callbackPromise(resolve, reject);
+      });
+    }
+    if (ETHEREAL_CACHE && testAccount) {
+      setImmediate(() => callback(null, testAccount));
+      return promise;
+    }
+    apiUrl = apiUrl || ETHEREAL_API;
+    let chunks = [];
+    let chunklen = 0;
+    let requestHeaders = {};
+    let requestBody = {
+      requestor: packageData.name,
+      version: packageData.version
+    };
+    if (ETHEREAL_API_KEY) {
+      requestHeaders.Authorization = "Bearer " + ETHEREAL_API_KEY;
+    }
+    let req = nmfetch(apiUrl + "/user", {
+      contentType: "application/json",
+      method: "POST",
+      headers: requestHeaders,
+      body: Buffer.from(JSON.stringify(requestBody))
+    });
+    req.on("readable", () => {
+      let chunk;
+      while ((chunk = req.read()) !== null) {
+        chunks.push(chunk);
+        chunklen += chunk.length;
+      }
+    });
+    req.once("error", (err) => callback(err));
+    req.once("end", () => {
+      let res = Buffer.concat(chunks, chunklen);
+      let data;
+      let err;
+      try {
+        data = JSON.parse(res.toString());
+      } catch (E) {
+        err = E;
+      }
+      if (err) {
+        return callback(err);
+      }
+      if (data.status !== "success" || data.error) {
+        return callback(new Error(data.error || "Request failed"));
+      }
+      delete data.status;
+      testAccount = data;
+      callback(null, testAccount);
+    });
+    return promise;
+  };
+  nodemailer$1.getTestMessageUrl = function(info) {
+    if (!info || !info.response) {
+      return false;
+    }
+    let infoProps = /* @__PURE__ */ new Map();
+    info.response.replace(/\[([^\]]+)\]$/, (m, props) => {
+      props.replace(/\b([A-Z0-9]+)=([^\s]+)/g, (m2, key, value) => {
+        infoProps.set(key, value);
+      });
+    });
+    if (infoProps.has("STATUS") && infoProps.has("MSGID")) {
+      return (testAccount.web || ETHEREAL_WEB) + "/message/" + infoProps.get("MSGID");
+    }
+    return false;
+  };
+  return nodemailer$1;
+}
+var nodemailerExports = requireNodemailer();
+const nodemailer = /* @__PURE__ */ getDefaultExportFromCjs(nodemailerExports);
+class EmailService {
+  constructor(config) {
+    this.config = config;
+    this.transporter = nodemailer.createTransport({
+      host: config.smtp.host,
+      port: config.smtp.port,
+      secure: config.smtp.port === 465,
+      // implicit TLS on 465, STARTTLS on 587
+      auth: {
+        user: config.smtp.user,
+        pass: config.smtp.pass
+      }
+      // Let nodemailer negotiate modern TLS (1.2+) and validate certs.
+      // The old { ciphers:'SSLv3', rejectUnauthorized:false } both broke
+      // connections to Office365/Gmail and disabled MITM protection.
+    });
+  }
+  /**
+   * Authenticate against the SMTP server without sending an email.
+   * nodemailer's verify() runs the connection + AUTH handshake, so it confirms
+   * the host/port/credentials are usable while keeping login fast and never
+   * dropping a test message into the user's inbox.
+   */
+  async verifyConnection() {
+    try {
+      await this.transporter.verify();
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error?.message || "Connection failed" };
+    }
+  }
+  async sendMail(to, subject, htmlBody, attachments = [], opts = {}) {
+    const headers = {};
+    if (opts.listUnsubscribe) {
+      headers["List-Unsubscribe"] = `<${opts.listUnsubscribe}>`;
+      if (/^https?:/i.test(opts.listUnsubscribe)) {
+        headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+      }
+    }
+    try {
+      const info = await this.transporter.sendMail({
+        // Display name in From ("Jane Doe <jane@x.com>") reads as personal mail
+        // in the recipient's inbox; bare addresses look automated.
+        from: this.config.userName ? { name: this.config.userName, address: this.config.smtp.user } : this.config.smtp.user,
+        to,
+        subject,
+        html: htmlBody,
+        text: opts.text,
+        attachments,
+        headers
+      });
+      const accepted = info.accepted || [];
+      const rejected = info.rejected || [];
+      const ok = accepted.some((a) => String(a).toLowerCase() === to.toLowerCase());
+      if (ok) {
+        console.log(`Email sent successfully to: ${to} (SMTP ${info.response || "accepted"})`);
+      } else {
+        console.warn(
+          `Email NOT delivered to ${to}: server did not accept it (accepted=${JSON.stringify(accepted)} rejected=${JSON.stringify(rejected)} response=${info.response || "none"})`
+        );
+      }
+      return { accepted, rejected };
+    } catch (error) {
+      console.error(`Failed to send email to ${to}:`, error);
+      throw error;
+    }
+  }
+}
+function todayStr() {
+  const d = /* @__PURE__ */ new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+class RateLimiter {
+  /**
+   * @param accountId  Optional. When omitted or 'default', uses the legacy
+   *   limits.json (so the single-account install is untouched). Any other id
+   *   gets its own limits.<id>.json, which is what lets multiple accounts send
+   *   simultaneously without racing on a shared file. The id is sanitized so it
+   *   can never escape basePath.
+   */
+  constructor(basePath, limits, accountId) {
+    this.limits = limits;
+    const safeId = (accountId || "").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const fileName = safeId && safeId !== "default" ? `limits.${safeId}.json` : "limits.json";
+    this.statePath = path.join(basePath, fileName);
+    this.state = this.load();
+    this.rolloverIfNeeded();
+  }
+  load() {
+    const today = todayStr();
+    const fresh = {
+      date: today,
+      emailsToday: 0,
+      windowsToday: 1,
+      currentWindowCount: 0,
+      perRecipientToday: {},
+      warmupStartDate: today
+    };
+    if (!fs.existsSync(this.statePath)) return fresh;
+    try {
+      const data = JSON.parse(fs.readFileSync(this.statePath, "utf-8"));
+      return {
+        date: data.date || fresh.date,
+        emailsToday: data.emailsToday || 0,
+        windowsToday: data.windowsToday || 1,
+        currentWindowCount: data.currentWindowCount || 0,
+        perRecipientToday: data.perRecipientToday || {},
+        // An existing limits.json without this field = an already-active account;
+        // anchor warmup far in the past so we don't re-throttle it to day-1.
+        // Only a brand-new install (no file at all) starts the ramp today.
+        warmupStartDate: data.warmupStartDate || "2000-01-01"
+      };
+    } catch (e) {
+      console.error("Failed to load limits.json, resetting:", e);
+      return fresh;
+    }
+  }
+  save() {
+    try {
+      atomicWriteFileSync(this.statePath, JSON.stringify(this.state, null, 2));
+    } catch (e) {
+      console.error("Failed to save limits.json:", e);
+    }
+  }
+  rolloverIfNeeded() {
+    const today = todayStr();
+    if (this.state.date !== today) {
+      this.state = {
+        date: today,
+        emailsToday: 0,
+        windowsToday: 1,
+        currentWindowCount: 0,
+        perRecipientToday: {},
+        warmupStartDate: this.state.warmupStartDate
+        // account age persists
+      };
+      this.save();
+    }
+  }
+  /** Day index since warmup started (0-based). */
+  warmupDay() {
+    const start = /* @__PURE__ */ new Date(this.state.warmupStartDate + "T00:00:00");
+    const now = /* @__PURE__ */ new Date(todayStr() + "T00:00:00");
+    const diff = Math.floor((now.getTime() - start.getTime()) / 864e5);
+    return diff < 0 ? 0 : diff;
+  }
+  /** Daily cap after applying the warmup ramp (never exceeds maxPerDay). */
+  effectiveMaxPerDay() {
+    const { warmupEnabled, warmupCurve, maxPerDay } = this.limits;
+    if (!warmupEnabled || !warmupCurve || warmupCurve.length === 0) return maxPerDay;
+    const idx = Math.min(this.warmupDay(), warmupCurve.length - 1);
+    return Math.min(maxPerDay, warmupCurve[idx]);
+  }
+  /** Read-only pre-send check. Mirrors the consume logic in record(). */
+  check(email, attachmentBytes) {
+    this.rolloverIfNeeded();
+    const key = (email || "").toLowerCase();
+    if (attachmentBytes > this.limits.maxAttachmentBytes) {
+      const mb = (this.limits.maxAttachmentBytes / (1024 * 1024)).toFixed(0);
+      return { allowed: false, reason: `attachment size exceeds ${mb}MB limit` };
+    }
+    if ((this.state.perRecipientToday[key] || 0) >= this.limits.maxPerRecipientPerDay) {
+      return { allowed: false, reason: `recipient daily cap (${this.limits.maxPerRecipientPerDay}) reached for ${email}` };
+    }
+    const effectiveCap = this.effectiveMaxPerDay();
+    if (this.state.emailsToday >= effectiveCap) {
+      const warmupNote = effectiveCap < this.limits.maxPerDay ? " (warmup ramp)" : "";
+      return { allowed: false, exhausted: true, reason: `daily send cap (${effectiveCap})${warmupNote} reached` };
+    }
+    if (this.state.currentWindowCount >= this.limits.maxPerWindow && this.state.windowsToday >= this.limits.maxWindowsPerDay) {
+      return {
+        allowed: false,
+        exhausted: true,
+        reason: `window budget exhausted (${this.limits.maxWindowsPerDay} windows x ${this.limits.maxPerWindow})`
+      };
+    }
+    return { allowed: true };
+  }
+  /** Record a successful send. Rolls the window forward when full. Returns
+   *  whether this send opened a new window, so refund() can undo it exactly. */
+  record(email) {
+    this.rolloverIfNeeded();
+    const key = (email || "").toLowerCase();
+    let rolled = false;
+    if (this.state.currentWindowCount >= this.limits.maxPerWindow) {
+      this.state.windowsToday++;
+      this.state.currentWindowCount = 0;
+      rolled = true;
+    }
+    this.state.currentWindowCount++;
+    this.state.emailsToday++;
+    this.state.perRecipientToday[key] = (this.state.perRecipientToday[key] || 0) + 1;
+    this.save();
+    return rolled;
+  }
+  /**
+   * Atomic check-then-record. Reserve a slot synchronously (no await between
+   * check and record) so two near-simultaneous scheduled sends can't both pass
+   * and overshoot a cap by one. Refund with refund() if the send then fails.
+   */
+  tryConsume(email, attachmentBytes) {
+    const result = this.check(email, attachmentBytes);
+    if (result.allowed) result.windowRolled = this.record(email);
+    return result;
+  }
+  /**
+   * Give back a slot reserved by tryConsume() when the send fails. Pass the
+   * windowRolled flag from the tryConsume() result so a reservation that opened
+   * a new window is undone exactly (otherwise windowsToday slowly over-counts).
+   */
+  refund(email, windowRolled = false) {
+    this.rolloverIfNeeded();
+    const key = (email || "").toLowerCase();
+    if (this.state.emailsToday > 0) this.state.emailsToday--;
+    if (windowRolled && this.state.currentWindowCount === 1) {
+      this.state.windowsToday = Math.max(1, this.state.windowsToday - 1);
+      this.state.currentWindowCount = this.limits.maxPerWindow;
+    } else if (this.state.currentWindowCount > 0) {
+      this.state.currentWindowCount--;
+    }
+    if ((this.state.perRecipientToday[key] || 0) > 0) {
+      this.state.perRecipientToday[key]--;
+    }
+    this.save();
+  }
+  /** Uniform random pacing delay in ms within [minDelayMs, maxDelayMs]. */
+  randomDelayMs() {
+    const { minDelayMs, maxDelayMs } = this.limits;
+    if (maxDelayMs <= minDelayMs) return minDelayMs;
+    return Math.floor(minDelayMs + Math.random() * (maxDelayMs - minDelayMs));
+  }
+  getState() {
+    this.rolloverIfNeeded();
+    return this.state;
+  }
+  /** Combined state + caps for UI display. */
+  getUsage() {
+    this.rolloverIfNeeded();
+    const effectiveCap = this.effectiveMaxPerDay();
+    return {
+      date: this.state.date,
+      emailsToday: this.state.emailsToday,
+      maxPerDay: effectiveCap,
+      hardMaxPerDay: this.limits.maxPerDay,
+      warmupActive: effectiveCap < this.limits.maxPerDay,
+      windowsToday: this.state.windowsToday,
+      maxWindowsPerDay: this.limits.maxWindowsPerDay,
+      currentWindowCount: this.state.currentWindowCount,
+      maxPerWindow: this.limits.maxPerWindow,
+      maxPerRecipientPerDay: this.limits.maxPerRecipientPerDay
+    };
+  }
+}
+class SuppressionManager {
+  constructor(basePath) {
+    this.entries = {};
+    this.filePath = path.join(basePath, "suppression.json");
+    this.load();
+  }
+  /**
+   * Rebuild the in-memory map from disk. Called before every read/write so the
+   * many short-lived instances (one per MailProcessor, fresh ones per IPC call)
+   * never act on a stale copy — a stale add() would rewrite the file and
+   * resurrect entries another instance had removed.
+   */
+  load() {
+    this.entries = {};
+    if (!fs.existsSync(this.filePath)) return;
+    try {
+      const data = JSON.parse(fs.readFileSync(this.filePath, "utf-8"));
+      if (Array.isArray(data)) {
+        for (const e of data) if (e && e.email) this.entries[e.email.toLowerCase()] = e;
+      }
+    } catch (e) {
+      console.error("Failed to load suppression.json:", e);
+    }
+  }
+  save() {
+    try {
+      atomicWriteFileSync(this.filePath, JSON.stringify(Object.values(this.entries), null, 2));
+    } catch (e) {
+      console.error("Failed to save suppression.json:", e);
+    }
+  }
+  isSuppressed(email) {
+    this.load();
+    return !!this.entries[(email || "").toLowerCase()];
+  }
+  reasonFor(email) {
+    return this.entries[(email || "").toLowerCase()]?.reason;
+  }
+  add(email, reason, detail) {
+    const key = (email || "").toLowerCase();
+    if (!key) return;
+    this.load();
+    if (this.entries[key]) return;
+    this.entries[key] = { email: key, reason, date: (/* @__PURE__ */ new Date()).toISOString(), detail };
+    this.save();
+  }
+  remove(email) {
+    const key = (email || "").toLowerCase();
+    this.load();
+    if (this.entries[key]) {
+      delete this.entries[key];
+      this.save();
+    }
+  }
+  list() {
+    this.load();
+    return Object.values(this.entries);
+  }
+}
+var objectToString = Object.prototype.toString;
+var isArray = Array.isArray || function isArrayPolyfill(object) {
+  return objectToString.call(object) === "[object Array]";
+};
+function isFunction(object) {
+  return typeof object === "function";
+}
+function typeStr(obj) {
+  return isArray(obj) ? "array" : typeof obj;
+}
+function escapeRegExp(string) {
+  return string.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&");
+}
+function hasProperty(obj, propName) {
+  return obj != null && typeof obj === "object" && propName in obj;
+}
+function primitiveHasOwnProperty(primitive, propName) {
+  return primitive != null && typeof primitive !== "object" && primitive.hasOwnProperty && primitive.hasOwnProperty(propName);
+}
+var regExpTest = RegExp.prototype.test;
+function testRegExp(re, string) {
+  return regExpTest.call(re, string);
+}
+var nonSpaceRe = /\S/;
+function isWhitespace(string) {
+  return !testRegExp(nonSpaceRe, string);
+}
+var entityMap = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+  "/": "&#x2F;",
+  "`": "&#x60;",
+  "=": "&#x3D;"
+};
+function escapeHtml(string) {
+  return String(string).replace(/[&<>"'`=\/]/g, function fromEntityMap(s) {
+    return entityMap[s];
+  });
+}
+var whiteRe = /\s*/;
+var spaceRe = /\s+/;
+var equalsRe = /\s*=/;
+var curlyRe = /\s*\}/;
+var tagRe = /#|\^|\/|>|\{|&|=|!/;
+function parseTemplate(template, tags) {
+  if (!template)
+    return [];
+  var lineHasNonSpace = false;
+  var sections = [];
+  var tokens = [];
+  var spaces = [];
+  var hasTag = false;
+  var nonSpace = false;
+  var indentation = "";
+  var tagIndex = 0;
+  function stripSpace() {
+    if (hasTag && !nonSpace) {
+      while (spaces.length)
+        delete tokens[spaces.pop()];
+    } else {
+      spaces = [];
+    }
+    hasTag = false;
+    nonSpace = false;
+  }
+  var openingTagRe, closingTagRe, closingCurlyRe;
+  function compileTags(tagsToCompile) {
+    if (typeof tagsToCompile === "string")
+      tagsToCompile = tagsToCompile.split(spaceRe, 2);
+    if (!isArray(tagsToCompile) || tagsToCompile.length !== 2)
+      throw new Error("Invalid tags: " + tagsToCompile);
+    openingTagRe = new RegExp(escapeRegExp(tagsToCompile[0]) + "\\s*");
+    closingTagRe = new RegExp("\\s*" + escapeRegExp(tagsToCompile[1]));
+    closingCurlyRe = new RegExp("\\s*" + escapeRegExp("}" + tagsToCompile[1]));
+  }
+  compileTags(tags || mustache.tags);
+  var scanner = new Scanner(template);
+  var start, type, value, chr, token, openSection;
+  while (!scanner.eos()) {
+    start = scanner.pos;
+    value = scanner.scanUntil(openingTagRe);
+    if (value) {
+      for (var i = 0, valueLength = value.length; i < valueLength; ++i) {
+        chr = value.charAt(i);
+        if (isWhitespace(chr)) {
+          spaces.push(tokens.length);
+          indentation += chr;
+        } else {
+          nonSpace = true;
+          lineHasNonSpace = true;
+          indentation += " ";
+        }
+        tokens.push(["text", chr, start, start + 1]);
+        start += 1;
+        if (chr === "\n") {
+          stripSpace();
+          indentation = "";
+          tagIndex = 0;
+          lineHasNonSpace = false;
+        }
+      }
+    }
+    if (!scanner.scan(openingTagRe))
+      break;
+    hasTag = true;
+    type = scanner.scan(tagRe) || "name";
+    scanner.scan(whiteRe);
+    if (type === "=") {
+      value = scanner.scanUntil(equalsRe);
+      scanner.scan(equalsRe);
+      scanner.scanUntil(closingTagRe);
+    } else if (type === "{") {
+      value = scanner.scanUntil(closingCurlyRe);
+      scanner.scan(curlyRe);
+      scanner.scanUntil(closingTagRe);
+      type = "&";
+    } else {
+      value = scanner.scanUntil(closingTagRe);
+    }
+    if (!scanner.scan(closingTagRe))
+      throw new Error("Unclosed tag at " + scanner.pos);
+    if (type == ">") {
+      token = [type, value, start, scanner.pos, indentation, tagIndex, lineHasNonSpace];
+    } else {
+      token = [type, value, start, scanner.pos];
+    }
+    tagIndex++;
+    tokens.push(token);
+    if (type === "#" || type === "^") {
+      sections.push(token);
+    } else if (type === "/") {
+      openSection = sections.pop();
+      if (!openSection)
+        throw new Error('Unopened section "' + value + '" at ' + start);
+      if (openSection[1] !== value)
+        throw new Error('Unclosed section "' + openSection[1] + '" at ' + start);
+    } else if (type === "name" || type === "{" || type === "&") {
+      nonSpace = true;
+    } else if (type === "=") {
+      compileTags(value);
+    }
+  }
+  stripSpace();
+  openSection = sections.pop();
+  if (openSection)
+    throw new Error('Unclosed section "' + openSection[1] + '" at ' + scanner.pos);
+  return nestTokens(squashTokens(tokens));
+}
+function squashTokens(tokens) {
+  var squashedTokens = [];
+  var token, lastToken;
+  for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
+    token = tokens[i];
+    if (token) {
+      if (token[0] === "text" && lastToken && lastToken[0] === "text") {
+        lastToken[1] += token[1];
+        lastToken[3] = token[3];
+      } else {
+        squashedTokens.push(token);
+        lastToken = token;
+      }
+    }
+  }
+  return squashedTokens;
+}
+function nestTokens(tokens) {
+  var nestedTokens = [];
+  var collector = nestedTokens;
+  var sections = [];
+  var token, section;
+  for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
+    token = tokens[i];
+    switch (token[0]) {
+      case "#":
+      case "^":
+        collector.push(token);
+        sections.push(token);
+        collector = token[4] = [];
+        break;
+      case "/":
+        section = sections.pop();
+        section[5] = token[2];
+        collector = sections.length > 0 ? sections[sections.length - 1][4] : nestedTokens;
+        break;
+      default:
+        collector.push(token);
+    }
+  }
+  return nestedTokens;
+}
+function Scanner(string) {
+  this.string = string;
+  this.tail = string;
+  this.pos = 0;
+}
+Scanner.prototype.eos = function eos() {
+  return this.tail === "";
+};
+Scanner.prototype.scan = function scan(re) {
+  var match = this.tail.match(re);
+  if (!match || match.index !== 0)
+    return "";
+  var string = match[0];
+  this.tail = this.tail.substring(string.length);
+  this.pos += string.length;
+  return string;
+};
+Scanner.prototype.scanUntil = function scanUntil(re) {
+  var index = this.tail.search(re), match;
+  switch (index) {
+    case -1:
+      match = this.tail;
+      this.tail = "";
+      break;
+    case 0:
+      match = "";
+      break;
+    default:
+      match = this.tail.substring(0, index);
+      this.tail = this.tail.substring(index);
+  }
+  this.pos += match.length;
+  return match;
+};
+function Context(view, parentContext) {
+  this.view = view;
+  this.cache = { ".": this.view };
+  this.parent = parentContext;
+}
+Context.prototype.push = function push(view) {
+  return new Context(view, this);
+};
+Context.prototype.lookup = function lookup(name2) {
+  var cache = this.cache;
+  var value;
+  if (cache.hasOwnProperty(name2)) {
+    value = cache[name2];
+  } else {
+    var context = this, intermediateValue, names, index, lookupHit = false;
+    while (context) {
+      if (name2.indexOf(".") > 0) {
+        intermediateValue = context.view;
+        names = name2.split(".");
+        index = 0;
+        while (intermediateValue != null && index < names.length) {
+          if (index === names.length - 1)
+            lookupHit = hasProperty(intermediateValue, names[index]) || primitiveHasOwnProperty(intermediateValue, names[index]);
+          intermediateValue = intermediateValue[names[index++]];
+        }
+      } else {
+        intermediateValue = context.view[name2];
+        lookupHit = hasProperty(context.view, name2);
+      }
+      if (lookupHit) {
+        value = intermediateValue;
+        break;
+      }
+      context = context.parent;
+    }
+    cache[name2] = value;
+  }
+  if (isFunction(value))
+    value = value.call(this.view);
+  return value;
+};
+function Writer() {
+  this.templateCache = {
+    _cache: {},
+    set: function set(key, value) {
+      this._cache[key] = value;
+    },
+    get: function get(key) {
+      return this._cache[key];
+    },
+    clear: function clear() {
+      this._cache = {};
+    }
+  };
+}
+Writer.prototype.clearCache = function clearCache() {
+  if (typeof this.templateCache !== "undefined") {
+    this.templateCache.clear();
+  }
+};
+Writer.prototype.parse = function parse(template, tags) {
+  var cache = this.templateCache;
+  var cacheKey = template + ":" + (tags || mustache.tags).join(":");
+  var isCacheEnabled = typeof cache !== "undefined";
+  var tokens = isCacheEnabled ? cache.get(cacheKey) : void 0;
+  if (tokens == void 0) {
+    tokens = parseTemplate(template, tags);
+    isCacheEnabled && cache.set(cacheKey, tokens);
+  }
+  return tokens;
+};
+Writer.prototype.render = function render(template, view, partials, config) {
+  var tags = this.getConfigTags(config);
+  var tokens = this.parse(template, tags);
+  var context = view instanceof Context ? view : new Context(view, void 0);
+  return this.renderTokens(tokens, context, partials, template, config);
+};
+Writer.prototype.renderTokens = function renderTokens(tokens, context, partials, originalTemplate, config) {
+  var buffer = "";
+  var token, symbol, value;
+  for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
+    value = void 0;
+    token = tokens[i];
+    symbol = token[0];
+    if (symbol === "#") value = this.renderSection(token, context, partials, originalTemplate, config);
+    else if (symbol === "^") value = this.renderInverted(token, context, partials, originalTemplate, config);
+    else if (symbol === ">") value = this.renderPartial(token, context, partials, config);
+    else if (symbol === "&") value = this.unescapedValue(token, context);
+    else if (symbol === "name") value = this.escapedValue(token, context, config);
+    else if (symbol === "text") value = this.rawValue(token);
+    if (value !== void 0)
+      buffer += value;
+  }
+  return buffer;
+};
+Writer.prototype.renderSection = function renderSection(token, context, partials, originalTemplate, config) {
+  var self = this;
+  var buffer = "";
+  var value = context.lookup(token[1]);
+  function subRender(template) {
+    return self.render(template, context, partials, config);
+  }
+  if (!value) return;
+  if (isArray(value)) {
+    for (var j = 0, valueLength = value.length; j < valueLength; ++j) {
+      buffer += this.renderTokens(token[4], context.push(value[j]), partials, originalTemplate, config);
+    }
+  } else if (typeof value === "object" || typeof value === "string" || typeof value === "number") {
+    buffer += this.renderTokens(token[4], context.push(value), partials, originalTemplate, config);
+  } else if (isFunction(value)) {
+    if (typeof originalTemplate !== "string")
+      throw new Error("Cannot use higher-order sections without the original template");
+    value = value.call(context.view, originalTemplate.slice(token[3], token[5]), subRender);
+    if (value != null)
+      buffer += value;
+  } else {
+    buffer += this.renderTokens(token[4], context, partials, originalTemplate, config);
+  }
+  return buffer;
+};
+Writer.prototype.renderInverted = function renderInverted(token, context, partials, originalTemplate, config) {
+  var value = context.lookup(token[1]);
+  if (!value || isArray(value) && value.length === 0)
+    return this.renderTokens(token[4], context, partials, originalTemplate, config);
+};
+Writer.prototype.indentPartial = function indentPartial(partial, indentation, lineHasNonSpace) {
+  var filteredIndentation = indentation.replace(/[^ \t]/g, "");
+  var partialByNl = partial.split("\n");
+  for (var i = 0; i < partialByNl.length; i++) {
+    if (partialByNl[i].length && (i > 0 || !lineHasNonSpace)) {
+      partialByNl[i] = filteredIndentation + partialByNl[i];
+    }
+  }
+  return partialByNl.join("\n");
+};
+Writer.prototype.renderPartial = function renderPartial(token, context, partials, config) {
+  if (!partials) return;
+  var tags = this.getConfigTags(config);
+  var value = isFunction(partials) ? partials(token[1]) : partials[token[1]];
+  if (value != null) {
+    var lineHasNonSpace = token[6];
+    var tagIndex = token[5];
+    var indentation = token[4];
+    var indentedValue = value;
+    if (tagIndex == 0 && indentation) {
+      indentedValue = this.indentPartial(value, indentation, lineHasNonSpace);
+    }
+    var tokens = this.parse(indentedValue, tags);
+    return this.renderTokens(tokens, context, partials, indentedValue, config);
+  }
+};
+Writer.prototype.unescapedValue = function unescapedValue(token, context) {
+  var value = context.lookup(token[1]);
+  if (value != null)
+    return value;
+};
+Writer.prototype.escapedValue = function escapedValue(token, context, config) {
+  var escape = this.getConfigEscape(config) || mustache.escape;
+  var value = context.lookup(token[1]);
+  if (value != null)
+    return typeof value === "number" && escape === mustache.escape ? String(value) : escape(value);
+};
+Writer.prototype.rawValue = function rawValue(token) {
+  return token[1];
+};
+Writer.prototype.getConfigTags = function getConfigTags(config) {
+  if (isArray(config)) {
+    return config;
+  } else if (config && typeof config === "object") {
+    return config.tags;
+  } else {
+    return void 0;
+  }
+};
+Writer.prototype.getConfigEscape = function getConfigEscape(config) {
+  if (config && typeof config === "object" && !isArray(config)) {
+    return config.escape;
+  } else {
+    return void 0;
+  }
+};
+var mustache = {
+  name: "mustache.js",
+  version: "4.2.0",
+  tags: ["{{", "}}"],
+  clearCache: void 0,
+  escape: void 0,
+  parse: void 0,
+  render: void 0,
+  Scanner: void 0,
+  Context: void 0,
+  Writer: void 0,
+  /**
+   * Allows a user to override the default caching strategy, by providing an
+   * object with set, get and clear methods. This can also be used to disable
+   * the cache by setting it to the literal `undefined`.
+   */
+  set templateCache(cache) {
+    defaultWriter.templateCache = cache;
+  },
+  /**
+   * Gets the default or overridden caching object from the default writer.
+   */
+  get templateCache() {
+    return defaultWriter.templateCache;
+  }
+};
+var defaultWriter = new Writer();
+mustache.clearCache = function clearCache2() {
+  return defaultWriter.clearCache();
+};
+mustache.parse = function parse2(template, tags) {
+  return defaultWriter.parse(template, tags);
+};
+mustache.render = function render2(template, view, partials, config) {
+  if (typeof template !== "string") {
+    throw new TypeError('Invalid template! Template should be a "string" but "' + typeStr(template) + '" was given as the first argument for mustache#render(template, view, partials)');
+  }
+  return defaultWriter.render(template, view, partials, config);
+};
+mustache.escape = escapeHtml;
+mustache.Scanner = Scanner;
+mustache.Context = Context;
+mustache.Writer = Writer;
+function htmlToText(html) {
+  return html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(
+    /<a\s[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+    (_m, href, txt) => `${String(txt).replace(/<[^>]+>/g, "").trim()} (${href})`
+  ).replace(/<\s*br\s*\/?>/gi, "\n").replace(/<\/\s*(p|div|tr|li|h[1-6])\s*>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+\n/g, "\n").trim();
+}
+function buildFooter(senderEmail, config) {
+  if (config.sender.inboxPlacement === "primary") return { html: "", unsubscribe: void 0 };
+  const parts = [];
+  let unsubscribe;
+  if (config.sender.unsubscribeEnabled && senderEmail) {
+    unsubscribe = `mailto:${senderEmail}?subject=Unsubscribe`;
+    parts.push(`To stop receiving these emails, <a href="${unsubscribe}">unsubscribe here</a>.`);
+  }
+  if (config.sender.physicalAddress) {
+    parts.push(config.sender.physicalAddress.replace(/\n/g, ", "));
+  }
+  if (parts.length === 0) return { html: "", unsubscribe };
+  const html = `<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e5e5;font-size:12px;color:#888;line-height:1.5;">${parts.join("<br>")}</div>`;
+  return { html, unsubscribe };
+}
+const HTML_ENTITIES = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&#x2F;": "/",
+  "&#x60;": "`",
+  "&#x3D;": "="
+};
+function htmlUnescape(s) {
+  return s.replace(/&(amp|lt|gt|quot|#39|#x2F|#x60|#x3D);/g, (m) => HTML_ENTITIES[m] || m);
+}
+function renderEmail(record, config) {
+  let message = "";
+  if (record.messageType === "file" && record.messageContent) {
+    if (!fs.existsSync(record.messageContent)) {
+      throw new Error(`Message file not found at ${record.messageContent}`);
+    }
+    message = fs.readFileSync(record.messageContent, "utf-8");
+  } else if (record.messageType === "text" && record.messageContent) {
+    message = record.messageContent;
+  }
+  const campaign = record.campaignId ? (config.campaigns || []).find((c) => c.id === record.campaignId) : void 0;
+  let template = "";
+  if (campaign && typeof campaign.template === "string" && campaign.template.trim()) {
+    template = campaign.template;
+  } else if (fs.existsSync(config.paths.templateHtml)) {
+    template = fs.readFileSync(config.paths.templateHtml, "utf-8");
+  }
+  let templateContent;
+  if (template && template.includes("{{{message}}}")) {
+    templateContent = template.split("{{{message}}}").join(message);
+  } else if (template) {
+    templateContent = template;
+  } else {
+    templateContent = message;
+  }
+  let rendered = mustache.render(templateContent, record);
+  if (config.sender.inboxPlacement === "primary") {
+    rendered = rendered.replace(/<head[\s\S]*?<\/head>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "");
+  }
+  const footer = buildFooter(config.smtp.user, config);
+  if (footer.html) {
+    rendered = rendered.includes("</body>") ? rendered.replace("</body>", `${footer.html}</body>`) : rendered + footer.html;
+  }
+  const subjectTpl = record.subject && String(record.subject).trim() ? String(record.subject) : campaign && campaign.subject && String(campaign.subject).trim() ? String(campaign.subject) : config.email.subject;
+  const subject = htmlUnescape(mustache.render(subjectTpl, record));
+  const text = htmlToText(rendered);
+  return { subject, body: rendered, text, listUnsubscribe: footer.unsubscribe };
+}
+const SPAM_WORDS = [
+  "free",
+  "guarantee",
+  "guaranteed",
+  "act now",
+  "limited time",
+  "winner",
+  "congratulations",
+  "click here",
+  "buy now",
+  "order now",
+  "risk-free",
+  "no obligation",
+  "100%",
+  "cash",
+  "cheap",
+  "discount",
+  "earn money",
+  "make money",
+  "income",
+  "viagra",
+  "crypto",
+  "investment",
+  "urgent",
+  "apply now",
+  "exclusive deal",
+  "lowest price",
+  "this is not spam"
+];
+const WEIGHT = { high: 3, med: 2, low: 1 };
+function stripTags(html) {
+  return html.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+function checkSpam(subject, html, hasPlainText) {
+  subject = subject || "";
+  html = html || "";
+  const findings = [];
+  const text = stripTags(html);
+  const lcSubject = (subject || "").toLowerCase();
+  const lcText = text.toLowerCase();
+  if (subject && subject.length > 0) {
+    const letters = subject.replace(/[^a-zA-Z]/g, "");
+    if (letters.length >= 6 && subject === subject.toUpperCase()) {
+      findings.push({ label: "Subject is ALL CAPS", severity: "high" });
+    }
+    if (subject.length > 70) findings.push({ label: "Subject longer than 70 chars", severity: "low" });
+  } else {
+    findings.push({ label: "Empty subject", severity: "med" });
+  }
+  if ((subject.match(/!/g) || []).length >= 2 || (text.match(/!/g) || []).length >= 4) {
+    findings.push({ label: "Excessive exclamation marks", severity: "med" });
+  }
+  if (/\$\$\$|\$\d{3,}/.test(subject + " " + text)) {
+    findings.push({ label: "Money/`$$$` patterns", severity: "med" });
+  }
+  const hits = SPAM_WORDS.filter((w) => lcSubject.includes(w) || lcText.includes(w));
+  if (hits.length >= 4) findings.push({ label: `Many spam-trigger words (${hits.slice(0, 4).join(", ")}…)`, severity: "high" });
+  else if (hits.length > 0) findings.push({ label: `Spam-trigger words (${hits.join(", ")})`, severity: "med" });
+  const linkCount = (html.match(/<a\s[^>]*href=["']?(?!mailto:)/gi) || []).length;
+  if (linkCount > 8) findings.push({ label: `Too many links (${linkCount})`, severity: "high" });
+  else if (linkCount > 4) findings.push({ label: `High link count (${linkCount})`, severity: "low" });
+  const imgCount = (html.match(/<img\s/gi) || []).length;
+  if (imgCount > 0 && text.length < 80) {
+    findings.push({ label: "Image-only / very little text", severity: "high" });
+  }
+  if (text.length < 20) findings.push({ label: "Almost no body text", severity: "med" });
+  if (!hasPlainText) findings.push({ label: "No plain-text alternative part", severity: "low" });
+  const score = findings.reduce((s, f) => s + WEIGHT[f.severity], 0);
+  const level = score >= 6 ? "risky" : score >= 3 ? "warn" : "clean";
+  return { score, level, findings };
+}
+function recordBelongsToAccount(record, accountId) {
+  const id = accountId || "default";
+  const rid = record?.accountId;
+  if (id === "default") return !rid || rid === "default";
+  return rid === id;
+}
+class MailProcessor {
+  constructor(config, emailService, onSuccess, accountId) {
+    this.config = config;
+    this.emailService = emailService;
+    this.onSuccess = onSuccess;
+    this.accountId = accountId;
+    this.limiter = new RateLimiter(getBasePath(), config.limits, accountId);
+    this.suppression = new SuppressionManager(getBasePath());
+  }
+  ownsRecord(record) {
+    return recordBelongsToAccount(record, this.accountId);
+  }
+  /**
+   * Permanent recipient failure → safe to suppress the address. Must be an
+   * envelope-stage error (RCPT TO rejected): auth and connection failures also
+   * carry 5xx responseCodes (e.g. EAUTH 535) but are the SENDER's problem —
+   * suppressing recipients for them would blacklist the whole list over a bad
+   * password.
+   */
+  isPermanentBounce(error) {
+    if (error?.code !== "EENVELOPE") return false;
+    const code = error?.responseCode;
+    return typeof code === "number" && code >= 500 && code < 600;
+  }
+  /**
+   * Inspect a send result for rejected recipients (synchronous bounces) and
+   * suppress them. Returns true if the target address was rejected.
+   * `suppress` is false in test mode — the target is the user's own inbox, and
+   * a transient rejection there must never poison the suppression list.
+   */
+  handleRejections(email, result, suppress = true) {
+    const key = email.toLowerCase();
+    const rejected = (result.rejected || []).some((r) => String(r).toLowerCase() === key);
+    if (rejected && suppress) {
+      this.suppression.add(email, "bounce", "rejected at send time");
+      console.warn(`Suppressed ${email}: rejected by mail server.`);
+    }
+    return rejected;
+  }
+  /** True only when the SMTP server accepted this exact recipient. */
+  wasAccepted(email, result) {
+    const key = email.toLowerCase();
+    return (result.accepted || []).some((a) => String(a).toLowerCase() === key);
+  }
+  attachmentBytes(attachments) {
+    let total = 0;
+    for (const att of attachments) {
+      try {
+        total += fs.statSync(att.path).size;
+      } catch {
+      }
+    }
+    return total;
+  }
+  /** Resolve attachments for a record: explicit list, else CV + enrollment. */
+  buildAttachments(record) {
+    const attachments = [];
+    const { cvPath, enrollmentPath } = this.config.paths;
+    if (record.attachments && Array.isArray(record.attachments)) {
+      for (const att of record.attachments) {
+        if (fs.existsSync(att.path)) {
+          const finalName = att.customName && att.customName.trim() !== "" ? att.customName : path.basename(att.path);
+          attachments.push({ filename: finalName, path: att.path });
+        } else {
+          console.warn(`Warning: Attached file not found at ${att.path}`);
+        }
+      }
+    } else {
+      const recipientCvPath = record.cvPath || cvPath;
+      if (recipientCvPath && fs.existsSync(recipientCvPath)) {
+        attachments.push({ filename: path.basename(recipientCvPath), path: recipientCvPath });
+      } else if (recipientCvPath) {
+        console.warn(`Warning: CV file not found at ${recipientCvPath}`);
+      }
+    }
+    if (enrollmentPath && fs.existsSync(enrollmentPath)) {
+      attachments.push({ filename: path.basename(enrollmentPath), path: enrollmentPath });
+    } else if (enrollmentPath) {
+      console.warn(`Warning: Enrollment letter not found at ${enrollmentPath}`);
+    }
+    return attachments;
+  }
+  delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  /** Advisory pre-send spam check — warns in the run log, never blocks. */
+  warnIfSpammy(email, subject, body, hasText) {
+    const report = checkSpam(subject, body, hasText);
+    if (report.level !== "clean") {
+      console.warn(
+        `Spam-risk ${report.level} (score ${report.score}) for ${email}: ` + report.findings.map((f) => f.label).join("; ")
+      );
+    }
+  }
+  async processEmails() {
+    const { recipientsJson } = this.config.paths;
+    if (!fs.existsSync(recipientsJson)) {
+      console.error(`Error: recipients.json not found at ${recipientsJson}`);
+      return { total: 0, sent: 0, skipped: 0, failed: 0 };
+    }
+    let records;
+    try {
+      records = JSON.parse(fs.readFileSync(recipientsJson, "utf-8"));
+    } catch (e) {
+      console.error("Failed to parse recipients.json");
+      return { total: 0, sent: 0, skipped: 0, failed: 0 };
+    }
+    const activeRecords = records.filter((r) => r.active !== false && this.ownsRecord(r));
+    console.log(`Processing ${activeRecords.length} active recipients...`);
+    let sentThisRun = 0;
+    let skipped = 0;
+    let failed = 0;
+    for (let i = 0; i < activeRecords.length; i++) {
+      const record = activeRecords[i];
+      const email = record.email || record.Email;
+      if (!email) {
+        console.warn("Skipping record with no email:", record);
+        skipped++;
+        continue;
+      }
+      if (this.suppression.isSuppressed(email)) {
+        console.warn(`Skipping ${email}: on suppression list (${this.suppression.reasonFor(email)}).`);
+        skipped++;
+        continue;
+      }
+      let rendered;
+      try {
+        rendered = renderEmail(record, this.config);
+      } catch (e) {
+        console.warn(`Skipping ${email}: ${e.message}`);
+        skipped++;
+        continue;
+      }
+      const attachments = this.buildAttachments(record);
+      const res = this.limiter.tryConsume(email, this.attachmentBytes(attachments));
+      if (!res.allowed) {
+        console.warn(`Skipping ${email}: ${res.reason}`);
+        if (res.exhausted) {
+          skipped += activeRecords.length - i;
+          console.warn(`Stopping run: ${res.reason}. ${activeRecords.length - i - 1} remaining recipient(s) skipped.`);
+          break;
+        }
+        skipped++;
+        continue;
+      }
+      if (sentThisRun > 0) {
+        const waitMs = this.limiter.randomDelayMs();
+        console.log(`Waiting ${(waitMs / 1e3).toFixed(0)}s before next email (rate-limit pacing)...`);
+        await this.delay(waitMs);
+      }
+      const isTest = !!this.config.testMode;
+      const target = isTest ? this.config.smtp.user : email;
+      const subject = isTest ? `[TEST → ${email}] ${rendered.subject}` : rendered.subject;
+      if (isTest) console.log(`Practice mode: rerouting ${email} → ${target}`);
+      this.warnIfSpammy(email, rendered.subject, rendered.body, !!rendered.text);
+      try {
+        const result = await this.emailService.sendMail(
+          target,
+          subject,
+          rendered.body,
+          attachments,
+          { text: rendered.text, listUnsubscribe: rendered.listUnsubscribe }
+        );
+        if (this.handleRejections(target, result, !isTest) || !this.wasAccepted(target, result)) {
+          this.limiter.refund(email, res.windowRolled);
+          console.warn(`Not counting ${email} as sent: server did not accept it.`);
+          failed++;
+        } else {
+          sentThisRun++;
+          this.onSuccess?.(this.accountId);
+        }
+      } catch (error) {
+        this.limiter.refund(email, res.windowRolled);
+        if (!isTest && this.isPermanentBounce(error)) {
+          this.suppression.add(email, "bounce", `SMTP ${error.responseCode}`);
+          console.warn(`Suppressed ${email}: permanent failure SMTP ${error.responseCode}.`);
+        }
+        console.error(`Error sending to ${email}, continuing with next...`);
+        failed++;
+      }
+    }
+    console.log(`All emails processed. sent=${sentThisRun} skipped=${skipped} failed=${failed}`);
+    return { total: activeRecords.length, sent: sentThisRun, skipped, failed };
+  }
+  async processRecipient(record) {
+    const email = record.email || record.Email;
+    if (!email) {
+      console.warn("Skipping record with no email:", record);
+      return;
+    }
+    if (this.suppression.isSuppressed(email)) {
+      console.warn(`Skipping scheduled send to ${email}: on suppression list (${this.suppression.reasonFor(email)}).`);
+      return;
+    }
+    let rendered;
+    try {
+      rendered = renderEmail(record, this.config);
+    } catch (e) {
+      console.error(`Skipping scheduled send to ${email}: ${e.message}`);
+      return;
+    }
+    const attachments = this.buildAttachments(record);
+    const res = this.limiter.tryConsume(email, this.attachmentBytes(attachments));
+    if (!res.allowed) {
+      console.warn(`Skipping scheduled send to ${email}: ${res.reason}`);
+      return;
+    }
+    const isTest = !!this.config.testMode;
+    const target = isTest ? this.config.smtp.user : email;
+    const subject = isTest ? `[TEST → ${email}] ${rendered.subject}` : rendered.subject;
+    if (isTest) console.log(`Practice mode: rerouting scheduled send ${email} → ${target}`);
+    this.warnIfSpammy(email, rendered.subject, rendered.body, !!rendered.text);
+    try {
+      const result = await this.emailService.sendMail(
+        target,
+        subject,
+        rendered.body,
+        attachments,
+        { text: rendered.text, listUnsubscribe: rendered.listUnsubscribe }
+      );
+      if (this.handleRejections(target, result, !isTest) || !this.wasAccepted(target, result)) {
+        this.limiter.refund(email, res.windowRolled);
+        console.warn(`Not counting ${email} as sent: server did not accept it.`);
+      } else {
+        console.log(`Successfully sent email to ${email}`);
+        this.onSuccess?.(this.accountId);
+      }
+    } catch (error) {
+      this.limiter.refund(email, res.windowRolled);
+      if (!isTest && this.isPermanentBounce(error)) {
+        this.suppression.add(email, "bounce", `SMTP ${error.responseCode}`);
+        console.warn(`Suppressed ${email}: permanent failure SMTP ${error.responseCode}.`);
+      }
+      console.error(`Error sending to ${email}:`, error);
+    }
+  }
+}
+var nodeCron = {};
+var inlineScheduledTask = {};
+var runner = {};
+var createId = {};
+var hasRequiredCreateId;
+function requireCreateId() {
+  if (hasRequiredCreateId) return createId;
+  hasRequiredCreateId = 1;
+  var __importDefault = createId && createId.__importDefault || function(mod) {
+    return mod && mod.__esModule ? mod : { "default": mod };
+  };
+  Object.defineProperty(createId, "__esModule", { value: true });
+  createId.createID = createID;
+  const node_crypto_1 = __importDefault(require$$0$6);
+  function createID(prefix = "", length = 16) {
+    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const values = node_crypto_1.default.randomBytes(length);
+    const id = Array.from(values, (v) => charset[v % charset.length]).join("");
+    return prefix ? `${prefix}-${id}` : id;
+  }
+  return createId;
+}
+var logger = {};
+var hasRequiredLogger;
+function requireLogger() {
+  if (hasRequiredLogger) return logger;
+  hasRequiredLogger = 1;
+  Object.defineProperty(logger, "__esModule", { value: true });
+  const levelColors = {
+    INFO: "\x1B[36m",
+    WARN: "\x1B[33m",
+    ERROR: "\x1B[31m",
+    DEBUG: "\x1B[35m"
+  };
+  const GREEN = "\x1B[32m";
+  const RESET = "\x1B[0m";
+  function log(level, message, extra) {
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    const color = levelColors[level] ?? "";
+    const prefix = `[${timestamp}] [PID: ${process.pid}] ${GREEN}[NODE-CRON]${GREEN} ${color}[${level}]${RESET}`;
+    const output = `${prefix} ${message}`;
+    switch (level) {
+      case "ERROR":
+        console.error(output, extra ?? "");
+        break;
+      case "DEBUG":
+        console.debug(output, extra ?? "");
+        break;
+      case "WARN":
+        console.warn(output);
+        break;
+      case "INFO":
+      default:
+        console.info(output);
+        break;
+    }
+  }
+  const logger$1 = {
+    info(message) {
+      log("INFO", message);
+    },
+    warn(message) {
+      log("WARN", message);
+    },
+    error(message, err) {
+      if (message instanceof Error) {
+        log("ERROR", message.message, message);
+      } else {
+        log("ERROR", message, err);
+      }
+    },
+    debug(message, err) {
+      if (message instanceof Error) {
+        log("DEBUG", message.message, message);
+      } else {
+        log("DEBUG", message, err);
+      }
+    }
+  };
+  logger.default = logger$1;
+  return logger;
+}
+var trackedPromise = {};
+var hasRequiredTrackedPromise;
+function requireTrackedPromise() {
+  if (hasRequiredTrackedPromise) return trackedPromise;
+  hasRequiredTrackedPromise = 1;
+  Object.defineProperty(trackedPromise, "__esModule", { value: true });
+  trackedPromise.TrackedPromise = void 0;
+  class TrackedPromise {
+    promise;
+    error;
+    state;
+    value;
+    constructor(executor) {
+      this.state = "pending";
+      this.promise = new Promise((resolve, reject) => {
+        executor((value) => {
+          this.state = "fulfilled";
+          this.value = value;
+          resolve(value);
+        }, (error) => {
+          this.state = "rejected";
+          this.error = error;
+          reject(error);
+        });
+      });
+    }
+    getPromise() {
+      return this.promise;
+    }
+    getState() {
+      return this.state;
+    }
+    isPending() {
+      return this.state === "pending";
+    }
+    isFulfilled() {
+      return this.state === "fulfilled";
+    }
+    isRejected() {
+      return this.state === "rejected";
+    }
+    getValue() {
+      return this.value;
+    }
+    getError() {
+      return this.error;
+    }
+    then(onfulfilled, onrejected) {
+      return this.promise.then(onfulfilled, onrejected);
+    }
+    catch(onrejected) {
+      return this.promise.catch(onrejected);
+    }
+    finally(onfinally) {
+      return this.promise.finally(onfinally);
+    }
+  }
+  trackedPromise.TrackedPromise = TrackedPromise;
+  return trackedPromise;
+}
+var hasRequiredRunner;
+function requireRunner() {
+  if (hasRequiredRunner) return runner;
+  hasRequiredRunner = 1;
+  var __importDefault = runner && runner.__importDefault || function(mod) {
+    return mod && mod.__esModule ? mod : { "default": mod };
+  };
+  Object.defineProperty(runner, "__esModule", { value: true });
+  runner.Runner = void 0;
+  const create_id_1 = requireCreateId();
+  const logger_1 = __importDefault(requireLogger());
+  const tracked_promise_1 = requireTrackedPromise();
+  function emptyOnFn() {
+  }
+  function emptyHookFn() {
+    return true;
+  }
+  function defaultOnError(date, error) {
+    logger_1.default.error("Task failed with error!", error);
+  }
+  class Runner {
+    timeMatcher;
+    onMatch;
+    noOverlap;
+    maxExecutions;
+    maxRandomDelay;
+    runCount;
+    running;
+    heartBeatTimeout;
+    onMissedExecution;
+    onOverlap;
+    onError;
+    beforeRun;
+    onFinished;
+    onMaxExecutions;
+    constructor(timeMatcher2, onMatch, options) {
+      this.timeMatcher = timeMatcher2;
+      this.onMatch = onMatch;
+      this.noOverlap = options == void 0 || options.noOverlap === void 0 ? false : options.noOverlap;
+      this.maxExecutions = options?.maxExecutions;
+      this.maxRandomDelay = options?.maxRandomDelay || 0;
+      this.onMissedExecution = options?.onMissedExecution || emptyOnFn;
+      this.onOverlap = options?.onOverlap || emptyOnFn;
+      this.onError = options?.onError || defaultOnError;
+      this.onFinished = options?.onFinished || emptyHookFn;
+      this.beforeRun = options?.beforeRun || emptyHookFn;
+      this.onMaxExecutions = options?.onMaxExecutions || emptyOnFn;
+      this.runCount = 0;
+      this.running = false;
+    }
+    start() {
+      this.running = true;
+      let lastExecution;
+      let expectedNextExecution;
+      const scheduleNextHeartBeat = (currentDate) => {
+        if (this.running) {
+          clearTimeout(this.heartBeatTimeout);
+          this.heartBeatTimeout = setTimeout(heartBeat, getDelay(this.timeMatcher, currentDate));
+        }
+      };
+      const runTask = (date) => {
+        return new Promise(async (resolve) => {
+          const execution = {
+            id: (0, create_id_1.createID)("exec"),
+            reason: "scheduled"
+          };
+          const shouldExecute = await this.beforeRun(date, execution);
+          const randomDelay = Math.floor(Math.random() * this.maxRandomDelay);
+          if (shouldExecute) {
+            setTimeout(async () => {
+              try {
+                this.runCount++;
+                execution.startedAt = /* @__PURE__ */ new Date();
+                const result = await this.onMatch(date, execution);
+                execution.finishedAt = /* @__PURE__ */ new Date();
+                execution.result = result;
+                this.onFinished(date, execution);
+                if (this.maxExecutions && this.runCount >= this.maxExecutions) {
+                  this.onMaxExecutions(date);
+                  this.stop();
+                }
+              } catch (error) {
+                execution.finishedAt = /* @__PURE__ */ new Date();
+                execution.error = error;
+                this.onError(date, error, execution);
+              }
+              resolve(true);
+            }, randomDelay);
+          }
+        });
+      };
+      const checkAndRun = (date) => {
+        return new tracked_promise_1.TrackedPromise(async (resolve, reject) => {
+          try {
+            if (this.timeMatcher.match(date)) {
+              await runTask(date);
+            }
+            resolve(true);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      };
+      const heartBeat = async () => {
+        const currentDate = nowWithoutMs();
+        if (expectedNextExecution && expectedNextExecution.getTime() < currentDate.getTime()) {
+          while (expectedNextExecution.getTime() < currentDate.getTime()) {
+            logger_1.default.warn(`missed execution at ${expectedNextExecution}! Possible blocking IO or high CPU user at the same process used by node-cron.`);
+            expectedNextExecution = this.timeMatcher.getNextMatch(expectedNextExecution);
+            runAsync(this.onMissedExecution, expectedNextExecution, defaultOnError);
+          }
+        }
+        if (lastExecution && lastExecution.getState() === "pending") {
+          runAsync(this.onOverlap, currentDate, defaultOnError);
+          if (this.noOverlap) {
+            logger_1.default.warn("task still running, new execution blocked by overlap prevention!");
+            expectedNextExecution = this.timeMatcher.getNextMatch(currentDate);
+            scheduleNextHeartBeat(currentDate);
+            return;
+          }
+        }
+        lastExecution = checkAndRun(currentDate);
+        expectedNextExecution = this.timeMatcher.getNextMatch(currentDate);
+        scheduleNextHeartBeat(currentDate);
+      };
+      this.heartBeatTimeout = setTimeout(() => {
+        heartBeat();
+      }, getDelay(this.timeMatcher, nowWithoutMs()));
+    }
+    nextRun() {
+      return this.timeMatcher.getNextMatch(/* @__PURE__ */ new Date());
+    }
+    stop() {
+      this.running = false;
+      if (this.heartBeatTimeout) {
+        clearTimeout(this.heartBeatTimeout);
+        this.heartBeatTimeout = void 0;
+      }
+    }
+    isStarted() {
+      return !!this.heartBeatTimeout && this.running;
+    }
+    isStopped() {
+      return !this.isStarted();
+    }
+    async execute() {
+      const date = /* @__PURE__ */ new Date();
+      const execution = {
+        id: (0, create_id_1.createID)("exec"),
+        reason: "invoked"
+      };
+      try {
+        const shouldExecute = await this.beforeRun(date, execution);
+        if (shouldExecute) {
+          this.runCount++;
+          execution.startedAt = /* @__PURE__ */ new Date();
+          const result = await this.onMatch(date, execution);
+          execution.finishedAt = /* @__PURE__ */ new Date();
+          execution.result = result;
+          this.onFinished(date, execution);
+        }
+      } catch (error) {
+        execution.finishedAt = /* @__PURE__ */ new Date();
+        execution.error = error;
+        this.onError(date, error, execution);
+      }
+    }
+  }
+  runner.Runner = Runner;
+  async function runAsync(fn, date, onError) {
+    try {
+      await fn(date);
+    } catch (error) {
+      onError(date, error);
+    }
+  }
+  function getDelay(timeMatcher2, currentDate) {
+    const maxDelay = 864e5;
+    const nextRun = timeMatcher2.getNextMatch(currentDate);
+    const now = /* @__PURE__ */ new Date();
+    const delay = nextRun.getTime() - now.getTime();
+    if (delay > maxDelay) {
+      return maxDelay;
+    }
+    return Math.max(0, delay);
+  }
+  function nowWithoutMs() {
+    const date = /* @__PURE__ */ new Date();
+    date.setMilliseconds(0);
+    return date;
+  }
+  return runner;
+}
+var timeMatcher = {};
+var convertion = {};
+var monthNamesConversion = {};
+var hasRequiredMonthNamesConversion;
+function requireMonthNamesConversion() {
+  if (hasRequiredMonthNamesConversion) return monthNamesConversion;
+  hasRequiredMonthNamesConversion = 1;
+  Object.defineProperty(monthNamesConversion, "__esModule", { value: true });
+  monthNamesConversion.default = /* @__PURE__ */ (() => {
+    const months = [
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december"
+    ];
+    const shortMonths = [
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec"
+    ];
+    function convertMonthName(expression, items) {
+      for (let i = 0; i < items.length; i++) {
+        expression = expression.replace(new RegExp(items[i], "gi"), i + 1);
+      }
+      return expression;
+    }
+    function interprete(monthExpression) {
+      monthExpression = convertMonthName(monthExpression, months);
+      monthExpression = convertMonthName(monthExpression, shortMonths);
+      return monthExpression;
+    }
+    return interprete;
+  })();
+  return monthNamesConversion;
+}
+var weekDayNamesConversion = {};
+var hasRequiredWeekDayNamesConversion;
+function requireWeekDayNamesConversion() {
+  if (hasRequiredWeekDayNamesConversion) return weekDayNamesConversion;
+  hasRequiredWeekDayNamesConversion = 1;
+  Object.defineProperty(weekDayNamesConversion, "__esModule", { value: true });
+  weekDayNamesConversion.default = /* @__PURE__ */ (() => {
+    const weekDays = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday"
+    ];
+    const shortWeekDays = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+    function convertWeekDayName(expression, items) {
+      for (let i = 0; i < items.length; i++) {
+        expression = expression.replace(new RegExp(items[i], "gi"), i);
+      }
+      return expression;
+    }
+    function convertWeekDays(expression) {
+      expression = expression.replace("7", "0");
+      expression = convertWeekDayName(expression, weekDays);
+      return convertWeekDayName(expression, shortWeekDays);
+    }
+    return convertWeekDays;
+  })();
+  return weekDayNamesConversion;
+}
+var asteriskToRangeConversion = {};
+var hasRequiredAsteriskToRangeConversion;
+function requireAsteriskToRangeConversion() {
+  if (hasRequiredAsteriskToRangeConversion) return asteriskToRangeConversion;
+  hasRequiredAsteriskToRangeConversion = 1;
+  Object.defineProperty(asteriskToRangeConversion, "__esModule", { value: true });
+  asteriskToRangeConversion.default = /* @__PURE__ */ (() => {
+    function convertAsterisk(expression, replecement) {
+      if (expression.indexOf("*") !== -1) {
+        return expression.replace("*", replecement);
+      }
+      return expression;
+    }
+    function convertAsterisksToRanges(expressions) {
+      expressions[0] = convertAsterisk(expressions[0], "0-59");
+      expressions[1] = convertAsterisk(expressions[1], "0-59");
+      expressions[2] = convertAsterisk(expressions[2], "0-23");
+      expressions[3] = convertAsterisk(expressions[3], "1-31");
+      expressions[4] = convertAsterisk(expressions[4], "1-12");
+      expressions[5] = convertAsterisk(expressions[5], "0-6");
+      return expressions;
+    }
+    return convertAsterisksToRanges;
+  })();
+  return asteriskToRangeConversion;
+}
+var rangeConversion = {};
+var hasRequiredRangeConversion;
+function requireRangeConversion() {
+  if (hasRequiredRangeConversion) return rangeConversion;
+  hasRequiredRangeConversion = 1;
+  Object.defineProperty(rangeConversion, "__esModule", { value: true });
+  rangeConversion.default = /* @__PURE__ */ (() => {
+    function replaceWithRange(expression, text, init, end, stepTxt) {
+      const step = parseInt(stepTxt);
+      const numbers = [];
+      let last = parseInt(end);
+      let first = parseInt(init);
+      if (first > last) {
+        last = parseInt(init);
+        first = parseInt(end);
+      }
+      for (let i = first; i <= last; i += step) {
+        numbers.push(i);
+      }
+      return expression.replace(new RegExp(text, "i"), numbers.join());
+    }
+    function convertRange(expression) {
+      const rangeRegEx = /(\d+)-(\d+)(\/(\d+)|)/;
+      let match = rangeRegEx.exec(expression);
+      while (match !== null && match.length > 0) {
+        expression = replaceWithRange(expression, match[0], match[1], match[2], match[4] || "1");
+        match = rangeRegEx.exec(expression);
+      }
+      return expression;
+    }
+    function convertAllRanges(expressions) {
+      for (let i = 0; i < expressions.length; i++) {
+        expressions[i] = convertRange(expressions[i]);
+      }
+      return expressions;
+    }
+    return convertAllRanges;
+  })();
+  return rangeConversion;
+}
+var hasRequiredConvertion;
+function requireConvertion() {
+  if (hasRequiredConvertion) return convertion;
+  hasRequiredConvertion = 1;
+  var __importDefault = convertion && convertion.__importDefault || function(mod) {
+    return mod && mod.__esModule ? mod : { "default": mod };
+  };
+  Object.defineProperty(convertion, "__esModule", { value: true });
+  const month_names_conversion_1 = __importDefault(requireMonthNamesConversion());
+  const week_day_names_conversion_1 = __importDefault(requireWeekDayNamesConversion());
+  const asterisk_to_range_conversion_1 = __importDefault(requireAsteriskToRangeConversion());
+  const range_conversion_1 = __importDefault(requireRangeConversion());
+  convertion.default = /* @__PURE__ */ (() => {
+    function appendSeccondExpression(expressions) {
+      if (expressions.length === 5) {
+        return ["0"].concat(expressions);
+      }
+      return expressions;
+    }
+    function removeSpaces(str) {
+      return str.replace(/\s{2,}/g, " ").trim();
+    }
+    function normalizeIntegers(expressions) {
+      for (let i = 0; i < expressions.length; i++) {
+        const numbers = expressions[i].split(",");
+        for (let j = 0; j < numbers.length; j++) {
+          numbers[j] = parseInt(numbers[j]);
+        }
+        expressions[i] = numbers;
+      }
+      return expressions;
+    }
+    function interprete(expression) {
+      let expressions = removeSpaces(`${expression}`).split(" ");
+      expressions = appendSeccondExpression(expressions);
+      expressions[4] = (0, month_names_conversion_1.default)(expressions[4]);
+      expressions[5] = (0, week_day_names_conversion_1.default)(expressions[5]);
+      expressions = (0, asterisk_to_range_conversion_1.default)(expressions);
+      expressions = (0, range_conversion_1.default)(expressions);
+      expressions = normalizeIntegers(expressions);
+      return expressions;
+    }
+    return interprete;
+  })();
+  return convertion;
+}
+var localizedTime = {};
+var hasRequiredLocalizedTime;
+function requireLocalizedTime() {
+  if (hasRequiredLocalizedTime) return localizedTime;
+  hasRequiredLocalizedTime = 1;
+  Object.defineProperty(localizedTime, "__esModule", { value: true });
+  localizedTime.LocalizedTime = void 0;
+  class LocalizedTime {
+    timestamp;
+    parts;
+    timezone;
+    constructor(date, timezone) {
+      this.timestamp = date.getTime();
+      this.timezone = timezone;
+      this.parts = buildDateParts(date, timezone);
+    }
+    toDate() {
+      return new Date(this.timestamp);
+    }
+    toISO() {
+      const gmt = this.parts.gmt.replace(/^GMT/, "");
+      const offset = gmt ? gmt : "Z";
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${this.parts.year}-${pad(this.parts.month)}-${pad(this.parts.day)}T${pad(this.parts.hour)}:${pad(this.parts.minute)}:${pad(this.parts.second)}.${String(this.parts.milisecond).padStart(3, "0")}` + offset;
+    }
+    getParts() {
+      return this.parts;
+    }
+    set(field, value) {
+      this.parts[field] = value;
+      const newDate = new Date(this.toISO());
+      this.timestamp = newDate.getTime();
+      this.parts = buildDateParts(newDate, this.timezone);
+    }
+  }
+  localizedTime.LocalizedTime = LocalizedTime;
+  function buildDateParts(date, timezone) {
+    const dftOptions = {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      weekday: "short",
+      hour12: false
+    };
+    if (timezone) {
+      dftOptions.timeZone = timezone;
+    }
+    const dateFormat = new Intl.DateTimeFormat("en-US", dftOptions);
+    const parts = dateFormat.formatToParts(date).filter((part) => {
+      return part.type !== "literal";
+    }).reduce((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+    return {
+      day: parseInt(parts.day),
+      month: parseInt(parts.month),
+      year: parseInt(parts.year),
+      hour: parts.hour === "24" ? 0 : parseInt(parts.hour),
+      minute: parseInt(parts.minute),
+      second: parseInt(parts.second),
+      milisecond: date.getMilliseconds(),
+      weekday: parts.weekday,
+      gmt: getTimezoneGMT(date, timezone)
+    };
+  }
+  function getTimezoneGMT(date, timezone) {
+    const utcDate = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
+    const tzDate = new Date(date.toLocaleString("en-US", { timeZone: timezone }));
+    let offsetInMinutes = (utcDate.getTime() - tzDate.getTime()) / 6e4;
+    const sign2 = offsetInMinutes <= 0 ? "+" : "-";
+    offsetInMinutes = Math.abs(offsetInMinutes);
+    if (offsetInMinutes === 0)
+      return "Z";
+    const hours = Math.floor(offsetInMinutes / 60).toString().padStart(2, "0");
+    const minutes = Math.floor(offsetInMinutes % 60).toString().padStart(2, "0");
+    return `GMT${sign2}${hours}:${minutes}`;
+  }
+  return localizedTime;
+}
+var matcherWalker = {};
+var hasRequiredMatcherWalker;
+function requireMatcherWalker() {
+  if (hasRequiredMatcherWalker) return matcherWalker;
+  hasRequiredMatcherWalker = 1;
+  var __importDefault = matcherWalker && matcherWalker.__importDefault || function(mod) {
+    return mod && mod.__esModule ? mod : { "default": mod };
+  };
+  Object.defineProperty(matcherWalker, "__esModule", { value: true });
+  matcherWalker.MatcherWalker = void 0;
+  const convertion_1 = __importDefault(requireConvertion());
+  const localized_time_1 = requireLocalizedTime();
+  const time_matcher_1 = requireTimeMatcher();
+  const week_day_names_conversion_1 = __importDefault(requireWeekDayNamesConversion());
+  class MatcherWalker {
+    cronExpression;
+    baseDate;
+    pattern;
+    expressions;
+    timeMatcher;
+    timezone;
+    constructor(cronExpression, baseDate, timezone) {
+      this.cronExpression = cronExpression;
+      this.baseDate = baseDate;
+      this.timeMatcher = new time_matcher_1.TimeMatcher(cronExpression, timezone);
+      this.timezone = timezone;
+      this.expressions = (0, convertion_1.default)(cronExpression);
+    }
+    isMatching() {
+      return this.timeMatcher.match(this.baseDate);
+    }
+    matchNext() {
+      const findNextDateIgnoringWeekday = () => {
+        const baseDate = new Date(this.baseDate.getTime());
+        baseDate.setMilliseconds(0);
+        const localTime = new localized_time_1.LocalizedTime(baseDate, this.timezone);
+        const dateParts = localTime.getParts();
+        const date2 = new localized_time_1.LocalizedTime(localTime.toDate(), this.timezone);
+        const seconds = this.expressions[0];
+        const nextSecond = availableValue(seconds, dateParts.second);
+        if (nextSecond) {
+          date2.set("second", nextSecond);
+          if (this.timeMatcher.match(date2.toDate())) {
+            return date2;
+          }
+        }
+        date2.set("second", seconds[0]);
+        const minutes = this.expressions[1];
+        const nextMinute = availableValue(minutes, dateParts.minute);
+        if (nextMinute) {
+          date2.set("minute", nextMinute);
+          if (this.timeMatcher.match(date2.toDate())) {
+            return date2;
+          }
+        }
+        date2.set("minute", minutes[0]);
+        const hours = this.expressions[2];
+        const nextHour = availableValue(hours, dateParts.hour);
+        if (nextHour) {
+          date2.set("hour", nextHour);
+          if (this.timeMatcher.match(date2.toDate())) {
+            return date2;
+          }
+        }
+        date2.set("hour", hours[0]);
+        const days = this.expressions[3];
+        const nextDay = availableValue(days, dateParts.day);
+        if (nextDay) {
+          date2.set("day", nextDay);
+          if (this.timeMatcher.match(date2.toDate())) {
+            return date2;
+          }
+        }
+        date2.set("day", days[0]);
+        const months = this.expressions[4];
+        const nextMonth = availableValue(months, dateParts.month);
+        if (nextMonth) {
+          date2.set("month", nextMonth);
+          if (this.timeMatcher.match(date2.toDate())) {
+            return date2;
+          }
+        }
+        date2.set("year", date2.getParts().year + 1);
+        date2.set("month", months[0]);
+        return date2;
+      };
+      const date = findNextDateIgnoringWeekday();
+      const weekdays = this.expressions[5];
+      let currentWeekday = parseInt((0, week_day_names_conversion_1.default)(date.getParts().weekday));
+      while (!(weekdays.indexOf(currentWeekday) > -1)) {
+        date.set("year", date.getParts().year + 1);
+        currentWeekday = parseInt((0, week_day_names_conversion_1.default)(date.getParts().weekday));
+      }
+      return date;
+    }
+  }
+  matcherWalker.MatcherWalker = MatcherWalker;
+  function availableValue(values, currentValue) {
+    const availableValues = values.sort((a, b) => a - b).filter((s) => s > currentValue);
+    if (availableValues.length > 0)
+      return availableValues[0];
+    return false;
+  }
+  return matcherWalker;
+}
+var hasRequiredTimeMatcher;
+function requireTimeMatcher() {
+  if (hasRequiredTimeMatcher) return timeMatcher;
+  hasRequiredTimeMatcher = 1;
+  var __importDefault = timeMatcher && timeMatcher.__importDefault || function(mod) {
+    return mod && mod.__esModule ? mod : { "default": mod };
+  };
+  Object.defineProperty(timeMatcher, "__esModule", { value: true });
+  timeMatcher.TimeMatcher = void 0;
+  const index_1 = __importDefault(requireConvertion());
+  const week_day_names_conversion_1 = __importDefault(requireWeekDayNamesConversion());
+  const localized_time_1 = requireLocalizedTime();
+  const matcher_walker_1 = requireMatcherWalker();
+  function matchValue(allowedValues, value) {
+    return allowedValues.indexOf(value) !== -1;
+  }
+  class TimeMatcher {
+    timezone;
+    pattern;
+    expressions;
+    constructor(pattern, timezone) {
+      this.timezone = timezone;
+      this.pattern = pattern;
+      this.expressions = (0, index_1.default)(pattern);
+    }
+    match(date) {
+      const localizedTime2 = new localized_time_1.LocalizedTime(date, this.timezone);
+      const parts = localizedTime2.getParts();
+      const runOnSecond = matchValue(this.expressions[0], parts.second);
+      const runOnMinute = matchValue(this.expressions[1], parts.minute);
+      const runOnHour = matchValue(this.expressions[2], parts.hour);
+      const runOnDay = matchValue(this.expressions[3], parts.day);
+      const runOnMonth = matchValue(this.expressions[4], parts.month);
+      const runOnWeekDay = matchValue(this.expressions[5], parseInt((0, week_day_names_conversion_1.default)(parts.weekday)));
+      return runOnSecond && runOnMinute && runOnHour && runOnDay && runOnMonth && runOnWeekDay;
+    }
+    getNextMatch(date) {
+      const walker = new matcher_walker_1.MatcherWalker(this.pattern, date, this.timezone);
+      const next = walker.matchNext();
+      return next.toDate();
+    }
+  }
+  timeMatcher.TimeMatcher = TimeMatcher;
+  return timeMatcher;
+}
+var stateMachine = {};
+var hasRequiredStateMachine;
+function requireStateMachine() {
+  if (hasRequiredStateMachine) return stateMachine;
+  hasRequiredStateMachine = 1;
+  Object.defineProperty(stateMachine, "__esModule", { value: true });
+  stateMachine.StateMachine = void 0;
+  const allowedTransitions = {
+    "stopped": ["stopped", "idle", "destroyed"],
+    "idle": ["idle", "running", "stopped", "destroyed"],
+    "running": ["running", "idle", "stopped", "destroyed"],
+    "destroyed": ["destroyed"]
+  };
+  class StateMachine {
+    state;
+    constructor(initial = "stopped") {
+      this.state = initial;
+    }
+    changeState(state) {
+      if (allowedTransitions[this.state].includes(state)) {
+        this.state = state;
+      } else {
+        throw new Error(`invalid transition from ${this.state} to ${state}`);
+      }
+    }
+  }
+  stateMachine.StateMachine = StateMachine;
+  return stateMachine;
+}
+var hasRequiredInlineScheduledTask;
+function requireInlineScheduledTask() {
+  if (hasRequiredInlineScheduledTask) return inlineScheduledTask;
+  hasRequiredInlineScheduledTask = 1;
+  var __importDefault = inlineScheduledTask && inlineScheduledTask.__importDefault || function(mod) {
+    return mod && mod.__esModule ? mod : { "default": mod };
+  };
+  Object.defineProperty(inlineScheduledTask, "__esModule", { value: true });
+  inlineScheduledTask.InlineScheduledTask = void 0;
+  const events_1 = __importDefault(require$$0$4);
+  const runner_1 = requireRunner();
+  const time_matcher_1 = requireTimeMatcher();
+  const create_id_1 = requireCreateId();
+  const state_machine_1 = requireStateMachine();
+  const logger_1 = __importDefault(requireLogger());
+  const localized_time_1 = requireLocalizedTime();
+  class TaskEmitter extends events_1.default {
+  }
+  class InlineScheduledTask {
+    emitter;
+    cronExpression;
+    timeMatcher;
+    runner;
+    id;
+    name;
+    stateMachine;
+    timezone;
+    constructor(cronExpression, taskFn, options) {
+      this.emitter = new TaskEmitter();
+      this.cronExpression = cronExpression;
+      this.id = (0, create_id_1.createID)("task", 12);
+      this.name = options?.name || this.id;
+      this.timezone = options?.timezone;
+      this.timeMatcher = new time_matcher_1.TimeMatcher(cronExpression, options?.timezone);
+      this.stateMachine = new state_machine_1.StateMachine();
+      const runnerOptions = {
+        timezone: options?.timezone,
+        noOverlap: options?.noOverlap,
+        maxExecutions: options?.maxExecutions,
+        maxRandomDelay: options?.maxRandomDelay,
+        beforeRun: (date, execution) => {
+          if (execution.reason === "scheduled") {
+            this.changeState("running");
+          }
+          this.emitter.emit("execution:started", this.createContext(date, execution));
+          return true;
+        },
+        onFinished: (date, execution) => {
+          if (execution.reason === "scheduled") {
+            this.changeState("idle");
+          }
+          this.emitter.emit("execution:finished", this.createContext(date, execution));
+          return true;
+        },
+        onError: (date, error, execution) => {
+          logger_1.default.error(error);
+          this.emitter.emit("execution:failed", this.createContext(date, execution));
+          this.changeState("idle");
+        },
+        onOverlap: (date) => {
+          this.emitter.emit("execution:overlap", this.createContext(date));
+        },
+        onMissedExecution: (date) => {
+          this.emitter.emit("execution:missed", this.createContext(date));
+        },
+        onMaxExecutions: (date) => {
+          this.emitter.emit("execution:maxReached", this.createContext(date));
+          this.destroy();
+        }
+      };
+      this.runner = new runner_1.Runner(this.timeMatcher, (date, execution) => {
+        return taskFn(this.createContext(date, execution));
+      }, runnerOptions);
+    }
+    getNextRun() {
+      if (this.stateMachine.state !== "stopped") {
+        return this.runner.nextRun();
+      }
+      return null;
+    }
+    changeState(state) {
+      if (this.runner.isStarted()) {
+        this.stateMachine.changeState(state);
+      }
+    }
+    start() {
+      if (this.runner.isStopped()) {
+        this.runner.start();
+        this.stateMachine.changeState("idle");
+        this.emitter.emit("task:started", this.createContext(/* @__PURE__ */ new Date()));
+      }
+    }
+    stop() {
+      if (this.runner.isStarted()) {
+        this.runner.stop();
+        this.stateMachine.changeState("stopped");
+        this.emitter.emit("task:stopped", this.createContext(/* @__PURE__ */ new Date()));
+      }
+    }
+    getStatus() {
+      return this.stateMachine.state;
+    }
+    destroy() {
+      if (this.stateMachine.state === "destroyed")
+        return;
+      this.stop();
+      this.stateMachine.changeState("destroyed");
+      this.emitter.emit("task:destroyed", this.createContext(/* @__PURE__ */ new Date()));
+    }
+    execute() {
+      return new Promise((resolve, reject) => {
+        const onFail = (context) => {
+          this.off("execution:finished", onFail);
+          reject(context.execution?.error);
+        };
+        const onFinished = (context) => {
+          this.off("execution:failed", onFail);
+          resolve(context.execution?.result);
+        };
+        this.once("execution:finished", onFinished);
+        this.once("execution:failed", onFail);
+        this.runner.execute();
+      });
+    }
+    on(event, fun) {
+      this.emitter.on(event, fun);
+    }
+    off(event, fun) {
+      this.emitter.off(event, fun);
+    }
+    once(event, fun) {
+      this.emitter.once(event, fun);
+    }
+    createContext(executionDate, execution) {
+      const localTime = new localized_time_1.LocalizedTime(executionDate, this.timezone);
+      const ctx = {
+        date: localTime.toDate(),
+        dateLocalIso: localTime.toISO(),
+        triggeredAt: /* @__PURE__ */ new Date(),
+        task: this,
+        execution
+      };
+      return ctx;
+    }
+  }
+  inlineScheduledTask.InlineScheduledTask = InlineScheduledTask;
+  return inlineScheduledTask;
+}
+var taskRegistry = {};
+var hasRequiredTaskRegistry;
+function requireTaskRegistry() {
+  if (hasRequiredTaskRegistry) return taskRegistry;
+  hasRequiredTaskRegistry = 1;
+  Object.defineProperty(taskRegistry, "__esModule", { value: true });
+  taskRegistry.TaskRegistry = void 0;
+  const tasks = /* @__PURE__ */ new Map();
+  class TaskRegistry {
+    add(task) {
+      if (this.has(task.id)) {
+        throw Error(`task ${task.id} already registred!`);
+      }
+      tasks.set(task.id, task);
+      task.on("task:destroyed", () => {
+        this.remove(task);
+      });
+    }
+    get(taskId) {
+      return tasks.get(taskId);
+    }
+    remove(task) {
+      if (this.has(task.id)) {
+        task?.destroy();
+        tasks.delete(task.id);
+      }
+    }
+    all() {
+      return tasks;
+    }
+    has(taskId) {
+      return tasks.has(taskId);
+    }
+    killAll() {
+      tasks.forEach((id) => this.remove(id));
+    }
+  }
+  taskRegistry.TaskRegistry = TaskRegistry;
+  return taskRegistry;
+}
+var patternValidation = {};
+var hasRequiredPatternValidation;
+function requirePatternValidation() {
+  if (hasRequiredPatternValidation) return patternValidation;
+  hasRequiredPatternValidation = 1;
+  var __importDefault = patternValidation && patternValidation.__importDefault || function(mod) {
+    return mod && mod.__esModule ? mod : { "default": mod };
+  };
+  Object.defineProperty(patternValidation, "__esModule", { value: true });
+  const index_1 = __importDefault(requireConvertion());
+  const validationRegex = /^(?:\d+|\*|\*\/\d+)$/;
+  function isValidExpression(expression, min, max) {
+    const options = expression;
+    for (const option of options) {
+      const optionAsInt = parseInt(option, 10);
+      if (!Number.isNaN(optionAsInt) && (optionAsInt < min || optionAsInt > max) || !validationRegex.test(option))
+        return false;
+    }
+    return true;
+  }
+  function isInvalidSecond(expression) {
+    return !isValidExpression(expression, 0, 59);
+  }
+  function isInvalidMinute(expression) {
+    return !isValidExpression(expression, 0, 59);
+  }
+  function isInvalidHour(expression) {
+    return !isValidExpression(expression, 0, 23);
+  }
+  function isInvalidDayOfMonth(expression) {
+    return !isValidExpression(expression, 1, 31);
+  }
+  function isInvalidMonth(expression) {
+    return !isValidExpression(expression, 1, 12);
+  }
+  function isInvalidWeekDay(expression) {
+    return !isValidExpression(expression, 0, 7);
+  }
+  function validateFields(patterns, executablePatterns) {
+    if (isInvalidSecond(executablePatterns[0]))
+      throw new Error(`${patterns[0]} is a invalid expression for second`);
+    if (isInvalidMinute(executablePatterns[1]))
+      throw new Error(`${patterns[1]} is a invalid expression for minute`);
+    if (isInvalidHour(executablePatterns[2]))
+      throw new Error(`${patterns[2]} is a invalid expression for hour`);
+    if (isInvalidDayOfMonth(executablePatterns[3]))
+      throw new Error(`${patterns[3]} is a invalid expression for day of month`);
+    if (isInvalidMonth(executablePatterns[4]))
+      throw new Error(`${patterns[4]} is a invalid expression for month`);
+    if (isInvalidWeekDay(executablePatterns[5]))
+      throw new Error(`${patterns[5]} is a invalid expression for week day`);
+  }
+  function validate(pattern) {
+    if (typeof pattern !== "string")
+      throw new TypeError("pattern must be a string!");
+    const patterns = pattern.split(" ");
+    const executablePatterns = (0, index_1.default)(pattern);
+    if (patterns.length === 5)
+      patterns.unshift("0");
+    validateFields(patterns, executablePatterns);
+  }
+  patternValidation.default = validate;
+  return patternValidation;
+}
+var backgroundScheduledTask = {};
+var hasRequiredBackgroundScheduledTask;
+function requireBackgroundScheduledTask() {
+  if (hasRequiredBackgroundScheduledTask) return backgroundScheduledTask;
+  hasRequiredBackgroundScheduledTask = 1;
+  var __importDefault = backgroundScheduledTask && backgroundScheduledTask.__importDefault || function(mod) {
+    return mod && mod.__esModule ? mod : { "default": mod };
+  };
+  Object.defineProperty(backgroundScheduledTask, "__esModule", { value: true });
+  const path_1 = path;
+  const child_process_1 = require$$0$5;
+  const create_id_1 = requireCreateId();
+  const stream_1 = require$$0$2;
+  const state_machine_1 = requireStateMachine();
+  const localized_time_1 = requireLocalizedTime();
+  const logger_1 = __importDefault(requireLogger());
+  const time_matcher_1 = requireTimeMatcher();
+  const daemonPath = (0, path_1.resolve)(__dirname, "daemon.js");
+  class TaskEmitter extends stream_1.EventEmitter {
+  }
+  class BackgroundScheduledTask {
+    emitter;
+    id;
+    name;
+    cronExpression;
+    taskPath;
+    options;
+    forkProcess;
+    stateMachine;
+    constructor(cronExpression, taskPath, options) {
+      this.cronExpression = cronExpression;
+      this.taskPath = taskPath;
+      this.options = options;
+      this.id = (0, create_id_1.createID)("task");
+      this.name = options?.name || this.id;
+      this.emitter = new TaskEmitter();
+      this.stateMachine = new state_machine_1.StateMachine("stopped");
+      this.on("task:stopped", () => {
+        this.forkProcess?.kill();
+        this.forkProcess = void 0;
+        this.stateMachine.changeState("stopped");
+      });
+      this.on("task:destroyed", () => {
+        this.forkProcess?.kill();
+        this.forkProcess = void 0;
+        this.stateMachine.changeState("destroyed");
+      });
+    }
+    getNextRun() {
+      if (this.stateMachine.state !== "stopped") {
+        const timeMatcher2 = new time_matcher_1.TimeMatcher(this.cronExpression, this.options?.timezone);
+        return timeMatcher2.getNextMatch(/* @__PURE__ */ new Date());
+      }
+      return null;
+    }
+    start() {
+      return new Promise((resolve, reject) => {
+        if (this.forkProcess) {
+          return resolve(void 0);
+        }
+        const timeout = setTimeout(() => {
+          reject(new Error("Start operation timed out"));
+        }, 5e3);
+        try {
+          this.forkProcess = (0, child_process_1.fork)(daemonPath);
+          this.forkProcess.on("error", (err) => {
+            clearTimeout(timeout);
+            reject(new Error(`Error on daemon: ${err.message}`));
+          });
+          this.forkProcess.on("exit", (code, signal) => {
+            if (code !== 0 && signal !== "SIGTERM") {
+              const erro = new Error(`node-cron daemon exited with code ${code || signal}`);
+              logger_1.default.error(erro);
+              clearTimeout(timeout);
+              reject(erro);
+            }
+          });
+          this.forkProcess.on("message", (message) => {
+            if (message.jsonError) {
+              if (message.context?.execution) {
+                message.context.execution.error = deserializeError(message.jsonError);
+                delete message.jsonError;
+              }
+            }
+            if (message.context?.task?.state) {
+              this.stateMachine.changeState(message.context?.task?.state);
+            }
+            if (message.context) {
+              const execution = message.context?.execution;
+              delete execution?.hasError;
+              const context = this.createContext(new Date(message.context.date), execution);
+              this.emitter.emit(message.event, context);
+            }
+          });
+          this.once("task:started", () => {
+            this.stateMachine.changeState("idle");
+            clearTimeout(timeout);
+            resolve(void 0);
+          });
+          this.forkProcess.send({
+            command: "task:start",
+            path: this.taskPath,
+            cron: this.cronExpression,
+            options: this.options
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+    stop() {
+      return new Promise((resolve, reject) => {
+        if (!this.forkProcess) {
+          return resolve(void 0);
+        }
+        const timeoutId = setTimeout(() => {
+          clearTimeout(timeoutId);
+          reject(new Error("Stop operation timed out"));
+        }, 5e3);
+        const cleanupAndResolve = () => {
+          clearTimeout(timeoutId);
+          this.off("task:stopped", onStopped);
+          this.forkProcess = void 0;
+          resolve(void 0);
+        };
+        const onStopped = () => {
+          cleanupAndResolve();
+        };
+        this.once("task:stopped", onStopped);
+        this.forkProcess.send({
+          command: "task:stop"
+        });
+      });
+    }
+    getStatus() {
+      return this.stateMachine.state;
+    }
+    destroy() {
+      return new Promise((resolve, reject) => {
+        if (!this.forkProcess) {
+          return resolve(void 0);
+        }
+        const timeoutId = setTimeout(() => {
+          clearTimeout(timeoutId);
+          reject(new Error("Destroy operation timed out"));
+        }, 5e3);
+        const onDestroy = () => {
+          clearTimeout(timeoutId);
+          this.off("task:destroyed", onDestroy);
+          resolve(void 0);
+        };
+        this.once("task:destroyed", onDestroy);
+        this.forkProcess.send({
+          command: "task:destroy"
+        });
+      });
+    }
+    execute() {
+      return new Promise((resolve, reject) => {
+        if (!this.forkProcess) {
+          return reject(new Error("Cannot execute background task because it hasn't been started yet. Please initialize the task using the start() method before attempting to execute it."));
+        }
+        const timeoutId = setTimeout(() => {
+          cleanupListeners();
+          reject(new Error("Execution timeout exceeded"));
+        }, 5e3);
+        const cleanupListeners = () => {
+          clearTimeout(timeoutId);
+          this.off("execution:finished", onFinished);
+          this.off("execution:failed", onFail);
+        };
+        const onFinished = (context) => {
+          cleanupListeners();
+          resolve(context.execution?.result);
+        };
+        const onFail = (context) => {
+          cleanupListeners();
+          reject(context.execution?.error || new Error("Execution failed without specific error"));
+        };
+        this.once("execution:finished", onFinished);
+        this.once("execution:failed", onFail);
+        this.forkProcess.send({
+          command: "task:execute"
+        });
+      });
+    }
+    on(event, fun) {
+      this.emitter.on(event, fun);
+    }
+    off(event, fun) {
+      this.emitter.off(event, fun);
+    }
+    once(event, fun) {
+      this.emitter.once(event, fun);
+    }
+    createContext(executionDate, execution) {
+      const localTime = new localized_time_1.LocalizedTime(executionDate, this.options?.timezone);
+      const ctx = {
+        date: localTime.toDate(),
+        dateLocalIso: localTime.toISO(),
+        triggeredAt: /* @__PURE__ */ new Date(),
+        task: this,
+        execution
+      };
+      return ctx;
+    }
+  }
+  function deserializeError(str) {
+    const data = JSON.parse(str);
+    const Err = globalThis[data.name] || Error;
+    const err = new Err(data.message);
+    if (data.stack) {
+      err.stack = data.stack;
+    }
+    Object.keys(data).forEach((key) => {
+      if (!["name", "message", "stack"].includes(key)) {
+        err[key] = data[key];
+      }
+    });
+    return err;
+  }
+  backgroundScheduledTask.default = BackgroundScheduledTask;
+  return backgroundScheduledTask;
+}
+var hasRequiredNodeCron;
+function requireNodeCron() {
+  if (hasRequiredNodeCron) return nodeCron;
+  hasRequiredNodeCron = 1;
+  (function(exports$1) {
+    var __importDefault = nodeCron && nodeCron.__importDefault || function(mod) {
+      return mod && mod.__esModule ? mod : { "default": mod };
+    };
+    Object.defineProperty(exports$1, "__esModule", { value: true });
+    exports$1.nodeCron = exports$1.getTask = exports$1.getTasks = void 0;
+    exports$1.schedule = schedule;
+    exports$1.createTask = createTask;
+    exports$1.solvePath = solvePath;
+    exports$1.validate = validate;
+    const inline_scheduled_task_1 = requireInlineScheduledTask();
+    const task_registry_1 = requireTaskRegistry();
+    const pattern_validation_1 = __importDefault(requirePatternValidation());
+    const background_scheduled_task_1 = __importDefault(requireBackgroundScheduledTask());
+    const path_1 = __importDefault(path);
+    const url_1 = require$$0$1;
+    const registry = new task_registry_1.TaskRegistry();
+    function schedule(expression, func, options) {
+      const task = createTask(expression, func, options);
+      task.start();
+      return task;
+    }
+    function createTask(expression, func, options) {
+      let task;
+      if (func instanceof Function) {
+        task = new inline_scheduled_task_1.InlineScheduledTask(expression, func, options);
+      } else {
+        const taskPath = solvePath(func);
+        task = new background_scheduled_task_1.default(expression, taskPath, options);
+      }
+      registry.add(task);
+      return task;
+    }
+    function solvePath(filePath) {
+      if (path_1.default.isAbsolute(filePath))
+        return (0, url_1.pathToFileURL)(filePath).href;
+      if (filePath.startsWith("file://"))
+        return filePath;
+      const stackLines = new Error().stack?.split("\n");
+      if (stackLines) {
+        stackLines?.shift();
+        const callerLine = stackLines?.find((line) => {
+          return line.indexOf(__filename) === -1;
+        });
+        const match = callerLine?.match(/(file:\/\/)?(((\/?)(\w:))?([/\\].+)):\d+:\d+/);
+        if (match) {
+          const dir = `${match[5] ?? ""}${path_1.default.dirname(match[6])}`;
+          return (0, url_1.pathToFileURL)(path_1.default.resolve(dir, filePath)).href;
+        }
+      }
+      throw new Error(`Could not locate task file ${filePath}`);
+    }
+    function validate(expression) {
+      try {
+        (0, pattern_validation_1.default)(expression);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    exports$1.getTasks = registry.all;
+    exports$1.getTask = registry.get;
+    exports$1.nodeCron = {
+      schedule,
+      createTask,
+      validate,
+      getTasks: exports$1.getTasks,
+      getTask: exports$1.getTask
+    };
+    exports$1.default = exports$1.nodeCron;
+  })(nodeCron);
+  return nodeCron;
+}
+var nodeCronExports = requireNodeCron();
+const cron = /* @__PURE__ */ getDefaultExportFromCjs(nodeCronExports);
+class Scheduler {
+  constructor(config, mailProcessor, processors) {
+    this.config = config;
+    this.mailProcessor = mailProcessor;
+    this.processors = processors;
+    this.tasks = [];
+    this.activeTimeouts = [];
+  }
+  start() {
+    console.log(`Starting advanced recipient-based scheduler...`);
+    this.stop();
+    const { recipientsJson } = this.config.paths;
+    if (!fs.existsSync(recipientsJson)) {
+      console.error(`Error: recipients.json not found at ${recipientsJson}`);
+      return;
+    }
+    let records;
+    try {
+      records = JSON.parse(fs.readFileSync(recipientsJson, "utf-8"));
+    } catch (e) {
+      console.error("Failed to parse recipients.json");
+      return;
+    }
+    const entries = this.processors && this.processors.size > 0 ? [...this.processors.entries()] : [["default", this.mailProcessor]];
+    let jobCount = 0;
+    for (const [accountId, processor] of entries) {
+      const accountRecords = records.filter(
+        (r) => r.active !== false && recordBelongsToAccount(r, accountId)
+      );
+      if (accountRecords.length === 0) continue;
+      for (const record of accountRecords) {
+        jobCount += this.scheduleRecord(record, processor);
+      }
+    }
+    if (jobCount === 0) {
+      console.log("No active recipients to schedule.");
+      return;
+    }
+    console.log(`Scheduler is running with ${jobCount} individual jobs. Press Ctrl+C to exit.`);
+  }
+  /** Build the cron jobs for one recipient against one account's processor.
+   *  Returns how many jobs were created. (Entropy / day-shift logic unchanged.) */
+  scheduleRecord(record, processor) {
+    let daysCron = "*";
+    if (record.scheduledDays && record.scheduledDays.length > 0) {
+      const dayMap = {
+        "Sun": "0",
+        "Mon": "1",
+        "Tue": "2",
+        "Wed": "3",
+        "Thu": "4",
+        "Fri": "5",
+        "Sat": "6"
+      };
+      const mappedDays = record.scheduledDays.map((d) => dayMap[d]).filter(Boolean);
+      if (mappedDays.length > 0) {
+        daysCron = mappedDays.join(",");
+      }
+    }
+    const times = record.scheduledTimes && record.scheduledTimes.length > 0 ? record.scheduledTimes : [];
+    const entropyMinutes = parseInt(record.entropyMinutes) || 0;
+    let created = 0;
+    for (const timeStr of times) {
+      const [hourStr, minStr] = timeStr.split(":");
+      const hour = parseInt(hourStr);
+      const min = parseInt(minStr);
+      if (isNaN(hour) || isNaN(min)) continue;
+      let cronHour = hour;
+      let cronMin = min;
+      let dayShift = 0;
+      if (entropyMinutes > 0) {
+        let totalMin = hour * 60 + min - entropyMinutes;
+        if (totalMin < 0) {
+          totalMin += 24 * 60;
+          dayShift = -1;
+        }
+        cronHour = Math.floor(totalMin / 60) % 24;
+        cronMin = totalMin % 60;
+      }
+      let adjustedDaysCron = daysCron;
+      if (dayShift === -1 && daysCron !== "*") {
+        adjustedDaysCron = daysCron.split(",").map((d) => {
+          let newDay = parseInt(d) - 1;
+          if (newDay < 0) newDay = 6;
+          return newDay.toString();
+        }).join(",");
+      }
+      const cronExpr = `${cronMin} ${cronHour} * * ${adjustedDaysCron}`;
+      const task = cron.schedule(cronExpr, async () => {
+        let delayMs = 0;
+        if (entropyMinutes > 0) {
+          delayMs = Math.random() * (2 * entropyMinutes) * 60 * 1e3;
+          console.log(`[${(/* @__PURE__ */ new Date()).toLocaleString()}] Scheduled job for ${record.email} triggered. Applying entropy delay of ${(delayMs / 6e4).toFixed(1)} minutes.`);
+        }
+        if (delayMs > 0) {
+          const timeoutId = setTimeout(async () => {
+            console.log(`
+[${(/* @__PURE__ */ new Date()).toLocaleString()}] Sending scheduled email to ${record.email}...`);
+            await processor.processRecipient(record);
+            this.activeTimeouts = this.activeTimeouts.filter((t) => t !== timeoutId);
+          }, delayMs);
+          this.activeTimeouts.push(timeoutId);
+        } else {
+          console.log(`
+[${(/* @__PURE__ */ new Date()).toLocaleString()}] Sending scheduled email to ${record.email}...`);
+          await processor.processRecipient(record);
+        }
+      });
+      this.tasks.push(task);
+      created++;
+    }
+    return created;
+  }
+  stop() {
+    for (const task of this.tasks) {
+      task.stop();
+    }
+    this.tasks = [];
+    for (const timeoutId of this.activeTimeouts) {
+      clearTimeout(timeoutId);
+    }
+    this.activeTimeouts = [];
+    console.log("All scheduled jobs and pending timeouts stopped.");
+  }
+}
+class CsvError extends Error {
+  constructor(code, message, options, ...contexts) {
+    if (Array.isArray(message)) message = message.join(" ").trim();
+    super(message);
+    if (Error.captureStackTrace !== void 0) {
+      Error.captureStackTrace(this, CsvError);
+    }
+    this.code = code;
+    for (const context of contexts) {
+      for (const key in context) {
+        const value = context[key];
+        this[key] = Buffer.isBuffer(value) ? value.toString(options.encoding) : value == null ? value : JSON.parse(JSON.stringify(value));
+      }
+    }
+  }
+}
+const is_object = function(obj) {
+  return typeof obj === "object" && obj !== null && !Array.isArray(obj);
+};
+const normalize_columns_array = function(columns) {
+  const normalizedColumns = [];
+  for (let i = 0, l = columns.length; i < l; i++) {
+    const column = columns[i];
+    if (column === void 0 || column === null || column === false) {
+      normalizedColumns[i] = { disabled: true };
+    } else if (typeof column === "string") {
+      normalizedColumns[i] = { name: column };
+    } else if (is_object(column)) {
+      if (typeof column.name !== "string") {
+        throw new CsvError("CSV_OPTION_COLUMNS_MISSING_NAME", [
+          "Option columns missing name:",
+          `property "name" is required at position ${i}`,
+          "when column is an object literal"
+        ]);
+      }
+      normalizedColumns[i] = column;
+    } else {
+      throw new CsvError("CSV_INVALID_COLUMN_DEFINITION", [
+        "Invalid column definition:",
+        "expect a string or a literal object,",
+        `got ${JSON.stringify(column)} at position ${i}`
+      ]);
+    }
+  }
+  return normalizedColumns;
+};
+class ResizeableBuffer {
+  constructor(size = 100) {
+    this.size = size;
+    this.length = 0;
+    this.buf = Buffer.allocUnsafe(size);
+  }
+  prepend(val) {
+    if (Buffer.isBuffer(val)) {
+      const length = this.length + val.length;
+      if (length >= this.size) {
+        this.resize();
+        if (length >= this.size) {
+          throw Error("INVALID_BUFFER_STATE");
+        }
+      }
+      const buf = this.buf;
+      this.buf = Buffer.allocUnsafe(this.size);
+      val.copy(this.buf, 0);
+      buf.copy(this.buf, val.length);
+      this.length += val.length;
+    } else {
+      const length = this.length++;
+      if (length === this.size) {
+        this.resize();
+      }
+      const buf = this.clone();
+      this.buf[0] = val;
+      buf.copy(this.buf, 1, 0, length);
+    }
+  }
+  append(val) {
+    const length = this.length++;
+    if (length === this.size) {
+      this.resize();
+    }
+    this.buf[length] = val;
+  }
+  clone() {
+    return Buffer.from(this.buf.slice(0, this.length));
+  }
+  resize() {
+    const length = this.length;
+    this.size = this.size * 2;
+    const buf = Buffer.allocUnsafe(this.size);
+    this.buf.copy(buf, 0, 0, length);
+    this.buf = buf;
+  }
+  toString(encoding) {
+    if (encoding) {
+      return this.buf.slice(0, this.length).toString(encoding);
+    } else {
+      return Uint8Array.prototype.slice.call(this.buf.slice(0, this.length));
+    }
+  }
+  toJSON() {
+    return this.toString("utf8");
+  }
+  reset() {
+    this.length = 0;
+  }
+}
+const np = 12;
+const cr$1 = 13;
+const nl$1 = 10;
+const space = 32;
+const tab = 9;
+const init_state = function(options) {
+  return {
+    bomSkipped: false,
+    bufBytesStart: 0,
+    castField: options.cast_function,
+    commenting: false,
+    // Current error encountered by a record
+    error: void 0,
+    enabled: options.from_line === 1,
+    escaping: false,
+    escapeIsQuote: Buffer.isBuffer(options.escape) && Buffer.isBuffer(options.quote) && Buffer.compare(options.escape, options.quote) === 0,
+    // columns can be `false`, `true`, `Array`
+    expectedRecordLength: Array.isArray(options.columns) ? options.columns.length : void 0,
+    field: new ResizeableBuffer(20),
+    firstLineToHeaders: options.cast_first_line_to_header,
+    needMoreDataSize: Math.max(
+      // Skip if the remaining buffer smaller than comment
+      options.comment !== null ? options.comment.length : 0,
+      ...options.delimiter.map((delimiter) => delimiter.length),
+      // Skip if the remaining buffer can be escape sequence
+      options.quote !== null ? options.quote.length : 0
+    ),
+    previousBuf: void 0,
+    quoting: false,
+    stop: false,
+    rawBuffer: new ResizeableBuffer(100),
+    record: [],
+    recordHasError: false,
+    record_length: 0,
+    recordDelimiterMaxLength: options.record_delimiter.length === 0 ? 0 : Math.max(...options.record_delimiter.map((v) => v.length)),
+    trimChars: [
+      Buffer.from(" ", options.encoding)[0],
+      Buffer.from("	", options.encoding)[0]
+    ],
+    wasQuoting: false,
+    wasRowDelimiter: false,
+    timchars: [
+      Buffer.from(Buffer.from([cr$1], "utf8").toString(), options.encoding),
+      Buffer.from(Buffer.from([nl$1], "utf8").toString(), options.encoding),
+      Buffer.from(Buffer.from([np], "utf8").toString(), options.encoding),
+      Buffer.from(Buffer.from([space], "utf8").toString(), options.encoding),
+      Buffer.from(Buffer.from([tab], "utf8").toString(), options.encoding)
+    ]
+  };
+};
+const underscore = function(str) {
+  return str.replace(/([A-Z])/g, function(_, match) {
+    return "_" + match.toLowerCase();
+  });
+};
+const normalize_options = function(opts) {
+  const options = {};
+  for (const opt in opts) {
+    options[underscore(opt)] = opts[opt];
+  }
+  if (options.encoding === void 0 || options.encoding === true) {
+    options.encoding = "utf8";
+  } else if (options.encoding === null || options.encoding === false) {
+    options.encoding = null;
+  } else if (typeof options.encoding !== "string" && options.encoding !== null) {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_ENCODING",
+      [
+        "Invalid option encoding:",
+        "encoding must be a string or null to return a buffer,",
+        `got ${JSON.stringify(options.encoding)}`
+      ],
+      options
+    );
+  }
+  if (options.bom === void 0 || options.bom === null || options.bom === false) {
+    options.bom = false;
+  } else if (options.bom !== true) {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_BOM",
+      [
+        "Invalid option bom:",
+        "bom must be true,",
+        `got ${JSON.stringify(options.bom)}`
+      ],
+      options
+    );
+  }
+  options.cast_function = null;
+  if (options.cast === void 0 || options.cast === null || options.cast === false || options.cast === "") {
+    options.cast = void 0;
+  } else if (typeof options.cast === "function") {
+    options.cast_function = options.cast;
+    options.cast = true;
+  } else if (options.cast !== true) {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_CAST",
+      [
+        "Invalid option cast:",
+        "cast must be true or a function,",
+        `got ${JSON.stringify(options.cast)}`
+      ],
+      options
+    );
+  }
+  if (options.cast_date === void 0 || options.cast_date === null || options.cast_date === false || options.cast_date === "") {
+    options.cast_date = false;
+  } else if (options.cast_date === true) {
+    options.cast_date = function(value) {
+      const date = Date.parse(value);
+      return !isNaN(date) ? new Date(date) : value;
+    };
+  } else if (typeof options.cast_date !== "function") {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_CAST_DATE",
+      [
+        "Invalid option cast_date:",
+        "cast_date must be true or a function,",
+        `got ${JSON.stringify(options.cast_date)}`
+      ],
+      options
+    );
+  }
+  options.cast_first_line_to_header = void 0;
+  if (options.columns === true) {
+    options.cast_first_line_to_header = void 0;
+  } else if (typeof options.columns === "function") {
+    options.cast_first_line_to_header = options.columns;
+    options.columns = true;
+  } else if (Array.isArray(options.columns)) {
+    options.columns = normalize_columns_array(options.columns);
+  } else if (options.columns === void 0 || options.columns === null || options.columns === false) {
+    options.columns = false;
+  } else {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_COLUMNS",
+      [
+        "Invalid option columns:",
+        "expect an array, a function or true,",
+        `got ${JSON.stringify(options.columns)}`
+      ],
+      options
+    );
+  }
+  if (options.group_columns_by_name === void 0 || options.group_columns_by_name === null || options.group_columns_by_name === false) {
+    options.group_columns_by_name = false;
+  } else if (options.group_columns_by_name !== true) {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_GROUP_COLUMNS_BY_NAME",
+      [
+        "Invalid option group_columns_by_name:",
+        "expect an boolean,",
+        `got ${JSON.stringify(options.group_columns_by_name)}`
+      ],
+      options
+    );
+  } else if (options.columns === false) {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_GROUP_COLUMNS_BY_NAME",
+      [
+        "Invalid option group_columns_by_name:",
+        "the `columns` mode must be activated."
+      ],
+      options
+    );
+  }
+  if (options.comment === void 0 || options.comment === null || options.comment === false || options.comment === "") {
+    options.comment = null;
+  } else {
+    if (typeof options.comment === "string") {
+      options.comment = Buffer.from(options.comment, options.encoding);
+    }
+    if (!Buffer.isBuffer(options.comment)) {
+      throw new CsvError(
+        "CSV_INVALID_OPTION_COMMENT",
+        [
+          "Invalid option comment:",
+          "comment must be a buffer or a string,",
+          `got ${JSON.stringify(options.comment)}`
+        ],
+        options
+      );
+    }
+  }
+  if (options.comment_no_infix === void 0 || options.comment_no_infix === null || options.comment_no_infix === false) {
+    options.comment_no_infix = false;
+  } else if (options.comment_no_infix !== true) {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_COMMENT",
+      [
+        "Invalid option comment_no_infix:",
+        "value must be a boolean,",
+        `got ${JSON.stringify(options.comment_no_infix)}`
+      ],
+      options
+    );
+  }
+  const delimiter_json = JSON.stringify(options.delimiter);
+  if (!Array.isArray(options.delimiter))
+    options.delimiter = [options.delimiter];
+  if (options.delimiter.length === 0) {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_DELIMITER",
+      [
+        "Invalid option delimiter:",
+        "delimiter must be a non empty string or buffer or array of string|buffer,",
+        `got ${delimiter_json}`
+      ],
+      options
+    );
+  }
+  options.delimiter = options.delimiter.map(function(delimiter) {
+    if (delimiter === void 0 || delimiter === null || delimiter === false) {
+      return Buffer.from(",", options.encoding);
+    }
+    if (typeof delimiter === "string") {
+      delimiter = Buffer.from(delimiter, options.encoding);
+    }
+    if (!Buffer.isBuffer(delimiter) || delimiter.length === 0) {
+      throw new CsvError(
+        "CSV_INVALID_OPTION_DELIMITER",
+        [
+          "Invalid option delimiter:",
+          "delimiter must be a non empty string or buffer or array of string|buffer,",
+          `got ${delimiter_json}`
+        ],
+        options
+      );
+    }
+    return delimiter;
+  });
+  if (options.escape === void 0 || options.escape === true) {
+    options.escape = Buffer.from('"', options.encoding);
+  } else if (typeof options.escape === "string") {
+    options.escape = Buffer.from(options.escape, options.encoding);
+  } else if (options.escape === null || options.escape === false) {
+    options.escape = null;
+  }
+  if (options.escape !== null) {
+    if (!Buffer.isBuffer(options.escape)) {
+      throw new Error(
+        `Invalid Option: escape must be a buffer, a string or a boolean, got ${JSON.stringify(options.escape)}`
+      );
+    }
+  }
+  if (options.from === void 0 || options.from === null) {
+    options.from = 1;
+  } else {
+    if (typeof options.from === "string" && /\d+/.test(options.from)) {
+      options.from = parseInt(options.from);
+    }
+    if (Number.isInteger(options.from)) {
+      if (options.from < 0) {
+        throw new Error(
+          `Invalid Option: from must be a positive integer, got ${JSON.stringify(opts.from)}`
+        );
+      }
+    } else {
+      throw new Error(
+        `Invalid Option: from must be an integer, got ${JSON.stringify(options.from)}`
+      );
+    }
+  }
+  if (options.from_line === void 0 || options.from_line === null) {
+    options.from_line = 1;
+  } else {
+    if (typeof options.from_line === "string" && /\d+/.test(options.from_line)) {
+      options.from_line = parseInt(options.from_line);
+    }
+    if (Number.isInteger(options.from_line)) {
+      if (options.from_line <= 0) {
+        throw new Error(
+          `Invalid Option: from_line must be a positive integer greater than 0, got ${JSON.stringify(opts.from_line)}`
+        );
+      }
+    } else {
+      throw new Error(
+        `Invalid Option: from_line must be an integer, got ${JSON.stringify(opts.from_line)}`
+      );
+    }
+  }
+  if (options.ignore_last_delimiters === void 0 || options.ignore_last_delimiters === null) {
+    options.ignore_last_delimiters = false;
+  } else if (typeof options.ignore_last_delimiters === "number") {
+    options.ignore_last_delimiters = Math.floor(options.ignore_last_delimiters);
+    if (options.ignore_last_delimiters === 0) {
+      options.ignore_last_delimiters = false;
+    }
+  } else if (typeof options.ignore_last_delimiters !== "boolean") {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_IGNORE_LAST_DELIMITERS",
+      [
+        "Invalid option `ignore_last_delimiters`:",
+        "the value must be a boolean value or an integer,",
+        `got ${JSON.stringify(options.ignore_last_delimiters)}`
+      ],
+      options
+    );
+  }
+  if (options.ignore_last_delimiters === true && options.columns === false) {
+    throw new CsvError(
+      "CSV_IGNORE_LAST_DELIMITERS_REQUIRES_COLUMNS",
+      [
+        "The option `ignore_last_delimiters`",
+        "requires the activation of the `columns` option"
+      ],
+      options
+    );
+  }
+  if (options.info === void 0 || options.info === null || options.info === false) {
+    options.info = false;
+  } else if (options.info !== true) {
+    throw new Error(
+      `Invalid Option: info must be true, got ${JSON.stringify(options.info)}`
+    );
+  }
+  if (options.max_record_size === void 0 || options.max_record_size === null || options.max_record_size === false) {
+    options.max_record_size = 0;
+  } else if (Number.isInteger(options.max_record_size) && options.max_record_size >= 0) ;
+  else if (typeof options.max_record_size === "string" && /\d+/.test(options.max_record_size)) {
+    options.max_record_size = parseInt(options.max_record_size);
+  } else {
+    throw new Error(
+      `Invalid Option: max_record_size must be a positive integer, got ${JSON.stringify(options.max_record_size)}`
+    );
+  }
+  if (options.objname === void 0 || options.objname === null || options.objname === false) {
+    options.objname = void 0;
+  } else if (Buffer.isBuffer(options.objname)) {
+    if (options.objname.length === 0) {
+      throw new Error(`Invalid Option: objname must be a non empty buffer`);
+    }
+    if (options.encoding === null) ;
+    else {
+      options.objname = options.objname.toString(options.encoding);
+    }
+  } else if (typeof options.objname === "string") {
+    if (options.objname.length === 0) {
+      throw new Error(`Invalid Option: objname must be a non empty string`);
+    }
+  } else if (typeof options.objname === "number") ;
+  else {
+    throw new Error(
+      `Invalid Option: objname must be a string or a buffer, got ${options.objname}`
+    );
+  }
+  if (options.objname !== void 0) {
+    if (typeof options.objname === "number") {
+      if (options.columns !== false) {
+        throw Error(
+          "Invalid Option: objname index cannot be combined with columns or be defined as a field"
+        );
+      }
+    } else {
+      if (options.columns === false) {
+        throw Error(
+          "Invalid Option: objname field must be combined with columns or be defined as an index"
+        );
+      }
+    }
+  }
+  if (options.on_record === void 0 || options.on_record === null) {
+    options.on_record = void 0;
+  } else if (typeof options.on_record !== "function") {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_ON_RECORD",
+      [
+        "Invalid option `on_record`:",
+        "expect a function,",
+        `got ${JSON.stringify(options.on_record)}`
+      ],
+      options
+    );
+  }
+  if (options.on_skip !== void 0 && options.on_skip !== null && typeof options.on_skip !== "function") {
+    throw new Error(
+      `Invalid Option: on_skip must be a function, got ${JSON.stringify(options.on_skip)}`
+    );
+  }
+  if (options.quote === null || options.quote === false || options.quote === "") {
+    options.quote = null;
+  } else {
+    if (options.quote === void 0 || options.quote === true) {
+      options.quote = Buffer.from('"', options.encoding);
+    } else if (typeof options.quote === "string") {
+      options.quote = Buffer.from(options.quote, options.encoding);
+    }
+    if (!Buffer.isBuffer(options.quote)) {
+      throw new Error(
+        `Invalid Option: quote must be a buffer or a string, got ${JSON.stringify(options.quote)}`
+      );
+    }
+  }
+  if (options.raw === void 0 || options.raw === null || options.raw === false) {
+    options.raw = false;
+  } else if (options.raw !== true) {
+    throw new Error(
+      `Invalid Option: raw must be true, got ${JSON.stringify(options.raw)}`
+    );
+  }
+  if (options.record_delimiter === void 0) {
+    options.record_delimiter = [];
+  } else if (typeof options.record_delimiter === "string" || Buffer.isBuffer(options.record_delimiter)) {
+    if (options.record_delimiter.length === 0) {
+      throw new CsvError(
+        "CSV_INVALID_OPTION_RECORD_DELIMITER",
+        [
+          "Invalid option `record_delimiter`:",
+          "value must be a non empty string or buffer,",
+          `got ${JSON.stringify(options.record_delimiter)}`
+        ],
+        options
+      );
+    }
+    options.record_delimiter = [options.record_delimiter];
+  } else if (!Array.isArray(options.record_delimiter)) {
+    throw new CsvError(
+      "CSV_INVALID_OPTION_RECORD_DELIMITER",
+      [
+        "Invalid option `record_delimiter`:",
+        "value must be a string, a buffer or array of string|buffer,",
+        `got ${JSON.stringify(options.record_delimiter)}`
+      ],
+      options
+    );
+  }
+  options.record_delimiter = options.record_delimiter.map(function(rd, i) {
+    if (typeof rd !== "string" && !Buffer.isBuffer(rd)) {
+      throw new CsvError(
+        "CSV_INVALID_OPTION_RECORD_DELIMITER",
+        [
+          "Invalid option `record_delimiter`:",
+          "value must be a string, a buffer or array of string|buffer",
+          `at index ${i},`,
+          `got ${JSON.stringify(rd)}`
+        ],
+        options
+      );
+    } else if (rd.length === 0) {
+      throw new CsvError(
+        "CSV_INVALID_OPTION_RECORD_DELIMITER",
+        [
+          "Invalid option `record_delimiter`:",
+          "value must be a non empty string or buffer",
+          `at index ${i},`,
+          `got ${JSON.stringify(rd)}`
+        ],
+        options
+      );
+    }
+    if (typeof rd === "string") {
+      rd = Buffer.from(rd, options.encoding);
+    }
+    return rd;
+  });
+  if (typeof options.relax_column_count === "boolean") ;
+  else if (options.relax_column_count === void 0 || options.relax_column_count === null) {
+    options.relax_column_count = false;
+  } else {
+    throw new Error(
+      `Invalid Option: relax_column_count must be a boolean, got ${JSON.stringify(options.relax_column_count)}`
+    );
+  }
+  if (typeof options.relax_column_count_less === "boolean") ;
+  else if (options.relax_column_count_less === void 0 || options.relax_column_count_less === null) {
+    options.relax_column_count_less = false;
+  } else {
+    throw new Error(
+      `Invalid Option: relax_column_count_less must be a boolean, got ${JSON.stringify(options.relax_column_count_less)}`
+    );
+  }
+  if (typeof options.relax_column_count_more === "boolean") ;
+  else if (options.relax_column_count_more === void 0 || options.relax_column_count_more === null) {
+    options.relax_column_count_more = false;
+  } else {
+    throw new Error(
+      `Invalid Option: relax_column_count_more must be a boolean, got ${JSON.stringify(options.relax_column_count_more)}`
+    );
+  }
+  if (typeof options.relax_quotes === "boolean") ;
+  else if (options.relax_quotes === void 0 || options.relax_quotes === null) {
+    options.relax_quotes = false;
+  } else {
+    throw new Error(
+      `Invalid Option: relax_quotes must be a boolean, got ${JSON.stringify(options.relax_quotes)}`
+    );
+  }
+  if (typeof options.skip_empty_lines === "boolean") ;
+  else if (options.skip_empty_lines === void 0 || options.skip_empty_lines === null) {
+    options.skip_empty_lines = false;
+  } else {
+    throw new Error(
+      `Invalid Option: skip_empty_lines must be a boolean, got ${JSON.stringify(options.skip_empty_lines)}`
+    );
+  }
+  if (typeof options.skip_records_with_empty_values === "boolean") ;
+  else if (options.skip_records_with_empty_values === void 0 || options.skip_records_with_empty_values === null) {
+    options.skip_records_with_empty_values = false;
+  } else {
+    throw new Error(
+      `Invalid Option: skip_records_with_empty_values must be a boolean, got ${JSON.stringify(options.skip_records_with_empty_values)}`
+    );
+  }
+  if (typeof options.skip_records_with_error === "boolean") ;
+  else if (options.skip_records_with_error === void 0 || options.skip_records_with_error === null) {
+    options.skip_records_with_error = false;
+  } else {
+    throw new Error(
+      `Invalid Option: skip_records_with_error must be a boolean, got ${JSON.stringify(options.skip_records_with_error)}`
+    );
+  }
+  if (options.rtrim === void 0 || options.rtrim === null || options.rtrim === false) {
+    options.rtrim = false;
+  } else if (options.rtrim !== true) {
+    throw new Error(
+      `Invalid Option: rtrim must be a boolean, got ${JSON.stringify(options.rtrim)}`
+    );
+  }
+  if (options.ltrim === void 0 || options.ltrim === null || options.ltrim === false) {
+    options.ltrim = false;
+  } else if (options.ltrim !== true) {
+    throw new Error(
+      `Invalid Option: ltrim must be a boolean, got ${JSON.stringify(options.ltrim)}`
+    );
+  }
+  if (options.trim === void 0 || options.trim === null || options.trim === false) {
+    options.trim = false;
+  } else if (options.trim !== true) {
+    throw new Error(
+      `Invalid Option: trim must be a boolean, got ${JSON.stringify(options.trim)}`
+    );
+  }
+  if (options.trim === true && opts.ltrim !== false) {
+    options.ltrim = true;
+  } else if (options.ltrim !== true) {
+    options.ltrim = false;
+  }
+  if (options.trim === true && opts.rtrim !== false) {
+    options.rtrim = true;
+  } else if (options.rtrim !== true) {
+    options.rtrim = false;
+  }
+  if (options.to === void 0 || options.to === null) {
+    options.to = -1;
+  } else if (options.to !== -1) {
+    if (typeof options.to === "string" && /\d+/.test(options.to)) {
+      options.to = parseInt(options.to);
+    }
+    if (Number.isInteger(options.to)) {
+      if (options.to <= 0) {
+        throw new Error(
+          `Invalid Option: to must be a positive integer greater than 0, got ${JSON.stringify(opts.to)}`
+        );
+      }
+    } else {
+      throw new Error(
+        `Invalid Option: to must be an integer, got ${JSON.stringify(opts.to)}`
+      );
+    }
+  }
+  if (options.to_line === void 0 || options.to_line === null) {
+    options.to_line = -1;
+  } else if (options.to_line !== -1) {
+    if (typeof options.to_line === "string" && /\d+/.test(options.to_line)) {
+      options.to_line = parseInt(options.to_line);
+    }
+    if (Number.isInteger(options.to_line)) {
+      if (options.to_line <= 0) {
+        throw new Error(
+          `Invalid Option: to_line must be a positive integer greater than 0, got ${JSON.stringify(opts.to_line)}`
+        );
+      }
+    } else {
+      throw new Error(
+        `Invalid Option: to_line must be an integer, got ${JSON.stringify(opts.to_line)}`
+      );
+    }
+  }
+  return options;
+};
+const isRecordEmpty = function(record) {
+  return record.every(
+    (field) => field == null || field.toString && field.toString().trim() === ""
+  );
+};
+const cr = 13;
+const nl = 10;
+const boms = {
+  // Note, the following are equals:
+  // Buffer.from("\ufeff")
+  // Buffer.from([239, 187, 191])
+  // Buffer.from('EFBBBF', 'hex')
+  utf8: Buffer.from([239, 187, 191]),
+  // Note, the following are equals:
+  // Buffer.from "\ufeff", 'utf16le
+  // Buffer.from([255, 254])
+  utf16le: Buffer.from([255, 254])
+};
+const transform = function(original_options = {}) {
+  const info = {
+    bytes: 0,
+    comment_lines: 0,
+    empty_lines: 0,
+    invalid_field_length: 0,
+    lines: 1,
+    records: 0
+  };
+  const options = normalize_options(original_options);
+  return {
+    info,
+    original_options,
+    options,
+    state: init_state(options),
+    __needMoreData: function(i, bufLen, end) {
+      if (end) return false;
+      const { encoding, escape, quote } = this.options;
+      const { quoting, needMoreDataSize, recordDelimiterMaxLength } = this.state;
+      const numOfCharLeft = bufLen - i - 1;
+      const requiredLength = Math.max(
+        needMoreDataSize,
+        // Skip if the remaining buffer smaller than record delimiter
+        // If "record_delimiter" is yet to be discovered:
+        // 1. It is equals to `[]` and "recordDelimiterMaxLength" equals `0`
+        // 2. We set the length to windows line ending in the current encoding
+        // Note, that encoding is known from user or bom discovery at that point
+        // recordDelimiterMaxLength,
+        recordDelimiterMaxLength === 0 ? Buffer.from("\r\n", encoding).length : recordDelimiterMaxLength,
+        // Skip if remaining buffer can be an escaped quote
+        quoting ? (escape === null ? 0 : escape.length) + quote.length : 0,
+        // Skip if remaining buffer can be record delimiter following the closing quote
+        quoting ? quote.length + recordDelimiterMaxLength : 0
+      );
+      return numOfCharLeft < requiredLength;
+    },
+    // Central parser implementation
+    parse: function(nextBuf, end, push2, close) {
+      const {
+        bom,
+        comment_no_infix,
+        encoding,
+        from_line,
+        ltrim,
+        max_record_size,
+        raw,
+        relax_quotes,
+        rtrim,
+        skip_empty_lines,
+        to,
+        to_line
+      } = this.options;
+      let { comment, escape, quote, record_delimiter } = this.options;
+      const { bomSkipped, previousBuf, rawBuffer, escapeIsQuote } = this.state;
+      let buf;
+      if (previousBuf === void 0) {
+        if (nextBuf === void 0) {
+          close();
+          return;
+        } else {
+          buf = nextBuf;
+        }
+      } else if (previousBuf !== void 0 && nextBuf === void 0) {
+        buf = previousBuf;
+      } else {
+        buf = Buffer.concat([previousBuf, nextBuf]);
+      }
+      if (bomSkipped === false) {
+        if (bom === false) {
+          this.state.bomSkipped = true;
+        } else if (buf.length < 3) {
+          if (end === false) {
+            this.state.previousBuf = buf;
+            return;
+          }
+        } else {
+          for (const encoding2 in boms) {
+            if (boms[encoding2].compare(buf, 0, boms[encoding2].length) === 0) {
+              const bomLength = boms[encoding2].length;
+              this.state.bufBytesStart += bomLength;
+              buf = buf.slice(bomLength);
+              const options2 = normalize_options({
+                ...this.original_options,
+                encoding: encoding2
+              });
+              for (const key in options2) {
+                this.options[key] = options2[key];
+              }
+              ({ comment, escape, quote } = this.options);
+              break;
+            }
+          }
+          this.state.bomSkipped = true;
+        }
+      }
+      const bufLen = buf.length;
+      let pos;
+      for (pos = 0; pos < bufLen; pos++) {
+        if (this.__needMoreData(pos, bufLen, end)) {
+          break;
+        }
+        if (this.state.wasRowDelimiter === true) {
+          this.info.lines++;
+          this.state.wasRowDelimiter = false;
+        }
+        if (to_line !== -1 && this.info.lines > to_line) {
+          this.state.stop = true;
+          close();
+          return;
+        }
+        if (this.state.quoting === false && record_delimiter.length === 0) {
+          const record_delimiterCount = this.__autoDiscoverRecordDelimiter(
+            buf,
+            pos
+          );
+          if (record_delimiterCount) {
+            record_delimiter = this.options.record_delimiter;
+          }
+        }
+        const chr = buf[pos];
+        if (raw === true) {
+          rawBuffer.append(chr);
+        }
+        if ((chr === cr || chr === nl) && this.state.wasRowDelimiter === false) {
+          this.state.wasRowDelimiter = true;
+        }
+        if (this.state.escaping === true) {
+          this.state.escaping = false;
+        } else {
+          if (escape !== null && this.state.quoting === true && this.__isEscape(buf, pos, chr) && pos + escape.length < bufLen) {
+            if (escapeIsQuote) {
+              if (this.__isQuote(buf, pos + escape.length)) {
+                this.state.escaping = true;
+                pos += escape.length - 1;
+                continue;
+              }
+            } else {
+              this.state.escaping = true;
+              pos += escape.length - 1;
+              continue;
+            }
+          }
+          if (this.state.commenting === false && this.__isQuote(buf, pos)) {
+            if (this.state.quoting === true) {
+              const nextChr = buf[pos + quote.length];
+              const isNextChrTrimable = rtrim && this.__isCharTrimable(buf, pos + quote.length);
+              const isNextChrComment = comment !== null && this.__compareBytes(comment, buf, pos + quote.length, nextChr);
+              const isNextChrDelimiter = this.__isDelimiter(
+                buf,
+                pos + quote.length,
+                nextChr
+              );
+              const isNextChrRecordDelimiter = record_delimiter.length === 0 ? this.__autoDiscoverRecordDelimiter(buf, pos + quote.length) : this.__isRecordDelimiter(nextChr, buf, pos + quote.length);
+              if (escape !== null && this.__isEscape(buf, pos, chr) && this.__isQuote(buf, pos + escape.length)) {
+                pos += escape.length - 1;
+              } else if (!nextChr || isNextChrDelimiter || isNextChrRecordDelimiter || isNextChrComment || isNextChrTrimable) {
+                this.state.quoting = false;
+                this.state.wasQuoting = true;
+                pos += quote.length - 1;
+                continue;
+              } else if (relax_quotes === false) {
+                const err = this.__error(
+                  new CsvError(
+                    "CSV_INVALID_CLOSING_QUOTE",
+                    [
+                      "Invalid Closing Quote:",
+                      `got "${String.fromCharCode(nextChr)}"`,
+                      `at line ${this.info.lines}`,
+                      "instead of delimiter, record delimiter, trimable character",
+                      "(if activated) or comment"
+                    ],
+                    this.options,
+                    this.__infoField()
+                  )
+                );
+                if (err !== void 0) return err;
+              } else {
+                this.state.quoting = false;
+                this.state.wasQuoting = true;
+                this.state.field.prepend(quote);
+                pos += quote.length - 1;
+              }
+            } else {
+              if (this.state.field.length !== 0) {
+                if (relax_quotes === false) {
+                  const info2 = this.__infoField();
+                  const bom2 = Object.keys(boms).map(
+                    (b) => boms[b].equals(this.state.field.toString()) ? b : false
+                  ).filter(Boolean)[0];
+                  const err = this.__error(
+                    new CsvError(
+                      "INVALID_OPENING_QUOTE",
+                      [
+                        "Invalid Opening Quote:",
+                        `a quote is found on field ${JSON.stringify(info2.column)} at line ${info2.lines}, value is ${JSON.stringify(this.state.field.toString(encoding))}`,
+                        bom2 ? `(${bom2} bom)` : void 0
+                      ],
+                      this.options,
+                      info2,
+                      {
+                        field: this.state.field
+                      }
+                    )
+                  );
+                  if (err !== void 0) return err;
+                }
+              } else {
+                this.state.quoting = true;
+                pos += quote.length - 1;
+                continue;
+              }
+            }
+          }
+          if (this.state.quoting === false) {
+            const recordDelimiterLength = this.__isRecordDelimiter(
+              chr,
+              buf,
+              pos
+            );
+            if (recordDelimiterLength !== 0) {
+              const skipCommentLine = this.state.commenting && this.state.wasQuoting === false && this.state.record.length === 0 && this.state.field.length === 0;
+              if (skipCommentLine) {
+                this.info.comment_lines++;
+              } else {
+                if (this.state.enabled === false && this.info.lines + (this.state.wasRowDelimiter === true ? 1 : 0) >= from_line) {
+                  this.state.enabled = true;
+                  this.__resetField();
+                  this.__resetRecord();
+                  pos += recordDelimiterLength - 1;
+                  continue;
+                }
+                if (skip_empty_lines === true && this.state.wasQuoting === false && this.state.record.length === 0 && this.state.field.length === 0) {
+                  this.info.empty_lines++;
+                  pos += recordDelimiterLength - 1;
+                  continue;
+                }
+                this.info.bytes = this.state.bufBytesStart + pos;
+                const errField = this.__onField();
+                if (errField !== void 0) return errField;
+                this.info.bytes = this.state.bufBytesStart + pos + recordDelimiterLength;
+                const errRecord = this.__onRecord(push2);
+                if (errRecord !== void 0) return errRecord;
+                if (to !== -1 && this.info.records >= to) {
+                  this.state.stop = true;
+                  close();
+                  return;
+                }
+              }
+              this.state.commenting = false;
+              pos += recordDelimiterLength - 1;
+              continue;
+            }
+            if (this.state.commenting) {
+              continue;
+            }
+            if (comment !== null && (comment_no_infix === false || this.state.record.length === 0 && this.state.field.length === 0)) {
+              const commentCount = this.__compareBytes(comment, buf, pos, chr);
+              if (commentCount !== 0) {
+                this.state.commenting = true;
+                continue;
+              }
+            }
+            const delimiterLength = this.__isDelimiter(buf, pos, chr);
+            if (delimiterLength !== 0) {
+              this.info.bytes = this.state.bufBytesStart + pos;
+              const errField = this.__onField();
+              if (errField !== void 0) return errField;
+              pos += delimiterLength - 1;
+              continue;
+            }
+          }
+        }
+        if (this.state.commenting === false) {
+          if (max_record_size !== 0 && this.state.record_length + this.state.field.length > max_record_size) {
+            return this.__error(
+              new CsvError(
+                "CSV_MAX_RECORD_SIZE",
+                [
+                  "Max Record Size:",
+                  "record exceed the maximum number of tolerated bytes",
+                  `of ${max_record_size}`,
+                  `at line ${this.info.lines}`
+                ],
+                this.options,
+                this.__infoField()
+              )
+            );
+          }
+        }
+        const lappend = ltrim === false || this.state.quoting === true || this.state.field.length !== 0 || !this.__isCharTrimable(buf, pos);
+        const rappend = rtrim === false || this.state.wasQuoting === false;
+        if (lappend === true && rappend === true) {
+          this.state.field.append(chr);
+        } else if (rtrim === true && !this.__isCharTrimable(buf, pos)) {
+          return this.__error(
+            new CsvError(
+              "CSV_NON_TRIMABLE_CHAR_AFTER_CLOSING_QUOTE",
+              [
+                "Invalid Closing Quote:",
+                "found non trimable byte after quote",
+                `at line ${this.info.lines}`
+              ],
+              this.options,
+              this.__infoField()
+            )
+          );
+        } else {
+          if (lappend === false) {
+            pos += this.__isCharTrimable(buf, pos) - 1;
+          }
+          continue;
+        }
+      }
+      if (end === true) {
+        if (this.state.quoting === true) {
+          const err = this.__error(
+            new CsvError(
+              "CSV_QUOTE_NOT_CLOSED",
+              [
+                "Quote Not Closed:",
+                `the parsing is finished with an opening quote at line ${this.info.lines}`
+              ],
+              this.options,
+              this.__infoField()
+            )
+          );
+          if (err !== void 0) return err;
+        } else {
+          if (this.state.wasQuoting === true || this.state.record.length !== 0 || this.state.field.length !== 0) {
+            this.info.bytes = this.state.bufBytesStart + pos;
+            const errField = this.__onField();
+            if (errField !== void 0) return errField;
+            const errRecord = this.__onRecord(push2);
+            if (errRecord !== void 0) return errRecord;
+          } else if (this.state.wasRowDelimiter === true) {
+            this.info.empty_lines++;
+          } else if (this.state.commenting === true) {
+            this.info.comment_lines++;
+          }
+        }
+      } else {
+        this.state.bufBytesStart += pos;
+        this.state.previousBuf = buf.slice(pos);
+      }
+      if (this.state.wasRowDelimiter === true) {
+        this.info.lines++;
+        this.state.wasRowDelimiter = false;
+      }
+    },
+    __onRecord: function(push2) {
+      const {
+        columns,
+        group_columns_by_name,
+        encoding,
+        info: info2,
+        from,
+        relax_column_count,
+        relax_column_count_less,
+        relax_column_count_more,
+        raw,
+        skip_records_with_empty_values
+      } = this.options;
+      const { enabled, record } = this.state;
+      if (enabled === false) {
+        return this.__resetRecord();
+      }
+      const recordLength = record.length;
+      if (columns === true) {
+        if (skip_records_with_empty_values === true && isRecordEmpty(record)) {
+          this.__resetRecord();
+          return;
+        }
+        return this.__firstLineToColumns(record);
+      }
+      if (columns === false && this.info.records === 0) {
+        this.state.expectedRecordLength = recordLength;
+      }
+      if (recordLength !== this.state.expectedRecordLength) {
+        const err = columns === false ? new CsvError(
+          "CSV_RECORD_INCONSISTENT_FIELDS_LENGTH",
+          [
+            "Invalid Record Length:",
+            `expect ${this.state.expectedRecordLength},`,
+            `got ${recordLength} on line ${this.info.lines}`
+          ],
+          this.options,
+          this.__infoField(),
+          {
+            record
+          }
+        ) : new CsvError(
+          "CSV_RECORD_INCONSISTENT_COLUMNS",
+          [
+            "Invalid Record Length:",
+            `columns length is ${columns.length},`,
+            // rename columns
+            `got ${recordLength} on line ${this.info.lines}`
+          ],
+          this.options,
+          this.__infoField(),
+          {
+            record
+          }
+        );
+        if (relax_column_count === true || relax_column_count_less === true && recordLength < this.state.expectedRecordLength || relax_column_count_more === true && recordLength > this.state.expectedRecordLength) {
+          this.info.invalid_field_length++;
+          this.state.error = err;
+        } else {
+          const finalErr = this.__error(err);
+          if (finalErr) return finalErr;
+        }
+      }
+      if (skip_records_with_empty_values === true && isRecordEmpty(record)) {
+        this.__resetRecord();
+        return;
+      }
+      if (this.state.recordHasError === true) {
+        this.__resetRecord();
+        this.state.recordHasError = false;
+        return;
+      }
+      this.info.records++;
+      if (from === 1 || this.info.records >= from) {
+        const { objname } = this.options;
+        if (columns !== false) {
+          const obj = {};
+          for (let i = 0, l = record.length; i < l; i++) {
+            if (columns[i] === void 0 || columns[i].disabled) continue;
+            if (group_columns_by_name === true && obj[columns[i].name] !== void 0) {
+              if (Array.isArray(obj[columns[i].name])) {
+                obj[columns[i].name] = obj[columns[i].name].concat(record[i]);
+              } else {
+                obj[columns[i].name] = [obj[columns[i].name], record[i]];
+              }
+            } else {
+              obj[columns[i].name] = record[i];
+            }
+          }
+          if (raw === true || info2 === true) {
+            const extRecord = Object.assign(
+              { record: obj },
+              raw === true ? { raw: this.state.rawBuffer.toString(encoding) } : {},
+              info2 === true ? { info: this.__infoRecord() } : {}
+            );
+            const err = this.__push(
+              objname === void 0 ? extRecord : [obj[objname], extRecord],
+              push2
+            );
+            if (err) {
+              return err;
+            }
+          } else {
+            const err = this.__push(
+              objname === void 0 ? obj : [obj[objname], obj],
+              push2
+            );
+            if (err) {
+              return err;
+            }
+          }
+        } else {
+          if (raw === true || info2 === true) {
+            const extRecord = Object.assign(
+              { record },
+              raw === true ? { raw: this.state.rawBuffer.toString(encoding) } : {},
+              info2 === true ? { info: this.__infoRecord() } : {}
+            );
+            const err = this.__push(
+              objname === void 0 ? extRecord : [record[objname], extRecord],
+              push2
+            );
+            if (err) {
+              return err;
+            }
+          } else {
+            const err = this.__push(
+              objname === void 0 ? record : [record[objname], record],
+              push2
+            );
+            if (err) {
+              return err;
+            }
+          }
+        }
+      }
+      this.__resetRecord();
+    },
+    __firstLineToColumns: function(record) {
+      const { firstLineToHeaders } = this.state;
+      try {
+        const headers = firstLineToHeaders === void 0 ? record : firstLineToHeaders.call(null, record);
+        if (!Array.isArray(headers)) {
+          return this.__error(
+            new CsvError(
+              "CSV_INVALID_COLUMN_MAPPING",
+              [
+                "Invalid Column Mapping:",
+                "expect an array from column function,",
+                `got ${JSON.stringify(headers)}`
+              ],
+              this.options,
+              this.__infoField(),
+              {
+                headers
+              }
+            )
+          );
+        }
+        const normalizedHeaders = normalize_columns_array(headers);
+        this.state.expectedRecordLength = normalizedHeaders.length;
+        this.options.columns = normalizedHeaders;
+        this.__resetRecord();
+        return;
+      } catch (err) {
+        return err;
+      }
+    },
+    __resetRecord: function() {
+      if (this.options.raw === true) {
+        this.state.rawBuffer.reset();
+      }
+      this.state.error = void 0;
+      this.state.record = [];
+      this.state.record_length = 0;
+    },
+    __onField: function() {
+      const { cast, encoding, rtrim, max_record_size } = this.options;
+      const { enabled, wasQuoting } = this.state;
+      if (enabled === false) {
+        return this.__resetField();
+      }
+      let field = this.state.field.toString(encoding);
+      if (rtrim === true && wasQuoting === false) {
+        field = field.trimRight();
+      }
+      if (cast === true) {
+        const [err, f] = this.__cast(field);
+        if (err !== void 0) return err;
+        field = f;
+      }
+      this.state.record.push(field);
+      if (max_record_size !== 0 && typeof field === "string") {
+        this.state.record_length += field.length;
+      }
+      this.__resetField();
+    },
+    __resetField: function() {
+      this.state.field.reset();
+      this.state.wasQuoting = false;
+    },
+    __push: function(record, push2) {
+      const { on_record } = this.options;
+      if (on_record !== void 0) {
+        const info2 = this.__infoRecord();
+        try {
+          record = on_record.call(null, record, info2);
+        } catch (err) {
+          return err;
+        }
+        if (record === void 0 || record === null) {
+          return;
+        }
+      }
+      push2(record);
+    },
+    // Return a tuple with the error and the casted value
+    __cast: function(field) {
+      const { columns, relax_column_count } = this.options;
+      const isColumns = Array.isArray(columns);
+      if (isColumns === true && relax_column_count && this.options.columns.length <= this.state.record.length) {
+        return [void 0, void 0];
+      }
+      if (this.state.castField !== null) {
+        try {
+          const info2 = this.__infoField();
+          return [void 0, this.state.castField.call(null, field, info2)];
+        } catch (err) {
+          return [err];
+        }
+      }
+      if (this.__isFloat(field)) {
+        return [void 0, parseFloat(field)];
+      } else if (this.options.cast_date !== false) {
+        const info2 = this.__infoField();
+        return [void 0, this.options.cast_date.call(null, field, info2)];
+      }
+      return [void 0, field];
+    },
+    // Helper to test if a character is a space or a line delimiter
+    __isCharTrimable: function(buf, pos) {
+      const isTrim = (buf2, pos2) => {
+        const { timchars } = this.state;
+        loop1: for (let i = 0; i < timchars.length; i++) {
+          const timchar = timchars[i];
+          for (let j = 0; j < timchar.length; j++) {
+            if (timchar[j] !== buf2[pos2 + j]) continue loop1;
+          }
+          return timchar.length;
+        }
+        return 0;
+      };
+      return isTrim(buf, pos);
+    },
+    // Keep it in case we implement the `cast_int` option
+    // __isInt(value){
+    //   // return Number.isInteger(parseInt(value))
+    //   // return !isNaN( parseInt( obj ) );
+    //   return /^(\-|\+)?[1-9][0-9]*$/.test(value)
+    // }
+    __isFloat: function(value) {
+      return value - parseFloat(value) + 1 >= 0;
+    },
+    __compareBytes: function(sourceBuf, targetBuf, targetPos, firstByte) {
+      if (sourceBuf[0] !== firstByte) return 0;
+      const sourceLength = sourceBuf.length;
+      for (let i = 1; i < sourceLength; i++) {
+        if (sourceBuf[i] !== targetBuf[targetPos + i]) return 0;
+      }
+      return sourceLength;
+    },
+    __isDelimiter: function(buf, pos, chr) {
+      const { delimiter, ignore_last_delimiters } = this.options;
+      if (ignore_last_delimiters === true && this.state.record.length === this.options.columns.length - 1) {
+        return 0;
+      } else if (ignore_last_delimiters !== false && typeof ignore_last_delimiters === "number" && this.state.record.length === ignore_last_delimiters - 1) {
+        return 0;
+      }
+      loop1: for (let i = 0; i < delimiter.length; i++) {
+        const del = delimiter[i];
+        if (del[0] === chr) {
+          for (let j = 1; j < del.length; j++) {
+            if (del[j] !== buf[pos + j]) continue loop1;
+          }
+          return del.length;
+        }
+      }
+      return 0;
+    },
+    __isRecordDelimiter: function(chr, buf, pos) {
+      const { record_delimiter } = this.options;
+      const recordDelimiterLength = record_delimiter.length;
+      loop1: for (let i = 0; i < recordDelimiterLength; i++) {
+        const rd = record_delimiter[i];
+        const rdLength = rd.length;
+        if (rd[0] !== chr) {
+          continue;
+        }
+        for (let j = 1; j < rdLength; j++) {
+          if (rd[j] !== buf[pos + j]) {
+            continue loop1;
+          }
+        }
+        return rd.length;
+      }
+      return 0;
+    },
+    __isEscape: function(buf, pos, chr) {
+      const { escape } = this.options;
+      if (escape === null) return false;
+      const l = escape.length;
+      if (escape[0] === chr) {
+        for (let i = 0; i < l; i++) {
+          if (escape[i] !== buf[pos + i]) {
+            return false;
+          }
+        }
+        return true;
+      }
+      return false;
+    },
+    __isQuote: function(buf, pos) {
+      const { quote } = this.options;
+      if (quote === null) return false;
+      const l = quote.length;
+      for (let i = 0; i < l; i++) {
+        if (quote[i] !== buf[pos + i]) {
+          return false;
+        }
+      }
+      return true;
+    },
+    __autoDiscoverRecordDelimiter: function(buf, pos) {
+      const { encoding } = this.options;
+      const rds = [
+        // Important, the windows line ending must be before mac os 9
+        Buffer.from("\r\n", encoding),
+        Buffer.from("\n", encoding),
+        Buffer.from("\r", encoding)
+      ];
+      loop: for (let i = 0; i < rds.length; i++) {
+        const l = rds[i].length;
+        for (let j = 0; j < l; j++) {
+          if (rds[i][j] !== buf[pos + j]) {
+            continue loop;
+          }
+        }
+        this.options.record_delimiter.push(rds[i]);
+        this.state.recordDelimiterMaxLength = rds[i].length;
+        return rds[i].length;
+      }
+      return 0;
+    },
+    __error: function(msg) {
+      const { encoding, raw, skip_records_with_error } = this.options;
+      const err = typeof msg === "string" ? new Error(msg) : msg;
+      if (skip_records_with_error) {
+        this.state.recordHasError = true;
+        if (this.options.on_skip !== void 0) {
+          try {
+            this.options.on_skip(
+              err,
+              raw ? this.state.rawBuffer.toString(encoding) : void 0
+            );
+          } catch (err2) {
+            return err2;
+          }
+        }
+        return void 0;
+      } else {
+        return err;
+      }
+    },
+    __infoDataSet: function() {
+      return {
+        ...this.info,
+        columns: this.options.columns
+      };
+    },
+    __infoRecord: function() {
+      const { columns, raw, encoding } = this.options;
+      return {
+        ...this.__infoDataSet(),
+        error: this.state.error,
+        header: columns === true,
+        index: this.state.record.length,
+        raw: raw ? this.state.rawBuffer.toString(encoding) : void 0
+      };
+    },
+    __infoField: function() {
+      const { columns } = this.options;
+      const isColumns = Array.isArray(columns);
+      return {
+        ...this.__infoRecord(),
+        column: isColumns === true ? columns.length > this.state.record.length ? columns[this.state.record.length].name : null : this.state.record.length,
+        quoting: this.state.wasQuoting
+      };
+    }
+  };
+};
+const parse3 = function(data, opts = {}) {
+  if (typeof data === "string") {
+    data = Buffer.from(data);
+  }
+  const records = opts && opts.objname ? {} : [];
+  const parser = transform(opts);
+  const push2 = (record) => {
+    if (parser.options.objname === void 0) records.push(record);
+    else {
+      records[record[0]] = record[1];
+    }
+  };
+  const close = () => {
+  };
+  const error = parser.parse(data, true, push2, close);
+  if (error !== void 0) throw error;
+  return records;
+};
+function readCsvFile(filePath) {
+  const raw = fs.readFileSync(filePath, "utf-8");
+  const rows = parse3(raw, {
+    columns: true,
+    bom: true,
+    trim: true,
+    skip_empty_lines: true,
+    relax_column_count: true
+  });
+  const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+  return { headers, rows };
+}
+function normalizeAppPassword(pass) {
+  return String(pass ?? "").replace(/\s+/g, "");
+}
+function sendableAccounts(config) {
+  return (config?.accounts || []).filter((a) => a.enabled && a.user && a.pass);
+}
+function buildProcessors(config, onSuccess) {
+  const map = /* @__PURE__ */ new Map();
+  for (const account of sendableAccounts(config)) {
+    const perAccountConfig = {
+      ...config,
+      smtp: { host: account.host, port: account.port, user: account.user, pass: account.pass }
+    };
+    const emailService = new EmailService(perAccountConfig);
+    const processor = new MailProcessor(perAccountConfig, emailService, onSuccess, account.id);
+    map.set(account.id, processor);
+  }
+  return map;
+}
+async function runAllAccounts(config, onSuccess) {
+  const agg = { total: 0, sent: 0, skipped: 0, failed: 0 };
+  const processors = buildProcessors(config, onSuccess);
+  if (processors.size === 0) return agg;
+  const results = await Promise.all(
+    [...processors.values()].map((p) => p.processEmails())
+  );
+  for (const r of results) {
+    agg.total += r.total;
+    agg.sent += r.sent;
+    agg.skipped += r.skipped;
+    agg.failed += r.failed;
+  }
+  return agg;
+}
+class StatsManager {
+  constructor(basePath) {
+    this.statsPath = path.join(basePath, "stats.json");
+    this.currentStats = this.loadStats();
+  }
+  loadStats() {
+    if (!fs.existsSync(this.statsPath)) {
+      return { totalEmailsSent: 0, perAccount: {} };
+    }
+    try {
+      const data = JSON.parse(fs.readFileSync(this.statsPath, "utf-8"));
+      const perAccount = {};
+      if (data && data.perAccount && typeof data.perAccount === "object") {
+        for (const [k, v] of Object.entries(data.perAccount)) {
+          perAccount[k] = Number(v) || 0;
+        }
+      }
+      return { totalEmailsSent: Number(data?.totalEmailsSent) || 0, perAccount };
+    } catch (e) {
+      console.error("Failed to load stats:", e);
+      return { totalEmailsSent: 0, perAccount: {} };
+    }
+  }
+  saveStats() {
+    try {
+      atomicWriteFileSync(this.statsPath, JSON.stringify(this.currentStats, null, 2));
+    } catch (e) {
+      console.error("Failed to save stats:", e);
+    }
+  }
+  getStats() {
+    return this.currentStats;
+  }
+  incrementEmailsSent(accountId) {
+    this.currentStats.totalEmailsSent++;
+    if (accountId) {
+      if (!this.currentStats.perAccount) this.currentStats.perAccount = {};
+      this.currentStats.perAccount[accountId] = (this.currentStats.perAccount[accountId] || 0) + 1;
+    }
+    this.saveStats();
+  }
+}
+function envText(v) {
+  return '"' + String(v ?? "").replace(/"/g, '\\"').replace(/[\r\n]/g, " ") + '"';
+}
+function encryptPassword(pass) {
+  if (!pass) return "";
+  if (electron.safeStorage.isEncryptionAvailable()) {
+    try {
+      const encrypted = electron.safeStorage.encryptString(pass);
+      return `ENC:${encrypted.toString("base64")}`;
+    } catch (err) {
+      console.error("safeStorage encryption failed:", err);
+    }
+  }
+  return pass;
+}
+function envPath(v) {
+  return '"' + String(v ?? "").replace(/\\/g, "/").replace(/"/g, '\\"').replace(/[\r\n]/g, " ") + '"';
+}
+function setupDataDir() {
+  if (!electron.app.isPackaged) return;
+  const dataDir = electron.app.getPath("userData");
+  process.env.MAIL_DATA_DIR = dataDir;
+  try {
+    const legacyDir = path.dirname(process.execPath);
+    if (legacyDir === dataDir) return;
+    const files = [".env", "recipients.json", "recipients.csv", "template.html", "template.txt", "stats.json", "limits.json", "suppression.json", "accounts.json", "scheduler.json"];
+    for (const f of files) {
+      const src = path.join(legacyDir, f);
+      const dest = path.join(dataDir, f);
+      if (!fs.existsSync(dest) && fs.existsSync(src)) {
+        fs.copyFileSync(src, dest);
+      }
+    }
+  } catch {
+  }
+}
+process.env.DIST = path.join(__dirname, "../dist-vite");
+process.env.VITE_PUBLIC = electron.app.isPackaged ? process.env.DIST : path.join(process.env.DIST, "../public");
+let win;
+let tray = null;
+let trayAvailable = false;
+let isQuitting = false;
+const startHidden = process.argv.includes("--hidden");
+const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
+let globalScheduler = null;
+let globalMailProcessor = null;
+let globalConfig = null;
+let globalProcessors = /* @__PURE__ */ new Map();
+function sendLog(msg, type = "info") {
+  console.log(`[${type.toUpperCase()}] ${msg}`);
+  if (win) {
+    win.webContents.send("log-message", msg, type);
+  }
+}
+function sendStatus(isActive) {
+  if (win) {
+    win.webContents.send("scheduler-status", isActive);
+  }
+}
+function createWindow() {
+  win = new electron.BrowserWindow({
+    width: 1e3,
+    height: 700,
+    minWidth: 800,
+    minHeight: 600,
+    show: false,
+    icon: path.join(process.env.VITE_PUBLIC || "", "assets", "app_icon.png"),
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#f3f3f3",
+      // match the Win11 mica window background
+      symbolColor: "#1a1a1a",
+      height: 40
+    },
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js")
+    }
+  });
+  win.once("ready-to-show", () => {
+    if (!startHidden || !trayAvailable) win?.show();
+  });
+  win.on("close", (e) => {
+    if (!isQuitting && trayAvailable) {
+      e.preventDefault();
+      win?.hide();
+    }
+  });
+  if (VITE_DEV_SERVER_URL) {
+    win.loadURL(VITE_DEV_SERVER_URL);
+  } else {
+    win.loadFile(path.join(__dirname, "../dist-vite/index.html"));
+  }
+  win.webContents.setWindowOpenHandler((details) => {
+    electron.shell.openExternal(details.url);
+    return { action: "deny" };
+  });
+}
+function showWindow() {
+  if (!win || win.isDestroyed()) {
+    createWindow();
+  }
+  win?.show();
+  if (win?.isMinimized()) win.restore();
+  win?.focus();
+}
+function confirmQuit() {
+  const detail = isSchedulerRunning ? "Email Pilots is sending on schedule. Quitting stops all scheduled and in-progress emails until you reopen the app.\n\nTo keep sending in the background, close the window instead." : "Quitting fully closes Email Pilots, so nothing will send until you reopen it.\n\nTo keep it running in the background, close the window instead.";
+  const opts = {
+    type: "warning",
+    buttons: ["Quit", "Cancel"],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+    title: "Quit Email Pilots?",
+    message: "Quit Email Pilots?",
+    detail
+  };
+  const choice = win && !win.isDestroyed() ? electron.dialog.showMessageBoxSync(win, opts) : electron.dialog.showMessageBoxSync(opts);
+  return choice === 0;
+}
+function requestQuit() {
+  if (confirmQuit()) {
+    isQuitting = true;
+    electron.app.quit();
+  }
+}
+function createTray() {
+  if (tray) return;
+  let image = electron.nativeImage.createEmpty();
+  for (const name2 of ["app_icon.png", "pilot.png", "butler.png"]) {
+    const img = electron.nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC || "", "assets", name2));
+    if (!img.isEmpty()) {
+      image = img.resize({ width: 16, height: 16 });
+      break;
+    }
+  }
+  if (image.isEmpty()) {
+    trayAvailable = false;
+    sendLog("Tray icon not found — keeping normal window close (no background tray).", "error");
+    return;
+  }
+  tray = new electron.Tray(image);
+  trayAvailable = true;
+  tray.setToolTip("Email Pilots — running in background");
+  tray.setContextMenu(electron.Menu.buildFromTemplate([
+    { label: "Open Email Pilots", click: () => showWindow() },
+    { type: "separator" },
+    { label: "Quit", click: () => requestQuit() }
+  ]));
+  tray.on("click", () => showWindow());
+  tray.on("double-click", () => showWindow());
+}
+function schedulerStateFile() {
+  return path.join(getBasePath(), "scheduler.json");
+}
+function readSchedulerEnabled() {
+  try {
+    return JSON.parse(fs.readFileSync(schedulerStateFile(), "utf-8")).enabled === true;
+  } catch {
+    return false;
+  }
+}
+function writeSchedulerEnabled(enabled) {
+  try {
+    atomicWriteFileSync(schedulerStateFile(), JSON.stringify({ enabled }, null, 2));
+  } catch (e) {
+    sendLog(`Could not persist scheduler state: ${e?.message || e}`, "error");
+  }
+}
+function setupAutoLaunch() {
+  if (!electron.app.isPackaged) return;
+  try {
+    electron.app.setLoginItemSettings({
+      openAtLogin: true,
+      path: process.execPath,
+      args: ["--hidden"]
+    });
+  } catch (e) {
+    sendLog(`Could not set auto-start: ${e?.message || e}`, "error");
+  }
+}
+let globalStatsManager = null;
+const accountStatus = /* @__PURE__ */ new Map();
+function recordAccountStatus(id, s) {
+  accountStatus.set(id || "default", s);
+}
+function statsOnSent(accountId) {
+  globalStatsManager?.incrementEmailsSent(accountId);
+  recordAccountStatus(accountId, { ok: true, at: Date.now(), kind: "send" });
+}
+function genAccountId(seed) {
+  const base = String(seed || "acct").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "acct";
+  return `${base}-${Date.now().toString(36)}`;
+}
+function rebuildProcessors() {
+  if (!globalConfig) return;
+  globalProcessors = buildProcessors(globalConfig, statsOnSent);
+  globalMailProcessor = globalProcessors.get("default") ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, "default");
+  if (globalScheduler) {
+    globalScheduler.config = globalConfig;
+    globalScheduler.mailProcessor = globalMailProcessor;
+    globalScheduler.processors = globalProcessors;
+    if (isSchedulerRunning) globalScheduler.start();
+    else globalScheduler.stop();
+  } else {
+    globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors);
+  }
+}
+function initServices() {
+  try {
+    setupDataDir();
+    const basePath = getBasePath();
+    dotenv.config({ path: path.join(basePath, ".env"), override: true });
+    globalConfig = loadConfig();
+    globalStatsManager = new StatsManager(basePath);
+    globalProcessors = buildProcessors(globalConfig, statsOnSent);
+    globalMailProcessor = globalProcessors.get("default") ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, "default");
+    globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors);
+    sendLog("Services initialized successfully.", "system");
+  } catch (err) {
+    sendLog(`Failed to initialize services: ${err.message}`, "error");
+    if (!globalConfig) {
+      try {
+        globalConfig = loadConfig();
+      } catch {
+        globalConfig = { smtp: {}, accounts: [], paths: {}, email: {}, limits: {}, sender: {} };
+      }
+    }
+  }
+}
+electron.ipcMain.handle("get-stats", () => {
+  if (!globalStatsManager) {
+    globalStatsManager = new StatsManager(getBasePath());
+  }
+  return globalStatsManager.getStats();
+});
+electron.ipcMain.handle("get-usage", (_event, accountId) => {
+  if (!globalConfig) initServices();
+  const limiter = new RateLimiter(getBasePath(), globalConfig.limits, accountId);
+  return limiter.getUsage();
+});
+electron.ipcMain.handle("list-suppressions", () => {
+  return new SuppressionManager(getBasePath()).list();
+});
+electron.ipcMain.handle("remove-suppression", (_event, email) => {
+  new SuppressionManager(getBasePath()).remove(email);
+  return true;
+});
+electron.ipcMain.handle("add-suppression", (_event, email) => {
+  const addr = String(email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+  new SuppressionManager(getBasePath()).add(addr, "manual", "blocked via UI");
+  return { ok: true };
+});
+electron.ipcMain.handle("send-test-email", async (_event, accountId) => {
+  if (!globalConfig) initServices();
+  const accounts = globalConfig?.accounts || [];
+  const account = (accountId ? accounts.find((a) => a.id === accountId) : void 0) || accounts.find((a) => a.id === "default") || accounts[0];
+  if (!account || !account.user || !account.pass) {
+    return { ok: false, error: "Add your email address and password in Settings first." };
+  }
+  try {
+    const svc = new EmailService({
+      ...globalConfig,
+      smtp: { host: account.host, port: account.port, user: account.user, pass: account.pass }
+    });
+    const to = account.user;
+    const body = "<p>This is a test from <strong>Email Pilots</strong>. If you received this, your SMTP settings work.</p>";
+    await svc.sendMail(
+      to,
+      "Email Pilots — test email",
+      body,
+      [],
+      { text: "This is a test from Email Pilots. If you received this, your SMTP settings work." }
+    );
+    recordAccountStatus(account.id, { ok: true, at: Date.now(), kind: "test" });
+    return { ok: true, to };
+  } catch (e) {
+    recordAccountStatus(account.id, { ok: false, error: e?.message || "Send failed", at: Date.now(), kind: "test" });
+    return { ok: false, error: e?.message || "Send failed" };
+  }
+});
+electron.ipcMain.handle("verify-connection", async (_event, candidate) => {
+  const host = (candidate?.host || globalConfig?.smtp?.host || "smtp.office365.com").trim();
+  const port = parseInt(candidate?.port, 10) || globalConfig?.smtp?.port || 587;
+  const user = (candidate?.user ?? globalConfig?.smtp?.user ?? "").trim();
+  const pass = normalizeAppPassword(candidate?.pass ?? globalConfig?.smtp?.pass);
+  if (!user || !pass) {
+    return { ok: false, error: "Add your email address and app password first." };
+  }
+  const svc = new EmailService({ smtp: { host, port, user, pass } });
+  return svc.verifyConnection();
+});
+electron.ipcMain.handle("get-accounts", () => {
+  if (!globalConfig) initServices();
+  const accounts = globalConfig?.accounts || [];
+  return accounts.map((a) => ({
+    id: a.id,
+    label: a.label || a.user,
+    host: a.host,
+    port: a.port,
+    user: a.user,
+    enabled: a.enabled,
+    hasPass: !!a.pass,
+    isDefault: a.id === "default",
+    status: accountStatus.get(a.id) || null
+  }));
+});
+electron.ipcMain.handle("save-account", async (_event, acc) => {
+  try {
+    if (!globalConfig) initServices();
+    const basePath = getBasePath();
+    const user = (acc?.user || "").trim();
+    if (!user) return { ok: false, error: "Email address is required." };
+    const id = acc?.id && String(acc.id).trim() || genAccountId(user);
+    if (id === "default") {
+      return { ok: false, error: "The primary account is edited in Settings." };
+    }
+    const host = (acc?.host || "smtp.office365.com").trim();
+    const port = parseInt(acc?.port, 10) || 587;
+    const allExtras = readAccounts(basePath);
+    const existing = allExtras.find((a) => a.id === id);
+    if (!existing && allExtras.length >= MAX_EXTRA_ACCOUNTS) {
+      return { ok: false, error: `Account limit reached (max ${MAX_EXTRA_ACCOUNTS} added accounts). Remove one before adding another.` };
+    }
+    const rawPass = normalizeAppPassword(acc?.pass);
+    let passToStore;
+    if (rawPass) passToStore = encryptPassword(rawPass);
+    else if (existing) passToStore = existing.pass;
+    else return { ok: false, error: "App password is required." };
+    const account = {
+      id,
+      label: (acc?.label || user).trim(),
+      host,
+      port,
+      user,
+      pass: passToStore,
+      enabled: acc?.enabled !== false
+    };
+    upsertAccount(basePath, account);
+    globalConfig = loadConfig();
+    rebuildProcessors();
+    return { ok: true, id };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Save failed" };
+  }
+});
+electron.ipcMain.handle("delete-account", (_event, id) => {
+  try {
+    if (!globalConfig) initServices();
+    if (!id || id === "default") {
+      return { ok: false, error: "The primary account cannot be removed." };
+    }
+    const basePath = getBasePath();
+    removeAccount(basePath, String(id));
+    const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, "_");
+    try {
+      fs.unlinkSync(path.join(basePath, `limits.${safeId}.json`));
+    } catch {
+    }
+    accountStatus.delete(String(id));
+    globalConfig = loadConfig();
+    rebuildProcessors();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Delete failed" };
+  }
+});
+function genCampaignId(seed) {
+  const base = String(seed || "camp").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "camp";
+  return `${base}-${Date.now().toString(36)}`;
+}
+electron.ipcMain.handle("get-campaigns", () => {
+  if (!globalConfig) initServices();
+  return globalConfig?.campaigns || [];
+});
+electron.ipcMain.handle("save-campaign", (_event, c) => {
+  try {
+    if (!globalConfig) initServices();
+    const basePath = getBasePath();
+    const name2 = (c?.name || "").trim();
+    if (!name2) return { ok: false, error: "Campaign name is required." };
+    const id = c?.id && String(c.id).trim() || genCampaignId(name2);
+    const campaign = {
+      id,
+      name: name2,
+      subject: c?.subject != null ? String(c.subject) : "",
+      template: c?.template != null ? String(c.template) : ""
+    };
+    upsertCampaign(basePath, campaign);
+    globalConfig = loadConfig();
+    rebuildProcessors();
+    return { ok: true, id };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Save failed" };
+  }
+});
+electron.ipcMain.handle("delete-campaign", (_event, id) => {
+  try {
+    if (!globalConfig) initServices();
+    if (!id) return { ok: false, error: "Missing campaign id." };
+    const basePath = getBasePath();
+    removeCampaign(basePath, String(id));
+    const jsonPath = globalConfig.paths.recipientsJson;
+    if (fs.existsSync(jsonPath)) {
+      try {
+        const recipients = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+        if (Array.isArray(recipients)) {
+          let changed = false;
+          for (const r of recipients) {
+            if (r && r.campaignId === id) {
+              delete r.campaignId;
+              changed = true;
+            }
+          }
+          if (changed) atomicWriteFileSync(jsonPath, JSON.stringify(recipients, null, 2));
+        }
+      } catch (e) {
+        sendLog("Failed to detach recipients from deleted campaign", "error");
+      }
+    }
+    globalConfig = loadConfig();
+    rebuildProcessors();
+    if (isSchedulerRunning && globalScheduler) globalScheduler.start();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Delete failed" };
+  }
+});
+electron.ipcMain.handle("get-config", () => {
+  if (!globalConfig) {
+    const basePath = getBasePath();
+    dotenv.config({ path: path.join(basePath, ".env"), override: true });
+    globalConfig = loadConfig();
+  }
+  let templateContent = "";
+  try {
+    if (fs.existsSync(globalConfig.paths.templateHtml)) {
+      templateContent = fs.readFileSync(globalConfig.paths.templateHtml, "utf-8");
+    }
+  } catch {
+  }
+  return {
+    ...globalConfig,
+    templateContent,
+    smtp: { ...globalConfig.smtp, pass: "", hasPass: !!globalConfig.smtp?.pass },
+    accounts: (globalConfig.accounts || []).map((a) => ({ ...a, pass: "" }))
+  };
+});
+function saveConfigToEnv(newConfig) {
+  try {
+    if (!globalConfig) initServices();
+    const basePath = getBasePath();
+    const envFilePath = path.join(basePath, ".env");
+    const newUser = String(newConfig.user ?? globalConfig.smtp.user ?? "").trim();
+    const newPass = normalizeAppPassword(newConfig.pass);
+    const passToStore = newPass ? encryptPassword(newPass) : newUser ? encryptPassword(globalConfig.smtp.pass || "") : "";
+    const envContent = `USER_NAME=${envText(newConfig.userName ?? globalConfig.userName ?? "")}
+SMTP_HOST=${envText(newConfig.smtpHost || globalConfig.smtp.host || "smtp.office365.com")}
+SMTP_PORT=${parseInt(newConfig.smtpPort, 10) || globalConfig.smtp.port || 587}
+SMTP_USER=${envText(newUser)}
+SMTP_PASS=${envText(passToStore)}
+RECIPIENTS_CSV_PATH=${envPath(globalConfig.paths.recipientsCsv)}
+RECIPIENTS_JSON_PATH=${envPath(globalConfig.paths.recipientsJson)}
+TEMPLATE_HTML_PATH=${envPath(globalConfig.paths.templateHtml)}
+CRON_SCHEDULE=${envText(newConfig.cron ?? globalConfig.cronSchedule)}
+EMAIL_SUBJECT=${envText(newConfig.subject ?? globalConfig.email.subject)}
+CV_PATH=${envPath(newConfig.cvPath ?? globalConfig.paths.cvPath ?? "")}
+ENROLLMENT_PATH=${envPath(newConfig.enrollmentPath ?? globalConfig.paths.enrollmentPath ?? "")}
+PHYSICAL_ADDRESS=${envText(newConfig.physicalAddress ?? globalConfig.sender.physicalAddress)}
+UNSUBSCRIBE_ENABLED=${newConfig.unsubscribeEnabled ?? globalConfig.sender.unsubscribeEnabled ? "true" : "false"}
+INBOX_PLACEMENT=${envText(newConfig.inboxPlacement ?? globalConfig.sender.inboxPlacement)}
+WARMUP_ENABLED=${newConfig.warmupEnabled ?? globalConfig.limits.warmupEnabled ? "true" : "false"}
+TEST_MODE=${newConfig.testMode ?? globalConfig.testMode ? "true" : "false"}
+WARMUP_CURVE=${envText((globalConfig.limits.warmupCurve || []).join(","))}
+MAX_EMAILS_PER_DAY=${globalConfig.limits.maxPerDay}
+MAX_EMAILS_PER_WINDOW=${globalConfig.limits.maxPerWindow}
+MAX_WINDOWS_PER_DAY=${globalConfig.limits.maxWindowsPerDay}
+MIN_DELAY_MIN=${Math.round(globalConfig.limits.minDelayMs / 6e4)}
+MAX_DELAY_MIN=${Math.round(globalConfig.limits.maxDelayMs / 6e4)}
+MAX_ATTACHMENT_MB=${Math.round(globalConfig.limits.maxAttachmentBytes / (1024 * 1024))}
+MAX_RECIPIENT_PER_DAY=${globalConfig.limits.maxPerRecipientPerDay}
+`;
+    atomicWriteFileSync(envFilePath, envContent);
+    if (typeof newConfig.template === "string") {
+      atomicWriteFileSync(globalConfig.paths.templateHtml, newConfig.template);
+    }
+    delete process.env.OUTLOOK_USER;
+    delete process.env.OUTLOOK_PASS;
+    dotenv.config({ path: envFilePath, override: true });
+    globalConfig = loadConfig();
+    rebuildProcessors();
+    return true;
+  } catch (error) {
+    sendLog(`Error saving configuration: ${error.message}`, "error");
+    return false;
+  }
+}
+electron.ipcMain.handle("save-config", (_event, newConfig) => saveConfigToEnv(newConfig));
+electron.ipcMain.handle("sign-out", () => {
+  try {
+    if (!globalConfig) initServices();
+    const basePath = getBasePath();
+    globalScheduler?.stop();
+    isSchedulerRunning = false;
+    writeSchedulerEnabled(false);
+    sendStatus(false);
+    for (const a of readAccounts(basePath)) {
+      const safeId = a.id.replace(/[^a-zA-Z0-9_-]/g, "_");
+      try {
+        fs.unlinkSync(path.join(basePath, `limits.${safeId}.json`));
+      } catch {
+      }
+    }
+    try {
+      fs.unlinkSync(accountsFilePath(basePath));
+    } catch {
+    }
+    accountStatus.clear();
+    const ok = saveConfigToEnv({
+      user: "",
+      pass: "",
+      smtpHost: globalConfig.smtp?.host,
+      smtpPort: globalConfig.smtp?.port
+    });
+    return { ok };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Sign out failed" };
+  }
+});
+let isSchedulerRunning = false;
+electron.ipcMain.handle("start-scheduler", () => {
+  if (!globalScheduler) initServices();
+  if (globalScheduler) {
+    globalScheduler.start();
+    isSchedulerRunning = true;
+    writeSchedulerEnabled(true);
+    sendStatus(true);
+    sendLog(`Scheduler started with cron: ${globalConfig.cronSchedule}`, "success");
+    return true;
+  }
+  return false;
+});
+electron.ipcMain.handle("stop-scheduler", () => {
+  if (globalScheduler) {
+    globalScheduler.stop();
+    isSchedulerRunning = false;
+    writeSchedulerEnabled(false);
+    sendStatus(false);
+    sendLog("Scheduler stopped.", "system");
+    return true;
+  }
+  return false;
+});
+electron.ipcMain.handle("get-scheduler-status", () => {
+  return isSchedulerRunning;
+});
+let testRunInProgress = false;
+electron.ipcMain.handle("run-test-send", async () => {
+  if (testRunInProgress) {
+    sendLog("A run is already in progress.", "error");
+    return { error: "in-progress" };
+  }
+  if (!globalMailProcessor) initServices();
+  testRunInProgress = true;
+  sendLog("Starting immediate test execution...", "info");
+  const originalLog = console.log;
+  const originalError = console.error;
+  console.log = (...args) => {
+    sendLog(args.join(" "), "info");
+    originalLog(...args);
+  };
+  console.error = (...args) => {
+    sendLog(args.join(" "), "error");
+    originalError(...args);
+  };
+  let summary = { total: 0, sent: 0, skipped: 0, failed: 0 };
+  try {
+    summary = await runAllAccounts(globalConfig, statsOnSent);
+    sendLog(
+      `Test execution completed. sent=${summary.sent} skipped=${summary.skipped} failed=${summary.failed}`,
+      summary.sent > 0 ? "success" : "error"
+    );
+  } catch (err) {
+    sendLog(`Execution failed: ${err.message}`, "error");
+    summary.error = err.message;
+  } finally {
+    console.log = originalLog;
+    console.error = originalError;
+    testRunInProgress = false;
+  }
+  return summary;
+});
+electron.ipcMain.handle("open-csv", () => {
+  if (!globalConfig) initServices();
+  if (globalConfig && globalConfig.paths.recipientsCsv) {
+    const csvPath = globalConfig.paths.recipientsCsv;
+    if (fs.existsSync(csvPath)) {
+      electron.shell.openPath(csvPath);
+      sendLog(`Opened CSV at ${csvPath}`, "info");
+    } else {
+      sendLog(`CSV file not found at ${csvPath}`, "error");
+    }
+  }
+});
+electron.ipcMain.handle("open-json", () => {
+  if (!globalConfig) initServices();
+  if (globalConfig && globalConfig.paths.recipientsJson) {
+    const jsonPath = globalConfig.paths.recipientsJson;
+    if (fs.existsSync(jsonPath)) {
+      electron.shell.openPath(jsonPath);
+      sendLog(`Opened JSON at ${jsonPath}`, "info");
+    } else {
+      sendLog(`JSON file not found at ${jsonPath}`, "error");
+    }
+  }
+});
+electron.ipcMain.handle("get-recipients", () => {
+  if (!globalConfig) initServices();
+  const jsonPath = globalConfig.paths.recipientsJson;
+  if (fs.existsSync(jsonPath)) {
+    try {
+      const data = fs.readFileSync(jsonPath, "utf8");
+      return JSON.parse(data);
+    } catch (e) {
+      sendLog("Failed to parse recipients.json", "error");
+      return [];
+    }
+  }
+  return [];
+});
+electron.ipcMain.handle("save-recipients", (event, recipients) => {
+  if (!globalConfig) initServices();
+  const jsonPath = globalConfig.paths.recipientsJson;
+  try {
+    atomicWriteFileSync(jsonPath, JSON.stringify(recipients, null, 2));
+    sendLog("Recipients saved successfully", "success");
+    if (isSchedulerRunning && globalScheduler) {
+      globalScheduler.start();
+      sendLog("Scheduler re-armed with the updated recipient list.", "system");
+    }
+    return true;
+  } catch (e) {
+    sendLog("Failed to save recipients", "error");
+    return false;
+  }
+});
+electron.ipcMain.handle("select-file", async (event, title, extensions) => {
+  if (!win) return null;
+  const result = await electron.dialog.showOpenDialog(win, {
+    title,
+    properties: ["openFile"],
+    filters: [
+      { name: "Allowed Files", extensions }
+    ]
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+  return result.filePaths[0];
+});
+electron.ipcMain.handle("import-recipients-csv", async () => {
+  if (!win) return { canceled: true };
+  const result = await electron.dialog.showOpenDialog(win, {
+    title: "Import Recipients from CSV",
+    properties: ["openFile"],
+    filters: [{ name: "CSV", extensions: ["csv"] }]
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true };
+  }
+  const filePath = result.filePaths[0];
+  try {
+    const { headers, rows } = readCsvFile(filePath);
+    if (headers.length === 0) {
+      return { error: "No columns found — the CSV appears empty or has no header row." };
+    }
+    sendLog(`Read ${rows.length} row(s) from ${filePath}`, "info");
+    return { filePath, headers, rows };
+  } catch (e) {
+    sendLog(`Failed to read CSV: ${e.message}`, "error");
+    return { error: e?.message || "Failed to read CSV file." };
+  }
+});
+electron.ipcMain.handle("select-message-file", async (event) => {
+  if (!win) return null;
+  const result = await electron.dialog.showOpenDialog(win, {
+    title: "Select Message File",
+    properties: ["openFile"],
+    filters: [
+      { name: "Text/HTML", extensions: ["txt", "html"] }
+    ]
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+  return result.filePaths[0];
+});
+electron.ipcMain.handle("preview-email", (event, recordIndex) => {
+  if (!globalConfig) initServices();
+  const jsonPath = globalConfig.paths.recipientsJson;
+  if (!fs.existsSync(jsonPath)) {
+    return { error: "Missing recipients.json file." };
+  }
+  try {
+    const records = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+    const record = records[recordIndex];
+    if (!record) return { error: "Recipient not found." };
+    return renderEmail(record, globalConfig);
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+electron.ipcMain.handle("preview-unsaved-email", (event, record) => {
+  if (!globalConfig) initServices();
+  try {
+    return renderEmail(record, globalConfig);
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+electron.ipcMain.handle("verify-email", async (_event, rawEmail) => {
+  const email = String(rawEmail ?? "").trim();
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!regex.test(email)) {
+    return { valid: false, reason: "Invalid syntax" };
+  }
+  const domain = email.split("@")[1];
+  const TRANSIENT = ["ECONNREFUSED", "ETIMEOUT", "ETIMEDOUT", "ESERVFAIL", "EREFUSED", "ECANCELLED", "EBADRESP"];
+  try {
+    const addresses = await dns.promises.resolveMx(domain);
+    if (addresses && addresses.length > 0) {
+      return { valid: true };
+    }
+  } catch (err) {
+    if (TRANSIENT.includes(err?.code)) {
+      return { valid: true, reason: "DNS check skipped (resolver unavailable)" };
+    }
+  }
+  try {
+    await dns.promises.lookup(domain);
+    return { valid: true };
+  } catch (err) {
+    if (TRANSIENT.includes(err?.code)) {
+      return { valid: true, reason: "DNS check skipped (resolver unavailable)" };
+    }
+    return { valid: false, reason: "Domain does not exist or cannot receive email" };
+  }
+});
+const gotTheLock = electron.app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  electron.app.quit();
+} else {
+  electron.app.on("second-instance", () => {
+    showWindow();
+  });
+  electron.app.whenReady().then(() => {
+    setupDataDir();
+    createWindow();
+    createTray();
+    initServices();
+    setupAutoLaunch();
+    if (globalScheduler && readSchedulerEnabled()) {
+      globalScheduler.start();
+      isSchedulerRunning = true;
+      sendStatus(true);
+      sendLog("Scheduler resumed (was enabled on last exit).", "success");
+    }
+    electron.app.on("activate", () => {
+      showWindow();
+    });
+  });
+}
+electron.app.on("before-quit", (e) => {
+  if (isQuitting) return;
+  e.preventDefault();
+  if (confirmQuit()) {
+    isQuitting = true;
+    electron.app.quit();
+  }
+});
+electron.app.on("window-all-closed", () => {
+});

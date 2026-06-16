@@ -30,6 +30,8 @@ export interface RecipientRecord {
   scheduledDays: string[];
   scheduledTimes: string[];
   entropyMinutes: number;
+  /** Campaign this recipient belongs to (campaignStore id); absent = Unassigned. */
+  campaignId?: string;
   [key: string]: any;
 }
 

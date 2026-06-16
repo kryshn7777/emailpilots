@@ -23,6 +23,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-account', account),
   deleteAccount: (id: string) => ipcRenderer.invoke('delete-account', id),
 
+  // Campaigns (named recipient groups with their own subject + template)
+  getCampaigns: () => ipcRenderer.invoke('get-campaigns'),
+  saveCampaign: (campaign: { id?: string; name?: string; subject?: string; template?: string }) =>
+    ipcRenderer.invoke('save-campaign', campaign),
+  deleteCampaign: (id: string) => ipcRenderer.invoke('delete-campaign', id),
+
   startScheduler: () => ipcRenderer.invoke('start-scheduler'),
   stopScheduler: () => ipcRenderer.invoke('stop-scheduler'),
   getSchedulerStatus: () => ipcRenderer.invoke('get-scheduler-status'),

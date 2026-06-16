@@ -95,9 +95,18 @@ export function renderEmail(record: any, config: Config): RenderedEmail {
     message = record.messageContent;
   }
 
-  // Load the wrapper template (greeting/styling).
+  // Resolve the recipient's campaign (if any) for per-campaign subject/template
+  // defaults. An unknown/absent campaignId leaves `campaign` undefined → globals.
+  const campaign = record.campaignId
+    ? (config.campaigns || []).find(c => c.id === record.campaignId)
+    : undefined;
+
+  // Load the wrapper template (greeting/styling). An inline campaign template
+  // wins over the on-disk global template.html.
   let template = '';
-  if (fs.existsSync(config.paths.templateHtml)) {
+  if (campaign && typeof campaign.template === 'string' && campaign.template.trim()) {
+    template = campaign.template;
+  } else if (fs.existsSync(config.paths.templateHtml)) {
     template = fs.readFileSync(config.paths.templateHtml, 'utf-8');
   }
 
@@ -131,10 +140,12 @@ export function renderEmail(record: any, config: Config): RenderedEmail {
       : rendered + footer.html;
   }
 
-  // Per-recipient subject overrides the global default when set.
+  // Subject precedence: recipient's own subject > campaign default > global default.
   const subjectTpl = (record.subject && String(record.subject).trim())
     ? String(record.subject)
-    : config.email.subject;
+    : (campaign && campaign.subject && String(campaign.subject).trim())
+      ? String(campaign.subject)
+      : config.email.subject;
   const subject = htmlUnescape(Mustache.render(subjectTpl, record));
   const text = htmlToText(rendered);
 

@@ -46,6 +46,9 @@ declare global {
       getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null }[]>;
       saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean }) => Promise<{ ok: boolean; error?: string; id?: string }>;
       deleteAccount: (id: string) => Promise<{ ok: boolean; error?: string }>;
+      getCampaigns: () => Promise<{ id: string; name: string; subject?: string; template?: string }[]>;
+      saveCampaign: (campaign: { id?: string; name?: string; subject?: string; template?: string }) => Promise<{ ok: boolean; error?: string; id?: string }>;
+      deleteCampaign: (id: string) => Promise<{ ok: boolean; error?: string }>;
       selectFile: (title: string, extensions: string[]) => Promise<string | null>;
       previewEmail: (index: number) => Promise<{ subject?: string; body?: string; error?: string }>;
       verifyEmail: (email: string) => Promise<{ valid: boolean; reason?: string }>;
@@ -117,6 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputUser = document.getElementById('outlook-user') as HTMLInputElement;
   const inputPass = document.getElementById('outlook-pass') as HTMLInputElement;
   const inputSubject = document.getElementById('subject-line') as HTMLInputElement;
+  const inputTemplate = document.getElementById('email-template') as HTMLTextAreaElement | null;
   const inputCv = document.getElementById('cv-path') as HTMLInputElement;
   const inputEnrollment = document.getElementById('enrollment-path') as HTMLInputElement;
   const inputPhysicalAddress = document.getElementById('physical-address') as HTMLTextAreaElement;
@@ -138,6 +142,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null }[] = [];
   // Bulk-selection of extra accounts in the Accounts view (ids; default excluded).
   const selectedAccountIds = new Set<string>();
+
+  // Campaigns (named recipient groups). Cache refreshed from the main process;
+  // drives the Campaigns view, the recipients Campaign column/filter, and the
+  // wizard/import/bulk-assign selectors.
+  let campaignsCache: { id: string; name: string; subject?: string; template?: string }[] = [];
+  // Recipients table campaign filter: 'all' | 'unassigned' | <campaignId>.
+  let currentCampaignFilter = 'all';
+  // Bulk-selection of recipient rows by index into recipientsData. Transient —
+  // cleared on any mutation that reorders the array (delete/import/assign/filter).
+  const selectedRecipientIdx = new Set<number>();
 
   // --- Modal accessibility (focus trap + Esc + focus return) ---
   // Modals are shown/hidden by scattered `style.display` mutations, so rather
@@ -652,6 +666,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       (document.getElementById('rec-name') as HTMLInputElement).value = rec.name || rec.company || '';
       (document.getElementById('rec-email') as HTMLInputElement).value = rec.email || '';
       (document.getElementById('rec-subject') as HTMLInputElement).value = rec.subject || '';
+      const recCampaignSel = document.getElementById('rec-campaign') as HTMLSelectElement | null;
+      if (recCampaignSel) recCampaignSel.value = [...recCampaignSel.options].some(o => o.value === (rec.campaignId || '')) ? (rec.campaignId || '') : '';
 
       const msgType = rec.messageType || 'text';
       (document.getElementById('rec-msg-type') as HTMLSelectElement).value = msgType;
@@ -679,6 +695,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       (document.getElementById('rec-entropy') as HTMLInputElement).value = rec.entropyMinutes || '0';
     } else {
       title.textContent = 'Add Recipient';
+      // Pre-select the campaign currently being filtered, if any, so adding from
+      // a filtered view lands the new recipient in that campaign.
+      const recCampaignSel = document.getElementById('rec-campaign') as HTMLSelectElement | null;
+      if (recCampaignSel) {
+        const pre = (currentCampaignFilter !== 'all' && currentCampaignFilter !== 'unassigned') ? currentCampaignFilter : '';
+        recCampaignSel.value = [...recCampaignSel.options].some(o => o.value === pre) ? pre : '';
+      }
       addTimeRow('09:00'); // Smart Default: 09:00 AM
 
       // Smart Default: Monday - Friday
@@ -908,6 +931,147 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // --- Campaigns ---
+
+  function campaignNameById(id?: string): string {
+    if (!id) return 'Unassigned';
+    const c = campaignsCache.find(c => c.id === id);
+    return c ? c.name : 'Unassigned';
+  }
+
+  // Indices into recipientsData currently visible under the active filter.
+  function visibleRecipientIndices(): number[] {
+    const out: number[] = [];
+    recipientsData.forEach((rec, i) => {
+      if (currentCampaignFilter === 'unassigned') { if (!rec.campaignId) out.push(i); }
+      else if (currentCampaignFilter === 'all') { out.push(i); }
+      else if (rec.campaignId === currentCampaignFilter) out.push(i);
+    });
+    return out;
+  }
+
+  function updateRecipientSelectionUI() {
+    const bar = document.getElementById('recipients-bulk-bar');
+    const countEl = document.getElementById('rec-selected-count');
+    const selectAll = document.getElementById('rec-select-all') as HTMLInputElement | null;
+    const n = selectedRecipientIdx.size;
+    if (bar) bar.style.display = n > 0 ? 'flex' : 'none';
+    if (countEl) countEl.textContent = `${n} selected`;
+    if (selectAll) {
+      const visible = visibleRecipientIndices();
+      selectAll.checked = visible.length > 0 && visible.every(i => selectedRecipientIdx.has(i));
+    }
+  }
+
+  // Fill every campaign <select> (filter, wizard, import, bulk-assign) from the
+  // cache, preserving the current selection where it still exists.
+  function populateCampaignSelects() {
+    const fill = (el: HTMLSelectElement | null, leadLabel: string, leadValue: string) => {
+      if (!el) return;
+      const prev = el.value;
+      el.innerHTML = '';
+      el.add(new Option(leadLabel, leadValue));
+      campaignsCache.forEach(c => el.add(new Option(c.name, c.id)));
+      if ([...el.options].some(o => o.value === prev)) el.value = prev;
+    };
+    const filter = document.getElementById('recipient-campaign-filter') as HTMLSelectElement | null;
+    if (filter) {
+      const prev = filter.value || currentCampaignFilter;
+      filter.innerHTML = '';
+      filter.add(new Option('All campaigns', 'all'));
+      filter.add(new Option('Unassigned', 'unassigned'));
+      campaignsCache.forEach(c => filter.add(new Option(c.name, c.id)));
+      filter.value = [...filter.options].some(o => o.value === prev) ? prev : 'all';
+      currentCampaignFilter = filter.value;
+    }
+    fill(document.getElementById('rec-campaign') as HTMLSelectElement | null, 'Unassigned', '');
+    fill(document.getElementById('import-campaign') as HTMLSelectElement | null, 'Unassigned', '');
+    fill(document.getElementById('bulk-assign-campaign') as HTMLSelectElement | null, 'Unassigned', '');
+  }
+
+  function renderCampaignsList() {
+    const listEl = document.getElementById('campaigns-list');
+    const emptyEl = document.getElementById('campaigns-empty-state');
+    const countEl = document.getElementById('campaigns-count');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (countEl) countEl.textContent = campaignsCache.length
+      ? `${campaignsCache.length} campaign${campaignsCache.length === 1 ? '' : 's'}` : '';
+    if (campaignsCache.length === 0) {
+      if (emptyEl) emptyEl.style.display = 'flex';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+    campaignsCache.forEach(c => {
+      const count = recipientsData.filter(r => r.campaignId === c.id).length;
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;margin:0;';
+      const info = document.createElement('div');
+      const subjLine = c.subject && c.subject.trim() ? `Subject: ${c.subject}` : 'Subject: global default';
+      const tplLine = c.template && c.template.trim() ? 'custom template' : 'global template';
+      info.innerHTML = `<div style="font-weight:600;">${escapeHTML(c.name)}</div>` +
+        `<div style="font-size:0.8em;color:var(--muted-foreground);margin-top:2px;">` +
+        `${escapeHTML(subjLine)} · ${tplLine} · ${count} recipient${count === 1 ? '' : 's'}</div>`;
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;gap:8px;';
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn outline';
+      editBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', () => openCampaignForEdit(c));
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn outline';
+      delBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;color:#ef4444;';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', async () => {
+        const msg = count > 0
+          ? `Delete "${c.name}"? Its ${count} recipient${count === 1 ? '' : 's'} will move to Unassigned and use your global subject/template.`
+          : `Delete "${c.name}"?`;
+        if (!await confirmDialog(msg, { title: 'Delete campaign?', confirmLabel: 'Delete', danger: true })) return;
+        const res = await window.electronAPI.deleteCampaign(c.id);
+        if (!res.ok) { toast(res.error || 'Delete failed.', 'error'); return; }
+        // Mirror the main-process detach locally so the table updates immediately.
+        recipientsData.forEach(r => { if (r.campaignId === c.id) delete r.campaignId; });
+        await refreshCampaigns();
+        renderRecipients();
+        toast('Campaign deleted.', 'success');
+      });
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+      card.appendChild(info);
+      card.appendChild(actions);
+      listEl.appendChild(card);
+    });
+  }
+
+  function openCampaignForEdit(c: { id: string; name: string; subject?: string; template?: string }) {
+    (document.getElementById('campaign-id') as HTMLInputElement).value = c.id;
+    (document.getElementById('campaign-name') as HTMLInputElement).value = c.name;
+    (document.getElementById('campaign-subject') as HTMLInputElement).value = c.subject || '';
+    (document.getElementById('campaign-template') as HTMLTextAreaElement).value = c.template || '';
+    const title = document.getElementById('campaign-form-title'); if (title) title.textContent = 'Edit campaign';
+    const submit = document.getElementById('campaign-submit-btn'); if (submit) submit.innerHTML = '<span class="material-symbols-outlined">save</span> Save campaign';
+    const cancel = document.getElementById('campaign-cancel-edit-btn'); if (cancel) cancel.style.display = 'inline-flex';
+    (document.getElementById('campaign-name') as HTMLInputElement).focus();
+  }
+
+  function resetCampaignForm() {
+    (document.getElementById('campaign-form') as HTMLFormElement).reset();
+    (document.getElementById('campaign-id') as HTMLInputElement).value = '';
+    const title = document.getElementById('campaign-form-title'); if (title) title.textContent = 'Create a campaign';
+    const submit = document.getElementById('campaign-submit-btn'); if (submit) submit.innerHTML = '<span class="material-symbols-outlined">add</span> Create campaign';
+    const cancel = document.getElementById('campaign-cancel-edit-btn'); if (cancel) cancel.style.display = 'none';
+    const err = document.getElementById('campaign-error'); if (err) err.style.display = 'none';
+  }
+
+  async function refreshCampaigns() {
+    try { campaignsCache = await window.electronAPI.getCampaigns() || []; }
+    catch { campaignsCache = []; }
+    populateCampaignSelects();
+    renderCampaignsList();
+  }
+
   function renderRecipients() {
     recipientsTbody.innerHTML = '';
 
@@ -921,19 +1085,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     const emptyStateEl = document.getElementById('recipients-empty-state');
     const tableContainerEl = document.getElementById('recipients-table-container');
 
+    const controlsEl = document.getElementById('recipients-controls');
+
     if (recipientsData.length === 0) {
       if (emptyStateEl) emptyStateEl.style.display = 'flex';
       if (tableContainerEl) tableContainerEl.style.display = 'none';
+      if (controlsEl) controlsEl.style.display = 'none';
+      selectedRecipientIdx.clear();
       updateAnalyticsAndSchedule();
       return;
     }
 
     if (emptyStateEl) emptyStateEl.style.display = 'none';
     if (tableContainerEl) tableContainerEl.style.display = 'block';
+    if (controlsEl) controlsEl.style.display = 'flex';
 
     recipientsData.forEach((rec, index) => {
+      // Campaign filter: 'all' shows everything, 'unassigned' shows recipients
+      // with no campaign, otherwise match the selected campaign id.
+      if (currentCampaignFilter === 'unassigned') {
+        if (rec.campaignId) return;
+      } else if (currentCampaignFilter !== 'all') {
+        if (rec.campaignId !== currentCampaignFilter) return;
+      }
+
       const tr = document.createElement('tr');
-      
+
+      const tdSelect = document.createElement('td');
+      const selectCb = document.createElement('input');
+      selectCb.type = 'checkbox';
+      selectCb.checked = selectedRecipientIdx.has(index);
+      selectCb.addEventListener('change', () => {
+        if (selectCb.checked) selectedRecipientIdx.add(index);
+        else selectedRecipientIdx.delete(index);
+        updateRecipientSelectionUI();
+      });
+      tdSelect.appendChild(selectCb);
+
       const tdActive = document.createElement('td');
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -1046,6 +1234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (await confirmDialog(`${who} will be removed from your list and stop receiving emails.`,
             { title: 'Delete recipient?', confirmLabel: 'Delete', danger: true })) {
           recipientsData.splice(index, 1);
+          selectedRecipientIdx.clear(); // indices shifted; drop stale selection
           renderRecipients();
           saveRecipientsData();
         }
@@ -1055,14 +1244,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       tdActions.appendChild(previewBtn);
       tdActions.appendChild(delBtn);
 
+      const tdCampaign = document.createElement('td');
+      tdCampaign.style.fontSize = '0.85rem';
+      tdCampaign.textContent = campaignNameById(rec.campaignId);
+      if (!rec.campaignId) tdCampaign.style.color = 'var(--muted-foreground)';
+
+      tr.appendChild(tdSelect);
       tr.appendChild(tdActive);
       tr.appendChild(tdName);
       tr.appendChild(tdEmail);
+      tr.appendChild(tdCampaign);
       tr.appendChild(tdSchedule);
       tr.appendChild(tdActions);
 
       recipientsTbody.appendChild(tr);
     });
+
+    // Filtered to nothing: show a friendly placeholder instead of a blank table.
+    if (recipientsTbody.children.length === 0) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 7;
+      td.style.cssText = 'text-align:center;color:var(--muted-foreground);padding:24px;';
+      td.textContent = 'No recipients in this campaign yet.';
+      tr.appendChild(td);
+      recipientsTbody.appendChild(tr);
+    }
+
+    updateRecipientSelectionUI();
     updateAnalyticsAndSchedule();
   }
 
@@ -1407,6 +1616,155 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast(`Distributed ${unassigned} recipient${unassigned === 1 ? '' : 's'} across ${sendable.length} accounts.`, 'success');
   });
 
+  // --- Bulk schedule: assign days + a random time-in-window to many recipients ---
+  // Each target gets a *different* random time inside the window so sends spread
+  // out (anti-ban) instead of all firing at once. Writes the same per-recipient
+  // fields the wizard does, so the scheduler needs no changes.
+  const bulkModal = document.getElementById('bulk-schedule-modal') as HTMLElement | null;
+
+  function bulkUnscheduledTargets(): any[] {
+    // Same predicate as renderPreflight's `unscheduled`: active + no day/time set.
+    return recipientsData.filter(r =>
+      r.active !== false &&
+      !((r.scheduledDays || []).length && (r.scheduledTimes || []).length));
+  }
+  function bulkSelectedScope(): 'unscheduled' | 'all' {
+    const checked = document.querySelector('input[name="bulk-scope"]:checked') as HTMLInputElement | null;
+    return checked?.value === 'all' ? 'all' : 'unscheduled';
+  }
+  function bulkTargets(scope = bulkSelectedScope()): any[] {
+    return scope === 'all' ? recipientsData.slice() : bulkUnscheduledTargets();
+  }
+  function randomTimeInWindow(start: string, end: string): string {
+    const toMin = (s: string) => {
+      const [h, m] = s.split(':').map(n => parseInt(n, 10) || 0);
+      return h * 60 + m;
+    };
+    let lo = toMin(start), hi = toMin(end);
+    if (hi < lo) [lo, hi] = [hi, lo]; // tolerate a reversed window
+    const pick = lo + Math.floor(Math.random() * (hi - lo + 1));
+    const hh = String(Math.floor(pick / 60)).padStart(2, '0');
+    const mm = String(pick % 60).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+  function updateBulkCount() {
+    const countEl = document.getElementById('bulk-target-count');
+    const applyBtn = document.getElementById('bulk-apply-btn') as HTMLButtonElement | null;
+    const n = bulkTargets().length;
+    if (countEl) countEl.textContent = n === 0
+      ? 'No recipients match — nothing to schedule.'
+      : `Will set the schedule for ${n} recipient${n === 1 ? '' : 's'}.`;
+    if (applyBtn) applyBtn.disabled = n === 0;
+  }
+  function openBulkScheduleModal() {
+    if (!bulkModal) return;
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    document.querySelectorAll('input[name="bulk-days"]').forEach(cb => {
+      (cb as HTMLInputElement).checked = weekdays.includes((cb as HTMLInputElement).value);
+    });
+    (document.getElementById('bulk-window-start') as HTMLInputElement).value = '09:00';
+    (document.getElementById('bulk-window-end') as HTMLInputElement).value = '17:00';
+    const unsched = document.querySelector('input[name="bulk-scope"][value="unscheduled"]') as HTMLInputElement | null;
+    if (unsched) unsched.checked = true;
+    updateBulkCount();
+    bulkModal.style.display = 'flex';
+  }
+  function closeBulkScheduleModal() { if (bulkModal) bulkModal.style.display = 'none'; }
+
+  document.getElementById('bulk-schedule-btn')?.addEventListener('click', openBulkScheduleModal);
+  document.getElementById('bulk-cancel-btn')?.addEventListener('click', closeBulkScheduleModal);
+  document.getElementById('close-bulk-modal-btn')?.addEventListener('click', closeBulkScheduleModal);
+  window.addEventListener('click', (e) => { if (e.target === bulkModal) closeBulkScheduleModal(); });
+  document.querySelectorAll('input[name="bulk-scope"]').forEach(r =>
+    r.addEventListener('change', updateBulkCount));
+
+  document.getElementById('bulk-apply-btn')?.addEventListener('click', async () => {
+    const days: string[] = [];
+    document.querySelectorAll('input[name="bulk-days"]:checked').forEach(cb =>
+      days.push((cb as HTMLInputElement).value));
+    const start = (document.getElementById('bulk-window-start') as HTMLInputElement).value;
+    const end = (document.getElementById('bulk-window-end') as HTMLInputElement).value;
+    const scope = bulkSelectedScope();
+
+    if (days.length === 0) { toast('Pick at least one day.', 'error'); return; }
+    if (!start || !end) { toast('Set a start and end time.', 'error'); return; }
+    const targets = bulkTargets(scope);
+    if (targets.length === 0) { toast('No recipients match — nothing to schedule.', 'info'); return; }
+
+    if (scope === 'all') {
+      if (!await confirmDialog(
+        `Overwrite the schedule for all ${targets.length} recipient${targets.length === 1 ? '' : 's'}? Existing days and times will be replaced.`,
+        { title: 'Overwrite all schedules?', confirmLabel: 'Overwrite', danger: true })) return;
+    }
+
+    for (const r of targets) {
+      r.scheduledDays = [...days];
+      r.scheduledTimes = [randomTimeInWindow(start, end)]; // fresh random per recipient
+      r.entropyMinutes = 0; // window already randomizes the time
+    }
+    await saveRecipientsData();
+    renderRecipients();
+    renderPreflight();
+    updateAnalyticsAndSchedule();
+    closeBulkScheduleModal();
+    toast(`Scheduled ${targets.length} recipient${targets.length === 1 ? '' : 's'}.`, 'success', 'Bulk schedule applied');
+  });
+
+  // --- Campaign filtering, row selection, and bulk assign ---
+  document.getElementById('recipient-campaign-filter')?.addEventListener('change', (e) => {
+    currentCampaignFilter = (e.target as HTMLSelectElement).value || 'all';
+    selectedRecipientIdx.clear(); // selection is per-view; reset on filter change
+    renderRecipients();
+  });
+
+  document.getElementById('rec-select-all')?.addEventListener('change', (e) => {
+    const on = (e.target as HTMLInputElement).checked;
+    const visible = visibleRecipientIndices();
+    if (on) visible.forEach(i => selectedRecipientIdx.add(i));
+    else visible.forEach(i => selectedRecipientIdx.delete(i));
+    renderRecipients();
+  });
+
+  document.getElementById('bulk-assign-btn')?.addEventListener('click', async () => {
+    if (selectedRecipientIdx.size === 0) return;
+    const sel = document.getElementById('bulk-assign-campaign') as HTMLSelectElement | null;
+    const campId = sel ? sel.value : '';
+    const label = campId ? campaignNameById(campId) : 'Unassigned';
+    const n = selectedRecipientIdx.size;
+    selectedRecipientIdx.forEach(i => {
+      if (campId) recipientsData[i].campaignId = campId;
+      else delete recipientsData[i].campaignId;
+    });
+    await saveRecipientsData();
+    selectedRecipientIdx.clear();
+    renderRecipients();
+    renderCampaignsList(); // refresh per-campaign counts
+    toast(`Assigned ${n} recipient${n === 1 ? '' : 's'} to ${label}.`, 'success');
+  });
+
+  // --- Campaign create/edit form ---
+  document.getElementById('campaign-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = (document.getElementById('campaign-id') as HTMLInputElement).value.trim();
+    const name = (document.getElementById('campaign-name') as HTMLInputElement).value.trim();
+    const subject = (document.getElementById('campaign-subject') as HTMLInputElement).value;
+    const template = (document.getElementById('campaign-template') as HTMLTextAreaElement).value;
+    const errEl = document.getElementById('campaign-error');
+    if (!name) { if (errEl) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; } return; }
+    const res = await window.electronAPI.saveCampaign({ id: id || undefined, name, subject, template });
+    if (!res.ok) { if (errEl) { errEl.textContent = res.error || 'Save failed.'; errEl.style.display = 'block'; } return; }
+    resetCampaignForm();
+    await refreshCampaigns();
+    renderRecipients(); // campaign names/counts in the table
+    toast('Campaign saved.', 'success');
+  });
+  document.getElementById('campaign-cancel-edit-btn')?.addEventListener('click', resetCampaignForm);
+
+  // Refresh campaign counts/cards whenever the Campaigns view is opened.
+  document.querySelector('.nav-links li[data-view="campaigns"]')?.addEventListener('click', () => {
+    renderCampaignsList();
+  });
+
   // Add-account form: provider presets + custom-field toggle.
   const acctProvider = document.getElementById('acct-provider') as HTMLSelectElement | null;
   const acctCustom = document.getElementById('acct-custom-fields') as HTMLElement | null;
@@ -1573,6 +1931,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       customFieldsContainer.style.display = 'block';
     }
     inputSubject.value = config.email.subject || 'Daily Report';
+    if (inputTemplate) inputTemplate.value = config.templateContent || '';
     inputCv.value = config.paths?.cvPath || '';
     inputEnrollment.value = config.paths?.enrollmentPath || '';
     if (inputPhysicalAddress) inputPhysicalAddress.value = config.sender?.physicalAddress || '';
@@ -1799,6 +2158,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateStatusUI(isRunning);
 
     recipientsData = await window.electronAPI.getRecipients();
+    // Load campaigns first so the Campaign column, filter, and selectors are
+    // populated before the recipients table renders.
+    await refreshCampaigns();
     renderRecipients();
 
     // Load accounts (default + extras) for the Accounts view + recipient selector.
@@ -2121,6 +2483,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (selAccount && selAccount !== 'default') record.accountId = selAccount;
       else delete record.accountId;
 
+      // Campaign: store only when assigned, so Unassigned recipients stay free of
+      // the field (the spread above may carry a stale id).
+      const selCampaign = (document.getElementById('rec-campaign') as HTMLSelectElement | null)?.value;
+      if (selCampaign) record.campaignId = selCampaign;
+      else delete record.campaignId;
+
       if (idx >= 0) {
           recipientsData[idx] = record;
       } else {
@@ -2225,6 +2593,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       user: inputUser.value,
       pass: inputPass.value,
       subject: inputSubject.value,
+      template: inputTemplate ? inputTemplate.value : undefined,
       cvPath: inputCv.value,
       enrollmentPath: inputEnrollment.value,
       physicalAddress: inputPhysicalAddress ? inputPhysicalAddress.value : '',
@@ -2382,6 +2751,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   confirmImportBtn?.addEventListener('click', async () => {
     const { records, summary } = importBuilt;
     if (records.length === 0) return;
+    // Stamp the chosen campaign onto every imported record (blank = Unassigned).
+    const importCampaignId = (document.getElementById('import-campaign') as HTMLSelectElement | null)?.value || '';
+    if (importCampaignId) records.forEach(r => { (r as any).campaignId = importCampaignId; });
     recipientsData.push(...records);
     await saveRecipientsData();
     renderRecipients();
@@ -2389,6 +2761,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     closeImportModal();
     const dupNote = summary.skippedDuplicate ? ` ${summary.skippedDuplicate} duplicate skipped.` : '';
     toast(`${summary.added} recipient${summary.added === 1 ? '' : 's'} imported.${dupNote}`, 'success', 'Imported');
+
+    // Imported recipients land unscheduled — drop the user straight into bulk
+    // scheduling so 500 contacts don't need 500 manual edits.
+    if (bulkUnscheduledTargets().length > 0) openBulkScheduleModal();
 
     const isRunning = await window.electronAPI.getSchedulerStatus();
     if (isRunning) {

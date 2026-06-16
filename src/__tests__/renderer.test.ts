@@ -3,7 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { renderEmail } from '../renderer';
-import type { Config } from '../config';
+import type { Config, Campaign } from '../config';
 
 function tmpFile(contents: string): string {
   const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ep-tpl-')), 'template.html');
@@ -11,9 +11,10 @@ function tmpFile(contents: string): string {
   return f;
 }
 
-function makeConfig(overrides: { templateHtml?: string; subject?: string; physicalAddress?: string; unsubscribeEnabled?: boolean; user?: string; inboxPlacement?: 'primary' | 'bulk' } = {}): Config {
+function makeConfig(overrides: { templateHtml?: string; subject?: string; physicalAddress?: string; unsubscribeEnabled?: boolean; user?: string; inboxPlacement?: 'primary' | 'bulk'; campaigns?: Campaign[] } = {}): Config {
   return {
     userName: 'Tester',
+    campaigns: overrides.campaigns ?? [],
     smtp: { host: 'smtp.x.com', port: 587, user: overrides.user ?? 'me@x.com', pass: 'pw' },
     paths: {
       recipientsCsv: '/tmp/r.csv',
@@ -55,6 +56,32 @@ describe('renderEmail', () => {
     expect(withOverride.subject).toBe('Hi Sam');
     const withoutOverride = renderEmail({ email: 's@x.com', name: 'Sam', messageType: 'text', messageContent: 'x' }, cfg);
     expect(withoutOverride.subject).toBe('Default Subject');
+  });
+
+  it('uses the campaign subject when the recipient has none', () => {
+    const cfg = makeConfig({ subject: 'Global Subject', campaigns: [{ id: 'c1', name: 'Job Hunting', subject: 'Application from {{name}}' }] });
+    const out = renderEmail({ email: 's@x.com', name: 'Sam', campaignId: 'c1', messageType: 'text', messageContent: 'x' }, cfg);
+    expect(out.subject).toBe('Application from Sam');
+  });
+
+  it('lets the recipient subject win over the campaign subject', () => {
+    const cfg = makeConfig({ subject: 'Global Subject', campaigns: [{ id: 'c1', name: 'Job Hunting', subject: 'Campaign Subject' }] });
+    const out = renderEmail({ email: 's@x.com', name: 'Sam', campaignId: 'c1', subject: 'My Own Subject', messageType: 'text', messageContent: 'x' }, cfg);
+    expect(out.subject).toBe('My Own Subject');
+  });
+
+  it('uses the campaign inline template over the on-disk global template', () => {
+    const tpl = tmpFile('<body>GLOBAL {{{message}}}</body>');
+    const cfg = makeConfig({ templateHtml: tpl, campaigns: [{ id: 'c1', name: 'Job Hunting', template: '<body>CAMPAIGN {{name}}: {{{message}}}</body>' }] });
+    const out = renderEmail({ email: 's@x.com', name: 'Sam', campaignId: 'c1', messageType: 'text', messageContent: 'hello' }, cfg);
+    expect(out.body).toContain('CAMPAIGN Sam: hello');
+    expect(out.body).not.toContain('GLOBAL');
+  });
+
+  it('falls back to the global subject when the campaign id is unknown', () => {
+    const cfg = makeConfig({ subject: 'Global Subject', campaigns: [{ id: 'c1', name: 'Job Hunting', subject: 'Campaign Subject' }] });
+    const out = renderEmail({ email: 's@x.com', name: 'Sam', campaignId: 'ghost', messageType: 'text', messageContent: 'x' }, cfg);
+    expect(out.subject).toBe('Global Subject');
   });
 
   it('produces a non-empty plain-text alternative with tags stripped', () => {
