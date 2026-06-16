@@ -19,6 +19,16 @@ import type { Campaign, Sequence, SequenceStep } from '../src/config';
 import { atomicWriteFileSync } from '../src/atomicWrite';
 import dotenv from 'dotenv';
 
+// Writing to a closed stdout/stderr pipe raises EPIPE. With no listener Node
+// throws it as an uncaught exception → Electron's "A JavaScript error occurred
+// in the main process" crash dialog. This happens whenever there is no live
+// console: a boot/tray autostart (--hidden), a detached launch, or the user
+// closing the terminal while the app keeps running. Swallow only EPIPE so a
+// stray console.log can never crash the app; re-throw anything else.
+for (const stream of [process.stdout, process.stderr]) {
+  stream?.on?.('error', (err: any) => { if (err?.code !== 'EPIPE') throw err; });
+}
+
 // --- .env serialization (quoted/escaped so spaces, #, =, and Windows paths survive) ---
 function envText(v: any): string {
   return '"' + String(v ?? '').replace(/"/g, '\\"').replace(/[\r\n]/g, ' ') + '"';
