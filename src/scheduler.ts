@@ -48,8 +48,11 @@ export class Scheduler {
     let jobCount = 0;
 
     for (const [accountId, processor] of entries) {
+      // A recipient with a sequence is owned entirely by the SequenceRunner
+      // (its step 0 is the initial send); scheduling it here too would double-
+      // send. Truthy sequenceId only — '' / undefined still schedule normally.
       const accountRecords = records.filter(
-        r => r.active !== false && recordBelongsToAccount(r, accountId)
+        r => r.active !== false && !r.sequenceId && recordBelongsToAccount(r, accountId)
       );
       if (accountRecords.length === 0) continue;
 

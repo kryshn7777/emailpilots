@@ -306,7 +306,10 @@ function recordAccountStatus(id: string | undefined, s: AccountStatus) {
 
 /** Per-account success hook → per-account + total stats, plus health. */
 function statsOnSent(accountId?: string) {
-  globalStatsManager?.incrementEmailsSent(accountId);
+  // Practice/test mode delivers to the sender's own inbox — don't let it inflate
+  // the "emails sent" counter (which would deflate the reply rate). Health status
+  // still updates: a successful test send proves the account's SMTP creds work.
+  if (!globalConfig?.testMode) globalStatsManager?.incrementEmailsSent(accountId);
   recordAccountStatus(accountId, { ok: true, at: Date.now(), kind: 'send' });
 }
 

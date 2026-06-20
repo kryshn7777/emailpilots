@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <script type="module" crossorigin src="./assets/index-CMjRoKsR.js"></script>
+    <script type="module" crossorigin src="./assets/index-BleBTpI1.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-BqEnYF6T.css">
   </head>
   <body>
@@ -288,7 +288,7 @@
         <div id="campaigns" class="view">
           <header>
             <h1>Campaigns</h1>
-            <p>Group recipients into separate efforts. Each campaign has its own default subject line and email template, so a "Job Hunting" and a "Cold Sales" push never share messaging.</p>
+            <p>Group recipients into separate efforts. Each campaign has its own default subject line and email template, so a "Job Hunting" and a "Past Clients" push never share messaging.</p>
           </header>
 
           <div class="card" style="margin-bottom: 24px;">
@@ -370,7 +370,7 @@
               <input type="hidden" id="sequence-id" value="">
               <div class="form-group">
                 <label for="sequence-name">Name</label>
-                <input type="text" id="sequence-name" required placeholder="e.g. Cold Outreach 3-step">
+                <input type="text" id="sequence-name" required placeholder="e.g. Follow-up 3-step">
               </div>
               <div class="form-group">
                 <label>Steps</label>
@@ -544,24 +544,6 @@
                 <p class="help-text">Wrapper around each recipient's message. <code>{{{message}}}</code> is replaced with their content; <code>{{name}}</code> personalizes. Leave blank to send the message with no wrapper. The compliance footer (unsubscribe + address) is added separately below in Bulk mode.</p>
               </div>
 
-              <hr>
-              
-              <div class="form-group">
-                <label>CV Attachment</label>
-                <div class="file-input-group">
-                  <input type="text" id="cv-path" readonly placeholder="No file selected">
-                  <button type="button" id="select-cv-btn" class="btn outline">Select File</button>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>Enrollment Letter Attachment</label>
-                <div class="file-input-group">
-                  <input type="text" id="enrollment-path" readonly placeholder="No file selected">
-                  <button type="button" id="select-enrollment-btn" class="btn outline">Select File</button>
-                </div>
-              </div>
-
               </div> <!-- End Email Content Card -->
 
               <div class="card settings-chunk" style="margin-bottom: 24px;">
@@ -573,7 +555,7 @@
                   <option value="primary">Personal — reads like 1:1 mail (Primary tab, no footer)</option>
                   <option value="bulk">Bulk — adds unsubscribe link + address footer (CAN-SPAM)</option>
                 </select>
-                <p class="help-text">Personal strips heavy styling and hides the footer so email lands in Gmail's Primary tab. The unsubscribe link and mailing address below are only included in <strong>Bulk</strong> mode — choose Bulk for cold outreach at volume.</p>
+                <p class="help-text">Personal strips heavy styling and hides the footer so email lands in Gmail's Primary tab. The unsubscribe link and mailing address below are only included in <strong>Bulk</strong> mode — choose Bulk for high-volume sending where an unsubscribe link is required.</p>
               </div>
 
               <div class="form-group">

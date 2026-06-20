@@ -116,6 +116,20 @@ export class RateLimiter {
     }
   }
 
+  /**
+   * Re-read state from disk, then roll over. The limiter caches state in memory,
+   * so without this two instances for the same account (e.g. the live scheduler
+   * processor + a throwaway one built for a manual test run) would each mutate
+   * their own copy and clobber limits.<id>.json on save — overshooting the cap,
+   * which is the whole anti-ban point. Every public entry point syncs first so it
+   * acts on the latest persisted counts. Safe within one call: no `await` runs
+   * between the sync and the save, so no other code mutates the file in between.
+   */
+  private reloadState() {
+    this.state = this.load();
+    this.rolloverIfNeeded();
+  }
+
   /** Day index since warmup started (0-based). */
   private warmupDay(): number {
     const start = new Date(this.state.warmupStartDate + 'T00:00:00');
@@ -134,7 +148,7 @@ export class RateLimiter {
 
   /** Read-only pre-send check. Mirrors the consume logic in record(). */
   check(email: string, attachmentBytes: number): CheckResult {
-    this.rolloverIfNeeded();
+    this.reloadState();
     const key = (email || '').toLowerCase();
 
     if (attachmentBytes > this.limits.maxAttachmentBytes) {
@@ -168,7 +182,7 @@ export class RateLimiter {
   /** Record a successful send. Rolls the window forward when full. Returns
    *  whether this send opened a new window, so refund() can undo it exactly. */
   record(email: string): boolean {
-    this.rolloverIfNeeded();
+    this.reloadState();
     const key = (email || '').toLowerCase();
 
     let rolled = false;
@@ -202,7 +216,7 @@ export class RateLimiter {
    * a new window is undone exactly (otherwise windowsToday slowly over-counts).
    */
   refund(email: string, windowRolled = false) {
-    this.rolloverIfNeeded();
+    this.reloadState();
     const key = (email || '').toLowerCase();
 
     if (this.state.emailsToday > 0) this.state.emailsToday--;
@@ -231,13 +245,13 @@ export class RateLimiter {
   }
 
   getState(): LimitState {
-    this.rolloverIfNeeded();
+    this.reloadState();
     return this.state;
   }
 
   /** Combined state + caps for UI display. */
   getUsage() {
-    this.rolloverIfNeeded();
+    this.reloadState();
     const effectiveCap = this.effectiveMaxPerDay();
     return {
       date: this.state.date,

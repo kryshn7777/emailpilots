@@ -146,8 +146,11 @@ export class ReplyPoller {
             const from = msg.envelope?.from?.[0]?.address;
             const key = from ? String(from).toLowerCase() : '';
             if (!key || !recipients.has(key)) continue;
-            const repliedAt = msg.envelope?.date
-              ? new Date(msg.envelope.date).toISOString()
+            // A malformed envelope date must not throw (RangeError) and abort the
+            // sweep before the cursor advances (which would re-fail every poll).
+            const envDate = msg.envelope?.date ? new Date(msg.envelope.date) : null;
+            const repliedAt = envDate && !isNaN(envDate.getTime())
+              ? envDate.toISOString()
               : new Date().toISOString();
             const isNew = store.recordReply(key, repliedAt, account.id, msg.envelope?.subject);
             if (isNew) this.stats?.incrementReplies(account.id);

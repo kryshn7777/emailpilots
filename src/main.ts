@@ -126,14 +126,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputPass = document.getElementById('outlook-pass') as HTMLInputElement;
   const inputSubject = document.getElementById('subject-line') as HTMLInputElement;
   const inputTemplate = document.getElementById('email-template') as HTMLTextAreaElement | null;
-  const inputCv = document.getElementById('cv-path') as HTMLInputElement;
-  const inputEnrollment = document.getElementById('enrollment-path') as HTMLInputElement;
   const inputPhysicalAddress = document.getElementById('physical-address') as HTMLTextAreaElement;
   const inputUnsubscribe = document.getElementById('unsubscribe-enabled') as HTMLInputElement;
   const inputPlacement = document.getElementById('inbox-placement') as HTMLSelectElement | null;
   const inputWarmup = document.getElementById('warmup-enabled') as HTMLInputElement;
-  const selectCvBtn = document.getElementById('select-cv-btn') as HTMLButtonElement;
-  const selectEnrollmentBtn = document.getElementById('select-enrollment-btn') as HTMLButtonElement;
 
   // Modal elements
   const previewModal = document.getElementById('preview-modal')!;
@@ -446,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     rows.push({ status: cfg?.email?.subject ? 'ok' : 'warn', label: cfg?.email?.subject ? `Default subject: "${cfg.email.subject}"` : 'No default subject set' });
     rows.push({ status: cfg?.sender?.physicalAddress ? 'ok' : 'warn', label: cfg?.sender?.physicalAddress ? 'Mailing address set (CAN-SPAM)' : 'No mailing address — required for compliant bulk email', action: cfg?.sender?.physicalAddress ? undefined : { label: 'Fix it', view: 'settings' } });
     if (cfg?.sender?.inboxPlacement !== 'bulk') {
-      rows.push({ status: 'info', label: 'Personal sending style: unsubscribe link & address footer are hidden so mail reads 1:1. Use Bulk style in Settings for compliant cold outreach.', action: { label: 'Review', view: 'settings' } });
+      rows.push({ status: 'info', label: 'Personal sending style: unsubscribe link & address footer are hidden so mail reads 1:1. Switch to Bulk style in Settings to add them for high-volume sending.', action: { label: 'Review', view: 'settings' } });
     }
     rows.push({ status: active.length > 0 ? 'ok' : 'warn', label: `${active.length} active recipient${active.length === 1 ? '' : 's'}` });
     if (active.length > 0) {
@@ -2069,8 +2065,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           user: inputUser.value,
           pass: inputPass.value,
           subject: inputSubject.value,
-          cvPath: inputCv.value,
-          enrollmentPath: inputEnrollment.value,
         };
 
         await window.electronAPI.saveConfig(newConfig);
@@ -2150,8 +2144,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     inputSubject.value = config.email.subject || 'Daily Report';
     if (inputTemplate) inputTemplate.value = config.templateContent || '';
-    inputCv.value = config.paths?.cvPath || '';
-    inputEnrollment.value = config.paths?.enrollmentPath || '';
     if (inputPhysicalAddress) inputPhysicalAddress.value = config.sender?.physicalAddress || '';
     if (inputUnsubscribe) inputUnsubscribe.checked = config.sender?.unsubscribeEnabled !== false;
     if (inputPlacement) inputPlacement.value = config.sender?.inboxPlacement === 'bulk' ? 'bulk' : 'primary';
@@ -2337,8 +2329,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           user: email,
           pass,
           subject: config.email?.subject || '',
-          cvPath: config.paths?.cvPath || '',
-          enrollmentPath: config.paths?.enrollmentPath || '',
           physicalAddress: config.sender?.physicalAddress || '',
           unsubscribeEnabled: config.sender?.unsubscribeEnabled !== false,
           warmupEnabled: config.limits?.warmupEnabled !== false,
@@ -2752,16 +2742,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
   });
 
-  selectCvBtn.addEventListener('click', async () => {
-    const path = await window.electronAPI.selectFile('Select CV', ['pdf', 'doc', 'docx']);
-    if (path) inputCv.value = path;
-  });
-
-  selectEnrollmentBtn.addEventListener('click', async () => {
-    const path = await window.electronAPI.selectFile('Select Enrollment Letter', ['pdf', 'doc', 'docx']);
-    if (path) inputEnrollment.value = path;
-  });
-
   // Test connection — send a real email to yourself (F15)
   document.getElementById('test-connection-btn')?.addEventListener('click', async () => {
     const btn = document.getElementById('test-connection-btn') as HTMLButtonElement;
@@ -2833,8 +2813,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       pass: inputPass.value,
       subject: inputSubject.value,
       template: inputTemplate ? inputTemplate.value : undefined,
-      cvPath: inputCv.value,
-      enrollmentPath: inputEnrollment.value,
       physicalAddress: inputPhysicalAddress ? inputPhysicalAddress.value : '',
       unsubscribeEnabled: inputUnsubscribe ? inputUnsubscribe.checked : true,
       inboxPlacement: inputPlacement ? inputPlacement.value : undefined,

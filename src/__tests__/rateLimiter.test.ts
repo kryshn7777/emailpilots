@@ -96,4 +96,21 @@ describe('RateLimiter', () => {
     new RateLimiter(dir, limits()).tryConsume('a@x.com', 0);
     expect(new RateLimiter(dir, limits()).getUsage().emailsToday).toBe(1);
   });
+
+  it('two live instances for the same account do not clobber each others counts', () => {
+    // Reproduces the cross-instance race: the scheduler's long-lived limiter and
+    // a throwaway one (e.g. from a manual test run) both target the same file.
+    const dir = tmpDir();
+    const a = new RateLimiter(dir, limits({ maxPerDay: 3 }));
+    const b = new RateLimiter(dir, limits({ maxPerDay: 3 })); // both start at 0 in memory
+    a.tryConsume('a@x.com', 0);
+    b.tryConsume('b@x.com', 0); // must build on a's persisted send, not overwrite it
+    // A fresh read is the source of truth: both sends counted (would be 1 if b clobbered a).
+    expect(new RateLimiter(dir, limits()).getUsage().emailsToday).toBe(2);
+    // The shared daily cap is enforced across both instances.
+    expect(a.tryConsume('c@x.com', 0).allowed).toBe(true);  // 3rd — still under cap
+    const blocked = b.tryConsume('d@x.com', 0);             // 4th — over cap of 3
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.reason).toMatch(/daily send cap/);
+  });
 });
