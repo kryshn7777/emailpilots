@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0d1b3f;
+  --color-navy: #0a1430;
+  --color-navy-700: #10224f;
+  --color-navy-900: #070d22;
+  --color-blue: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-glow: #5b8cff;
+  --color-paper: #f7f9fc;
+  --color-paper-line: #e6ecf5;
+  --color-slate-ink: #41527a;
+  --color-slate-mute: #76859f;
+  --color-success: #34d399;
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --shadow-glow: 0 10px 40px -8px rgba(59, 130, 246, 0.5);
+  --shadow-lift: 0 24px 60px -24px rgba(13, 27, 63, 0.22);
+}
+
+:root { color-scheme: light; }
+
+* { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+html { scroll-behavior: auto; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: #fff;
+  color: var(--color-ink);
+  overflow-x: hidden;
+}
+
+/* Lenis */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+::selection { background: var(--color-blue); color: #fff; }
