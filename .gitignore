@@ -19,3 +19,12 @@ limits.*.json
 stats.json
 suppression.json
 scheduler.json
+# Reply analytics + drip sequence state (recipient PII / runtime cursors)
+replies.json
+imap.json
+imap.*.json
+campaigns.json
+sequences.json
+
+# Brainstorming visual-companion scratch (mockups, server state)
+.superpowers/
