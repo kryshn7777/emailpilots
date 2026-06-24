@@ -1,5 +1,6 @@
 import fs from 'fs';
 import Mustache from 'mustache';
+import { applyMergeDefaults } from './mergeDefaults';
 import type { Config } from './config';
 
 export interface RenderedEmail {
@@ -122,6 +123,7 @@ export function renderEmail(record: any, config: Config): RenderedEmail {
     templateContent = message;
   }
 
+  templateContent = applyMergeDefaults(templateContent, record);
   let rendered = Mustache.render(templateContent, record);
 
   // Primary-tab mode: strip <head> and <style> blocks so any template degrades
@@ -146,7 +148,7 @@ export function renderEmail(record: any, config: Config): RenderedEmail {
     : (campaign && campaign.subject && String(campaign.subject).trim())
       ? String(campaign.subject)
       : config.email.subject;
-  const subject = htmlUnescape(Mustache.render(subjectTpl, record));
+  const subject = htmlUnescape(Mustache.render(applyMergeDefaults(subjectTpl, record), record));
   const text = htmlToText(rendered);
 
   return { subject, body: rendered, text, listUnsubscribe: footer.unsubscribe };

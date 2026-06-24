@@ -135,3 +135,30 @@ describe('renderEmail', () => {
     expect(out.body).toContain('<style');
   });
 });
+
+describe('renderEmail merge-var defaults', () => {
+  it('resolves {{var|default}} in the body when fields are empty', () => {
+    const out = renderEmail(
+      { email: 's@x.com', name: '', company: '', messageType: 'text', messageContent: 'Hi {{name|there}}, from {{company|your team}}.' },
+      makeConfig(),
+    );
+    expect(out.body).toContain('Hi there, from your team.');
+  });
+
+  it('resolves {{var|default}} in the subject when the field is empty', () => {
+    const out = renderEmail(
+      { email: 's@x.com', company: '', subject: 'Re: {{company|your team}}', messageType: 'text', messageContent: 'body' },
+      makeConfig(),
+    );
+    expect(out.subject).toBe('Re: your team');
+  });
+
+  it('still renders present values normally (regression guard)', () => {
+    const out = renderEmail(
+      { email: 's@x.com', name: 'Jane', company: 'Acme', subject: 'Re: {{company|your team}}', messageType: 'text', messageContent: 'Hi {{name|there}}.' },
+      makeConfig(),
+    );
+    expect(out.body).toContain('Hi Jane.');
+    expect(out.subject).toBe('Re: Acme');
+  });
+});
