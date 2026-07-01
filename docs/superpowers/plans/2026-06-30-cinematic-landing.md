@@ -1537,9 +1537,9 @@ In dev tools at 390×844, confirm: HUD is the top progress bar (not the rail), n
 
 - [ ] **Step 5: Copy/legal audit**
 
-Search the rendered site (or `git grep -in` across `landing/src`) for banned strings: `cold`, `bulk`, `anti-ban`, `guaranteed`. Expected: none in UI copy. Confirm the Coming Soon badge `Coming soon · not yet available` is visible and no dates are promised.
+Audit for banned *positioning* phrases (the existing FAQ legitimately uses "bulk"/"spam" in a disclaiming sense — "Is this a bulk or spam tool? No…" — which is allowed; only ban them as positioning/claims). Confirm the Coming Soon badge `Coming soon · not yet available` is visible and no dates are promised.
 
-Run: `git grep -inE "cold email|cold outreach|\\banti-ban\\b|guaranteed (inbox|delivery)|\\bbulk\\b|mass email" -- landing/src`
+Run: `git grep -inE "cold email|cold outreach|anti-ban|guaranteed (inbox|delivery)|mass email|bulk (email|send|blast)" -- landing/src`
 Expected: no matches.
 
 - [ ] **Step 6: Fix any findings, then commit**
