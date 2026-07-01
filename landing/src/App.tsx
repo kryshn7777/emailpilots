@@ -1,4 +1,5 @@
 import { ReactLenis, useLenis } from 'lenis/react'
+import { MotionConfig } from 'motion/react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
@@ -69,7 +70,9 @@ export default function App() {
         )}
       </div>
       <RouteLine />
-      <Content />
+      <MotionConfig reducedMotion="user">
+        <Content />
+      </MotionConfig>
     </ReactLenis>
   )
 }

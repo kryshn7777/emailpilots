@@ -14,13 +14,18 @@ export function C01Hangar() {
 
   useGSAP(
     () => {
-      gsap.from('.hero-rise', { y: 34, autoAlpha: 0, duration: 0.9, ease: 'power3.out', stagger: 0.12 })
-      gsap.to('.hero-copy', {
-        yPercent: -18,
-        autoAlpha: 0.35,
-        ease: 'none',
-        scrollTrigger: { trigger: root.current, start: 'top top', end: 'bottom top', scrub: true },
+      // Honor prefers-reduced-motion: no intro tween, no scroll-scrub.
+      const mm = gsap.matchMedia()
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        gsap.from('.hero-rise', { y: 34, autoAlpha: 0, duration: 0.9, ease: 'power3.out', stagger: 0.12 })
+        gsap.to('.hero-copy', {
+          yPercent: -18,
+          autoAlpha: 0.35,
+          ease: 'none',
+          scrollTrigger: { trigger: root.current, start: 'top top', end: 'bottom top', scrub: true },
+        })
       })
+      return () => mm.revert()
     },
     { scope: root },
   )
