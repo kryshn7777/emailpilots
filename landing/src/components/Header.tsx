@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLenis } from 'lenis/react'
 import { NAV, PRICE, CHECKOUT_URL } from '../config'
 import { cn } from '../lib/cn'
+import { Logo } from './Logo'
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false)
@@ -15,8 +16,8 @@ export function Header() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-        <a href="#top" className={cn('flex items-center gap-2 text-lg font-extrabold tracking-tight transition-colors', scrolled ? 'text-ink' : 'text-white')}>
-          <span aria-hidden>✈</span> Email Pilots
+        <a href="#top" className="flex items-center" aria-label="Email Pilots — home">
+          <Logo className={cn('transition-colors', scrolled ? 'text-ink' : 'text-white')} />
         </a>
         <nav className="hidden items-center gap-7 md:flex">
           {NAV.map((n) => (

@@ -1,54 +1,48 @@
 import { ReactLenis, useLenis } from 'lenis/react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Header } from './components/Header'
-import { Hero } from './components/Hero'
-import { StatBand } from './components/StatBand'
-import { HowItWorks } from './components/HowItWorks'
-import { Moat } from './components/Moat'
-import { Features } from './components/Features'
-import { ProductShots } from './components/ProductShots'
-import { Deliverability } from './components/Deliverability'
-import { Comparison } from './components/Comparison'
-import { WhoFor } from './components/WhoFor'
-import { Pricing } from './components/Pricing'
-import { FAQ } from './components/FAQ'
-import { FinalCTA } from './components/FinalCTA'
-import { Footer } from './components/Footer'
+import { Hud } from './components/Hud'
+import { RouteLine } from './components/RouteLine'
+import { Story } from './story/Story'
+import { scroll, chapterIndex } from './lib/scroll'
 
 gsap.registerPlugin(ScrollTrigger)
 
+const SkyCanvas = lazy(() => import('./three/SkyCanvas'))
+
 function Content() {
-  // Keep ScrollTrigger in sync with Lenis' smooth scroll position.
-  useLenis(() => ScrollTrigger.update())
+  useLenis((lenis: any) => {
+    ScrollTrigger.update()
+    scroll.y = lenis?.scroll ?? window.scrollY
+    scroll.progress = lenis?.progress ?? 0
+    scroll.chapter = chapterIndex(scroll.progress)
+  })
   return (
     <>
       <Header />
-      <main className="relative">
-        <Hero />
-        <StatBand />
-        <HowItWorks />
-        <Moat />
-        <Features />
-        <ProductShots />
-        <Deliverability />
-        <Comparison />
-        <WhoFor />
-        <Pricing />
-        <FAQ />
-        <FinalCTA />
-      </main>
-      <Footer />
+      <Hud />
+      <Story />
     </>
   )
 }
 
 export default function App() {
   const lenisRef = useRef<any>(null)
+  const [showSky, setShowSky] = useState(false)
 
   useEffect(() => {
-    // Drive Lenis from GSAP's ticker (single rAF) — pattern from Lenis + GSAP docs.
+    const ric = (window as any).requestIdleCallback
+    if (ric) {
+      const h = ric(() => setShowSky(true), { timeout: 1500 })
+      return () => (window as any).cancelIdleCallback?.(h)
+    }
+    const h = setTimeout(() => setShowSky(true), 400)
+    return () => clearTimeout(h)
+  }, [])
+
+  useEffect(() => {
     function update(time: number) {
       lenisRef.current?.lenis?.raf(time * 1000)
     }
@@ -59,6 +53,20 @@ export default function App() {
 
   return (
     <ReactLenis root options={{ autoRaf: false, lerp: 0.1 }} ref={lenisRef}>
+      <div className="pointer-events-none fixed inset-0 -z-20 bg-white" />
+      <div className="grid-paper pointer-events-none fixed inset-0 -z-20 opacity-70" />
+      <div
+        className="pointer-events-none fixed inset-x-0 top-0 -z-20 h-[100vh]"
+        style={{ background: 'linear-gradient(180deg,#0a1430 0%,#0c1838 55%,rgba(247,249,252,0) 100%)' }}
+      />
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        {showSky && (
+          <Suspense fallback={null}>
+            <SkyCanvas />
+          </Suspense>
+        )}
+      </div>
+      <RouteLine />
       <Content />
     </ReactLenis>
   )
