@@ -6,6 +6,7 @@ import { C05Landing } from './C05Landing'
 import { C06WhyFly } from './C06WhyFly'
 import { C07Frontier } from './C07Frontier'
 import { C08BoardingPass } from './C08BoardingPass'
+import { C09FinalApproach } from './C09FinalApproach'
 
 export function Story() {
   return (
@@ -18,6 +19,7 @@ export function Story() {
       <C06WhyFly />
       <C07Frontier />
       <C08BoardingPass />
+      <C09FinalApproach />
     </main>
   )
 }
