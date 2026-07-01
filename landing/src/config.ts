@@ -250,3 +250,48 @@ export const SHOTS = [
   { src: 'shots/recipients.png', label: 'Contacts', caption: 'Import, personalize, and schedule per contact.' },
   { src: 'shots/accounts.png', label: 'Accounts', caption: 'Keep several mailboxes organized in one place.' },
 ]
+
+// --- Brand logo slot ---------------------------------------------------------
+// Drop your asset at landing/public/logo.svg and set logoSrc to '/logo.svg'.
+// While these are empty, <Logo> renders an animated wordmark fallback.
+export const BRAND = {
+  name: 'Email Pilots',
+  logoSrc: '',      // e.g. '/logo.svg'
+  logoDarkSrc: '',  // optional variant for dark backgrounds, e.g. '/logo-dark.svg'
+}
+
+// Current single plan, relabeled so Business & Teams reads as a future tier.
+export const PLAN = {
+  name: 'Solo',
+  tagline: 'One person, your own mailbox.',
+}
+
+// HUD chapter metadata. ids match the section[id]s used for nav anchors.
+export const CHAPTERS = [
+  { id: 'top', code: '00', name: 'Preflight' },
+  { id: 'how', code: '01', name: 'Flight plan' },
+  { id: 'deliverability', code: '02', name: 'Takeoff' },
+  { id: 'features', code: '03', name: 'The cockpit' },
+  { id: 'landing', code: '04', name: 'Landing & reply' },
+  { id: 'why', code: '05', name: 'Why fly with us' },
+  { id: 'business', code: '06', name: 'Next frontier' },
+  { id: 'pricing', code: '07', name: 'Boarding pass' },
+  { id: 'faq', code: '08', name: 'Final approach' },
+] as const
+
+// --- Coming soon: Business & Teams (NOT yet available) -----------------------
+export const COMING_SOON = {
+  badge: 'Coming soon · not yet available',
+  eyebrow: 'On the horizon',
+  title: 'Built for Business & Teams.',
+  sub: 'A longer-haul tier we’re charting now. Planned, not yet available — and we don’t promise dates. Leave your address and we’ll tell you when it boards.',
+  waitlistHref: 'mailto:hello@emailpilots.app?subject=Business%20%26%20Teams%20waitlist',
+  waitlistLabel: 'Get notified when Business & Teams launches',
+  items: [
+    { title: 'SSO sign-in', body: 'One-click Google & Microsoft sign-in (OAuth2) — no app passwords to generate.' },
+    { title: 'Managed domain authentication', body: 'Guided SPF, DKIM and DMARC setup, so your domain is verified for you.' },
+    { title: 'Open & click analytics', body: 'See opens and click-throughs per message, with privacy-respecting measurement.' },
+    { title: 'Team workspace + secure sync', body: 'Share campaigns and contacts across a team, synced securely across devices.' },
+    { title: 'Visual email builder', body: 'Design emails with drag-and-drop blocks — no HTML required.' },
+  ],
+}
