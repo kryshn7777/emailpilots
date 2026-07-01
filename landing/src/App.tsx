@@ -7,7 +7,7 @@ import { Header } from './components/Header'
 import { Hud } from './components/Hud'
 import { RouteLine } from './components/RouteLine'
 import { Story } from './story/Story'
-import { scroll, chapterIndex } from './lib/scroll'
+import { scroll, chapterIndex, prefersReducedMotion } from './lib/scroll'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -34,6 +34,8 @@ export default function App() {
   const [showSky, setShowSky] = useState(false)
 
   useEffect(() => {
+    // Respect prefers-reduced-motion: never mount the auto-playing 3D scene.
+    if (prefersReducedMotion) return
     const ric = (window as any).requestIdleCallback
     if (ric) {
       const h = ric(() => setShowSky(true), { timeout: 1500 })
