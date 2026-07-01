@@ -3,6 +3,7 @@ import { C02FlightPlan } from './C02FlightPlan'
 import { C03Takeoff } from './C03Takeoff'
 import { C04Cockpit } from './C04Cockpit'
 import { C05Landing } from './C05Landing'
+import { C06WhyFly } from './C06WhyFly'
 
 export function Story() {
   return (
@@ -12,6 +13,7 @@ export function Story() {
       <C03Takeoff />
       <C04Cockpit />
       <C05Landing />
+      <C06WhyFly />
     </main>
   )
 }
