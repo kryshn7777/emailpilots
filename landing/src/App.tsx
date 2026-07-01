@@ -55,8 +55,10 @@ export default function App() {
     <ReactLenis root options={{ autoRaf: false, lerp: 0.1 }} ref={lenisRef}>
       <div className="pointer-events-none fixed inset-0 -z-20 bg-white" />
       <div className="grid-paper pointer-events-none fixed inset-0 -z-20 opacity-70" />
+      {/* Hero night sky: absolute (scrolls away with the hero) so it never
+          tints the light blueprint chapters below. Sits behind the 3D canvas. */}
       <div
-        className="pointer-events-none fixed inset-x-0 top-0 -z-20 h-[100vh]"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-20 h-screen"
         style={{ background: 'linear-gradient(180deg,#0a1430 0%,#0c1838 55%,rgba(247,249,252,0) 100%)' }}
       />
       <div className="pointer-events-none fixed inset-0 -z-10">
