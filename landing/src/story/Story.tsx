@@ -5,6 +5,7 @@ import { C04Cockpit } from './C04Cockpit'
 import { C05Landing } from './C05Landing'
 import { C06WhyFly } from './C06WhyFly'
 import { C07Frontier } from './C07Frontier'
+import { C08BoardingPass } from './C08BoardingPass'
 
 export function Story() {
   return (
@@ -16,6 +17,7 @@ export function Story() {
       <C05Landing />
       <C06WhyFly />
       <C07Frontier />
+      <C08BoardingPass />
     </main>
   )
 }
