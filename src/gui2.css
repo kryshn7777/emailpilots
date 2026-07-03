@@ -1367,3 +1367,64 @@ summary:focus-visible {
 .concept-diagram[data-focus="campaign"] .cd-panel-campaign .cd-here,
 .concept-diagram[data-focus="sequence"] .cd-panel-sequence .cd-here,
 .concept-diagram[data-focus="account"]  .cd-panel-account  .cd-here{ opacity:1 }
+
+/* ============================================================================
+   GUI2 mockup shell — chrome bar + horizontal tabs
+   Appended overrides; base component rules above stay untouched so every
+   class main.ts renders keeps a style.
+   ========================================================================== */
+#app { flex-direction: column; }
+
+.chrome-bar {
+  display: flex; align-items: center; gap: 12px;
+  height: 44px; flex: 0 0 44px;
+  padding: 0 150px 0 16px; /* right padding clears the Win11 titleBarOverlay buttons */
+  background: #fbfcfe;
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
+}
+.chrome-bar .chrome-status,
+.chrome-bar button, .chrome-bar input, .chrome-bar label { -webkit-app-region: no-drag; }
+.chrome-dots { display: inline-flex; gap: 6px; }
+.dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.dot-red { background: #ff5f57; } .dot-yellow { background: #febc2e; } .dot-green { background: #28c840; }
+.chrome-title { letter-spacing: 0.02em; }
+
+.chrome-status {
+  display: inline-flex; align-items: center; gap: 8px; margin-left: auto;
+  border-radius: 999px; padding: 3px 12px;
+  font-weight: 700; letter-spacing: 0.04em; cursor: pointer;
+}
+.chrome-status .stat-info strong { display: none; } /* pill shows live status text only */
+.chrome-status .stat-info { display: flex; align-items: center; }
+.chrome-status .icon-box { display: flex; align-items: center; }
+.chrome-status.active-border { background: #dcfce7; color: #15803d; }
+.chrome-status.inactive-border { background: #f1f5f9; color: #64748b; }
+
+.tabbar {
+  flex: 0 0 auto; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border); padding: 0 16px;
+}
+.tabbar .nav-links { display: flex; flex-direction: row; align-items: center; gap: 4px; margin: 0; padding: 0; }
+.tabbar .nav-links li {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 14px; border-radius: 0; cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-weight: 600; font-size: var(--text-sm); color: var(--text-muted);
+  white-space: nowrap;
+}
+.tabbar .nav-links li:hover { color: var(--foreground); background: var(--accent-subtle); }
+.tabbar .nav-links li.active { color: var(--primary); border-bottom-color: var(--primary); background: none; }
+.tabbar .nav-links li.active::before { display: none; } /* no sidebar indicator bar in tab mode */
+.tabbar .nav-links li .material-symbols-outlined { font-size: 18px; }
+.tabbar .nav-links li.nav-section {
+  cursor: default; border-bottom: 2px solid transparent; padding: 10px 8px 10px 16px;
+  font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--border-strong); pointer-events: none;
+  border-left: 1px solid var(--border); margin-left: 8px;
+}
+.content {
+  flex: 1 1 auto; overflow-y: auto;
+  background: transparent; border: none; border-radius: 0;
+}

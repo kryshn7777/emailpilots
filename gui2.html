@@ -14,11 +14,24 @@
   <body data-gui="2">
     <div class="noise-overlay"></div>
     <div id="app">
-      <nav class="sidebar">
-        <div class="logo">
-          <img src="/assets/logo.png" alt="Email Pilots logo" style="max-height: 56px; width: auto; object-fit: contain;">
+      <header class="chrome-bar">
+        <span class="chrome-dots" aria-hidden="true"><i class="dot dot-red"></i><i class="dot dot-yellow"></i><i class="dot dot-green"></i></span>
+        <span class="chrome-title">Email Pilots</span>
+        <div class="stat chrome-status" id="status-stat-container" style="cursor: pointer;" onclick="document.getElementById('toggle-scheduler-btn').click()">
+          <div class="icon-box">
+            <label class="toggle-switch">
+              <input type="checkbox" id="status-toggle-checkbox">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="stat-info">
+            <strong>Status</strong>
+            <span id="service-status-text">Checking…</span>
+          </div>
         </div>
-        <ul class="nav-links" role="tablist" aria-label="Main navigation" aria-orientation="vertical">
+      </header>
+      <nav class="tabbar">
+        <ul class="nav-links" role="tablist" aria-label="Main navigation" aria-orientation="horizontal">
           <li class="active" data-view="dashboard">
             <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
             Dashboard
@@ -31,7 +44,7 @@
             <span class="material-symbols-outlined" aria-hidden="true">settings</span>
             Settings
           </li>
-          <li class="nav-section" role="presentation">Advanced · optional</li>
+          <li class="nav-section" role="presentation">Advanced</li>
           <li data-view="campaigns" title="Separate outreach efforts that each get their own subject line and template.">
             <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
             Campaigns
@@ -67,18 +80,6 @@
                   <div class="stat-info">
                     <strong>Next Run</strong>
                     <span id="schedule-display">Daily at 09:00</span>
-                  </div>
-                </div>
-                <div class="stat" id="status-stat-container" style="cursor: pointer;" onclick="document.getElementById('toggle-scheduler-btn').click()">
-                  <div class="icon-box">
-                    <label class="toggle-switch">
-                      <input type="checkbox" id="status-toggle-checkbox">
-                      <span class="slider"></span>
-                    </label>
-                  </div>
-                  <div class="stat-info">
-                    <strong>Status</strong>
-                    <span id="service-status-text">Checking…</span>
                   </div>
                 </div>
                 <div class="stat">
@@ -188,7 +189,7 @@
           <div class="cards-grid">
             <div class="card quick-actions" style="grid-column: 1 / -1; padding: 24px;">
               <h3 style="margin-top: 0; margin-bottom: 16px;">Quick Actions</h3>
-              <button id="test-run-btn" class="btn primary btn-lg" style="display: none; width: 100%; max-width: 400px; padding: 16px; font-size: 1.1rem; height: auto; margin-bottom: 12px;">
+              <button id="test-run-btn" class="btn primary btn-lg" style="width: 100%; max-width: 400px; padding: 16px; font-size: 1.1rem; height: auto; margin-bottom: 12px;">
                 <span class="material-symbols-outlined" style="font-size: 24px;">play_arrow</span>
                 Send to All Now
               </button>
