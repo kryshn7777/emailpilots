@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, dialog, Tray, Menu, nativeImage, safeStorage } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog, Tray, Menu, nativeImage, safeStorage, session } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import dns from 'dns';
@@ -11,7 +11,10 @@ import { SuppressionManager } from '../src/suppressionManager';
 import { renderEmail } from '../src/renderer';
 import { readCsvFile } from '../src/csvImport';
 import { normalizeAppPassword } from '../src/smtpUtils';
-import { buildProcessors, runAllAccounts } from '../src/campaignRunner';
+import { buildProcessors, runAllAccounts, hasCredentials } from '../src/campaignRunner';
+import type { StrategyDeps } from '../src/transport/sendStrategy';
+import { loginMicrosoft, getAccessToken as msGetAccessToken, isMicrosoftOAuthConfigured } from './transport/oauthMicrosoft';
+import { connectBrowser, createBrowserStrategy } from './transport/browserSession';
 import { readAccounts, upsertAccount, removeAccount, accountsFilePath, MAX_EXTRA_ACCOUNTS } from '../src/accountStore';
 import { readCampaigns, upsertCampaign, removeCampaign } from '../src/campaignStore';
 import { upsertSequence, removeSequence } from '../src/sequenceStore';
@@ -329,9 +332,18 @@ function genAccountId(seed?: string): string {
  * config change. globalMailProcessor always remains the 'default' processor so
  * existing references keep working.
  */
+/**
+ * Electron-only capabilities handed to the transport factory: OAuth token
+ * acquisition (Microsoft) and, later, the browser-session strategy. Pure-Node
+ * code (CLI) gets none of these, so only classic SMTP works there.
+ */
+function strategyDeps(): StrategyDeps {
+  return { getAccessToken: msGetAccessToken, createBrowserStrategy };
+}
+
 function rebuildProcessors() {
   if (!globalConfig) return;
-  globalProcessors = buildProcessors(globalConfig, statsOnSent);
+  globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps());
   globalMailProcessor = globalProcessors.get('default')
     ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default');
   if (globalScheduler) {
@@ -346,7 +358,7 @@ function rebuildProcessors() {
   }
   // Keep the reply poller pointed at the fresh config (new/removed accounts).
   if (globalReplyPoller) globalReplyPoller.config = globalConfig;
-  else globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager);
+  else globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetAccessToken);
   // Same for the sequence runner: refresh config + processor set, re-arm if live.
   if (globalSequenceRunner) {
     globalSequenceRunner.config = globalConfig;
@@ -368,12 +380,12 @@ function initServices() {
     globalStatsManager = new StatsManager(basePath);
 
     // One processor per sendable account; default processor preserved.
-    globalProcessors = buildProcessors(globalConfig, statsOnSent);
+    globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps());
     globalMailProcessor = globalProcessors.get('default')
       ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default');
 
     globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors);
-    globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager);
+    globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetAccessToken);
     globalSequenceRunner = new SequenceRunner(globalConfig, globalMailProcessor, globalProcessors);
 
     sendLog('Services initialized successfully.', 'system');
@@ -443,16 +455,18 @@ ipcMain.handle('send-test-email', async (_event, accountId?: string) => {
     const account = (accountId ? accounts.find(a => a.id === accountId) : undefined)
         || accounts.find(a => a.id === 'default')
         || accounts[0];
-    if (!account || !account.user || !account.pass) {
+    if (!account || !account.user || !hasCredentials(account)) {
         return { ok: false, error: 'Add your email address and password in Settings first.' };
     }
     try {
         // Direct send (bypasses rate limits) so a config check is instant and free.
-        // Config slice => correct From + footer for this specific account.
+        // Config slice + account => correct From/footer AND the right transport
+        // (SMTP password, OAuth-SMTP, or browser) for this specific account.
         const svc = new EmailService({
             ...globalConfig,
             smtp: { host: account.host, port: account.port, user: account.user, pass: account.pass },
-        });
+            account,
+        }, strategyDeps());
         const to = account.user;
         const body = '<p>This is a test from <strong>Email Pilots</strong>. '
             + 'If you received this, your SMTP settings work.</p>';
@@ -496,6 +510,9 @@ ipcMain.handle('get-accounts', () => {
         user: a.user,
         enabled: a.enabled,
         hasPass: !!a.pass,
+        // Transport lets the renderer treat OAuth/browser accounts as "connected"
+        // even though they carry no password (hasPass is false for them).
+        transport: a.transport || 'smtp',
         isDefault: a.id === 'default',
         status: accountStatus.get(a.id) || null,
     }));
@@ -551,6 +568,98 @@ ipcMain.handle('save-account', async (_event, acc) => {
     }
 });
 
+/**
+ * Interactive "Sign in with Microsoft": runs the system-browser OAuth flow, then
+ * stores a password-less oauth-smtp account. No app password is ever typed — the
+ * survival path for Microsoft 365 once basic-auth SMTP is rejected.
+ */
+ipcMain.handle('oauth-login-microsoft', async () => {
+    try {
+        if (!isMicrosoftOAuthConfigured()) {
+            return { ok: false, error: 'Microsoft sign-in is not set up in this build (missing MS_OAUTH_CLIENT_ID).' };
+        }
+        if (!globalConfig) initServices();
+        const basePath = getBasePath();
+
+        const { email, oauthToken } = await loginMicrosoft();
+        if (!email) return { ok: false, error: 'Could not read the signed-in address.' };
+
+        const allExtras = readAccounts(basePath);
+        // Re-use the existing entry for this address (re-auth) instead of duplicating.
+        const existing = allExtras.find(a => a.user.toLowerCase() === email.toLowerCase());
+        if (!existing && allExtras.length >= MAX_EXTRA_ACCOUNTS) {
+            return { ok: false, error: `Account limit reached (max ${MAX_EXTRA_ACCOUNTS} added accounts). Remove one before adding another.` };
+        }
+        const id = existing?.id || genAccountId(email);
+
+        const account: Account = {
+            id,
+            label: existing?.label || email,
+            host: 'smtp.office365.com',
+            port: 587,
+            user: email,
+            pass: '',
+            enabled: existing?.enabled !== false,
+            transport: 'oauth-smtp',
+            oauthProvider: 'microsoft',
+            oauthToken,
+        };
+        upsertAccount(basePath, account);
+
+        globalConfig = loadConfig();
+        rebuildProcessors();
+        recordAccountStatus(id, { ok: true, at: Date.now(), kind: 'test' });
+        return { ok: true, id, email };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Microsoft sign-in failed' };
+    }
+});
+
+/**
+ * "Connect Gmail/Outlook (browser)": opens a real sign-in window, then stores a
+ * credential-less 'browser' account whose session lives in a dedicated Electron
+ * partition. No password, no OAuth — we drive the webmail UI to send.
+ */
+ipcMain.handle('browser-connect', async (_event, provider: 'gmail' | 'outlook') => {
+    try {
+        if (provider !== 'gmail' && provider !== 'outlook') {
+            return { ok: false, error: 'Unsupported provider.' };
+        }
+        if (!globalConfig) initServices();
+        const basePath = getBasePath();
+
+        const allExtras = readAccounts(basePath);
+        if (allExtras.length >= MAX_EXTRA_ACCOUNTS) {
+            return { ok: false, error: `Account limit reached (max ${MAX_EXTRA_ACCOUNTS} added accounts). Remove one before adding another.` };
+        }
+        // The partition is keyed by id, so the id must exist before sign-in.
+        const id = genAccountId(`browser-${provider}`);
+        const { email, partition } = await connectBrowser(provider, id);
+
+        const account: Account = {
+            id,
+            label: email || `${provider === 'outlook' ? 'Outlook' : 'Gmail'} (browser)`,
+            // Host/port are unused by the browser transport but keep the Account shape valid.
+            host: provider === 'outlook' ? 'smtp.office365.com' : 'smtp.gmail.com',
+            port: 587,
+            user: email || `browser-${provider}`,
+            pass: '',
+            enabled: true,
+            transport: 'browser',
+            browserProvider: provider,
+            browserPartition: partition,
+        };
+        upsertAccount(basePath, account);
+
+        globalConfig = loadConfig();
+        rebuildProcessors();
+        recordAccountStatus(id, { ok: true, at: Date.now(), kind: 'test' });
+        return { ok: true, id, email };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Could not connect the account.' };
+    }
+});
+
 ipcMain.handle('delete-account', (_event, id: string) => {
     try {
         if (!globalConfig) initServices();
@@ -558,6 +667,12 @@ ipcMain.handle('delete-account', (_event, id: string) => {
             return { ok: false, error: 'The primary account cannot be removed.' };
         }
         const basePath = getBasePath();
+        // A browser account's logged-in cookies live in its Electron partition —
+        // wipe them too so "delete" actually forgets the session.
+        const acc = ((globalConfig?.accounts || []) as Account[]).find(a => a.id === String(id));
+        if (acc?.transport === 'browser' && acc.browserPartition) {
+            try { void session.fromPartition(acc.browserPartition).clearStorageData(); } catch {}
+        }
         removeAccount(basePath, String(id));
         // Best-effort cleanup of that account's rate-limit state file.
         const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -846,6 +961,10 @@ ipcMain.handle('sign-out', () => {
     for (const a of readAccounts(basePath)) {
       const safeId = a.id.replace(/[^a-zA-Z0-9_-]/g, '_');
       try { fs.unlinkSync(path.join(basePath, `limits.${safeId}.json`)); } catch {}
+      // Wipe any browser-session cookies (OAuth token caches go with accounts.json).
+      if (a.transport === 'browser' && a.browserPartition) {
+        try { void session.fromPartition(a.browserPartition).clearStorageData(); } catch {}
+      }
     }
     try { fs.unlinkSync(accountsFilePath(basePath)); } catch {}
     accountStatus.clear();
@@ -941,7 +1060,7 @@ ipcMain.handle('run-test-send', async () => {
     try {
         // Run every sendable account in parallel (one account ⇒ identical to the
         // old single processEmails() call). Aggregated summary across accounts.
-        summary = await runAllAccounts(globalConfig, statsOnSent);
+        summary = await runAllAccounts(globalConfig, statsOnSent, strategyDeps());
         sendLog(
             `Test execution completed. sent=${summary.sent} skipped=${summary.skipped} failed=${summary.failed}`,
             summary.sent > 0 ? 'success' : 'error',
@@ -956,19 +1075,6 @@ ipcMain.handle('run-test-send', async () => {
         testRunInProgress = false;
     }
     return summary;
-});
-
-ipcMain.handle('open-csv', () => {
-    if (!globalConfig) initServices();
-    if (globalConfig && globalConfig.paths.recipientsCsv) {
-        const csvPath = globalConfig.paths.recipientsCsv;
-        if (fs.existsSync(csvPath)) {
-            shell.openPath(csvPath);
-            sendLog(`Opened CSV at ${csvPath}`, 'info');
-        } else {
-            sendLog(`CSV file not found at ${csvPath}`, 'error');
-        }
-    }
 });
 
 ipcMain.handle('open-json', () => {
@@ -1055,21 +1161,6 @@ ipcMain.handle('import-recipients-csv', async () => {
         sendLog(`Failed to read CSV: ${e.message}`, 'error');
         return { error: e?.message || 'Failed to read CSV file.' };
     }
-});
-
-ipcMain.handle('select-message-file', async (event) => {
-    if (!win) return null;
-    const result = await dialog.showOpenDialog(win, {
-        title: 'Select Message File',
-        properties: ['openFile'],
-        filters: [
-            { name: 'Text/HTML', extensions: ['txt', 'html'] }
-        ]
-    });
-    if (result.canceled || result.filePaths.length === 0) {
-        return null;
-    }
-    return result.filePaths[0];
 });
 
 ipcMain.handle('preview-email', (event, recordIndex) => {
