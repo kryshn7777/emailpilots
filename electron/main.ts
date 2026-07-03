@@ -160,12 +160,14 @@ function createWindow() {
     }
   });
 
+  // EPT_GUI=2 selects the GUI2 (landing-style) renderer entry; anything else
+  // loads the default GUI so existing launch paths are untouched.
+  const useGui2 = process.env.EPT_GUI === '2';
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
+    win.loadURL(useGui2 ? new URL('gui2.html', VITE_DEV_SERVER_URL).toString() : VITE_DEV_SERVER_URL);
     // win.webContents.openDevTools();
   } else {
-    // win.loadFile(path.join(process.env.DIST, 'index.html'))
-    win.loadFile(path.join(__dirname, '../dist-vite/index.html'));
+    win.loadFile(path.join(__dirname, useGui2 ? '../dist-vite/gui2.html' : '../dist-vite/index.html'));
   }
 
   win.webContents.setWindowOpenHandler((details) => {
