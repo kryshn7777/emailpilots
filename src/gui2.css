@@ -1428,3 +1428,18 @@ summary:focus-visible {
   flex: 1 1 auto; overflow-y: auto;
   background: transparent; border: none; border-radius: 0;
 }
+
+/* ── GUI2 dashboard two-pane (mockup echo) ─────────────────────────── */
+.dash-grid { display: grid; grid-template-columns: 1fr 0.92fr; gap: 20px; align-items: start; }
+@media (max-width: 980px) { .dash-grid { grid-template-columns: 1fr; } }
+
+.dash-left, .dash-right { display: flex; flex-direction: column; min-width: 0; }
+.dash-right .schedule-card { order: -1; } /* live queue on top of the right pane */
+.dash-right .card { border-radius: var(--radius-lg); }
+
+/* Queue rows are runtime-rendered with inline styles; container-level type +
+   a bg override give them the mockup's mono-queue look. */
+#today-schedule-list { font-family: var(--font-mono); font-size: 12.5px; }
+#today-schedule-list > div { background: #ffffff !important; border-style: dashed !important; }
+#usage-note, #usage-date-display, #today-date-display { font-family: var(--font-mono); font-size: 11px; }
+#usage-emails, #usage-windows, #usage-window { font-family: var(--font-mono); font-weight: 600; color: var(--primary); }

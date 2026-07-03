@@ -186,6 +186,8 @@
             </figure>
           </div>
 
+          <div class="dash-grid">
+          <div class="dash-left">
           <div class="cards-grid">
             <div class="card quick-actions" style="grid-column: 1 / -1; padding: 24px;">
               <h3 style="margin-top: 0; margin-bottom: 16px;">Quick Actions</h3>
@@ -243,7 +245,9 @@
               <div id="usage-note" style="font-size: 0.75em; color: var(--muted-foreground);">Resets at midnight. Max 3 emails per recipient per day.</div>
             </div>
           </div>
+          </div>
 
+          <div class="dash-right">
           <div class="card preflight-card" style="margin-top: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
               <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
@@ -257,12 +261,14 @@
 
           <div class="card schedule-card" style="margin-top: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h3>Today's Schedule</h3>
+              <h3>Live queue</h3>
               <span id="today-date-display" style="color: var(--muted-foreground); font-size: 0.9em;"></span>
             </div>
             <div id="today-schedule-list" style="display: flex; flex-direction: column; gap: 12px;">
               <!-- Dynamic schedule items will be injected here -->
             </div>
+          </div>
+          </div>
           </div>
         </div>
 
