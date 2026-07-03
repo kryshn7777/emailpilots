@@ -70,13 +70,13 @@ declare global {
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Feature flag for the low-friction transports (Microsoft OAuth-SMTP + browser-
-  // session "no password" connect). Currently HIDDEN: the browser-session path
-  // automates webmail UIs (provider-ToS risk) and the whole feature is unverified
-  // live. Flip to true to re-surface the buttons on the login gate + Accounts
-  // view. To delete the feature outright, remove the blocks marked
-  // "LOW-FRICTION TRANSPORTS" in index.html + this file, then the src/transport
-  // and electron/transport modules.
-  const SHOW_NO_PASSWORD_TRANSPORTS = false;
+  // session "no password" connect). Hidden in the default GUI: the browser-session
+  // path automates webmail UIs (provider-ToS risk) and the whole feature is
+  // unverified live. GUI2 (gui2.html, <body data-gui="2">) surfaces the buttons on
+  // the login gate + Accounts view. To delete the feature outright, remove the
+  // blocks marked "LOW-FRICTION TRANSPORTS" in index.html/gui2.html + this file,
+  // then the src/transport and electron/transport modules.
+  const SHOW_NO_PASSWORD_TRANSPORTS = document.body.dataset.gui === '2';
 
   // --- UI Navigation ---
   const navLinks = document.querySelectorAll('.nav-links li[data-view]');
