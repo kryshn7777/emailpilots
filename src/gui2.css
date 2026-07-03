@@ -1,44 +1,44 @@
 /* ============================================================================
-   Email Pilots — Windows 11 (Fluent) light theme
-   Mica-style window background, flat white cards, 4px controls, subtle
-   elevation, Segoe UI Variable. Class names unchanged from the previous theme
-   so no markup/renderer changes are needed.
+   Email Pilots — GUI2 landing-hero theme
+   White cards, #0055ff blue, JetBrains Mono chips, grid-paper background.
+   Class names identical to style.css so src/main.ts drives both GUIs.
    ========================================================================== */
 
 :root {
   /* Text */
-  --foreground: #1a1a1a;
-  --text-muted: #5d5d5d;
-  --muted-foreground: #5d5d5d;
+  --foreground: #0f172a;
+  --text-muted: #64748b;
+  --muted-foreground: #64748b;
 
-  /* Surfaces (Win11: mica window, layered content, white cards) */
-  --background: #f3f3f3;       /* mica */
-  --layer: #f9f9f9;            /* content layer */
+  /* Surfaces */
+  --background: #f7f9fc;
+  --layer: #ffffff;
   --card-bg: #ffffff;
-  --border: #e5e5e5;
-  --border-strong: #d0d0d0;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
 
-  /* Accent (Windows default blue) */
-  --primary: #0067c0;
-  --primary-hover: #1975c5;
-  --primary-pressed: #005fb8;
+  /* Accent (landing blue) */
+  --primary: #0055ff;
+  --primary-hover: #2563eb;
+  --primary-pressed: #0047d6;
   --primary-foreground: #ffffff;
-  --accent-subtle: rgba(0, 103, 192, 0.08);
+  --accent-subtle: rgba(0, 85, 255, 0.08);
 
-  --success: #0f7b0f;          /* Win11 system green */
-  --destructive: #c42b1c;      /* Win11 system red */
+  --success: #16a34a;
+  --destructive: #ef4444;
 
-  /* Win11 geometry: 4px controls, 8px surfaces */
-  --radius: 4px;
-  --radius-lg: 8px;
-  --radius-xl: 8px;
+  /* Landing geometry: soft, rounded */
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
 
-  /* Elevation (Fluent shadows are very quiet) */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-flyout: 0 8px 16px rgba(0, 0, 0, 0.14);
-  --shadow-dialog: 0 32px 64px rgba(0, 0, 0, 0.19), 0 2px 21px rgba(0, 0, 0, 0.15);
+  /* Elevation (landing shadows are soft and wide) */
+  --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.04);
+  --shadow-flyout: 0 12px 30px rgba(0, 0, 0, 0.10);
+  --shadow-dialog: 0 32px 64px rgba(0, 0, 0, 0.16), 0 2px 21px rgba(0, 0, 0, 0.10);
 
-  --font-sans: 'Segoe UI Variable', 'Segoe UI', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, monospace;
 
   /* ── Corporate Minimal system layer (ADDITIVE — primitive→semantic tokens). ──
      Vocabulary only; existing rules unchanged until later tasks adopt these. */
@@ -106,6 +106,12 @@
 body {
   font-family: var(--font-sans);
   background-color: var(--background);
+  background-image:
+    radial-gradient(60% 40% at 50% -5%, #eaf1ff 0%, transparent 60%),
+    linear-gradient(to right, rgba(128, 128, 128, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(128, 128, 128, 0.07) 1px, transparent 1px);
+  background-size: 100% 100%, 24px 24px, 24px 24px;
+  background-attachment: fixed;
   color: var(--foreground);
   height: 100vh;
   width: 100vw;
