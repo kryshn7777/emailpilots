@@ -2,6 +2,9 @@
 import { checkSpam } from './spamCheck';
 import { detectMapping, buildRecordsFromRows, type ColumnMapping } from './csvMapping';
 import { normalizeAppPassword, friendlySmtpError } from './smtpUtils';
+import { computeOnboardingSteps } from './onboarding';
+
+const GS_DISMISS_KEY = 'eptGettingStartedDismissed';
 
 function escapeHTML(str: string | null | undefined): string {
   if (str == null) return '';
@@ -24,7 +27,6 @@ declare global {
       stopScheduler: () => Promise<boolean>;
       getSchedulerStatus: () => Promise<boolean>;
       runTestSend: () => Promise<any>;
-      openCsv: () => Promise<void>;
       openJson: () => Promise<void>;
       getRecipients: () => Promise<any[]>;
       saveRecipients: (recipients: any[]) => Promise<boolean>;
@@ -45,9 +47,11 @@ declare global {
       addSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
       sendTestEmail: (accountId?: string) => Promise<{ ok: boolean; error?: string; to?: string }>;
       verifyConnection: (candidate: { host?: string; port?: number; user?: string; pass?: string }) => Promise<{ ok: boolean; error?: string }>;
-      getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null }[]>;
+      getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'oauth-smtp' | 'browser'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null }[]>;
       saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean }) => Promise<{ ok: boolean; error?: string; id?: string }>;
       deleteAccount: (id: string) => Promise<{ ok: boolean; error?: string }>;
+      oauthLoginMicrosoft: () => Promise<{ ok: boolean; error?: string; id?: string; email?: string }>;
+      connectBrowserAccount: (provider: 'gmail' | 'outlook') => Promise<{ ok: boolean; error?: string; id?: string; email?: string }>;
       getCampaigns: () => Promise<{ id: string; name: string; subject?: string; template?: string }[]>;
       saveCampaign: (campaign: { id?: string; name?: string; subject?: string; template?: string }) => Promise<{ ok: boolean; error?: string; id?: string }>;
       deleteCampaign: (id: string) => Promise<{ ok: boolean; error?: string }>;
@@ -56,6 +60,7 @@ declare global {
       deleteSequence: (id: string) => Promise<{ ok: boolean; error?: string }>;
       selectFile: (title: string, extensions: string[]) => Promise<string | null>;
       previewEmail: (index: number) => Promise<{ subject?: string; body?: string; error?: string }>;
+      previewUnsavedEmail: (record: any) => Promise<{ subject?: string; body?: string; error?: string }>;
       verifyEmail: (email: string) => Promise<{ valid: boolean; reason?: string }>;
       onLog: (callback: (message: string, type: string) => void) => void;
       onStatusChange: (callback: (isActive: boolean) => void) => void;
@@ -64,8 +69,17 @@ declare global {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Feature flag for the low-friction transports (Microsoft OAuth-SMTP + browser-
+  // session "no password" connect). Currently HIDDEN: the browser-session path
+  // automates webmail UIs (provider-ToS risk) and the whole feature is unverified
+  // live. Flip to true to re-surface the buttons on the login gate + Accounts
+  // view. To delete the feature outright, remove the blocks marked
+  // "LOW-FRICTION TRANSPORTS" in index.html + this file, then the src/transport
+  // and electron/transport modules.
+  const SHOW_NO_PASSWORD_TRANSPORTS = false;
+
   // --- UI Navigation ---
-  const navLinks = document.querySelectorAll('.nav-links li');
+  const navLinks = document.querySelectorAll('.nav-links li[data-view]');
   const views = document.querySelectorAll('.view');
 
   const navItems = Array.from(navLinks) as HTMLElement[];
@@ -122,6 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const customFieldsContainer = document.getElementById('custom-smtp-fields') as HTMLElement;
   const inputHost = document.getElementById('smtp-host') as HTMLInputElement;
   const inputPort = document.getElementById('smtp-port') as HTMLInputElement;
+  const inputUserName = document.getElementById('user-name') as HTMLInputElement | null;
   const inputUser = document.getElementById('outlook-user') as HTMLInputElement;
   const inputPass = document.getElementById('outlook-pass') as HTMLInputElement;
   const inputSubject = document.getElementById('subject-line') as HTMLInputElement;
@@ -140,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let recipientsData: any[] = [];
   // All sending accounts (default + extras), refreshed from the main process.
   // Drives the Accounts view + the per-recipient "send from" selector.
-  let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null }[] = [];
+  let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'oauth-smtp' | 'browser'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null }[] = [];
   // Bulk-selection of extra accounts in the Accounts view (ids; default excluded).
   const selectedAccountIds = new Set<string>();
 
@@ -355,12 +370,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         'color:var(--success);font-size:0.85rem;">Looks clean — low spam risk.</div>';
       return;
     }
-    const color = report.level === 'risky' ? '#ef4444' : '#f59e0b';
+    const color = report.level === 'risky' ? 'var(--destructive)' : 'var(--warning)';
     const items = report.findings.map(f => `<li>${escapeHTML(f.label)}</li>`).join('');
     box.innerHTML =
       `<div style="margin-bottom:12px;padding:10px 12px;border-radius:var(--radius);` +
       `background:rgba(245,158,11,0.08);border:1px solid ${color};color:var(--foreground);font-size:0.85rem;">` +
-      `<strong style="color:${color};">Deliverability ${report.level === 'risky' ? 'risk' : 'warning'} ` +
+      `<strong style="color:${color};">Spam ${report.level === 'risky' ? 'risk' : 'warning'} ` +
       `(score ${report.score})</strong><ul style="margin:6px 0 0 18px;">${items}</ul></div>`;
   }
 
@@ -440,7 +455,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hasCreds = !!(cfg?.smtp?.user && (cfg?.smtp?.hasPass || cfg?.smtp?.pass));
     rows.push({ status: hasCreds ? 'ok' : 'fail', label: hasCreds ? 'Email credentials set' : 'Email credentials missing — add them in Settings', action: hasCreds ? undefined : { label: 'Connect Email', view: 'settings' } });
     rows.push({ status: cfg?.email?.subject ? 'ok' : 'warn', label: cfg?.email?.subject ? `Default subject: "${cfg.email.subject}"` : 'No default subject set' });
-    rows.push({ status: cfg?.sender?.physicalAddress ? 'ok' : 'warn', label: cfg?.sender?.physicalAddress ? 'Mailing address set (CAN-SPAM)' : 'No mailing address — required for compliant bulk email', action: cfg?.sender?.physicalAddress ? undefined : { label: 'Fix it', view: 'settings' } });
+    rows.push({ status: cfg?.sender?.physicalAddress ? 'ok' : 'warn', label: cfg?.sender?.physicalAddress ? 'Mailing address set' : 'No mailing address — required for compliant bulk email', action: cfg?.sender?.physicalAddress ? undefined : { label: 'Fix it', view: 'settings' } });
     if (cfg?.sender?.inboxPlacement !== 'bulk') {
       rows.push({ status: 'info', label: 'Personal sending style: unsubscribe link & address footer are hidden so mail reads 1:1. Switch to Bulk style in Settings to add them for high-volume sending.', action: { label: 'Review', view: 'settings' } });
     }
@@ -456,13 +471,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fails = rows.filter(r => r.status === 'fail').length;
     const warns = rows.filter(r => r.status === 'warn').length;
     summary.innerHTML = fails > 0
-      ? `<strong style="color:#ef4444;">Grounded — ${fails} blocker${fails === 1 ? '' : 's'} to fix.</strong>`
+      ? `<strong style="color:var(--destructive);">Grounded — ${fails} blocker${fails === 1 ? '' : 's'} to fix.</strong>`
       : warns > 0
-        ? `<strong style="color:#f59e0b;">Cleared with ${warns} advisor${warns === 1 ? 'y' : 'ies'}.</strong>`
+        ? `<strong style="color:var(--warning);">Cleared with ${warns} advisor${warns === 1 ? 'y' : 'ies'}.</strong>`
         : `<strong style="color:var(--success);">Ready for takeoff. ✈</strong>`;
 
     const ICON: Record<Row['status'], string> = { ok: 'check_circle', warn: 'warning', fail: 'error', info: 'info' };
-    const COLOR: Record<Row['status'], string> = { ok: 'var(--success)', warn: '#f59e0b', fail: '#ef4444', info: 'var(--muted-foreground)' };
+    const COLOR: Record<Row['status'], string> = { ok: 'var(--success)', warn: 'var(--warning)', fail: 'var(--destructive)', info: 'var(--muted-foreground)' };
     list.innerHTML = '';
     rows.forEach(r => {
       const row = document.createElement('div');
@@ -495,6 +510,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       list.appendChild(row);
     });
+
+    // Drive the new-user Getting-Started card from the same readiness signals.
+    renderGettingStarted(cfg, active);
+  }
+
+  // --- Getting-Started checklist: guide a new user to their first send ---
+  async function renderGettingStarted(cfgIn?: any, activeIn?: any[]) {
+    const card = document.getElementById('getting-started-card');
+    if (!card) return;
+
+    // Reuse pre-flight's data when called from it; otherwise fetch our own.
+    let cfg = cfgIn;
+    let active = activeIn;
+    try {
+      if (!cfg) cfg = await window.electronAPI.getConfig();
+      if (!active) {
+        const recips = await window.electronAPI.getRecipients() || [];
+        active = recips.filter((r: any) => r.active !== false);
+      }
+    } catch { /* render with whatever we have */ }
+    active = active || [];
+
+    let totalSent = 0;
+    try {
+      const stats = await window.electronAPI.getStats();
+      totalSent = stats?.totalEmailsSent || 0;
+    } catch { /* leave at 0 */ }
+
+    const hasCreds = !!(cfg?.smtp?.user && (cfg?.smtp?.hasPass || cfg?.smtp?.pass));
+    const hasScheduledRecipient = active.some(
+      (r: any) => (r.scheduledDays || []).length && (r.scheduledTimes || []).length
+    );
+    const dismissed = localStorage.getItem(GS_DISMISS_KEY) === '1';
+
+    const result = computeOnboardingSteps({
+      hasCreds, hasScheduledRecipient, schedulerActive: schedulerActiveUI, totalSent, dismissed,
+    });
+
+    card.style.display = result.visible ? 'block' : 'none';
+    if (!result.visible) return;
+
+    for (const step of result.steps) {
+      const li = card.querySelector<HTMLElement>(`.gs-step[data-step="${step.key}"]`);
+      if (!li) continue;
+      li.classList.remove('done', 'active', 'todo');
+      li.classList.add(step.status);
+      const check = li.querySelector<HTMLElement>('.gs-check');
+      if (check) check.textContent = step.status === 'done' ? 'check_circle' : 'radio_button_unchecked';
+    }
   }
 
   // --- First-run gating: nothing can send without SMTP credentials (F4) ---
@@ -507,6 +571,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const banner = document.getElementById('setup-banner');
     if (banner) banner.style.display = configured ? 'none' : 'flex';
+
+    // New-user concept aid: show the "How Email Pilots works" card only until an
+    // inbox is connected (mirrors the setup-banner gating above).
+    const hiw = document.getElementById('how-it-works-card');
+    if (hiw) hiw.style.display = configured ? 'none' : 'block';
 
     const tip = configured ? '' : 'Add your email credentials in Settings first';
     testRunBtn.disabled = !configured;
@@ -558,6 +627,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
       toggleSchedulerBtn.classList.replace('outline', 'primary');
     }
+
+    // Scheduler state just changed — refresh the Getting-Started "Start sending" step.
+    renderGettingStarted();
   }
 
   async function updateUsage() {
@@ -572,7 +644,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!el) return;
         const pct = max > 0 ? Math.min(100, Math.round((cur / max) * 100)) : 0;
         el.style.width = pct + '%';
-        el.style.background = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : 'var(--primary)';
+        el.style.background = pct >= 100 ? 'var(--destructive)' : pct >= 80 ? 'var(--warning)' : 'var(--primary)';
       };
       setText('usage-date-display', u.date);
       const emailsLabel = u.warmupActive
@@ -751,6 +823,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.type = 'button';
     btn.className = 'btn outline remove-time-btn';
     btn.innerHTML = '&times;';
+    btn.setAttribute('aria-label', 'Remove time');
     btn.style.padding = '0 8px';
     btn.addEventListener('click', () => {
         div.remove();
@@ -813,6 +886,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.type = 'button';
     btn.className = 'btn outline';
     btn.innerHTML = '&times;';
+    btn.setAttribute('aria-label', 'Remove');
     btn.style.padding = '0 8px';
     btn.addEventListener('click', () => {
         div.remove();
@@ -1031,7 +1105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       editBtn.addEventListener('click', () => openCampaignForEdit(c));
       const delBtn = document.createElement('button');
       delBtn.className = 'btn outline';
-      delBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;color:#ef4444;';
+      delBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;color:var(--destructive);';
       delBtn.textContent = 'Delete';
       delBtn.addEventListener('click', async () => {
         const msg = count > 0
@@ -1039,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           : `Delete "${c.name}"?`;
         if (!await confirmDialog(msg, { title: 'Delete campaign?', confirmLabel: 'Delete', danger: true })) return;
         const res = await window.electronAPI.deleteCampaign(c.id);
-        if (!res.ok) { toast(res.error || 'Delete failed.', 'error'); return; }
+        if (!res.ok) { toast(res.error || 'Couldn\'t delete that campaign. Check System Logs, then try again.', 'error'); return; }
         // Mirror the main-process detach locally so the table updates immediately.
         recipientsData.forEach(r => { if (r.campaignId === c.id) delete r.campaignId; });
         await refreshCampaigns();
@@ -1104,7 +1178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     row.innerHTML =
       `<div style="display:flex;justify-content:space-between;align-items:center;">` +
         `<strong class="seq-step-title" style="font-size:0.9em;">Step</strong>` +
-        `<button type="button" class="btn outline seq-step-remove" style="height:28px;padding:0 10px;font-size:0.8em;color:#ef4444;">Remove</button>` +
+        `<button type="button" class="btn outline seq-step-remove" style="height:28px;padding:0 10px;font-size:0.8em;color:var(--destructive);">Remove</button>` +
       `</div>` +
       `<input type="text" class="seq-step-subject form-control" placeholder="Subject (optional — blank reuses the recipient's subject)">` +
       `<textarea class="seq-step-message form-control" rows="4" placeholder="Message for this step. Use {{name}} to personalize." style="font-family:inherit;"></textarea>` +
@@ -1174,15 +1248,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       editBtn.addEventListener('click', () => openSequenceForEdit(s));
       const delBtn = document.createElement('button');
       delBtn.className = 'btn outline';
-      delBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;color:#ef4444;';
+      delBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;color:var(--destructive);';
       delBtn.textContent = 'Delete';
       delBtn.addEventListener('click', async () => {
         const msg = count > 0
-          ? `Delete "${s.name}"? Its ${count} recipient${count === 1 ? '' : 's'} will stop being dripped and revert to normal sending.`
+          ? `Delete "${s.name}"? Its ${count} recipient${count === 1 ? '' : 's'} will stop receiving automatic follow-ups and revert to normal sending.`
           : `Delete "${s.name}"?`;
         if (!await confirmDialog(msg, { title: 'Delete sequence?', confirmLabel: 'Delete', danger: true })) return;
         const res = await window.electronAPI.deleteSequence(s.id);
-        if (!res.ok) { toast(res.error || 'Delete failed.', 'error'); return; }
+        if (!res.ok) { toast(res.error || 'Couldn\'t delete that sequence. Check System Logs, then try again.', 'error'); return; }
         recipientsData.forEach(r => {
           if (r.sequenceId === s.id) {
             delete r.sequenceId; delete r.seqStep; delete r.seqLastSentAt; delete r.seqNextDueAt; delete r.seqDone;
@@ -1355,7 +1429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const days = (rec.scheduledDays || []).join(', ') || 'No days';
       const times = (rec.scheduledTimes || []).join(', ') || 'No times';
       const entropy = rec.entropyMinutes ? ` (\xB1${rec.entropyMinutes}m)` : '';
-      const warnBadge = (!hasSchedule) ? `<br><span style="color: #ef4444; font-size: 0.8em; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">warning</span> No schedule</span>` : '';
+      const warnBadge = (!hasSchedule) ? `<br><span style="color: var(--destructive); font-size: 0.8em; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">warning</span> No schedule</span>` : '';
       tdSchedule.innerHTML = `<strong>Days:</strong> ${escapeHTML(days)}<br><strong>Times:</strong> ${escapeHTML(times)}${entropy}${warnBadge}`;
       if (!hasSchedule) {
         // One-click fix so basic users don't have to open the wizard's third step.
@@ -1498,19 +1572,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   function accountHealth(acc: typeof accountsCache[number], usage?: { emailsToday: number; maxPerDay: number }) {
     const st = acc.status;
     if (st && st.ok === false) {
-      return { color: '#ef4444', text: `Last ${st.kind} failed${st.at ? ` · ${relTime(st.at)}` : ''}`, title: st.error || 'Send failed' };
+      return { color: 'var(--destructive)', text: `Last ${st.kind} failed${st.at ? ` · ${relTime(st.at)}` : ''}`, title: st.error || 'Send failed' };
     }
     if (!acc.isDefault && acc.enabled === false) {
-      return { color: '#6b7280', text: 'Disabled', title: 'This account is paused' };
+      return { color: 'var(--text-muted)', text: 'Disabled', title: 'This account is paused' };
     }
     if (usage && usage.maxPerDay > 0 && usage.emailsToday / usage.maxPerDay >= 0.8) {
       const near = usage.emailsToday >= usage.maxPerDay;
-      return { color: '#f59e0b', text: near ? 'Daily limit reached' : 'Near daily limit', title: `${usage.emailsToday}/${usage.maxPerDay} sent today` };
+      return { color: 'var(--warning)', text: near ? 'Daily limit reached' : 'Near daily limit', title: `${usage.emailsToday}/${usage.maxPerDay} sent today` };
     }
     if (st && st.ok) {
-      return { color: '#22c55e', text: `Last ${st.kind} ok · ${relTime(st.at)}`, title: 'Healthy' };
+      return { color: 'var(--success)', text: `Last ${st.kind} ok · ${relTime(st.at)}`, title: 'Healthy' };
     }
-    return { color: '#22c55e', text: 'Ready', title: 'No sends yet' };
+    return { color: 'var(--success)', text: 'Ready', title: 'No sends yet' };
   }
 
   function dotHTML(color: string): string {
@@ -1577,7 +1651,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       info.style.cssText = 'min-width:0;';
       const badge = acc.isDefault
         ? '<span style="font-size:0.7em;background:var(--primary);color:#fff;padding:2px 6px;border-radius:4px;margin-left:8px;">Primary</span>'
-        : (acc.enabled ? '' : '<span style="font-size:0.7em;background:#6b7280;color:#fff;padding:2px 6px;border-radius:4px;margin-left:8px;">Disabled</span>');
+        : (acc.enabled ? '' : '<span style="font-size:0.7em;background:var(--text-muted);color:#fff;padding:2px 6px;border-radius:4px;margin-left:8px;">Disabled</span>');
       info.innerHTML =
         `<div style="font-weight:600;display:flex;align-items:center;gap:7px;">${dotHTML(health.color)}<span>${escapeHTML(acc.label || acc.user)}</span>${badge}</div>` +
         `<div style="font-size:0.85em;color:var(--muted-foreground);">${escapeHTML(acc.user)} · ${escapeHTML(acc.host)}:${acc.port}</div>` +
@@ -1600,7 +1674,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             id: acc.id, label: acc.label, host: acc.host, port: acc.port,
             user: acc.user, enabled: !acc.enabled,
           });
-          if (!res.ok) toast(res.error || 'Could not update account.', 'error');
+          if (!res.ok) toast(res.error || 'Couldn\'t change that account. Refresh the Accounts list and try again.', 'error');
           await refreshAccounts();
         });
         right.appendChild(toggle);
@@ -1636,7 +1710,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (!await confirmDialog(`Recipients assigned to ${acc.label || acc.user} will stop sending until reassigned.`,
               { title: 'Remove account?', confirmLabel: 'Remove', danger: true })) return;
           const res = await window.electronAPI.deleteAccount(acc.id);
-          if (!res.ok) { toast(res.error || 'Could not remove account.', 'error'); return; }
+          if (!res.ok) { toast(res.error || 'Couldn\'t remove that account. Refresh the Accounts list and try again.', 'error'); return; }
           toast('Account removed.', 'info');
           await refreshAccounts();
         });
@@ -1717,7 +1791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       item('Remaining', String(remaining)) +
       item('Active inboxes', String(sendable.length)) +
       item('Disabled', String(disabled), disabled ? '#9ca3af' : undefined) +
-      item('Need attention', String(attention), attention ? '#ef4444' : undefined);
+      item('Need attention', String(attention), attention ? 'var(--destructive)' : undefined);
   }
 
   /** Populate the per-recipient "send from" <select> from the account cache. */
@@ -2021,7 +2095,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!verify.ok) { showErr(friendlySmtpError(verify.error)); return; }
 
       const res = await window.electronAPI.saveAccount({ label, host, port, user, pass, enabled: true });
-      if (!res.ok) { showErr(res.error || 'Could not save the account.'); return; }
+      if (!res.ok) { showErr(res.error || 'Couldn\'t save the account — double-check the email and 16-character app password, then try again.'); return; }
 
       (document.getElementById('add-account-form') as HTMLFormElement).reset();
       if (acctCustom) acctCustom.style.display = 'none';
@@ -2029,12 +2103,78 @@ document.addEventListener('DOMContentLoaded', async () => {
       fireConfetti();
       await refreshAccounts();
     } catch {
-      showErr('Hit some turbulence — give it another go.');
+      showErr('Couldn\'t reach your email provider. Check your internet and app password, then try again.');
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerHTML = original;
     }
   });
+
+  // ===== LOW-FRICTION TRANSPORTS (Accounts view) — gated behind SHOW_NO_PASSWORD_TRANSPORTS.
+  //        Hidden by default; the whole if-block is safe to delete to remove the feature. =====
+  if (SHOW_NO_PASSWORD_TRANSPORTS) {
+  const acctNoPwBlock = document.getElementById('acct-nopw-block');
+  if (acctNoPwBlock) acctNoPwBlock.style.display = 'block';
+
+  // "Sign in with Microsoft" — password-less OAuth-SMTP account. Opens the
+  // system browser (main process); we just reflect status and refresh the list.
+  document.getElementById('ms-oauth-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('ms-oauth-btn') as HTMLButtonElement;
+    const statusEl = document.getElementById('ms-oauth-status') as HTMLElement;
+    const setStatus = (m: string, color = 'var(--muted-foreground)') => {
+      if (statusEl) { statusEl.textContent = m; statusEl.style.color = color; statusEl.style.display = 'block'; }
+    };
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Waiting for sign-in…';
+    setStatus('A browser window opened — finish signing in with Microsoft there.');
+    try {
+      const res = await window.electronAPI.oauthLoginMicrosoft();
+      if (!res.ok) { setStatus(res.error || 'Microsoft sign-in failed.', 'var(--destructive)'); return; }
+      setStatus(`${res.email} connected.`, '#16a34a');
+      toast(`${res.email} connected.`, 'success', 'Account added');
+      fireConfetti();
+      await refreshAccounts();
+    } catch {
+      setStatus('Hit some turbulence — give it another go.', 'var(--destructive)');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  });
+
+  // "Connect Gmail/Outlook (browser)" — credential-less webmail session. Opens a
+  // sign-in window (main process); reflect status and refresh the list.
+  const wireBrowserConnect = (btnId: string, provider: 'gmail' | 'outlook', waiting: string) => {
+    document.getElementById(btnId)?.addEventListener('click', async () => {
+      const btn = document.getElementById(btnId) as HTMLButtonElement;
+      const statusEl = document.getElementById('ms-oauth-status') as HTMLElement;
+      const setStatus = (m: string, color = 'var(--muted-foreground)') => {
+        if (statusEl) { statusEl.textContent = m; statusEl.style.color = color; statusEl.style.display = 'block'; }
+      };
+      btn.disabled = true;
+      const original = btn.innerHTML;
+      btn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Waiting for sign-in…';
+      setStatus(waiting);
+      try {
+        const res = await window.electronAPI.connectBrowserAccount(provider);
+        if (!res.ok) { setStatus(res.error || 'Could not connect the account.', 'var(--destructive)'); return; }
+        const who = res.email || `${provider} account`;
+        setStatus(`${who} connected.`, '#16a34a');
+        toast(`${who} connected.`, 'success', 'Account added');
+        fireConfetti();
+        await refreshAccounts();
+      } catch {
+        setStatus('Hit some turbulence — give it another go.', 'var(--destructive)');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+      }
+    });
+  };
+  wireBrowserConnect('connect-gmail-btn', 'gmail', 'A window opened — sign in to Gmail there.');
+  wireBrowserConnect('connect-outlook-btn', 'outlook', 'A window opened — sign in to Outlook there.');
+  } // ===== END LOW-FRICTION TRANSPORTS (Accounts view) =====
 
   // --- Initialization ---
 
@@ -2089,7 +2229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const blockAddress = async () => {
         if (!suppressInput) return;
         const res = await window.electronAPI.addSuppression(suppressInput.value);
-        if (!res.ok) { toast(res.error || 'Could not block that address.', 'error'); return; }
+        if (!res.ok) { toast(res.error || 'Couldn\'t block that address. Check the email format and try again.', 'error'); return; }
         toast(`${suppressInput.value.trim()} will never be emailed.`, 'success', 'Address blocked');
         suppressInput.value = '';
         renderSuppressions();
@@ -2101,7 +2241,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Pre-flight re-check button
     document.getElementById('preflight-recheck')?.addEventListener('click', () => renderPreflight());
-    
+
+    // Getting-Started checklist: dismiss + step CTAs
+    document.getElementById('gs-dismiss')?.addEventListener('click', () => {
+      localStorage.setItem(GS_DISMISS_KEY, '1');
+      const card = document.getElementById('getting-started-card');
+      if (card) card.style.display = 'none';
+    });
+    document.getElementById('gs-steps')?.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('.gs-cta');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      if (action === 'add-recipient') {
+        openRecipientModal(-1);
+      } else if (action === 'start-sending' && !schedulerActiveUI) {
+        toggleSchedulerBtn.click();
+      }
+    });
+
+    if (inputUserName) inputUserName.value = currentUserName;
     inputHost.value = config.smtp?.host || 'smtp.office365.com';
     inputPort.value = config.smtp?.port?.toString() || '587';
     inputUser.value = config.smtp?.user || '';
@@ -2119,7 +2277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const ok = await window.electronAPI.saveConfig({ testMode: on });
         if (!ok) {
           testModeCheckbox.checked = !on;
-          toast('Could not change practice mode.', 'error');
+          toast('Couldn\'t change practice mode. Try again in a moment.', 'error');
           return;
         }
         toast(
@@ -2149,6 +2307,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (inputPlacement) inputPlacement.value = config.sender?.inboxPlacement === 'bulk' ? 'bulk' : 'primary';
     if (inputWarmup) inputWarmup.checked = config.limits?.warmupEnabled !== false;
 
+    // Bulk-only CAN-SPAM fields (mailing address + unsubscribe) only take effect in
+    // Bulk mode, so hide them in Personal mode to declutter Settings. Values are
+    // still read on save regardless of visibility — purely a display concern.
+    const applyPlacementVisibility = () => {
+      const bulk = inputPlacement?.value === 'bulk';
+      const addrGroup = document.getElementById('canspam-address-group');
+      const unsubGroup = document.getElementById('canspam-unsub-group');
+      if (addrGroup) addrGroup.style.display = bulk ? '' : 'none';
+      if (unsubGroup) unsubGroup.style.display = bulk ? '' : 'none';
+    };
+    inputPlacement?.addEventListener('change', applyPlacementVisibility);
+    applyPlacementVisibility();
+
     // --- Account login gate: block the app until an email account is connected ---
     const loginScreen = document.getElementById('login-screen') as HTMLElement;
     const loginForm = document.getElementById('login-form') as HTMLFormElement;
@@ -2166,18 +2337,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         host: 'smtp.gmail.com', port: 587,
         help: 'https://myaccount.google.com/apppasswords', placeholder: 'you@gmail.com',
         steps: [
-          'Turn on 2-Step Verification first — App passwords only appear once it\'s on.',
-          'Go to myaccount.google.com/apppasswords, type a name like "Mail", click Create.',
-          'Copy the 16-character code and paste it here — spaces are fine, we strip them.',
+          'Turn on 2-Step Verification (required for app passwords).',
+          'On the app passwords page, name it "Mail" and click Create.',
+          'Copy the 16-character code — paste it next. Spaces are fine.',
         ],
       },
       outlook: {
         host: 'smtp.office365.com', port: 587,
         help: 'https://account.microsoft.com/security', placeholder: 'you@outlook.com',
         steps: [
-          'Turn on two-step verification in Microsoft account → Security.',
-          'Open "Advanced security options" and pick "Create a new app password".',
-          'Copy the generated password and paste it here — not your normal one.',
+          'Turn on two-step verification (Microsoft account → Security).',
+          'In "Advanced security options", pick "Create a new app password".',
+          'Copy the generated password — paste it next.',
         ],
       },
       other: {
@@ -2275,10 +2446,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const appPwModal = document.getElementById('app-pw-modal') as HTMLElement;
+
+    // Two-slide guide: 1) animated how-to  2) safety reassurance. Re-showing
+    // slide 1 (open / Back) flips it from hidden, which restarts the CSS walkthrough.
+    const pwSlide1 = document.getElementById('app-pw-slide-1');
+    const pwSlide2 = document.getElementById('app-pw-slide-2');
+    const pwBack = document.getElementById('app-pw-back');
+    const pwNext = document.getElementById('app-pw-next');
+    const pwDots = Array.from(document.querySelectorAll('.app-pw-dot')) as HTMLElement[];
+    const showPwSlide = (n: number) => {
+      if (pwSlide1) pwSlide1.hidden = n !== 1;
+      if (pwSlide2) pwSlide2.hidden = n !== 2;
+      if (pwBack) pwBack.hidden = n === 1;
+      if (pwNext) pwNext.hidden = n === 2;
+      pwDots.forEach(d => d.classList.toggle('active', d.getAttribute('data-slide') === String(n)));
+    };
+    pwNext?.addEventListener('click', () => showPwSlide(2));
+    pwBack?.addEventListener('click', () => showPwSlide(1));
+    pwDots.forEach(d => d.addEventListener('click', () => showPwSlide(parseInt(d.getAttribute('data-slide') || '1', 10))));
+
     const appPwLink = document.getElementById('app-pw-help-link');
     const appPwSummary = appPwLink?.querySelector('summary') || appPwLink;
     appPwSummary?.addEventListener('click', (e) => {
       e.preventDefault();
+      showPwSlide(1);
       if (appPwModal) appPwModal.style.display = 'flex';
     });
     document.getElementById('app-pw-close')?.addEventListener('click', () => {
@@ -2288,8 +2479,77 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.target === appPwModal) appPwModal.style.display = 'none';
     });
 
-    const hasAccount = !!(config?.smtp?.user && (config?.smtp?.hasPass || config?.smtp?.pass));
+    // "Connected" = the .env primary has a password OR any extra account is
+    // usable. OAuth/browser accounts have no password, so hasPass alone would
+    // wrongly bounce a password-less setup back to this gate.
+    // Default (and flag-off) behaviour: only the .env primary password unlocks the
+    // app — exactly as before. With the low-friction transports enabled, also
+    // treat a usable OAuth/browser account as "connected" so those flows can boot
+    // the app without an .env password.
+    let hasAccount = !!(config?.smtp?.user && (config?.smtp?.hasPass || config?.smtp?.pass));
+    if (SHOW_NO_PASSWORD_TRANSPORTS && !hasAccount) {
+      try {
+        const gateAccounts = await window.electronAPI.getAccounts();
+        hasAccount = gateAccounts.some(
+          a => a.enabled !== false && (a.hasPass || a.transport === 'oauth-smtp' || a.transport === 'browser')
+        );
+      } catch { /* ignore */ }
+    }
     loginScreen.style.display = hasAccount ? 'none' : 'flex';
+
+    // ===== LOW-FRICTION TRANSPORTS (login gate) — gated behind SHOW_NO_PASSWORD_TRANSPORTS.
+    //        Hidden by default; the whole if-block is safe to delete to remove the feature. =====
+    if (SHOW_NO_PASSWORD_TRANSPORTS) {
+    const loginNoPwBlock = document.getElementById('login-nopw-block');
+    if (loginNoPwBlock) loginNoPwBlock.style.display = 'block';
+
+    // No-password entry points on the login gate itself (mirrors the in-app
+    // Accounts view buttons). On success, drop the gate and boot the app.
+    const loginNoPwStatus = document.getElementById('login-nopw-status') as HTMLElement;
+    const setNoPwStatus = (m: string, color = 'var(--muted-foreground)') => {
+      if (loginNoPwStatus) { loginNoPwStatus.textContent = m; loginNoPwStatus.style.color = color; loginNoPwStatus.style.display = 'block'; }
+    };
+    const enterAppAfterConnect = (who: string) => {
+      loginScreen.style.display = 'none';
+      toast(`${who} connected. You're cleared for takeoff. ✈`, 'success', 'Welcome aboard');
+      fireTakeoff();
+      fireConfetti();
+      refreshSetupState();
+      renderPreflight();
+      refreshAccounts();
+      if (!config.userName) document.getElementById('onboarding-modal')!.style.display = 'flex';
+    };
+    const wireNoPwLogin = (
+      btnId: string,
+      waiting: string,
+      run: () => Promise<{ ok: boolean; error?: string; email?: string }>,
+      fallbackName: string,
+    ) => {
+      const btn = document.getElementById(btnId) as HTMLButtonElement | null;
+      btn?.addEventListener('click', async () => {
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Waiting for sign-in…';
+        setNoPwStatus(waiting);
+        try {
+          const res = await run();
+          if (!res.ok) { setNoPwStatus(res.error || 'Could not connect.', 'var(--destructive)'); return; }
+          enterAppAfterConnect(res.email || fallbackName);
+        } catch {
+          setNoPwStatus('Hit some turbulence — give it another go.', 'var(--destructive)');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = original;
+        }
+      });
+    };
+    wireNoPwLogin('login-ms-btn', 'A browser window opened — finish signing in with Microsoft there.',
+      () => window.electronAPI.oauthLoginMicrosoft(), 'Microsoft account');
+    wireNoPwLogin('login-gmail-btn', 'A window opened — sign in to Gmail there.',
+      () => window.electronAPI.connectBrowserAccount('gmail'), 'Gmail account');
+    wireNoPwLogin('login-outlook-btn', 'A window opened — sign in to Outlook there.',
+      () => window.electronAPI.connectBrowserAccount('outlook'), 'Outlook account');
+    } // ===== END LOW-FRICTION TRANSPORTS (login gate) =====
 
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -2333,7 +2593,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           unsubscribeEnabled: config.sender?.unsubscribeEnabled !== false,
           warmupEnabled: config.limits?.warmupEnabled !== false,
         });
-        if (!ok) { showLoginError('Hit some turbulence saving that — give it another go.'); return; }
+        if (!ok) { showLoginError('Couldn\'t save your login — try again in a moment.'); return; }
 
         // Mirror the new account into the Settings form so it stays in sync.
         inputHost.value = host;
@@ -2354,13 +2614,126 @@ document.addEventListener('DOMContentLoaded', async () => {
         // No display name yet → run the existing name onboarding next.
         if (!config.userName) document.getElementById('onboarding-modal')!.style.display = 'flex';
       } catch {
-        showLoginError('Hit some turbulence saving that — give it another go.');
+        showLoginError('Couldn\'t save your login — try again in a moment.');
       } finally {
         clearInterval(boardingRotator);
         loginSubmitBtn.disabled = false;
         loginSubmitBtn.innerHTML = originalLabel;
       }
     });
+
+    // ===== First-run setup wizard (additive) — drives the EXISTING login controls.
+    //        Reuses setLoginProvider + PROVIDER_PRESETS for step content and the
+    //        loginForm's verified submit for the actual sign-in, so it can never
+    //        diverge from the working path. The login screen stays intact beneath;
+    //        closing the wizard reveals it. Logic classes are sw-* (NOT the recipient
+    //        wizard's document-wide .wizard-*), so the two wizards never collide. =====
+    const setupWizard = document.getElementById('setup-wizard-modal') as HTMLElement | null;
+    if (setupWizard) {
+      let swStep = 1;
+      let swProvider = 'gmail';
+      const swSteps = Array.from(setupWizard.querySelectorAll('.sw-step')) as HTMLElement[];
+      const swBackBtn = document.getElementById('sw-back') as HTMLButtonElement | null;
+      const swNextBtn = document.getElementById('sw-next') as HTMLButtonElement | null;
+      const swFinishBtn = document.getElementById('sw-finish') as HTMLButtonElement | null;
+
+      const swRender = () => {
+        swSteps.forEach(s => {
+          const n = parseInt(s.getAttribute('data-sw-step') || '1', 10);
+          s.classList.toggle('active', n === swStep);
+          s.classList.toggle('completed', n < swStep);
+        });
+        setupWizard.querySelectorAll('.sw-panel').forEach(p => { (p as HTMLElement).style.display = 'none'; });
+        const panel = document.getElementById(`sw-panel-${swStep}`);
+        if (panel) panel.style.display = 'block';
+        if (swBackBtn) swBackBtn.style.display = swStep > 1 ? 'inline-flex' : 'none';
+        if (swNextBtn) swNextBtn.style.display = swStep === 2 ? 'inline-flex' : 'none';
+        if (swFinishBtn) swFinishBtn.style.display = swStep === 3 ? 'inline-flex' : 'none';
+      };
+      const swGoTo = (n: number) => { swStep = Math.max(1, Math.min(3, n)); swRender(); };
+
+      // Step-2 instructions + step-3 fields follow the chosen provider. Reuse the
+      // login screen's provider wiring so the animated guide + steps stay in sync.
+      const swApplyProvider = (p: string) => {
+        swProvider = p;
+        setLoginProvider(p);
+        const preset = PROVIDER_PRESETS[p];
+        const stepsOl = document.getElementById('sw-steps');
+        if (stepsOl) stepsOl.innerHTML = preset.steps.map(s => `<li>${s}</li>`).join('');
+        const openHelp = document.getElementById('sw-open-help') as HTMLAnchorElement | null;
+        if (openHelp) {
+          if (preset.help) { openHelp.style.display = 'inline-flex'; openHelp.href = preset.help; }
+          else openHelp.style.display = 'none';
+        }
+        const showGuide = document.getElementById('sw-show-guide') as HTMLElement | null;
+        if (showGuide) showGuide.style.display = p === 'other' ? 'none' : 'inline-flex';
+        const customNote = document.getElementById('sw-custom-note');
+        if (customNote) customNote.style.display = p === 'other' ? 'block' : 'none';
+        const customFields = document.getElementById('sw-custom-fields');
+        if (customFields) customFields.style.display = p === 'other' ? 'grid' : 'none';
+        const swEmailInput = document.getElementById('sw-email') as HTMLInputElement | null;
+        if (swEmailInput) swEmailInput.placeholder = preset.placeholder;
+      };
+
+      setupWizard.querySelectorAll('.sw-provider-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          swApplyProvider(btn.getAttribute('data-sw-provider') || 'gmail');
+          swGoTo(2);
+        });
+      });
+      swNextBtn?.addEventListener('click', () => swGoTo(swStep + 1));
+      swBackBtn?.addEventListener('click', () => swGoTo(swStep - 1));
+
+      // "Show me (animated)" reuses the existing app-pw modal. Raise it ABOVE the
+      // wizard (z 3200) so it stacks on top rather than being hidden behind it —
+      // closing it by ANY means (button, backdrop, or Esc) simply reveals the wizard
+      // underneath, with no hide/restore bookkeeping that could strand the wizard.
+      document.getElementById('sw-show-guide')?.addEventListener('click', () => {
+        if (!appPwModal) return;
+        showPwSlide(1);
+        appPwModal.style.zIndex = '3300';
+        appPwModal.style.display = 'flex';
+      });
+
+      // Finish → hand the typed credentials to the existing verified login flow.
+      // requestSubmit() runs the same verifyConnection → saveConfig → boot path,
+      // including the post-login name onboarding, so there is no duplicated logic.
+      swFinishBtn?.addEventListener('click', () => {
+        const email = (document.getElementById('sw-email') as HTMLInputElement).value.trim();
+        const pass = (document.getElementById('sw-password') as HTMLInputElement).value;
+        if (!email || !pass) { toast('Enter your email and app password to connect.', 'error', 'Almost there'); return; }
+        setLoginProvider(swProvider);
+        loginEmail.value = email;
+        loginPassword.value = pass;
+        if (swProvider === 'other') {
+          loginHost.value = (document.getElementById('sw-host') as HTMLInputElement).value.trim();
+          loginPort.value = (document.getElementById('sw-port') as HTMLInputElement).value.trim();
+        }
+        setupWizard.style.display = 'none';
+        loginForm.requestSubmit();
+      });
+
+      // Skip / close (and Esc, via setupModalA11y) → reveal the untouched login form.
+      const swClose = () => { setupWizard.style.display = 'none'; };
+      document.getElementById('sw-skip')?.addEventListener('click', swClose);
+      document.getElementById('setup-wizard-close')?.addEventListener('click', swClose);
+
+      const showSetupWizard = () => {
+        // Make the wizard the only visible modal so setupModalA11y's focus-trap +
+        // Esc target IT, not the name-onboarding modal that may be shown (z2000)
+        // behind the login screen on a first run. The login handler re-shows the
+        // onboarding modal after a successful sign-in (when no userName), so hiding
+        // it here is safe and non-destructive.
+        const onboardingModal = document.getElementById('onboarding-modal');
+        if (onboardingModal) onboardingModal.style.display = 'none';
+        swStep = 1;
+        swApplyProvider('gmail');
+        swRender();
+        setupWizard.style.display = 'flex';
+      };
+      // First run only: layer the wizard over the (still-present) login screen.
+      if (!hasAccount) showSetupWizard();
+    }
 
     const isRunning = await window.electronAPI.getSchedulerStatus();
     updateStatusUI(isRunning);
@@ -2436,7 +2809,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (err) {
       addLog(`Failed to toggle scheduler: ${err}`, 'error');
-      toast('Could not toggle autopilot.', 'error');
+      toast('Couldn\'t change the schedule. Check System Logs and try again.', 'error');
     } finally {
       toggleSchedulerBtn.disabled = false;
     }
@@ -2496,7 +2869,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
     } catch (err) {
-      toast('Hit some turbulence — check System Logs.', 'error', 'Grounded');
+      toast('Couldn\'t finish the test run. Check System Logs for details.', 'error', 'Test run failed');
     } finally {
       clearInterval(rotator);
       testRunBtn.disabled = false;
@@ -2571,9 +2944,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('close-recipient-modal-btn')!.addEventListener('click', () => {
       document.getElementById('recipient-modal')!.style.display = 'none';
   });
-  document.getElementById('cancel-recipient-btn')!.addEventListener('click', () => {
-      document.getElementById('recipient-modal')!.style.display = 'none';
-  });
   document.getElementById('preview-recipient-btn')!.addEventListener('click', async () => {
       const name = (document.getElementById('rec-name') as HTMLInputElement).value;
       const email = (document.getElementById('rec-email') as HTMLInputElement).value;
@@ -2585,7 +2955,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const record = { name, email, subject, messageType, messageContent };
       
-      const result = await (window as any).electronAPI.previewUnsavedEmail(record);
+      const result = await window.electronAPI.previewUnsavedEmail(record);
       if (result.error) {
           alert('Preview Error: ' + result.error);
       } else {
@@ -2593,13 +2963,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           const previewSubject = document.getElementById('preview-subject') as HTMLElement;
           const previewFrame = document.getElementById('preview-frame') as HTMLIFrameElement;
           
-          previewSubject.textContent = result.subject;
+          previewSubject.textContent = result.subject || '';
           renderSpamBanner(result.subject || '', result.body || '');
 
           const doc = previewFrame.contentWindow?.document;
           if (doc) {
               doc.open();
-              doc.write(result.body);
+              doc.write(result.body || '');
               doc.close();
           }
           previewModal.style.display = 'flex';
@@ -2805,6 +3175,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const originalContent = btn.innerHTML;
     btn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Saving...';
 
+    // Pick up an edited name (falls back to the stored one if the field is blank).
+    if (inputUserName && inputUserName.value.trim()) {
+      currentUserName = inputUserName.value.trim();
+      const welcomeTitle = document.getElementById('welcome-title');
+      const formattedName = currentUserName.charAt(0).toUpperCase() + currentUserName.slice(1);
+      if (welcomeTitle) welcomeTitle.textContent = `Welcome back, ${formattedName}`;
+    }
+
     const newConfig = {
       userName: currentUserName,
       smtpHost: inputHost.value,
@@ -2838,11 +3216,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } else {
         addLog('Failed to save configuration.', 'error');
-        toast('Could not save preferences.', 'error');
+        toast('Couldn\'t save your settings. Make sure another copy of the app isn\'t open, then try again.', 'error');
       }
     } catch (err) {
       addLog(`Settings save error: ${err}`, 'error');
-      toast('Could not save preferences.', 'error');
+      toast('Couldn\'t save your settings. Make sure another copy of the app isn\'t open, then try again.', 'error');
     } finally {
       btn.disabled = false;
       btn.innerHTML = originalContent;
@@ -2898,7 +3276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { records, summary } = importBuilt;
 
     if (!mapping.email) {
-      importCounts.innerHTML = '<span style="color:#f59e0b;">Choose which column contains the email address.</span>';
+      importCounts.innerHTML = '<span style="color:var(--warning);">Choose which column contains the email address.</span>';
       confirmImportBtn.disabled = true;
     } else {
       const dup = summary.skippedDuplicate;
@@ -2941,7 +3319,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       res = await window.electronAPI.importRecipientsCsv();
     } catch {
-      toast('Could not read the CSV file.', 'error');
+      toast('Couldn\'t read that CSV file. Make sure it\'s a valid .csv and try again.', 'error');
       return;
     }
     if (!res || res.canceled) return;
