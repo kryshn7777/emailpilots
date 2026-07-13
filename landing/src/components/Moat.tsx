@@ -3,7 +3,7 @@ import { SAFEGUARDS } from '../config'
 
 export function Moat() {
   return (
-    <section id="safeguards" className="relative bg-white px-5 py-24 md:py-32">
+    <section id="safeguards" className="relative frost px-5 py-24 md:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal className="mx-auto max-w-2xl text-center">
           <span className="text-[13px] font-bold uppercase tracking-[.2em] text-blue">Responsible sending</span>

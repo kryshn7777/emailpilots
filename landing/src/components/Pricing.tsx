@@ -3,7 +3,7 @@ import { PRICE, PRICING_INCLUDES, CHECKOUT_URL } from '../config'
 
 export function Pricing() {
   return (
-    <section id="pricing" className="relative overflow-hidden bg-paper px-5 py-24 md:py-32">
+    <section id="pricing" className="relative overflow-hidden frost-paper px-5 py-24 md:py-32">
       <div className="pointer-events-none absolute left-1/2 top-0 -z-0 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-blue/5 blur-3xl" />
       <div className="relative z-10 mx-auto max-w-6xl">
         <Reveal className="mx-auto max-w-2xl text-center">
@@ -14,8 +14,10 @@ export function Pricing() {
 
         <Reveal className="mx-auto mt-16 max-w-lg">
           <div className="relative rounded-3xl border-2 border-blue bg-white p-8 shadow-lift sm:p-10">
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-blue px-4 py-1 text-[13px] font-bold text-white shadow-glow">
-              Everything included
+            <div className="absolute -top-4 inset-x-0 flex justify-center">
+              <span className="animate-float-y whitespace-nowrap rounded-full bg-blue px-4 py-1 text-[13px] font-bold text-white shadow-glow">
+                Everything included
+              </span>
             </div>
             <div className="text-center">
               <h3 className="text-2xl font-bold text-ink">Pro Sender</h3>

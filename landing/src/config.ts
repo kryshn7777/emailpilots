@@ -12,6 +12,7 @@ export const PRICE = { amount: '$2.9', period: 'week', trialDays: 7 }
 export const NAV = [
   { label: 'How it works', href: '#how' },
   { label: 'Features', href: '#features' },
+  { label: 'AI', href: '#ai' },
   { label: 'Deliverability', href: '#deliverability' },
   { label: 'Pricing', href: '#pricing' },
 ]
@@ -19,7 +20,7 @@ export const NAV = [
 export const HERO = {
   kicker: '✈ Personal outreach, automated',
   title: ['Personal outreach,', 'on autopilot.'],
-  sub: 'Send personalized emails and follow-ups from your own mailbox — scheduled, naturally paced, and reply-aware. Private by default: your contacts and credentials never leave your computer.',
+  sub: 'Send personalized emails and follow-ups from your own mailbox — scheduled, naturally paced, and reply-aware. An optional AI copilot helps you write and triage, running entirely on your own machine. Private by default: your contacts and credentials never leave your computer.',
   trust: 'Sensible sending limits keep your mailbox healthy and your messages welcome.',
 }
 
@@ -67,7 +68,21 @@ export const DELIVERABILITY = {
     { title: 'Reads like a real person', body: 'Defaults to a personal 1:1 style — plain, personalized messages from your own name and address, not a templated blast.' },
     { title: 'Respects sensible limits', body: 'Stays within healthy daily volumes and paces sends naturally, the way a careful human would.' },
     { title: 'Honors every opt-out', body: 'One-click unsubscribe support and a permanent do-not-contact list keep you respectful and compliant.' },
-    { title: 'A pre-flight check before you send', body: 'A built-in review flags anything that could hurt deliverability before a single message leaves.' },
+    { title: 'A pre-flight check before you send', body: 'A built-in review — with an optional on-device AI second opinion — flags anything that could hurt deliverability before a single message leaves.' },
+  ],
+}
+
+// On-device AI (Feature #5) — optional, private, runs a local model. Framed
+// honestly: off by default, no cloud/API keys. Reinforces the privacy positioning.
+export const AI = {
+  title: 'A copilot that never leaves the cockpit.',
+  sub: 'Optional on-device AI helps you write, personalize, and triage replies — running a model right on your own computer. No API keys, no account, nothing sent to any cloud. Off by default; yours to switch on.',
+  points: [
+    { title: 'Writes in your voice', body: 'Draft, rewrite, shorten, or fix the tone of any message — a first draft in seconds that still sounds like you.' },
+    { title: 'Personalizes per person', body: 'Turns each contact’s details into a genuinely tailored email, not a template with a {{name}} swapped in.' },
+    { title: 'Reads the room on replies', body: 'Sorts responses by intent — interested, not now, out-of-office, unsubscribe — and can file opt-outs and pause follow-ups while someone’s away.' },
+    { title: 'Checks deliverability', body: 'Reviews a draft for spam-filter triggers and suggests fixes before you hit send.' },
+    { title: '100% on your machine', body: 'The model runs locally. Your drafts, contacts, and replies never touch OpenAI, our servers, or anyone else’s.' },
   ],
 }
 
@@ -84,6 +99,18 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       'Merge fields ({{name}}) for genuine personalization',
       'Per-recipient attachments with custom names',
       'Practice mode — send a copy to yourself first',
+    ],
+  },
+  {
+    title: 'On-device AI (optional)',
+    blurb: 'A private copilot that runs on your computer, never the cloud.',
+    items: [
+      'Drafts and personalizes emails to the person, not a template',
+      'Rewrite, shorten, or fix the tone in one click',
+      'Sorts replies by intent — interested, not now, unsubscribe',
+      'Auto-handles opt-outs and pauses follow-ups for out-of-office',
+      'Reviews drafts for deliverability risks before you send',
+      'Runs a local model — no API keys, nothing leaves your machine',
     ],
   },
   {
@@ -135,6 +162,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       'Lightweight — never re-scans old mail',
       'Reply-rate insights per account',
       'Powers the “stop on reply” behavior',
+      'Optional AI sorts replies by intent (interested / not now / unsubscribe)',
     ],
   },
   {
@@ -171,6 +199,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     blurb: 'Land where you’re meant to, on the right side of the rules.',
     items: [
       'A pre-flight content review before you send',
+      'SPF, DKIM & DMARC check — with the exact records to paste',
       'Unsubscribe footer + one-click List-Unsubscribe',
       'Personal 1:1 style by default',
     ],
@@ -226,6 +255,7 @@ export const PRICING_INCLUDES = [
   'Up to 5 accounts (Gmail / Outlook / custom)',
   'Scheduling, personalization & merge fields',
   'Reply-aware follow-up sequences',
+  'Optional on-device AI — drafting, reply triage & deliverability checks',
   'CSV import, lists & opt-out handling',
   '100% local — your data never leaves your machine',
 ]
@@ -234,6 +264,7 @@ export const FAQ = [
   { q: 'Is this a bulk or spam tool?', a: 'No. Email Pilots is for personal, permission-based email you have a genuine reason to send — to your own contacts, from your own mailbox. It defaults to a personal 1:1 style, supports one-click unsubscribe, and keeps a do-not-contact list. It is not built for buying lists or blasting strangers.' },
   { q: 'Will it keep my mailbox in good standing?', a: 'That’s the whole point of the sending limits, gradual ramp-up, and natural pacing: to send the way a careful person would, stay within healthy volumes, and keep your messages welcome.' },
   { q: 'Where does my data live?', a: 'Entirely on your computer. There is no cloud backend — your contact list and credentials never leave your machine, and passwords are encrypted with your operating system’s keychain.' },
+  { q: 'Does the AI send my emails to the cloud?', a: 'No. The optional AI runs a model directly on your own computer — there are no API keys, and nothing (your drafts, contacts, or replies) is ever sent to OpenAI, to us, or to any server. Prefer not to use it? Leave it off and everything else works exactly the same.' },
   { q: 'Which email providers work?', a: 'Anything that uses standard email protocols — Gmail, Outlook / Microsoft 365, and custom domains. Reply tracking uses a standard read-only inbox check.' },
   { q: 'How does billing work?', a: `${PRICE.amount}/week, everything included, cancel anytime. It starts with a ${PRICE.trialDays}-day trial.` },
 ]
@@ -272,6 +303,7 @@ export const CHAPTERS = [
   { id: 'how', code: '01', name: 'Flight plan' },
   { id: 'deliverability', code: '02', name: 'Takeoff' },
   { id: 'features', code: '03', name: 'The cockpit' },
+  { id: 'ai', code: '03.5', name: 'The copilot' },
   { id: 'landing', code: '04', name: 'Landing & reply' },
   { id: 'why', code: '05', name: 'Why fly with us' },
   { id: 'business', code: '06', name: 'Next frontier' },
@@ -289,7 +321,7 @@ export const COMING_SOON = {
   waitlistLabel: 'Get notified when Business & Teams launches',
   items: [
     { title: 'SSO sign-in', body: 'One-click Google & Microsoft sign-in (OAuth2) — no app passwords to generate.' },
-    { title: 'Managed domain authentication', body: 'Guided SPF, DKIM and DMARC setup, so your domain is verified for you.' },
+    { title: 'One-click domain setup', body: 'Today Email Pilots shows you the exact SPF, DKIM and DMARC records to paste; soon it can apply them for you automatically.' },
     { title: 'Open & click analytics', body: 'See opens and click-throughs per message, with privacy-respecting measurement.' },
     { title: 'Team workspace + secure sync', body: 'Share campaigns and contacts across a team, synced securely across devices.' },
     { title: 'Visual email builder', body: 'Design emails with drag-and-drop blocks — no HTML required.' },

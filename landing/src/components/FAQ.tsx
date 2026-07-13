@@ -3,7 +3,7 @@ import { FAQ as FAQ_DATA } from '../config'
 
 export function FAQ() {
   return (
-    <section id="faq" className="relative bg-white px-5 py-24 md:py-32">
+    <section id="faq" className="relative frost px-5 py-24 md:py-32">
       <div className="mx-auto max-w-3xl">
         <Reveal className="text-center">
           <span className="text-[13px] font-bold uppercase tracking-[.2em] text-blue">Questions</span>

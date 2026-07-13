@@ -3,7 +3,7 @@ import { COMPARISON } from '../config'
 
 export function Comparison() {
   return (
-    <section id="compare" className="relative bg-white px-5 py-24 md:py-32">
+    <section id="compare" className="relative frost px-5 py-24 md:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal className="mx-auto max-w-2xl text-center">
           <span className="text-[13px] font-bold uppercase tracking-[.2em] text-blue">Why not the others</span>

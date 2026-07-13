@@ -3,7 +3,7 @@ import { STATS } from '../config'
 
 export function StatBand() {
   return (
-    <section className="relative bg-white">
+    <section className="relative frost">
       <div className="mx-auto max-w-6xl px-5">
         <Reveal>
           <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-paper-line bg-paper-line md:grid-cols-4">

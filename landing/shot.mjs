@@ -19,18 +19,18 @@ for (let i = 0; i < 60; i++) {
 }
 await page.waitForTimeout(700)
 
-await page.screenshot({ path: 'landing/preview-full.png', fullPage: true })
+await page.screenshot({ path: 'preview-full.png', fullPage: true })
 
 // Back to top for a clean hero shot with the scene running.
 await page.evaluate(() => { const l = (window).__lenis; if (l) l.scrollTo(0, { immediate: true }); else window.scrollTo(0, 0) })
 await page.mouse.wheel(0, -40000)
 await page.waitForTimeout(1500)
-await page.screenshot({ path: 'landing/preview-hero.png' })
+await page.screenshot({ path: 'preview-hero.png' })
 
 // True bottom-of-page viewport shot (avoids fullPage + smooth-scroll artifacts).
 await page.mouse.wheel(0, 80000)
 await page.waitForTimeout(1400)
-await page.screenshot({ path: 'landing/preview-bottom.png' })
+await page.screenshot({ path: 'preview-bottom.png' })
 
 console.log('CONSOLE/PAGE ERRORS:' + (errors.length ? '\n - ' + errors.join('\n - ') : ' none'))
 await browser.close()

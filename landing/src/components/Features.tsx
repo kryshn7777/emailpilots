@@ -3,7 +3,7 @@ import { FEATURE_GROUPS } from '../config'
 
 export function Features() {
   return (
-    <section id="features" className="relative bg-paper px-5 py-24 md:py-32">
+    <section id="features" className="relative frost-paper px-5 py-24 md:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal className="mx-auto max-w-2xl text-center">
           <span className="text-[13px] font-bold uppercase tracking-[.2em] text-blue">Everything in the cockpit</span>
