@@ -42,7 +42,12 @@
    - Use the "Preview" feature in the app to check rendering and the Spam Heuristics score.
    - Send a test email to yourself using the UI's test functionality.
 
-5. **Start Scheduler**:
+5. **Add Accounts, Campaigns & Sequences (optional)**:
+   - **Accounts**: Add extra sending accounts in the Accounts view to send from more than the primary `.env` account — each gets its own daily limits and warmup curve. The Accounts view also shows a **Domain Authentication** card that checks your SPF/DKIM/DMARC records and recommends fixes.
+   - **Campaigns**: Group recipients into campaigns, each with its own subject and template.
+   - **Sequences**: Build multi-step follow-up sequences with per-step delays; enable **stop-on-reply** to end a drip automatically when a recipient replies (detected by the 15-minute IMAP reply poller).
+
+6. **Start Scheduler**:
    - Once everything is set up, start the scheduler. The app can be safely minimized to the system tray while it performs its outreach.
 
 ## Installing the Packaged App (Windows SmartScreen)
