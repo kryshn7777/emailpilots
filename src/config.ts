@@ -39,6 +39,24 @@ export interface Account {
    */
   imapHost?: string;
   imapPort?: number;
+  /**
+   * How this account puts mail on the wire. Absent ⇒ 'smtp' (classic password
+   * SMTP — the only path before low-friction transports were added), so every
+   * existing account keeps working untouched.
+   *  - 'smtp'       : nodemailer + host/port/user/pass
+   *  - 'oauth-smtp' : nodemailer XOAUTH2 (Microsoft) — `user` set, no `pass`
+   *  - 'browser'    : drive the provider's webmail UI — no `pass`, no IMAP
+   */
+  transport?: 'smtp' | 'oauth-smtp' | 'browser';
+  /** OAuth provider for 'oauth-smtp' accounts. */
+  oauthProvider?: 'microsoft';
+  /** Encrypted (ENC:) MSAL refresh-token cache for 'oauth-smtp' accounts. */
+  oauthToken?: string;
+  /** Which webmail to automate for 'browser' accounts. */
+  browserProvider?: 'gmail' | 'outlook';
+  /** Electron persistent session partition ('persist:acct-<id>') holding the
+   *  logged-in cookies for a 'browser' account. */
+  browserPartition?: string;
 }
 
 /**
@@ -103,6 +121,13 @@ export interface Config {
    */
   accounts?: Account[];
   /**
+   * The single account this Config slice represents, set by buildProcessors when
+   * it derives a per-account Config. Carries the transport discriminator (and
+   * OAuth/browser fields) so EmailService can pick the right SendStrategy.
+   * Absent on the global Config and on bare `{ smtp }` literals ⇒ classic SMTP.
+   */
+  account?: Account;
+  /**
    * All user campaigns from campaigns.json. loadConfig() always populates it
    * ([] when none). renderEmail() resolves a recipient's campaignId against this
    * for per-campaign subject/template defaults.
@@ -142,6 +167,34 @@ export interface Config {
     // footer, <head>/<style>) so 1:1 mail lands in Gmail's Primary tab instead
     // of Promotions. 'bulk' keeps them for cold/bulk sending.
     inboxPlacement: 'primary' | 'bulk';
+  };
+  /**
+   * Optional Local AI subsystem. Absent or `enabled:false` ⇒ every AI feature is
+   * off and the app behaves exactly as before. Populated by loadConfig from AI_*
+   * env vars. `modelPath` is a local GGUF file the user downloads; never bundled.
+   */
+  ai?: {
+    enabled: boolean;
+    provider: string;
+    modelPath?: string;
+    contextSize?: number;
+    /** GPU backend for the local engine. 'auto' picks the best available
+     *  (CUDA/Vulkan/Metal); 'cpu' forces CPU-only. Default 'auto'. */
+    gpu?: 'auto' | 'cuda' | 'vulkan' | 'metal' | 'cpu';
+    /** Layers to offload to the GPU. `undefined` = auto-fit as many as fit while
+     *  reserving room for the KV cache; `0` = CPU-only; `N` = force N layers. */
+    gpuLayers?: number;
+    /** Flash attention shrinks the KV cache so a bigger context fits in VRAM
+     *  (keeps generation on the GPU instead of falling back to CPU). Default on;
+     *  silently ignored when the model/backend doesn't support it. */
+    flashAttention?: boolean;
+    /** Reply-classification + workflow-automation toggles (feature #2). All
+     *  default false ⇒ classification off, no auto-suppress, drips unchanged. */
+    actions?: {
+      classifyReplies?: boolean;
+      autoSuppressUnsubscribe?: boolean;
+      pauseOnOoo?: boolean;
+    };
   };
   cronSchedule: string;
   /**
@@ -221,6 +274,16 @@ export function loadConfig(): Config {
     TEST_MODE,
     IMAP_HOST,
     IMAP_PORT,
+    AI_ENABLED,
+    AI_PROVIDER,
+    AI_MODEL_PATH,
+    AI_CONTEXT_SIZE,
+    AI_GPU,
+    AI_GPU_LAYERS,
+    AI_FLASH_ATTENTION,
+    AI_CLASSIFY_REPLIES,
+    AI_AUTO_SUPPRESS_UNSUB,
+    AI_PAUSE_ON_OOO,
   } = process.env;
 
   // Missing credentials are no longer a fatal error during load, 
@@ -252,6 +315,14 @@ export function loadConfig(): Config {
   // Extra accounts (decrypt their stored passwords here, same scheme as smtp).
   const extras = readAccounts(basePath).map(a => ({ ...a, pass: decryptPassword(a.pass) }));
   const accounts: Account[] = [defaultAccount, ...extras];
+
+  // Local-AI GPU knobs. `gpu` falls back to 'auto' for any unrecognized value;
+  // `gpuLayers` is undefined (auto-fit) unless explicitly set (0 ⇒ CPU-only).
+  const aiGpuRaw = (AI_GPU || 'auto').trim().toLowerCase();
+  const aiGpu = (['auto', 'cuda', 'vulkan', 'metal', 'cpu'].includes(aiGpuRaw) ? aiGpuRaw : 'auto') as 'auto' | 'cuda' | 'vulkan' | 'metal' | 'cpu';
+  const aiGpuLayers = (AI_GPU_LAYERS !== undefined && String(AI_GPU_LAYERS).trim() !== '')
+    ? Math.max(0, Math.floor(numEnv(AI_GPU_LAYERS, 0)))
+    : undefined;
 
   return {
     userName: USER_NAME || '',
@@ -290,6 +361,22 @@ export function loadConfig(): Config {
       // Default 'primary'; only the explicit string 'bulk' opts back into the
       // List-Unsubscribe header + CAN-SPAM footer.
       inboxPlacement: (INBOX_PLACEMENT || 'primary').trim().toLowerCase() === 'bulk' ? 'bulk' : 'primary',
+    },
+    // Optional Local AI. Defaults keep it OFF; loadConfig always returns the
+    // object so downstream reads (config.ai?.enabled) are simple.
+    ai: {
+      enabled: boolEnv(AI_ENABLED, false),
+      provider: (AI_PROVIDER || 'local-llama').trim(),
+      modelPath: AI_MODEL_PATH ? path.resolve(basePath, AI_MODEL_PATH) : undefined,
+      contextSize: AI_CONTEXT_SIZE ? (numEnv(AI_CONTEXT_SIZE, 0) || undefined) : undefined,
+      gpu: aiGpu,
+      gpuLayers: aiGpuLayers,
+      flashAttention: boolEnv(AI_FLASH_ATTENTION, true),
+      actions: {
+        classifyReplies: boolEnv(AI_CLASSIFY_REPLIES, false),
+        autoSuppressUnsubscribe: boolEnv(AI_AUTO_SUPPRESS_UNSUB, false),
+        pauseOnOoo: boolEnv(AI_PAUSE_ON_OOO, false),
+      },
     },
     cronSchedule: CRON_SCHEDULE || '0 9 * * *',
     testMode: boolEnv(TEST_MODE, false),

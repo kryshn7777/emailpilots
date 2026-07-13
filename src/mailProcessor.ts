@@ -6,6 +6,7 @@ import { RateLimiter } from './rateLimiter';
 import { SuppressionManager } from './suppressionManager';
 import { renderEmail } from './renderer';
 import { checkSpam } from './spamCheck';
+import { SentLedger, contentHash } from './sentLedger';
 
 /**
  * Whether a recipient record belongs to a given account. The default account
@@ -24,21 +25,42 @@ export function recordBelongsToAccount(record: any, accountId?: string): boolean
 export class MailProcessor {
   private limiter: RateLimiter;
   private suppression: SuppressionManager;
+  private sentLedger: SentLedger;
 
   constructor(
     private config: Config,
     private emailService: EmailService,
     private onSuccess?: (accountId?: string) => void,
-    private accountId?: string
+    private accountId?: string,
+    // A14: fired on any send failure so background (scheduler/sequence) failures can
+    // reach the UI log + account health. Optional → existing constructions unchanged.
+    private onFailure?: (accountId: string | undefined, error: any) => void
   ) {
     // accountId routes this processor to its own limits.<id>.json (default/
     // omitted ⇒ legacy limits.json). Suppression stays a single shared list.
     this.limiter = new RateLimiter(getBasePath(), config.limits, accountId);
     this.suppression = new SuppressionManager(getBasePath());
+    // A3: per-account idempotency ledger (sent-ledger.<id>.json), same accountId
+    // routing as the limiter so parallel account runs never race.
+    this.sentLedger = new SentLedger(getBasePath(), accountId);
   }
 
   private ownsRecord(record: any): boolean {
     return recordBelongsToAccount(record, this.accountId);
+  }
+
+  /** A12: should a SCHEDULED cron slot skip this recipient because another path (a
+   *  manual "Send to everyone now", or an earlier scheduled slot) already delivered
+   *  to it today? One real send per recipient per day across paths. Never true in
+   *  Practice Mode (sends reroute to the sender's own inbox — no real recipient to
+   *  protect), mirroring the A3 ledger's !isTest gate. Recurring schedules across
+   *  DAYS are unaffected (perRecipientToday resets at local midnight); only same-day
+   *  repeats collapse to one. Scheduler-only: NOT called from processEmails (the
+   *  explicit "send now" always sends) nor threaded into processRecipient (whose
+   *  other caller, SequenceRunner, legitimately sends multiple same-day steps). */
+  alreadySentToday(email: string): boolean {
+    if (this.config.testMode) return false;
+    return this.limiter.deliveredToday(email) > 0;
   }
 
   /**
@@ -51,7 +73,16 @@ export class MailProcessor {
   private isPermanentBounce(error: any): boolean {
     if (error?.code !== 'EENVELOPE') return false;
     const code = error?.responseCode;
-    return typeof code === 'number' && code >= 500 && code < 600;
+    if (!(typeof code === 'number' && code >= 500 && code < 600)) return false;
+    // A7 fix: nodemailer stamps the identical code:'EENVELOPE' for MAIL FROM,
+    // RCPT TO and DATA-stage 5xx alike. Only a RCPT TO rejection is a genuine
+    // recipient bounce; a MAIL FROM / DATA / auth 5xx is the SENDER's or content's
+    // problem, so suppressing the recipient for it would blacklist valid, never-
+    // bounced addresses across every account. error.command carries the failing
+    // SMTP verb — require the RCPT stage; a missing/unknown command is treated
+    // conservatively as NOT a recipient bounce (don't poison the shared list).
+    const command = String(error?.command || '').toUpperCase();
+    return command.includes('RCPT');
   }
 
   /**
@@ -156,7 +187,11 @@ export class MailProcessor {
       return { total: 0, sent: 0, skipped: 0, failed: 0 };
     }
 
-    const activeRecords = records.filter(r => r.active !== false && this.ownsRecord(r));
+    // A10 fix: exclude sequence-enrolled recipients from the batch path — they are
+    // driven step-by-step by the SequenceRunner, so a "Send to All" would deliver an
+    // extra (often near-blank) message on top of their drip. Mirrors the Scheduler's
+    // existing `!r.sequenceId` guard (src/scheduler.ts) so the two paths agree.
+    const activeRecords = records.filter(r => r.active !== false && !r.sequenceId && this.ownsRecord(r));
     console.log(`Processing ${activeRecords.length} active recipients...`);
 
     let sentThisRun = 0;
@@ -191,6 +226,22 @@ export class MailProcessor {
 
       const attachments = this.buildAttachments(record);
 
+      // Practice mode (rerouted to the sender's own inbox) bypasses the ledger both
+      // ways — a practice send must neither be blocked by nor recorded as a real
+      // delivery. Hoisted here (from the send block below) so the A3 check can use it.
+      const isTest = !!this.config.testMode;
+
+      // A3: idempotency — skip a recipient already delivered THIS exact rendered
+      // content, BEFORE reserving a rate slot. A transient defer/reject is never
+      // recorded (below), so it retries on the next run; a re-run of unchanged
+      // content skips everyone already delivered instead of duplicating.
+      const hash = contentHash(rendered.subject, rendered.body);
+      if (!isTest && this.sentLedger.wasSent(email, hash)) {
+        console.log(`Skipping ${email}: already delivered this message.`);
+        skipped++;
+        continue;
+      }
+
       // Atomically reserve a slot against the rate limits before sending.
       const res = this.limiter.tryConsume(email, this.attachmentBytes(attachments));
       if (!res.allowed) {
@@ -215,7 +266,7 @@ export class MailProcessor {
 
       // Practice mode: deliver to the sender's own inbox, flagging the intended
       // recipient in the subject. Everything else (render, limits) is identical.
-      const isTest = !!this.config.testMode;
+      // (isTest was hoisted above for the A3 ledger check.)
       const target = isTest ? this.config.smtp.user : email;
       const subject = isTest ? `[TEST → ${email}] ${rendered.subject}` : rendered.subject;
       if (isTest) console.log(`Practice mode: rerouting ${email} → ${target}`);
@@ -232,8 +283,17 @@ export class MailProcessor {
           this.limiter.refund(email, res.windowRolled);
           console.warn(`Not counting ${email} as sent: server did not accept it.`);
           failed++;
+          this.onFailure?.(this.accountId, { code: 'ENOTACCEPTED', message: `${email}: server did not accept the recipient` });
         } else {
           sentThisRun++;
+          // A3: record the genuine delivery so a re-run skips this recipient. Only
+          // here (accepted) — never on the reject/defer/throw paths, so a transient
+          // failure is retried next run.
+          if (!isTest) this.sentLedger.recordSent(email, hash);
+          // A12: mark a real same-day delivery so a later scheduled cron slot for the
+          // same recipient skips (one real send/day across paths). Practice sends
+          // (!isTest false) are excluded, so a preview never suppresses a real send.
+          if (!isTest) this.limiter.markDelivered(email);
           this.onSuccess?.(this.accountId);
         }
       } catch (error: any) {
@@ -244,6 +304,7 @@ export class MailProcessor {
         }
         console.error(`Error sending to ${email}, continuing with next...`);
         failed++;
+        this.onFailure?.(this.accountId, error);
       }
     }
 
@@ -306,9 +367,13 @@ export class MailProcessor {
         // Rejected, or the server never accepted this recipient — not delivered.
         this.limiter.refund(email, res.windowRolled);
         console.warn(`Not counting ${email} as sent: server did not accept it.`);
+        this.onFailure?.(this.accountId, { code: 'ENOTACCEPTED', message: `${email}: server did not accept the recipient` });
         return false;
       }
       console.log(`Successfully sent email to ${email}`);
+      // A12: mark a real same-day delivery so another scheduled slot (or a manual
+      // Send-Now check) treats this recipient as sent today. Never in Practice Mode.
+      if (!isTest) this.limiter.markDelivered(email);
       this.onSuccess?.(this.accountId);
       return true;
     } catch (error: any) {
@@ -318,6 +383,7 @@ export class MailProcessor {
         console.warn(`Suppressed ${email}: permanent failure SMTP ${error.responseCode}.`);
       }
       console.error(`Error sending to ${email}:`, error);
+      this.onFailure?.(this.accountId, error);
       return false;
     }
   }

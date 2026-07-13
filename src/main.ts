@@ -3,6 +3,7 @@ import { checkSpam } from './spamCheck';
 import { detectMapping, buildRecordsFromRows, type ColumnMapping } from './csvMapping';
 import { normalizeAppPassword, friendlySmtpError } from './smtpUtils';
 import { computeOnboardingSteps } from './onboarding';
+import { deriveDomain, type DomainAuthReport, type RecordCheck } from './domainAuth';
 
 const GS_DISMISS_KEY = 'eptGettingStartedDismissed';
 
@@ -41,7 +42,7 @@ declare global {
         maxPerRecipientPerDay: number;
       }>;
       getSuppressions: () => Promise<{ email: string; reason: string; date: string; detail?: string }[]>;
-      getReplies: () => Promise<{ email: string; repliedAt: string; accountId?: string; subject?: string }[]>;
+      getReplies: () => Promise<{ email: string; repliedAt: string; accountId?: string; subject?: string; classification?: string }[]>;
       pollNow: () => Promise<{ ok: boolean; error?: string }>;
       removeSuppression: (email: string) => Promise<boolean>;
       addSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
@@ -62,6 +63,16 @@ declare global {
       previewEmail: (index: number) => Promise<{ subject?: string; body?: string; error?: string }>;
       previewUnsavedEmail: (record: any) => Promise<{ subject?: string; body?: string; error?: string }>;
       verifyEmail: (email: string) => Promise<{ valid: boolean; reason?: string }>;
+      checkDomainAuth: (arg: { domain: string; smtpHost?: string; userEmail?: string }) => Promise<DomainAuthReport | { error: string }>;
+      aiStatus: () => Promise<{ enabled: boolean; runtimeAvailable: boolean; modelConfigured: boolean; ready: boolean; modelPath?: string; contextSize?: number; gpuType?: string; gpuLayers?: number; error?: string }>;
+      aiGenerate: (req: { prompt: string; system?: string; json?: boolean; maxTokens?: number; temperature?: number }) => Promise<{ ok: boolean; text?: string; json?: unknown; ms?: number; error?: string }>;
+      aiAssist: (req: { action: string; text?: string; instruction?: string; tone?: string }) => Promise<{ ok: boolean; text?: string; error?: string }>;
+      aiPersonalize: (req: { recipient: any; instruction?: string; tone?: string; baseTemplate?: string }) => Promise<{ ok: boolean; text?: string; error?: string }>;
+      aiSpamCheck: (req: { subject?: string; body?: string }) => Promise<{ ok: boolean; advice?: { score: number; level: 'low' | 'medium' | 'high'; issues: string[]; suggestions: string[]; note?: string }; error?: string }>;
+      onAiStream: (cb: (chunk: string) => void) => (() => void);
+      aiSelectModel: () => Promise<{ ok: boolean; path?: string; canceled?: boolean; error?: string }>;
+      aiLoadModel: () => Promise<{ ok: boolean; ready?: boolean; gpuType?: string; gpuLayers?: number; contextSize?: number; error?: string }>;
+      onAiLoadProgress: (cb: (progress: number) => void) => (() => void);
       onLog: (callback: (message: string, type: string) => void) => void;
       onStatusChange: (callback: (isActive: boolean) => void) => void;
     }
@@ -96,6 +107,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     const targetViewId = link.getAttribute('data-view');
     views.forEach(view => view.classList.toggle('active', view.id === targetViewId));
+    // Domain-auth DNS checks run lazily on first visit to the Accounts view.
+    if (targetViewId === 'accounts' && !domainAuthStarted) void runDomainAuthChecks();
+    // Refresh Local AI status on entry (cheap when disabled; the model loads
+    // lazily only when AI is enabled + a model is configured).
+    if (targetViewId === 'ai') { void refreshAiStatus(); void reflectAiActions(); }
+    if (targetViewId === 'deliverability') void initDeliverability();
   };
 
   navItems.forEach((link, i) => {
@@ -116,6 +133,639 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   });
+
+  // --- Local AI (optional feature #1) ---
+  const aiEnableToggle = document.getElementById('ai-enable-toggle') as HTMLInputElement | null;
+  const aiSelectModelBtn = document.getElementById('ai-select-model-btn') as HTMLButtonElement | null;
+  const aiModelPathEl = document.getElementById('ai-model-path');
+  const aiContextSizeInput = document.getElementById('ai-context-size') as HTMLInputElement | null;
+  const aiRefreshBtn = document.getElementById('ai-refresh-btn') as HTMLButtonElement | null;
+  const aiStatusLine = document.getElementById('ai-status-line');
+  const aiTestPrompt = document.getElementById('ai-test-prompt') as HTMLTextAreaElement | null;
+  const aiTestBtn = document.getElementById('ai-test-btn') as HTMLButtonElement | null;
+  const aiTestOutput = document.getElementById('ai-test-output') as HTMLTextAreaElement | null;
+  // GPU acceleration controls (keeps generation on the GPU instead of CPU).
+  const aiGpuBackend = document.getElementById('ai-gpu-backend') as HTMLSelectElement | null;
+  const aiGpuLayers = document.getElementById('ai-gpu-layers') as HTMLInputElement | null;
+  const aiFlashAttention = document.getElementById('ai-flash-attention') as HTMLInputElement | null;
+
+  // Set by attachWritingAssistant (feature #3): re-checks whether the composer's
+  // AI toolbar should show. No-op until the assistant is attached.
+  let refreshRecMsgAssistant: () => void = () => {};
+  // Feature #5 (personalized generation): gate hook for the composer panel + a focus
+  // helper for the ✨ table button, plus a cached AI-ready flag driving both. The flag
+  // is refreshed by refreshAiStatus (which already runs on AI-tab entry / toggle);
+  // reading it is synchronous, so it never triggers a model load on table render.
+  let refreshRecMsgPersonalizer: () => void = () => {};
+  let focusPersonalizerGoal: () => void = () => {};
+  let aiReady = false;
+
+  // Function declaration (hoisted) so activateNav's lazy hook above can call it.
+  async function refreshAiStatus() {
+    if (aiStatusLine) aiStatusLine.textContent = 'Status: checking…';
+    try {
+      const s = await window.electronAPI.aiStatus();
+      aiReady = !!s.ready;
+      if (aiEnableToggle) aiEnableToggle.checked = !!s.enabled;
+      if (aiModelPathEl) aiModelPathEl.textContent = s.modelPath || 'No model selected';
+      if (aiContextSizeInput && s.contextSize && !aiContextSizeInput.value) aiContextSizeInput.value = String(s.contextSize);
+      if (aiStatusLine) {
+        const parts = [
+          s.enabled ? 'Enabled' : 'Disabled',
+          s.runtimeAvailable ? 'runtime OK' : 'runtime missing',
+          s.modelConfigured ? 'model found' : 'no model',
+          s.ready ? 'READY' : 'not ready',
+        ];
+        // Show where inference actually runs — the whole point of the GPU knobs.
+        if (s.ready && s.gpuType) {
+          parts.push(s.gpuType === 'cpu'
+            ? 'on CPU'
+            : `on GPU (${s.gpuType}${typeof s.gpuLayers === 'number' ? `, ${s.gpuLayers} layers` : ''})`);
+        }
+        aiStatusLine.textContent = 'Status: ' + parts.join(' · ') + (s.error ? ` — ${s.error}` : '');
+      }
+    } catch (e: any) {
+      aiReady = false;
+      if (aiStatusLine) aiStatusLine.textContent = 'Status: error — ' + (e?.message || 'failed');
+    }
+    refreshRecMsgAssistant(); // feature #3: reflect AI readiness on the composer toolbar
+    refreshRecMsgPersonalizer(); // feature #5: reflect AI readiness on the personalize panel
+    syncPersonalizeButtons(); // feature #5: show/hide the ✨ buttons in the recipients table
+  }
+
+  // --- Model-load progress bar. Injected under the status line via createElement,
+  // so it carries no static id (no gui2-parity surface). Driven by the 0..1 values
+  // streamed over onAiLoadProgress while the model loads. ---
+  let showLoadProgress: (p: number | null) => void = () => {};
+  if (aiStatusLine) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:none; margin-top:8px; max-width:360px;';
+    const label = document.createElement('div');
+    label.className = 'help-text';
+    label.style.cssText = 'margin:0 0 4px;';
+    label.textContent = 'Loading model…';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; gap:8px;';
+    const bar = document.createElement('progress');
+    bar.max = 100; bar.value = 0;
+    bar.style.cssText = 'flex:1; height:14px;';
+    const pct = document.createElement('span');
+    pct.className = 'help-text';
+    pct.style.margin = '0';
+    row.append(bar, pct);
+    wrap.append(label, row);
+    aiStatusLine.insertAdjacentElement('afterend', wrap);
+    showLoadProgress = (p) => {
+      if (p === null) { wrap.style.display = 'none'; return; }
+      wrap.style.display = 'block';
+      const c = Math.max(0, Math.min(100, Math.round(p)));
+      bar.value = c;
+      pct.textContent = c + '%';
+    };
+  }
+
+  // Load the model with a visible progress bar. Only shows the bar when AI is
+  // enabled (the main-process handler no-ops otherwise); always refreshes status.
+  async function loadModelWithProgress() {
+    if (!aiEnableToggle?.checked) { await refreshAiStatus(); return; }
+    showLoadProgress(0);
+    const off = window.electronAPI.onAiLoadProgress((p) => showLoadProgress(p * 100));
+    try {
+      await window.electronAPI.aiLoadModel();
+    } catch { /* the status line reports any error */ }
+    finally {
+      off();
+      showLoadProgress(100);
+      window.setTimeout(() => showLoadProgress(null), 700);
+      await refreshAiStatus();
+    }
+  }
+
+  if (aiEnableToggle) {
+    aiEnableToggle.addEventListener('change', async () => {
+      await window.electronAPI.saveConfig({ aiEnabled: aiEnableToggle.checked });
+      // Turning AI on loads the configured model (with progress); off just refreshes.
+      await loadModelWithProgress();
+    });
+  }
+  if (aiSelectModelBtn) {
+    aiSelectModelBtn.addEventListener('click', async () => {
+      const r = await window.electronAPI.aiSelectModel();
+      if (r.ok || r.path) {
+        // Picking a model = intent to use it: enable AI, then load with a progress bar.
+        if (aiEnableToggle && !aiEnableToggle.checked) {
+          aiEnableToggle.checked = true;
+          await window.electronAPI.saveConfig({ aiEnabled: true });
+        }
+        await loadModelWithProgress();
+      }
+    });
+  }
+  if (aiContextSizeInput) {
+    aiContextSizeInput.addEventListener('change', async () => {
+      const v = parseInt(aiContextSizeInput.value, 10);
+      await window.electronAPI.saveConfig({ aiContextSize: Number.isFinite(v) && v > 0 ? v : '' });
+      await loadModelWithProgress(); // context change reloads the model
+    });
+  }
+  if (aiRefreshBtn) {
+    aiRefreshBtn.addEventListener('click', () => void loadModelWithProgress());
+  }
+  if (aiTestBtn && aiTestPrompt && aiTestOutput) {
+    aiTestBtn.addEventListener('click', async () => {
+      const prompt = aiTestPrompt.value.trim();
+      if (!prompt) { aiTestOutput.value = 'Enter a prompt first.'; return; }
+      aiTestBtn.disabled = true;
+      aiTestOutput.value = 'Generating…';
+      let streamed = '';
+      const off = window.electronAPI.onAiStream((chunk) => { streamed += chunk; aiTestOutput.value = streamed; });
+      try {
+        const r = await window.electronAPI.aiGenerate({ prompt });
+        aiTestOutput.value = r.ok ? (r.text || '(empty)') : ('Error: ' + (r.error || 'failed'));
+      } catch (e: any) {
+        aiTestOutput.value = 'Error: ' + (e?.message || 'failed');
+      } finally {
+        aiTestBtn.disabled = false;
+        off();
+      }
+    });
+  }
+
+  // --- Local AI reply-automation toggles (feature #2) ---
+  const aiClassifyToggle = document.getElementById('ai-classify-toggle') as HTMLInputElement | null;
+  const aiSuppressUnsubToggle = document.getElementById('ai-suppress-unsub-toggle') as HTMLInputElement | null;
+  const aiPauseOooToggle = document.getElementById('ai-pause-ooo-toggle') as HTMLInputElement | null;
+
+  // The suppress/pause actions only make sense once classification is on.
+  function syncAiActionDimming() {
+    const on = !!aiClassifyToggle?.checked;
+    for (const t of [aiSuppressUnsubToggle, aiPauseOooToggle]) {
+      if (!t) continue;
+      t.disabled = !on;
+      const g = t.closest('.form-group');
+      if (g) (g as HTMLElement).style.opacity = on ? '1' : '0.5';
+    }
+  }
+
+  // Reflect saved toggle state from config (hoisted → callable from activateNav).
+  async function reflectAiActions() {
+    try {
+      const cfg: any = await window.electronAPI.getConfig();
+      const a = cfg?.ai?.actions || {};
+      if (aiClassifyToggle) aiClassifyToggle.checked = !!a.classifyReplies;
+      if (aiSuppressUnsubToggle) aiSuppressUnsubToggle.checked = !!a.autoSuppressUnsubscribe;
+      if (aiPauseOooToggle) aiPauseOooToggle.checked = !!a.pauseOnOoo;
+      // GPU acceleration controls reflect config.ai.*
+      if (aiGpuBackend) aiGpuBackend.value = ['auto', 'cuda', 'vulkan', 'metal', 'cpu'].includes(cfg?.ai?.gpu) ? cfg.ai.gpu : 'auto';
+      if (aiGpuLayers) aiGpuLayers.value = (typeof cfg?.ai?.gpuLayers === 'number') ? String(cfg.ai.gpuLayers) : '';
+      if (aiFlashAttention) aiFlashAttention.checked = cfg?.ai?.flashAttention !== false;
+      syncAiActionDimming();
+    } catch { /* leave defaults */ }
+  }
+
+  if (aiClassifyToggle) {
+    aiClassifyToggle.addEventListener('change', async () => {
+      await window.electronAPI.saveConfig({ aiClassifyReplies: aiClassifyToggle.checked });
+      syncAiActionDimming();
+    });
+  }
+  if (aiSuppressUnsubToggle) {
+    aiSuppressUnsubToggle.addEventListener('change', async () => {
+      await window.electronAPI.saveConfig({ aiAutoSuppressUnsub: aiSuppressUnsubToggle.checked });
+    });
+  }
+  if (aiPauseOooToggle) {
+    aiPauseOooToggle.addEventListener('change', async () => {
+      await window.electronAPI.saveConfig({ aiPauseOnOoo: aiPauseOooToggle.checked });
+    });
+  }
+
+  // GPU acceleration: saving rebuilds the AI service, so the next status check
+  // reloads the model with the new backend/layers/flash-attention settings.
+  if (aiGpuBackend) {
+    aiGpuBackend.addEventListener('change', async () => {
+      await window.electronAPI.saveConfig({ aiGpu: aiGpuBackend.value });
+      await loadModelWithProgress(); // backend change reloads the model
+    });
+  }
+  if (aiGpuLayers) {
+    aiGpuLayers.addEventListener('change', async () => {
+      const v = parseInt(aiGpuLayers.value, 10);
+      await window.electronAPI.saveConfig({ aiGpuLayers: Number.isFinite(v) && v >= 0 ? v : '' });
+      await loadModelWithProgress(); // layer change reloads the model
+    });
+  }
+  if (aiFlashAttention) {
+    aiFlashAttention.addEventListener('change', async () => {
+      await window.electronAPI.saveConfig({ aiFlashAttention: aiFlashAttention.checked });
+      await loadModelWithProgress(); // flash-attention change reloads the model
+    });
+  }
+
+  // --- AI Writing Assistant (feature #3) — dynamically injected on the composer ---
+  const AI_ASSIST_TONES = ['professional', 'friendly', 'concise', 'enthusiastic', 'formal'];
+
+  function attachWritingAssistant(textarea: HTMLTextAreaElement) {
+    if (textarea.dataset.aiAssist === '1') return;
+    textarea.dataset.aiAssist = '1';
+
+    const mkBtn = (labelText: string, primary = false) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = primary ? 'btn' : 'btn outline';
+      b.textContent = labelText;
+      b.style.cssText = 'padding:2px 10px; font-size:0.8rem;';
+      return b;
+    };
+
+    // Toolbar (hidden until AI is ready).
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:none; gap:6px; flex-wrap:wrap; align-items:center; margin-top:6px;';
+    const tag = document.createElement('span');
+    tag.textContent = '✨ AI:';
+    tag.style.cssText = 'font-size:0.8rem; font-weight:600; color:var(--muted-foreground);';
+    const btnWrite = mkBtn('Write');
+    const btnImprove = mkBtn('Improve');
+    const btnRewrite = mkBtn('Rewrite');
+    const btnGrammar = mkBtn('Fix grammar');
+    const toneSel = document.createElement('select');
+    toneSel.className = 'form-control';
+    toneSel.style.cssText = 'width:auto; padding:2px 6px; font-size:0.8rem;';
+    const tonePlaceholder = document.createElement('option');
+    tonePlaceholder.value = '';
+    tonePlaceholder.textContent = 'Tone…';
+    toneSel.appendChild(tonePlaceholder);
+    for (const t of AI_ASSIST_TONES) {
+      const o = document.createElement('option');
+      o.value = t;
+      o.textContent = t[0].toUpperCase() + t.slice(1);
+      toneSel.appendChild(o);
+    }
+    bar.append(tag, btnWrite, btnImprove, btnRewrite, btnGrammar, toneSel);
+
+    // Result panel (hidden until an action runs).
+    const panel = document.createElement('div');
+    panel.style.cssText = 'display:none; margin-top:8px; border:1px solid var(--border); border-radius:8px; padding:10px;';
+    const instr = document.createElement('input');
+    instr.type = 'text';
+    instr.className = 'form-control';
+    instr.placeholder = 'What should this email say? (e.g. follow up on our call, ask for a quick meeting)';
+    instr.style.cssText = 'display:none; margin-bottom:8px; font-size:0.85rem;';
+    const status = document.createElement('p');
+    status.className = 'help-text';
+    status.style.cssText = 'margin:0 0 6px;';
+    const out = document.createElement('textarea');
+    out.rows = 5;
+    out.readOnly = true;
+    out.style.cssText = 'width:100%; font-size:0.85rem;';
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;';
+    const btnApply = mkBtn('Apply', true);
+    const btnRegen = mkBtn('Regenerate');
+    const btnDismiss = mkBtn('Dismiss');
+    btnRow.append(btnApply, btnRegen, btnDismiss);
+    panel.append(instr, status, out, btnRow);
+
+    // Insert both right after the textarea (order: textarea → bar → panel).
+    textarea.insertAdjacentElement('afterend', panel);
+    textarea.insertAdjacentElement('afterend', bar);
+
+    let last: { action: string; tone?: string } | null = null;
+
+    async function run(action: string, tone?: string) {
+      last = { action, tone };
+      panel.style.display = 'block';
+      instr.style.display = action === 'write' ? 'block' : 'none';
+      if (action === 'write' && !instr.value.trim()) {
+        status.textContent = 'Describe what the email should say, then press Regenerate.';
+        out.value = '';
+        instr.focus();
+        return;
+      }
+      status.textContent = 'Generating… (first run loads the model)';
+      out.value = '';
+      btnApply.disabled = true;
+      let streamed = '';
+      const off = window.electronAPI.onAiStream((chunk) => { streamed += chunk; out.value = streamed; });
+      try {
+        const r = await window.electronAPI.aiAssist({ action, text: textarea.value, instruction: instr.value, tone });
+        if (r.ok && r.text) {
+          out.value = r.text;
+          status.textContent = 'Suggestion — review, then Apply:';
+          btnApply.disabled = false;
+        } else {
+          status.textContent = r.error || 'No suggestion.';
+        }
+      } catch (e: any) {
+        status.textContent = 'Error: ' + (e?.message || 'failed');
+      } finally {
+        off();
+      }
+    }
+
+    btnWrite.addEventListener('click', () => void run('write'));
+    btnImprove.addEventListener('click', () => void run('improve'));
+    btnRewrite.addEventListener('click', () => void run('rewrite'));
+    btnGrammar.addEventListener('click', () => void run('grammar'));
+    toneSel.addEventListener('change', () => {
+      if (toneSel.value) { void run('tone', toneSel.value); toneSel.value = ''; }
+    });
+    btnApply.addEventListener('click', () => {
+      if (out.value) {
+        textarea.value = out.value;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        panel.style.display = 'none';
+      }
+    });
+    btnRegen.addEventListener('click', () => { if (last) void run(last.action, last.tone); });
+    btnDismiss.addEventListener('click', () => { panel.style.display = 'none'; });
+
+    // Gate: show the toolbar only when AI is ready. Hooked to refreshAiStatus so
+    // enabling AI / picking a model reveals it without a reload.
+    const gate = async () => {
+      try {
+        const s = await window.electronAPI.aiStatus();
+        bar.style.display = s.ready ? 'flex' : 'none';
+        if (!s.ready) panel.style.display = 'none';
+      } catch { bar.style.display = 'none'; }
+    };
+    refreshRecMsgAssistant = () => { void gate(); };
+    // The gate runs when the composer modal opens (openRecipientModal) and when AI
+    // status changes — deliberately NOT at startup, to avoid loading the model eagerly.
+  }
+
+  const recMsgTextarea = document.getElementById('rec-msg-text') as HTMLTextAreaElement | null;
+  if (recMsgTextarea) attachWritingAssistant(recMsgTextarea);
+
+  // --- AI Personalized Email Generation (feature #5) — dynamically injected on the
+  // composer, mirrors the writing assistant. Generates a per-prospect draft from the
+  // open recipient's own fields + a stated goal, conditioned by few-shot winners the
+  // main process builds from past positive replies. Advisory: Apply is an explicit
+  // click; nothing here sends mail or mutates a recipient. All createElement, so no
+  // static id is added and the gui2 parity test needs no HTML edits.
+
+  // Show/hide the ✨ "Personalize" buttons in the recipients table from the cached
+  // AI-ready flag (synchronous — never loads the model just to render the table).
+  function syncPersonalizeButtons() {
+    document.querySelectorAll('.ai-gen-btn').forEach((b) => {
+      (b as HTMLElement).style.display = aiReady ? '' : 'none';
+    });
+  }
+
+  function attachPersonalizer(textarea: HTMLTextAreaElement) {
+    if (textarea.dataset.aiPersonalize === '1') return;
+    textarea.dataset.aiPersonalize = '1';
+
+    const mkBtn = (labelText: string, primary = false) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = primary ? 'btn' : 'btn outline';
+      b.textContent = labelText;
+      b.style.cssText = 'padding:2px 10px; font-size:0.8rem;';
+      return b;
+    };
+
+    // Toolbar (hidden until AI is ready): goal + tone + Generate.
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:none; gap:6px; flex-wrap:wrap; align-items:center; margin-top:6px;';
+    const tag = document.createElement('span');
+    tag.textContent = '✨ Personalize:';
+    tag.style.cssText = 'font-size:0.8rem; font-weight:600; color:var(--muted-foreground);';
+    const goal = document.createElement('input');
+    goal.type = 'text';
+    goal.className = 'form-control';
+    goal.placeholder = 'Goal for this prospect (e.g. invite to a quick demo)';
+    goal.style.cssText = 'flex:1; min-width:180px; padding:2px 8px; font-size:0.8rem;';
+    const toneSel = document.createElement('select');
+    toneSel.className = 'form-control';
+    toneSel.style.cssText = 'width:auto; padding:2px 6px; font-size:0.8rem;';
+    const tonePlaceholder = document.createElement('option');
+    tonePlaceholder.value = '';
+    tonePlaceholder.textContent = 'Tone…';
+    toneSel.appendChild(tonePlaceholder);
+    for (const t of AI_ASSIST_TONES) {
+      const o = document.createElement('option');
+      o.value = t;
+      o.textContent = t[0].toUpperCase() + t.slice(1);
+      toneSel.appendChild(o);
+    }
+    const btnGen = mkBtn('Generate', true);
+    bar.append(tag, goal, toneSel, btnGen);
+
+    // Result panel (hidden until Generate runs).
+    const panel = document.createElement('div');
+    panel.style.cssText = 'display:none; margin-top:8px; border:1px solid var(--border); border-radius:8px; padding:10px;';
+    const status = document.createElement('p');
+    status.className = 'help-text';
+    status.style.cssText = 'margin:0 0 6px;';
+    const out = document.createElement('textarea');
+    out.rows = 6;
+    out.readOnly = true;
+    out.style.cssText = 'width:100%; font-size:0.85rem;';
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;';
+    const btnApply = mkBtn('Apply', true);
+    const btnCopy = mkBtn('Copy');
+    const btnPreview = mkBtn('Preview');
+    const btnDismiss = mkBtn('Dismiss');
+    btnRow.append(btnApply, btnCopy, btnPreview, btnDismiss);
+    panel.append(status, out, btnRow);
+
+    // Insert directly after the textarea (above the writing-assistant widgets).
+    textarea.insertAdjacentElement('afterend', panel);
+    textarea.insertAdjacentElement('afterend', bar);
+
+    // Assemble the request from the OPEN recipient (full record incl. custom CSV
+    // columns) overlaid with any live form edits; the current message is the base.
+    function currentRecipient(): Record<string, any> {
+      const idx = parseInt((document.getElementById('recipient-index') as HTMLInputElement)?.value || '-1', 10);
+      const base: Record<string, any> = (idx >= 0 && recipientsData[idx]) ? { ...recipientsData[idx] } : {};
+      const nameEl = document.getElementById('rec-name') as HTMLInputElement | null;
+      const subjEl = document.getElementById('rec-subject') as HTMLInputElement | null;
+      if (nameEl && nameEl.value.trim()) base.name = nameEl.value.trim();
+      if (subjEl && subjEl.value.trim()) base.subject = subjEl.value.trim();
+      return base;
+    }
+
+    async function run() {
+      const instruction = goal.value.trim();
+      if (!instruction && !textarea.value.trim()) {
+        panel.style.display = 'block';
+        status.textContent = 'Describe the goal of this email (or start a draft above), then Generate.';
+        out.value = '';
+        goal.focus();
+        return;
+      }
+      panel.style.display = 'block';
+      status.textContent = 'Generating… (first run loads the model)';
+      out.value = '';
+      btnApply.disabled = true;
+      btnGen.disabled = true;
+      let streamed = '';
+      const off = window.electronAPI.onAiStream((chunk) => { streamed += chunk; out.value = streamed; });
+      try {
+        const r = await window.electronAPI.aiPersonalize({
+          recipient: currentRecipient(),
+          instruction,
+          tone: toneSel.value || undefined,
+          baseTemplate: textarea.value,
+        });
+        if (r.ok && r.text) {
+          out.value = r.text;
+          status.textContent = 'Draft — review, then Apply:';
+          btnApply.disabled = false;
+        } else {
+          status.textContent = r.error || 'No draft produced.';
+        }
+      } catch (e: any) {
+        status.textContent = 'Error: ' + (e?.message || 'failed');
+      } finally {
+        btnGen.disabled = false;
+        off();
+      }
+    }
+
+    btnGen.addEventListener('click', () => void run());
+    goal.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); void run(); } });
+    btnApply.addEventListener('click', () => {
+      if (out.value) {
+        textarea.value = out.value;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        panel.style.display = 'none';
+      }
+    });
+    btnCopy.addEventListener('click', async () => {
+      if (!out.value) return;
+      try { await navigator.clipboard.writeText(out.value); status.textContent = 'Copied to clipboard.'; }
+      catch { status.textContent = 'Copy failed — select the text and copy manually.'; }
+    });
+    btnPreview.addEventListener('click', async () => {
+      if (!out.value) return;
+      const record = { ...currentRecipient(), messageType: 'text', messageContent: out.value };
+      const result = await window.electronAPI.previewUnsavedEmail(record);
+      if (result.error) { status.textContent = 'Preview error: ' + result.error; return; }
+      const pModal = document.getElementById('preview-modal') as HTMLElement | null;
+      const pSubject = document.getElementById('preview-subject') as HTMLElement | null;
+      const pFrame = document.getElementById('preview-frame') as HTMLIFrameElement | null;
+      if (pSubject) pSubject.textContent = result.subject || 'No Subject';
+      renderSpamBanner(result.subject || '', result.body || '');
+      renderPreviewAi(result.subject || '', result.body || '');
+      if (pFrame && pFrame.contentWindow) {
+        pFrame.contentWindow.document.open();
+        pFrame.contentWindow.document.write(result.body || '');
+        pFrame.contentWindow.document.close();
+      }
+      if (pModal) pModal.style.display = 'flex';
+    });
+    btnDismiss.addEventListener('click', () => { panel.style.display = 'none'; });
+
+    // Gate mirrors the writing assistant (feature #3): a live aiStatus() check on
+    // modal open / AI-status change reveals the bar when ready, and refreshes the
+    // cached aiReady flag that drives the ✨ table buttons. status() after the first
+    // load is cheap (cached), so this adds no eager model load beyond F3's.
+    const gate = async () => {
+      try {
+        const s = await window.electronAPI.aiStatus();
+        aiReady = !!s.ready;
+        bar.style.display = s.ready ? 'flex' : 'none';
+        if (!s.ready) panel.style.display = 'none';
+        syncPersonalizeButtons();
+      } catch { bar.style.display = 'none'; }
+    };
+    refreshRecMsgPersonalizer = () => { void gate(); };
+    focusPersonalizerGoal = () => {
+      if (aiReady) { panel.style.display = 'none'; goal.focus(); goal.scrollIntoView({ block: 'nearest' }); }
+    };
+  }
+
+  if (recMsgTextarea) attachPersonalizer(recMsgTextarea);
+
+  // --- Deliverability screen (feature #4) ---
+  const delivSubject = document.getElementById('deliv-subject') as HTMLInputElement | null;
+  const delivBody = document.getElementById('deliv-body') as HTMLTextAreaElement | null;
+  const delivAnalyze = document.getElementById('deliv-analyze') as HTMLButtonElement | null;
+  const delivScore = document.getElementById('deliv-score');
+  const delivResult = document.getElementById('deliv-result');
+  let delivPrefilled = false;
+
+  // Titled bullet list, reused for the heuristic + AI result sections.
+  function delivSection(title: string, items: string[], color?: string): HTMLElement {
+    const box = document.createElement('div');
+    box.style.cssText = 'margin-top:10px;';
+    const h = document.createElement('div');
+    h.textContent = title;
+    h.style.cssText = `font-weight:600; font-size:0.85rem; margin-bottom:4px;${color ? ` color:${color};` : ''}`;
+    const ul = document.createElement('ul');
+    ul.style.cssText = 'margin:0; padding-left:18px; font-size:0.85rem;';
+    for (const it of items) { const li = document.createElement('li'); li.textContent = it; ul.appendChild(li); }
+    box.append(h, ul);
+    return box;
+  }
+
+  // Prefill from the current default subject + template (once, only when empty).
+  async function initDeliverability() {
+    if (delivPrefilled) return;
+    delivPrefilled = true;
+    try {
+      const cfg: any = await window.electronAPI.getConfig();
+      if (delivSubject && !delivSubject.value) delivSubject.value = cfg?.email?.subject || '';
+      if (delivBody && !delivBody.value) delivBody.value = cfg?.templateContent || '';
+    } catch { /* leave blank */ }
+  }
+
+  if (delivAnalyze) {
+    delivAnalyze.addEventListener('click', async () => {
+      const subject = delivSubject?.value || '';
+      const body = delivBody?.value || '';
+      if (!(subject + body).trim()) {
+        if (delivScore) delivScore.textContent = 'Enter a subject or body first.';
+        return;
+      }
+      // Heuristic (instant, deterministic) first.
+      if (delivResult) {
+        delivResult.replaceChildren();
+        const heur = checkSpam(subject, body, true);
+        const hColor = heur.level === 'risky' ? '#dc2626' : heur.level === 'warn' ? '#d97706' : '#16a34a';
+        delivResult.appendChild(delivSection(
+          `Quick check (rules): ${heur.level} · score ${heur.score}`,
+          heur.findings.length ? heur.findings.map(f => `${f.label} (${f.severity})`) : ['No heuristic flags.'],
+          hColor,
+        ));
+      }
+      // AI layer (only when ready).
+      if (delivScore) delivScore.textContent = 'Analyzing with AI…';
+      delivAnalyze.disabled = true;
+      try {
+        const status = await window.electronAPI.aiStatus();
+        if (!status.ready) {
+          if (delivScore) delivScore.textContent = 'Quick check done. Enable Local AI + a model for the deeper AI analysis.';
+          return;
+        }
+        const r = await window.electronAPI.aiSpamCheck({ subject, body });
+        if (r.ok && r.advice && !r.advice.note) {
+          const a = r.advice;
+          if (delivScore) {
+            const color = a.level === 'high' ? '#dc2626' : a.level === 'medium' ? '#d97706' : '#16a34a';
+            delivScore.textContent = '';
+            const chip = document.createElement('span');
+            chip.textContent = `AI spam risk: ${a.level.toUpperCase()} (${a.score}/100)`;
+            chip.style.cssText = `display:inline-block; padding:2px 10px; border-radius:999px; color:#fff; font-weight:600; font-size:0.8rem; background:${color};`;
+            delivScore.appendChild(chip);
+          }
+          if (delivResult) {
+            if (a.issues.length) delivResult.appendChild(delivSection('Issues', a.issues, '#b45309'));
+            if (a.suggestions.length) delivResult.appendChild(delivSection('Suggestions', a.suggestions, '#2563eb'));
+          }
+        } else {
+          if (delivScore) delivScore.textContent = (r.advice && r.advice.note) || r.error || 'AI analysis unavailable.';
+        }
+      } catch (e: any) {
+        if (delivScore) delivScore.textContent = 'Error: ' + (e?.message || 'failed');
+      } finally {
+        delivAnalyze.disabled = false;
+      }
+    });
+  }
 
   // --- Elements ---
   const statusText = document.getElementById('service-status-text')!;
@@ -166,6 +816,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Lowercased set of recipients who have replied (from replies.json) — drives
   // the Replied column. Refreshed alongside recipients.
   let repliedSet: Set<string> = new Set();
+  // Feature #2: email → AI classification label (drives the Replied-column badge).
+  let replyByEmail: Map<string, string> = new Map();
+  const AI_BADGE_LABELS: Record<string, string> = {
+    Interested: 'Interested', Negative: 'Negative', OutOfOffice: 'OOO',
+    Unsubscribe: 'Unsub', Bounce: 'Bounce', Referral: 'Referral',
+    MeetingBooked: 'Meeting', Other: 'Other',
+  };
+  const AI_BADGE_COLORS: Record<string, string> = {
+    Interested: '#16a34a', MeetingBooked: '#0891b2', Referral: '#7c3aed',
+    OutOfOffice: '#d97706', Negative: '#dc2626', Unsubscribe: '#b91c1c',
+    Bounce: '#6b7280', Other: '#9ca3af',
+  };
   let sequencesCache: { id: string; name: string; steps: { subject?: string; messageContent: string; delayDays: number; stopOnReply: boolean }[] }[] = [];
   // Recipients table campaign filter: 'all' | 'unassigned' | <campaignId>.
   let currentCampaignFilter = 'all';
@@ -377,6 +1039,64 @@ document.addEventListener('DOMContentLoaded', async () => {
       `background:rgba(245,158,11,0.08);border:1px solid ${color};color:var(--foreground);font-size:0.85rem;">` +
       `<strong style="color:${color};">Spam ${report.level === 'risky' ? 'risk' : 'warning'} ` +
       `(score ${report.score})</strong><ul style="margin:6px 0 0 18px;">${items}</ul></div>`;
+  }
+
+  // Feature #4: append a gated "AI deliverability" button below the heuristic
+  // banner. Runs on click only; reveals only when AI is ready. Advisory — never
+  // changes the email. Must be called AFTER renderSpamBanner (which sets innerHTML).
+  function renderPreviewAi(subject: string, body: string) {
+    const box = document.getElementById('preview-spam');
+    if (!box) return;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-bottom:12px;';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn outline';
+    btn.textContent = '✨ Check deliverability with AI';
+    btn.style.cssText = 'padding:2px 10px; font-size:0.8rem; display:none;';
+    const result = document.createElement('div');
+    result.style.cssText = 'margin-top:8px; font-size:0.85rem;';
+    wrap.append(btn, result);
+    box.appendChild(wrap);
+
+    const msg = (t: string) => {
+      result.replaceChildren();
+      const p = document.createElement('p');
+      p.className = 'help-text';
+      p.style.margin = '0';
+      p.textContent = t;
+      result.appendChild(p);
+    };
+
+    btn.addEventListener('click', async () => {
+      msg('Analyzing…');
+      btn.disabled = true;
+      try {
+        const r = await window.electronAPI.aiSpamCheck({ subject, body });
+        if (r.ok && r.advice && !r.advice.note) {
+          const a = r.advice;
+          result.replaceChildren();
+          const color = a.level === 'high' ? '#dc2626' : a.level === 'medium' ? '#d97706' : '#16a34a';
+          const chip = document.createElement('span');
+          chip.textContent = `AI spam risk: ${a.level.toUpperCase()} (${a.score}/100)`;
+          chip.style.cssText = `display:inline-block; padding:2px 10px; border-radius:999px; color:#fff; font-weight:600; font-size:0.8rem; background:${color};`;
+          result.appendChild(chip);
+          if (a.issues.length) result.appendChild(delivSection('Issues', a.issues, '#b45309'));
+          if (a.suggestions.length) result.appendChild(delivSection('Suggestions', a.suggestions, '#2563eb'));
+        } else {
+          msg((r.advice && r.advice.note) || r.error || 'AI analysis unavailable.');
+        }
+      } catch (e: any) {
+        msg('Error: ' + (e?.message || 'failed'));
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Reveal only when AI is ready.
+    void (async () => {
+      try { const s = await window.electronAPI.aiStatus(); if (s.ready) btn.style.display = 'inline-block'; } catch { /* stay hidden */ }
+    })();
   }
 
   // --- Suppressed addresses list (F7) ---
@@ -757,6 +1477,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         (document.getElementById('rec-msg-text') as HTMLTextAreaElement).value = rec.messageContent || '';
       }
+      refreshRecMsgAssistant(); // feature #3: reflect AI readiness on the composer toolbar
+      refreshRecMsgPersonalizer(); // feature #5: reflect AI readiness on the personalize panel
       
       const atts = rec.attachments || [];
       atts.forEach((a: any) => addAttachmentRow(a.path, a.customName));
@@ -1307,7 +2029,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const replies = await window.electronAPI.getReplies() || [];
       repliedSet = new Set(replies.map(r => String(r.email || '').toLowerCase()));
-    } catch { repliedSet = new Set(); }
+      // Feature #2: capture AI labels + render the per-category summary (if shown).
+      replyByEmail = new Map(
+        replies.filter(r => r.classification).map(r => [String(r.email || '').toLowerCase(), String(r.classification)])
+      );
+      const summaryEl = document.getElementById('ai-reply-summary');
+      if (summaryEl) {
+        const counts: Record<string, number> = {};
+        for (const r of replies) if (r.classification) counts[r.classification] = (counts[r.classification] || 0) + 1;
+        const parts = Object.entries(counts).map(([k, v]) => `${AI_BADGE_LABELS[k] || k} ${v}`);
+        summaryEl.textContent = parts.length ? `Classified replies: ${parts.join(' · ')}` : 'No classified replies yet.';
+      }
+    } catch { repliedSet = new Set(); replyByEmail = new Map(); }
   }
 
   /** Refresh the dashboard counters: total sent + reply rate (replies / sent). */
@@ -1471,6 +2204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         previewSubject.textContent = result.subject || 'No Subject';
         renderSpamBanner(result.subject || '', result.body || '');
+        renderPreviewAi(result.subject || '', result.body || '');
         if (previewFrame.contentWindow) {
           previewFrame.contentWindow.document.open();
           previewFrame.contentWindow.document.write(result.body || '');
@@ -1494,8 +2228,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
       
+      // Feature #5: per-prospect "Personalize with AI" — opens the edit modal and
+      // focuses the generate panel. Hidden unless AI is ready (cached flag, toggled
+      // by syncPersonalizeButtons); carries no id, so no gui2-parity impact.
+      const genBtn = document.createElement('button');
+      genBtn.className = 'btn outline ai-gen-btn';
+      genBtn.innerHTML = '<span class="material-symbols-outlined">auto_awesome</span>';
+      genBtn.style.height = '32px'; genBtn.style.padding = '0 8px'; genBtn.title = 'Personalize with AI';
+      genBtn.style.display = aiReady ? '' : 'none';
+      genBtn.addEventListener('click', () => { openRecipientModal(index); focusPersonalizerGoal(); });
+
       tdActions.appendChild(editBtn);
       tdActions.appendChild(previewBtn);
+      tdActions.appendChild(genBtn);
       tdActions.appendChild(delBtn);
 
       const tdCampaign = document.createElement('td');
@@ -1511,6 +2256,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       tdReplied.textContent = replied ? '✓' : '—';
       tdReplied.style.color = replied ? 'var(--success, #16a34a)' : 'var(--muted-foreground)';
       if (replied) tdReplied.title = 'Replied';
+      // Feature #2: small colored AI-category badge next to the ✓, when classified.
+      const aiCls = replyByEmail.get(String(rec.email || rec.Email || '').toLowerCase());
+      if (aiCls) {
+        const badge = document.createElement('span');
+        badge.textContent = AI_BADGE_LABELS[aiCls] || aiCls;
+        badge.title = `AI: ${aiCls}`;
+        badge.style.cssText = `display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:0.7rem;font-weight:600;color:#fff;vertical-align:middle;white-space:nowrap;background:${AI_BADGE_COLORS[aiCls] || '#9ca3af'};`;
+        tdReplied.appendChild(badge);
+      }
 
       tr.appendChild(tdSelect);
       tr.appendChild(tdActive);
@@ -1821,7 +2575,195 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAccountsList();
     populateRecipientAccountSelect();
     renderRecipients();
+    // Pick up domains added/removed with accounts; cached domains aren't re-queried.
+    if (domainAuthStarted) void runDomainAuthChecks();
   }
+
+  // --- Domain authentication (SPF / DKIM / DMARC) card. Checks run lazily the
+  // first time the Accounts view opens; reports are cached per domain for the
+  // session and refreshed via the Re-check buttons. ---
+  const domainAuthCache = new Map<string, DomainAuthReport>();
+  const domainAuthChecking = new Set<string>();
+  const domainAuthExpanded = new Set<string>();
+  let domainAuthStarted = false;
+
+  type DomainAuthTarget = { domain: string; smtpHost: string; userEmail: string; users: string[] };
+
+  // One row per unique sending domain; several accounts on a domain share it.
+  function domainAuthTargets(): DomainAuthTarget[] {
+    const byDomain = new Map<string, DomainAuthTarget>();
+    for (const acc of accountsCache) {
+      const domain = deriveDomain(acc.user || '');
+      if (!domain) continue;
+      const t = byDomain.get(domain);
+      if (t) t.users.push(acc.user);
+      else byDomain.set(domain, { domain, smtpHost: acc.host, userEmail: acc.user, users: [acc.user] });
+    }
+    return [...byDomain.values()];
+  }
+
+  const DA_RECORD_LABEL: Record<string, string> = { spf: 'SPF', dkim: 'DKIM', dmarc: 'DMARC' };
+  const DA_STATUS_LABEL: Record<string, string> = {
+    pass: 'OK', warn: 'Check', missing: 'Missing', misconfigured: 'Fix',
+    unknown: 'Not found', 'not-applicable': 'N/A', skipped: 'No DNS',
+  };
+
+  function daChipHTML(check: RecordCheck): string {
+    const tip = check.findings.map(f => f.label).join(' · ');
+    return `<span class="da-chip ${check.status}" title="${escapeHTML(tip)}">` +
+      `${DA_RECORD_LABEL[check.record]} · ${DA_STATUS_LABEL[check.status] || check.status}</span>`;
+  }
+
+  async function copyText(text: string): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Packaged file:// builds may lack the async clipboard — legacy fallback.
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;opacity:0;';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        return ok;
+      } catch { return false; }
+    }
+  }
+
+  function buildDomainAuthDetail(t: DomainAuthTarget, report: DomainAuthReport): HTMLElement {
+    const detail = document.createElement('div');
+    detail.className = 'da-detail';
+    for (const check of report.checks) {
+      const rec = document.createElement('div');
+      rec.className = 'da-record';
+      const selectorNote = check.record === 'dkim' && report.dkimSelector
+        ? `<span style="font-size:0.8em;color:var(--muted-foreground);font-weight:400;">selector: ${escapeHTML(report.dkimSelector)}</span>` : '';
+      let html = `<h4>${DA_RECORD_LABEL[check.record]} ${daChipHTML(check)}${selectorNote}</h4>`;
+      if (check.found) html += `<div class="da-found">Found: <code>${escapeHTML(check.found)}</code></div>`;
+      if (check.findings.length) html += `<ul class="da-findings">${check.findings.map(f => `<li>${escapeHTML(f.label)}</li>`).join('')}</ul>`;
+      if (check.instructions.length) html += `<ol class="da-instructions">${check.instructions.map(s => `<li>${escapeHTML(s)}</li>`).join('')}</ol>`;
+      rec.innerHTML = html;
+      if (check.recommendedValue) {
+        const value = document.createElement('div');
+        value.className = 'da-value';
+        const hostLine = check.recommendedHost ? `<strong>${escapeHTML(check.recommendedHost)}</strong> &nbsp;TXT<br>` : '';
+        value.innerHTML = `<code>${hostLine}${escapeHTML(check.recommendedValue)}</code>`;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn outline';
+        copyBtn.style.cssText = 'height:32px;padding:0 10px;font-size:0.8em;flex-shrink:0;';
+        copyBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">content_copy</span> Copy';
+        copyBtn.title = 'Copy the record value';
+        copyBtn.addEventListener('click', async () => {
+          const ok = await copyText(check.recommendedValue!);
+          toast(ok ? 'Record value copied.' : 'Couldn\'t copy — select the text manually.', ok ? 'success' : 'error');
+        });
+        value.appendChild(copyBtn);
+        rec.appendChild(value);
+      }
+      detail.appendChild(rec);
+    }
+    const actions = document.createElement('div');
+    actions.className = 'da-actions';
+    const recheck = document.createElement('button');
+    recheck.className = 'btn outline';
+    recheck.style.cssText = 'height:32px;padding:0 12px;font-size:0.8em;';
+    recheck.textContent = 'I\'ve added it — Re-check';
+    recheck.addEventListener('click', () => { void checkDomain(t, true); });
+    actions.appendChild(recheck);
+    detail.appendChild(actions);
+    return detail;
+  }
+
+  function renderDomainAuth() {
+    const list = document.getElementById('domain-auth-list');
+    if (!list) return;
+    const targets = domainAuthTargets();
+    list.innerHTML = '';
+    if (!targets.length) {
+      const p = document.createElement('p');
+      p.className = 'help-text';
+      p.textContent = 'Connect an account to check its domain.';
+      list.appendChild(p);
+      return;
+    }
+    for (const t of targets) {
+      const report = domainAuthCache.get(t.domain);
+      const row = document.createElement('div');
+      row.className = 'da-row';
+      const head = document.createElement('div');
+      head.className = 'da-row-head';
+      const accountsLabel = t.users.length > 1 ? `${t.users.length} accounts` : t.users[0];
+      const headLead = `<span class="da-domain">${escapeHTML(t.domain)}</span>` +
+        `<span class="da-accounts">${escapeHTML(accountsLabel)}</span>`;
+
+      if (domainAuthChecking.has(t.domain)) {
+        head.innerHTML = headLead + '<span class="da-chip">Checking DNS…</span>';
+        head.style.cursor = 'default';
+        row.appendChild(head);
+        list.appendChild(row);
+        continue;
+      }
+
+      if (report && report.consumerDomain) {
+        head.innerHTML = headLead;
+        head.style.cursor = 'default';
+        const note = document.createElement('div');
+        note.className = 'da-note';
+        note.innerHTML = '<span class="material-symbols-outlined">verified</span>' +
+          `<span>${escapeHTML(`${t.domain} is managed by its mail provider — SPF, DKIM and DMARC are handled for you. Nothing to set up.`)}</span>`;
+        row.appendChild(head);
+        row.appendChild(note);
+        list.appendChild(row);
+        continue;
+      }
+
+      const expanded = domainAuthExpanded.has(t.domain);
+      head.innerHTML = headLead +
+        (report ? report.checks.map(daChipHTML).join('') : '<span class="da-chip">Not checked yet — click to check</span>') +
+        (report ? `<span class="material-symbols-outlined" style="font-size:18px;color:var(--muted-foreground);">${expanded ? 'expand_less' : 'expand_more'}</span>` : '');
+      head.addEventListener('click', () => {
+        // No report yet (e.g. the check errored): clicking retries instead of
+        // expanding into an empty panel.
+        if (!domainAuthCache.get(t.domain)) { void checkDomain(t, true); return; }
+        if (domainAuthExpanded.has(t.domain)) domainAuthExpanded.delete(t.domain);
+        else domainAuthExpanded.add(t.domain);
+        renderDomainAuth();
+      });
+      row.appendChild(head);
+      if (report && expanded) row.appendChild(buildDomainAuthDetail(t, report));
+      list.appendChild(row);
+    }
+  }
+
+  async function checkDomain(t: DomainAuthTarget, force = false) {
+    if (domainAuthChecking.has(t.domain)) return;
+    if (!force && domainAuthCache.has(t.domain)) return;
+    domainAuthChecking.add(t.domain);
+    renderDomainAuth();
+    try {
+      const res = await window.electronAPI.checkDomainAuth({ domain: t.domain, smtpHost: t.smtpHost, userEmail: t.userEmail });
+      if (res && !('error' in res)) domainAuthCache.set(t.domain, res);
+      else toast((res && 'error' in res && res.error) || `Couldn't check ${t.domain}.`, 'error');
+    } catch (e: any) {
+      toast(`Couldn't check ${t.domain}: ${e?.message || 'unknown error'}`, 'error');
+    } finally {
+      domainAuthChecking.delete(t.domain);
+      renderDomainAuth();
+    }
+  }
+
+  async function runDomainAuthChecks(force = false) {
+    domainAuthStarted = true;
+    renderDomainAuth();
+    await Promise.all(domainAuthTargets().map(t => checkDomain(t, force)));
+  }
+
+  document.getElementById('domain-auth-refresh-btn')?.addEventListener('click', () => {
+    void runDomainAuthChecks(true);
+  });
 
   // --- Bulk actions over selected (extra) accounts. Wired once. ---
   function selectedExtras() {
@@ -2965,6 +3907,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           
           previewSubject.textContent = result.subject || '';
           renderSpamBanner(result.subject || '', result.body || '');
+          renderPreviewAi(result.subject || '', result.body || '');
 
           const doc = previewFrame.contentWindow?.document;
           if (doc) {
@@ -3037,6 +3980,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       const entropyMinutes = parseInt((document.getElementById('rec-entropy') as HTMLInputElement).value) || 0;
       
+      // A16 fix: reject a manual Add whose email already exists. Appending a second
+      // row for the same address makes the email-keyed persist/merge cross-contaminate
+      // the two rows' seq* state (CSV import already dedupes). We must NOT silently
+      // upsert here — the Add modal holds blank/default form values (no sequence, no
+      // attachments, Smart-Default schedule), so merging them into the existing row
+      // would wipe its enrollment/attachments/schedule. Instead, open the existing
+      // recipient in the Edit modal (which populates the form from the real row).
+      if (idx < 0 && email) {
+          const dupIdx = recipientsData.findIndex((r: any) =>
+              String(r.email || r.Email || '').trim().toLowerCase() === email.toLowerCase());
+          if (dupIdx >= 0) {
+              toast('That email is already on your list — opening it to edit.', 'info', 'Already added');
+              openRecipientModal(dupIdx);
+              return;
+          }
+      }
+
       const record: any = {
           // Preserve any fields not on the form (CSV merge-var columns, etc.)
           // when editing — otherwise editing an imported recipient wipes its

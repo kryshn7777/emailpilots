@@ -60,4 +60,24 @@ describe('ReplyStore', () => {
     expect(r2.list()[0].accountId).toBe('default');
     expect(r2.list()[0].subject).toBe('Re: hi');
   });
+
+  it('sets/reads a classification and clears it when a NEWER reply arrives (feature #2 stale-label fix)', () => {
+    const r = new ReplyStore(tmpDir());
+    r.recordReply('a@x.com', '2026-01-05T00:00:00.000Z');
+    r.setClassification('a@x.com', 'OutOfOffice');
+    expect(r.getClassification('a@x.com')).toBe('OutOfOffice');
+    // Older/equal reply: repliedAt doesn't advance → label kept.
+    r.recordReply('a@x.com', '2026-01-01T00:00:00.000Z');
+    expect(r.getClassification('a@x.com')).toBe('OutOfOffice');
+    // Newer reply: repliedAt advances → stale label cleared so the drip gate falls
+    // back to the safe "any reply counts" default instead of honoring a stale OOO.
+    r.recordReply('a@x.com', '2026-01-09T00:00:00.000Z');
+    expect(r.getClassification('a@x.com')).toBeUndefined();
+  });
+
+  it('setClassification is a no-op for an address that has not replied', () => {
+    const r = new ReplyStore(tmpDir());
+    r.setClassification('ghost@x.com', 'Interested');
+    expect(r.getClassification('ghost@x.com')).toBeUndefined();
+  });
 });

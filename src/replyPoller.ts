@@ -5,9 +5,26 @@ import { Config, Account, deriveImapHost, getBasePath } from './config';
 import { StatsManager } from './statsManager';
 import { ReplyStore } from './replyStore';
 import { atomicWriteFileSync } from './atomicWrite';
+import { SuppressionManager } from './suppressionManager';
+import { classifyReply, type ReplyClassification } from './ai/replyClassifier';
+import type { AiService } from './ai/aiService';
 
 const POLL_INTERVAL_MS = 15 * 60 * 1000; // 15 min
 const FIRST_RUN_LOOKBACK_DAYS = 7;
+/** Upper bound on one reply's classify (source fetch + local inference) so a
+ *  slow/wedged model can never hang a poll sweep and freeze all polling. */
+const CLASSIFY_TIMEOUT_MS = 30_000;
+
+/** Resolve to the promise's value, or null if it doesn't settle within `ms`. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    p,
+    new Promise<null>(resolve => {
+      const t = setTimeout(() => resolve(null), ms);
+      t.unref();
+    }),
+  ]);
+}
 
 /**
  * Reads each sending account's own INBOX over IMAP and records replies from
@@ -23,7 +40,17 @@ export class ReplyPoller {
   private timer: NodeJS.Timeout | null = null;
   private polling = false;
 
-  constructor(public config: Config, private stats: StatsManager | null) {}
+  constructor(
+    public config: Config,
+    private stats: StatsManager | null,
+    /** Electron-injected: yields an XOAUTH2 access token for an oauth-smtp
+     *  account. Absent ⇒ OAuth accounts are skipped (e.g. pure-Node contexts). */
+    private getAccessToken?: (account: Account) => Promise<string>,
+    /** Optional Local AI service (feature #2). When present + enabled + the
+     *  classifyReplies toggle is on, each new reply is classified. Absent ⇒
+     *  classification never runs and the poller behaves exactly as before. */
+    public ai?: AiService
+  ) {}
 
   /** Begin polling: once immediately, then every POLL_INTERVAL_MS. Idempotent. */
   start(): void {
@@ -95,7 +122,16 @@ export class ReplyPoller {
       const recipients = this.recipientEmails();
       if (recipients.size === 0) return; // nothing to match — skip all connections
       const store = new ReplyStore(getBasePath());
-      const accounts: Account[] = (this.config.accounts || []).filter(a => a.enabled && a.user && a.pass);
+      // Reply detection reads the inbox over IMAP. Classic SMTP accounts use the
+      // stored password; oauth-smtp accounts use an XOAUTH2 token (only when a
+      // token getter was injected); 'browser' accounts have no IMAP credentials
+      // and are skipped (their replies aren't auto-detected).
+      const accounts: Account[] = (this.config.accounts || []).filter(a => {
+        if (!a.enabled || !a.user) return false;
+        if (a.transport === 'browser') return false;
+        if (a.transport === 'oauth-smtp') return !!this.getAccessToken;
+        return !!a.pass;
+      });
       for (const account of accounts) {
         try {
           await this.scanAccount(account, recipients, store);
@@ -109,13 +145,19 @@ export class ReplyPoller {
   }
 
   private async scanAccount(account: Account, recipients: Set<string>, store: ReplyStore): Promise<void> {
-    const host = account.imapHost || deriveImapHost(account.host);
+    const isOAuth = account.transport === 'oauth-smtp';
+    // Microsoft's IMAP endpoint is outlook.office365.com (not the imap.* swap of
+    // the SMTP host). Classic accounts keep the derived/overridden host.
+    const host = account.imapHost || (isOAuth ? 'outlook.office365.com' : deriveImapHost(account.host));
     const port = account.imapPort || 993;
+    const auth = isOAuth
+      ? { user: account.user, accessToken: await this.getAccessToken!(account) }
+      : { user: account.user, pass: account.pass };
     const client = new ImapFlow({
       host,
       port,
       secure: true, // implicit TLS on 993
-      auth: { user: account.user, pass: account.pass },
+      auth,
       logger: false,
     });
 
@@ -125,6 +167,12 @@ export class ReplyPoller {
       try {
         const uidNext: number = Number((client.mailbox as any)?.uidNext) || 0;
         const lastUid = this.readCursor(account.id);
+
+        // Classification is best-effort + gated. The batch fetch stays
+        // envelope-only (unchanged, robust) — bodies are fetched per-message
+        // AFTER the stream drains + the cursor advances, so a malformed message
+        // or a wedged model can never abort the sweep or block the cursor.
+        const doClassify = !!(this.ai?.isEnabled() && this.config.ai?.actions?.classifyReplies);
 
         // Pick the message set: incremental UID range after the first run,
         // a bounded date window the very first time so we don't scan everything.
@@ -137,6 +185,7 @@ export class ReplyPoller {
           if (uids.length > 0) source = client.fetch(uids, { envelope: true }, { uid: true });
         }
 
+        const toClassify: Array<{ uid: number; key: string; subject?: string }> = [];
         if (source) {
           for await (const msg of source) {
             const uid: number = msg.uid;
@@ -155,18 +204,62 @@ export class ReplyPoller {
             const isNew = store.recordReply(key, repliedAt, account.id, msg.envelope?.subject);
             if (isNew) this.stats?.incrementReplies(account.id);
             console.log(`Reply detected from ${key} (account ${account.id}).`);
+            if (doClassify) toClassify.push({ uid, key, subject: msg.envelope?.subject });
           }
         }
 
-        // Advance the cursor to the current end so the next poll only sees new
-        // mail, even when this sweep matched nothing.
+        // Advance the cursor FIRST — classification below is best-effort and must
+        // never block or revert it, even if it stalls or errors.
         const newCursor = uidNext > 0 ? uidNext - 1 : lastUid;
         if (newCursor > lastUid) this.writeCursor(account.id, newCursor);
+
+        // Phase 2: classify collected replies. Runs after the batch stream is
+        // drained (so a per-message source fetch doesn't nest inside it) and after
+        // the cursor advance. Each call is fully guarded + time-bounded.
+        for (const item of toClassify) {
+          await this.classifyAndAct(client, item, store);
+        }
       } finally {
         lock.release();
       }
     } finally {
       await client.logout().catch(() => {});
     }
+  }
+
+  /**
+   * Classify one reply and apply gated automations. Never throws and is
+   * time-bounded — a slow/wedged parse or model inference degrades to "skip this
+   * message" instead of hanging the sweep (which would freeze all polling). Runs
+   * after the batch stream is drained and after the cursor has advanced.
+   */
+  private async classifyAndAct(client: ImapFlow, item: { uid: number; key: string; subject?: string }, store: ReplyStore): Promise<void> {
+    if (!this.ai) return;
+    try {
+      const result = await withTimeout(this.classifyOne(client, item), CLASSIFY_TIMEOUT_MS);
+      if (!result) return; // timed out or skipped — leave the reply unclassified
+      store.setClassification(item.key, result.category);
+      if (result.category === 'Unsubscribe' && this.config.ai?.actions?.autoSuppressUnsubscribe) {
+        new SuppressionManager(getBasePath()).add(item.key, 'unsubscribe', 'AI: unsubscribe reply');
+      }
+    } catch (e) {
+      console.error('Reply classification failed:', e);
+    }
+  }
+
+  /** Fetch one message's body (best-effort) and classify it. Body-fetch/parse
+   *  failures fall back to classifying on the subject alone. */
+  private async classifyOne(client: ImapFlow, item: { uid: number; key: string; subject?: string }): Promise<ReplyClassification> {
+    let body = '';
+    try {
+      const msg: any = await client.fetchOne(String(item.uid), { source: true }, { uid: true });
+      if (msg && msg.source) {
+        // Lazy-load mailparser so the off path never pays its cost.
+        const { simpleParser } = await import('mailparser');
+        const parsed = await simpleParser(msg.source as Buffer);
+        body = String(parsed.text || parsed.html || '');
+      }
+    } catch { /* source fetch/parse failed → classify on the subject alone */ }
+    return classifyReply(this.ai!, { from: item.key, subject: item.subject, body });
   }
 }

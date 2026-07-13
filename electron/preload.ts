@@ -26,6 +26,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean }) =>
     ipcRenderer.invoke('save-account', account),
   deleteAccount: (id: string) => ipcRenderer.invoke('delete-account', id),
+  // Password-less Microsoft sign-in (OAuth-SMTP). Opens the system browser;
+  // resolves { ok, id, email } once the account is connected.
+  oauthLoginMicrosoft: () => ipcRenderer.invoke('oauth-login-microsoft'),
+  // Credential-less webmail connect (browser-session). Opens a sign-in window;
+  // resolves { ok, id, email } once the session is captured.
+  connectBrowserAccount: (provider: 'gmail' | 'outlook') => ipcRenderer.invoke('browser-connect', provider),
 
   // Campaigns (named recipient groups with their own subject + template)
   getCampaigns: () => ipcRenderer.invoke('get-campaigns'),
@@ -44,7 +50,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSchedulerStatus: () => ipcRenderer.invoke('get-scheduler-status'),
   
   runTestSend: () => ipcRenderer.invoke('run-test-send'),
-  openCsv: () => ipcRenderer.invoke('open-csv'),
   openJson: () => ipcRenderer.invoke('open-json'),
 
   getRecipients: () => ipcRenderer.invoke('get-recipients'),
@@ -54,6 +59,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
   previewEmail: (index: number) => ipcRenderer.invoke('preview-email', index),
   previewUnsavedEmail: (record: any) => ipcRenderer.invoke('preview-unsaved-email', record),
   verifyEmail: (email: string) => ipcRenderer.invoke('verify-email', email),
+  checkDomainAuth: (arg: { domain: string; smtpHost?: string; userEmail?: string }) => ipcRenderer.invoke('check-domain-auth', arg),
+
+  // Local AI (optional feature #1). All inference is local; these are no-ops
+  // unless the user enabled AI and configured a model.
+  aiStatus: () => ipcRenderer.invoke('ai-status'),
+  aiGenerate: (req: { prompt: string; system?: string; json?: boolean; maxTokens?: number; temperature?: number }) =>
+    ipcRenderer.invoke('ai-generate', req),
+  aiAssist: (req: { action: string; text?: string; instruction?: string; tone?: string }) =>
+    ipcRenderer.invoke('ai-assist', req),
+  aiSpamCheck: (req: { subject?: string; body?: string }) =>
+    ipcRenderer.invoke('ai-spam-check', req),
+  // Personalized email generation (feature #5). Generates a per-prospect draft from
+  // the recipient's fields + a goal; few-shot examples are built in the main process.
+  aiPersonalize: (req: { recipient: any; instruction?: string; tone?: string; baseTemplate?: string }) =>
+    ipcRenderer.invoke('ai-personalize', req),
+  // Subscribe to streamed AI text chunks (ai-generate / ai-assist). Returns a disposer.
+  onAiStream: (cb: (chunk: string) => void) => {
+    const listener = (_e: any, chunk: string) => cb(chunk);
+    ipcRenderer.on('ai-stream', listener);
+    return () => ipcRenderer.removeListener('ai-stream', listener);
+  },
+  aiSelectModel: () => ipcRenderer.invoke('ai-select-model'),
+  // Load the model now; load progress (0..1) streams over onAiLoadProgress.
+  aiLoadModel: () => ipcRenderer.invoke('ai-load-model'),
+  onAiLoadProgress: (cb: (progress: number) => void) => {
+    const listener = (_e: any, progress: number) => cb(progress);
+    ipcRenderer.on('ai-load-progress', listener);
+    return () => ipcRenderer.removeListener('ai-load-progress', listener);
+  },
 
   // Listeners from main
   onLog: (callback: (message: string, type: string) => void) => {

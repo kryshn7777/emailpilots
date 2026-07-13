@@ -39,6 +39,66 @@
   --shadow-dialog: 0 32px 64px rgba(0, 0, 0, 0.19), 0 2px 21px rgba(0, 0, 0, 0.15);
 
   --font-sans: 'Segoe UI Variable', 'Segoe UI', 'Inter', system-ui, sans-serif;
+
+  /* ── Corporate Minimal system layer (ADDITIVE — primitive→semantic tokens). ──
+     Vocabulary only; existing rules unchanged until later tasks adopt these. */
+
+  /* Brand ink (navy) — Corporate Minimal signature; pairs with the Windows-blue accent */
+  --brand-ink: #0f172a;
+  --brand-2: #1e3a8a;
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+
+  /* Type scale (formalizes the existing loose scale) */
+  --text-xs: 0.75rem;     /* 12px — labels, help text */
+  --text-sm: 0.875rem;    /* 14px — body, controls */
+  --text-base: 1rem;      /* 16px — card titles */
+  --text-md: 1.125rem;    /* 18px — empty-state titles */
+  --text-lg: 1.25rem;     /* 20px — modal titles, stat values */
+  --text-xl: 1.625rem;    /* 26px — page titles */
+  --text-2xl: 2rem;       /* 32px — reserved hero */
+
+  /* Font weights */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Line-height */
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+
+  /* Letter-spacing */
+  --tracking-tight: -0.01em;
+  --tracking-wide: 0.02em;
+
+  /* Neutral gray ramp (captures the existing off-system grays) */
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #ededed;
+  --gray-300: #c1c1c1;
+  --gray-400: #9b9b9b;
+
+  /* Semantic tints (solid, for info/status surfaces) */
+  --primary-subtle: #f0f6fc;
+  --success-subtle: #f1faf1;
+  --destructive-subtle: #fdf3f4;
+  --warning: #f59e0b;
+  --warning-subtle: rgba(245, 158, 11, 0.1);
+
+  /* Control tokens */
+  --input-line: #8a8a8a;         /* Fluent input bottom border */
+  --text-disabled: #9b9b9b;      /* placeholder / disabled text */
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -50,7 +110,8 @@ body {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  font-size: 0.875rem; /* 14px */
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -91,10 +152,10 @@ body {
 }
 
 .logo h2 {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--foreground);
-  letter-spacing: 0.02em;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--brand-ink);
+  letter-spacing: var(--tracking-wide);
 }
 
 .logo .material-symbols-outlined { color: var(--primary); }
@@ -120,13 +181,29 @@ body {
   position: relative;
 }
 
+/* Presentational group label — demotes optional tabs; not a real nav item.
+   Selector matches `.nav-links li` specificity (+1) so these win over the base li rule. */
+.nav-links li.nav-section {
+  padding: 14px 14px 4px;
+  font-size: 0.625rem;
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+}
+.nav-links li.nav-section:hover { background: none; }
+
 .nav-links li:hover { background-color: rgba(0, 0, 0, 0.04); }
 .nav-links li:active { background-color: rgba(0, 0, 0, 0.06); }
 
 /* Active item: subtle fill + the signature Win11 accent indicator bar. */
 .nav-links li.active {
-  background-color: rgba(0, 0, 0, 0.05);
-  font-weight: 600;
+  background-color: var(--accent-subtle);
+  color: var(--brand-ink);
+  font-weight: var(--weight-semibold);
 }
 .nav-links li.active::before {
   content: "";
@@ -162,8 +239,8 @@ body {
 .view.active { display: block; animation: fade-up 0.25s ease-out forwards; }
 
 header { margin-bottom: 28px; }
-header h1 { font-size: 1.625rem; font-weight: 600; color: var(--foreground); margin-bottom: 6px; letter-spacing: -0.01em; }
-header p { color: var(--text-muted); font-size: 0.875rem; }
+header h1 { font-size: var(--text-xl); font-weight: var(--weight-semibold); color: var(--brand-ink); margin-bottom: 6px; letter-spacing: var(--tracking-tight); line-height: var(--leading-tight); }
+header p { color: var(--text-muted); font-size: var(--text-sm); line-height: var(--leading-normal); }
 
 /* --- DASHBOARD HERO --- */
 .hero-banner { display: flex; align-items: center; padding: 8px 0 16px 0; margin-bottom: 8px; }
@@ -198,11 +275,62 @@ header p { color: var(--text-muted); font-size: 0.875rem; }
 }
 
 .stat-info { display: flex; flex-direction: column; }
-.stat-info strong { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 2px; }
-.stat-info span { font-size: 1.25rem; font-weight: 600; color: var(--foreground); }
+.stat-info strong { font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--text-muted); margin-bottom: 2px; }
+.stat-info span { font-size: var(--text-lg); font-weight: var(--weight-semibold); color: var(--foreground); }
 
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-.card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: var(--foreground); display: flex; align-items: center; gap: 8px; }
+.card h3 { font-size: var(--text-base); font-weight: var(--weight-semibold); margin-bottom: 16px; color: var(--brand-ink); display: flex; align-items: center; gap: 8px; }
+
+/* --- GETTING STARTED checklist (new-user first-send path) --- */
+.getting-started { border-left: 3px solid var(--primary); }
+.gs-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.gs-head h3 { margin: 0; }
+.gs-dismiss {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: var(--text-xs); font-family: inherit;
+  padding: 4px 6px; border-radius: var(--radius);
+}
+.gs-dismiss:hover { background: rgba(0, 0, 0, 0.04); color: var(--foreground); }
+.gs-sub { color: var(--text-muted); font-size: var(--text-sm); margin: 6px 0 16px; }
+.gs-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.gs-step {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+}
+.gs-step.active { background: var(--accent-subtle); border-color: var(--primary); }
+.gs-check { font-size: 22px; flex-shrink: 0; color: var(--border-strong); }
+.gs-step.done .gs-check { color: var(--success); }
+.gs-step.active .gs-check { color: var(--primary); }
+.gs-step-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.gs-step-title { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--foreground); }
+.gs-step.done .gs-step-title { color: var(--text-muted); font-weight: var(--weight-normal); }
+.gs-step.todo .gs-step-title { color: var(--text-muted); }
+.gs-step-desc { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+.gs-cta { display: none; height: 32px; padding: 0 14px; font-size: var(--text-xs); flex-shrink: 0; }
+.gs-step.active .gs-cta { display: inline-flex; }
+.gs-foot { margin: 14px 0 0; }
+
+/* Campaigns-vs-Sequences contrast callout inside the recipient wizard. */
+.gs-contrast {
+  margin: 4px 0 16px;
+  padding: 10px 12px;
+  background: var(--accent-subtle);
+  border-radius: var(--radius);
+  line-height: var(--leading-snug);
+}
+
+/* Advanced-settings disclosures (Settings → Email Content / Inbox placement).
+   Quiet, collapsed-by-default; demotes intimidating fields with a why/consequence note. */
+.adv-disclosure { margin: 4px 0 16px; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+.adv-disclosure > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--foreground); }
+.adv-disclosure > summary::-webkit-details-marker { display: none; }
+.adv-disclosure > summary::before { content: "\25B8"; display: inline-block; color: var(--text-muted); transition: transform 0.15s ease; }
+.adv-disclosure[open] > summary::before { transform: rotate(90deg); }
+.adv-disclosure[open] > summary { margin-bottom: 8px; }
+.adv-tag { font-weight: var(--weight-normal); font-size: var(--text-xs); color: var(--text-muted); }
+.adv-why { margin: 0 0 12px; }
+.adv-why p { margin: 0 0 6px; }
 
 /* Status indicator */
 .status-indicator { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 8px; }
@@ -250,7 +378,7 @@ header p { color: var(--text-muted); font-size: 0.875rem; }
 }
 
 #status-stat-container { transition: border-color 0.15s ease; }
-#status-stat-container.active-border { border-color: var(--success); }
+#status-stat-container.active-border { border-color: var(--primary); }
 #status-stat-container.inactive-border { border-color: var(--border); }
 
 /* --- BUTTONS (Fluent: 4px radius, quiet borders, no lift) --- */
@@ -266,6 +394,7 @@ header p { color: var(--text-muted); font-size: 0.875rem; }
 }
 
 .btn:active { transform: none; }
+.btn:disabled, .btn[disabled] { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
 .btn.primary {
   background-color: var(--primary);
@@ -280,15 +409,15 @@ header p { color: var(--text-muted); font-size: 0.875rem; }
   border: 1px solid var(--border-strong);
   color: var(--foreground);
 }
-.btn.outline:hover { background-color: #f5f5f5; }
-.btn.outline:active { background-color: #ededed; }
+.btn.outline:hover { background-color: var(--gray-100); }
+.btn.outline:active { background-color: var(--gray-200); }
 
 .btn.secondary {
-  background-color: #f5f5f5;
+  background-color: var(--gray-100);
   color: var(--foreground);
   border: 1px solid var(--border);
 }
-.btn.secondary:hover { background-color: #ededed; }
+.btn.secondary:hover { background-color: var(--gray-200); }
 .btn.full-width { width: 100%; }
 
 .btn.ghost {
@@ -330,7 +459,7 @@ header p { color: var(--text-muted); font-size: 0.875rem; }
 .file-input-group { display: flex; gap: 8px; align-items: center; }
 .file-input-group input[readonly] {
   flex: 1;
-  background-color: #fafafa;
+  background-color: var(--gray-50);
   cursor: pointer;
 }
 .form-container { max-width: 800px; }
@@ -350,7 +479,7 @@ input[type="text"], input[type="email"], input[type="password"], input[type="tim
   width: 100%; padding: 8px 12px;
   border-radius: var(--radius);
   border: 1px solid var(--border-strong);
-  border-bottom: 1px solid #8a8a8a; /* Win11 field underline */
+  border-bottom: 1px solid var(--input-line); /* Win11 field underline */
   background-color: var(--card-bg);
   color: var(--foreground);
   /* Force light native controls. Without this, when the OS (Windows) is in dark
@@ -369,10 +498,13 @@ input:focus, select:focus, textarea:focus {
   border-bottom: 1px solid var(--primary);
   box-shadow: 0 1px 0 0 var(--primary);
 }
-input::placeholder, textarea::placeholder { color: #9b9b9b; font-weight: 400; }
+input::placeholder, textarea::placeholder { color: var(--text-disabled); font-weight: 400; }
+input[type="text"]:hover:not(:focus), input[type="email"]:hover:not(:focus), input[type="password"]:hover:not(:focus), input[type="time"]:hover:not(:focus), input[type="number"]:hover:not(:focus), select.form-control:hover:not(:focus), textarea:hover:not(:focus) { border-bottom-color: var(--foreground); }
+input[type="text"]:disabled, input[type="email"]:disabled, input[type="password"]:disabled, input[type="time"]:disabled, input[type="number"]:disabled, select.form-control:disabled, textarea:disabled { opacity: 0.6; cursor: not-allowed; background-color: var(--gray-50); }
+input[type="text"]:user-invalid, input[type="email"]:user-invalid, input[type="password"]:user-invalid, input[type="time"]:user-invalid, input[type="number"]:user-invalid, select.form-control:user-invalid, textarea:user-invalid { border-color: var(--destructive); border-bottom-color: var(--destructive); }
 
-label { display: block; font-size: 0.875rem; font-weight: 400; margin-bottom: 6px; color: var(--foreground); }
-.help-text { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
+label { display: block; font-size: var(--text-sm); font-weight: var(--weight-normal); margin-bottom: 6px; color: var(--foreground); }
+.help-text { display: block; font-size: var(--text-xs); color: var(--text-muted); margin-top: 6px; }
 
 hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 
@@ -438,27 +570,27 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
   font-size: 0.875rem; color: var(--foreground); line-height: 1.5; word-break: break-word;
 }
 
-.timeline-item.success .timeline-icon { background-color: #f1faf1; border-color: #9fd89f; color: var(--success); }
-.timeline-item.error .timeline-icon { background-color: #fdf3f4; border-color: #eeacb2; color: var(--destructive); }
-.timeline-item.info .timeline-icon { background-color: #f0f6fc; border-color: #9ec8e8; color: var(--primary); }
-.timeline-item.system .timeline-icon { background-color: #f5f5f5; border-color: var(--border-strong); color: var(--text-muted); }
+.timeline-item.success .timeline-icon { background-color: var(--success-subtle); border-color: #9fd89f; color: var(--success); }
+.timeline-item.error .timeline-icon { background-color: var(--destructive-subtle); border-color: #eeacb2; color: var(--destructive); }
+.timeline-item.info .timeline-icon { background-color: var(--primary-subtle); border-color: #9ec8e8; color: var(--primary); }
+.timeline-item.system .timeline-icon { background-color: var(--gray-100); border-color: var(--border-strong); color: var(--text-muted); }
 
 /* Slim Win11 scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
-::-webkit-scrollbar-thumb:hover { background-color: #9b9b9b; }
+::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--gray-400); }
 
 /* --- TABLES --- */
 .table-container { padding: 0; overflow: hidden; }
 .recipients-table { width: 100%; border-collapse: collapse; }
 .recipients-table th, .recipients-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
 .recipients-table th {
-  background-color: #fafafa;
-  font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+  background-color: var(--gray-50);
+  font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--text-muted);
 }
 .recipients-table tbody tr { transition: background-color 0.1s; }
-.recipients-table tbody tr:hover { background-color: #f5f5f5; }
+.recipients-table tbody tr:hover { background-color: var(--gray-100); }
 .recipients-table tbody tr:last-child td { border-bottom: none; }
 .recipients-table td { font-size: 0.875rem; font-weight: 400; }
 
@@ -475,7 +607,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
   width: 90%; max-width: 750px; padding: 28px; position: relative;
   box-shadow: var(--shadow-dialog);
 }
-.modal-content h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 16px; }
+.modal-content h2 { font-size: var(--text-lg); font-weight: var(--weight-semibold); color: var(--brand-ink); margin-bottom: 16px; }
 .close-modal {
   position: absolute; right: 20px; top: 20px; color: var(--text-muted); font-size: 22px;
   cursor: pointer; transition: background-color 0.1s, color 0.1s;
@@ -492,7 +624,7 @@ input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px
   background: var(--card-bg); border: 1px solid var(--border-strong);
   transition: background-color 0.1s, border-color 0.1s;
 }
-.checkbox-group label:hover { background-color: #f5f5f5; }
+.checkbox-group label:hover { background-color: var(--gray-100); }
 
 /* --- TOASTS (Fluent flyout) --- */
 .toast-layer { position: fixed; top: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; max-width: 380px; }
@@ -576,8 +708,8 @@ input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px
 }
 .login-brand .material-symbols-outlined { color: var(--primary); font-size: 26px; }
 .login-brand-name {
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--foreground);
@@ -585,7 +717,7 @@ input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px
 
 .login-title {
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   letter-spacing: -0.01em;
   text-align: center;
   color: var(--foreground);
@@ -593,7 +725,7 @@ input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px
 .login-subtitle {
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   margin: 6px 0 24px;
 }
 
@@ -620,11 +752,13 @@ input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px
   cursor: pointer;
   transition: background-color 0.1s, border-color 0.1s, color 0.1s;
 }
-.login-provider:hover { background: #f5f5f5; color: var(--foreground); }
+.login-provider:hover { background: var(--gray-100); color: var(--foreground); }
 .login-provider.active {
   background: var(--accent-subtle);
-  color: var(--foreground);
+  color: var(--primary);
   border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  font-weight: 600;
 }
 .login-provider-icon { flex-shrink: 0; }
 
@@ -640,16 +774,16 @@ input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px
   height: 40px;
   padding: 0 12px;
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--foreground);
   background: var(--card-bg);
   border: 1px solid var(--border-strong);
-  border-bottom: 1px solid #8a8a8a;
+  border-bottom: 1px solid var(--input-line);
   border-radius: var(--radius);
   transition: border-color 0.1s, box-shadow 0.1s;
   width: 100%;
 }
-.login-field input::placeholder { color: #9b9b9b; }
+.login-field input::placeholder { color: var(--text-disabled); }
 .login-field input:focus {
   outline: none;
   border-bottom-color: var(--primary);
@@ -688,7 +822,7 @@ input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px
 .login-error {
   font-size: 0.82rem;
   color: var(--destructive);
-  background: #fdf3f4;
+  background: var(--destructive-subtle);
   border: 1px solid #eeacb2;
   border-radius: var(--radius);
   padding: 10px 12px;
@@ -780,8 +914,8 @@ input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px
 /* --- Accessibility: visible keyboard focus ---------------------------------
    Fluent focus visual: 2px outline, only for keyboard navigation. */
 :focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 1px;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
   border-radius: var(--radius);
 }
 .nav-links li:focus-visible,
@@ -793,8 +927,8 @@ select:focus-visible,
 textarea:focus-visible,
 a:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 1px;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* --- Login: app-password steps -------------------------------------------- */
@@ -1123,19 +1257,20 @@ summary:focus-visible {
 .app-pw-open .material-symbols-outlined { font-size: 18px; }
 
 /* ===== Reduced motion: freeze guides on the "code generated" frame ===== */
+/* App-password guide: two-slide layout + nav (how-to → safety) */
+.app-pw-slides { position: relative; }
+.app-pw-slide[hidden] { display: none; }
+.app-pw-slide { animation: fadeIn 0.2s ease; }
+.app-pw-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0 8px; }
+.app-pw-dots { display: flex; gap: 6px; }
+.app-pw-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); cursor: pointer; transition: background 0.15s ease; }
+.app-pw-dot.active { background: var(--primary); }
+.app-pw-nav-btns { display: flex; gap: 8px; }
+
 @media (prefers-reduced-motion: reduce) {
-  #app-pw-modal, #app-pw-modal .modal-content,
-  .m3-cursor, .ms-cursor,
-  .m3-create-btn, .m3-btn, .ms-btn,
-  .m3-input-ph, .m3-input-typed, .m3-caret,
-  .m3-pw-box::before, .ms-pw-box::before,
-  .ms-row::after {
-    animation: none !important;
-  }
-  .m3-modal-overlay, .ms-modal-overlay { opacity: 1; animation: none !important; }
-  .m3-input-typed { opacity: 1; }
-  .m3-input-ph, .m3-caret { opacity: 0; }
-  .m3-cursor, .ms-cursor { display: none; }
+  /* The walkthrough is opt-in (user taps "Show me animated"), so it still plays —
+     only the modal's entrance pop is suppressed for reduced-motion users. */
+  #app-pw-modal, #app-pw-modal .modal-content { animation: none !important; }
 }
 
 /* --- Empty states --- */
@@ -1146,7 +1281,7 @@ summary:focus-visible {
   justify-content: center;
   padding: 48px 24px;
   text-align: center;
-  background-color: #fafafa;
+  background-color: var(--gray-50);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-lg);
   margin-top: 16px;
@@ -1160,13 +1295,89 @@ summary:focus-visible {
   color: var(--primary);
   font-size: 28px;
 }
-.empty-state h3 { font-size: 1.125rem; font-weight: 600; margin-bottom: 6px; color: var(--foreground); }
+.empty-state h3 { font-size: var(--text-md); font-weight: var(--weight-semibold); margin-bottom: 6px; color: var(--brand-ink); }
 .empty-state p { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 20px; max-width: 400px; }
 
 /* --- Wizard (recipient modal) --- */
-.wizard-progress { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
-.wizard-step { flex: 1; text-align: center; padding: 8px; font-weight: 400; color: var(--muted-foreground); border-radius: var(--radius); transition: background-color 0.15s, color 0.15s; }
-.wizard-step.active { color: var(--primary); background: var(--accent-subtle); font-weight: 600; }
-.wizard-step.completed { color: var(--success); }
-.wizard-panel { animation: fadeIn 0.2s ease; }
+.wizard-progress, .sw-progress { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.wizard-step, .sw-step { flex: 1; text-align: center; padding: 8px; font-weight: 400; color: var(--muted-foreground); border-radius: var(--radius); transition: background-color 0.15s, color 0.15s; }
+.wizard-step.active, .sw-step.active { color: var(--primary); background: var(--accent-subtle); font-weight: 600; }
+.wizard-step.completed, .sw-step.completed { color: var(--success); }
+.wizard-panel, .sw-panel { animation: fadeIn 0.2s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Quiet "Why an app password? (it's safe)" disclosure in setup-wizard step 2.
+   Collapsed by default; demotes the explainer diagram + reassurance to opt-in. */
+.sw-why { margin: 4px 0 14px; }
+.sw-why > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.sw-why > summary::-webkit-details-marker { display: none; }
+.sw-why > summary::before {
+  content: "\25B8"; /* ▸ */
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+.sw-why[open] > summary::before { transform: rotate(90deg); }
+.sw-why > summary:hover { color: var(--foreground); }
+.sw-why-tag { font-weight: var(--weight-semibold); color: var(--success); }
+.sw-why .concept-diagram { margin: 8px 0 0; }
+
+/* ===== Concept-explainer diagrams (inline SVG, theme-reactive, CSP-safe). ADDITIVE. =====
+   Every diagram <svg> carries class="cd"; colors come from CSS vars + currentColor (==accent),
+   so diagrams follow the Win11 theme and re-theme live if :root changes. */
+.concept-diagram { margin: 16px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.concept-diagram > svg.cd { width: 100%; height: auto; max-width: 520px; display: block; }
+.concept-diagram .cd-caption { font-size: 0.78rem; color: var(--muted-foreground); line-height: 1.4; max-width: 460px; }
+.empty-state-art { width: 172px; height: 100px; margin-bottom: 16px; }
+.empty-state-art > svg.cd { width: 100%; height: 100%; display: block; }
+
+.cd { color: var(--primary); }                 /* currentColor = accent */
+.cd text { font-family: var(--font-sans); fill: var(--foreground); }
+.cd .cd-ink{fill:var(--foreground)} .cd .cd-muted{fill:var(--muted-foreground)}
+.cd .cd-primary{fill:var(--primary)} .cd .cd-subtle{fill:var(--accent-subtle)}
+.cd .cd-paper{fill:var(--card-bg)} .cd .cd-success{fill:var(--success)} .cd .cd-danger{fill:var(--destructive)}
+.cd .s-muted{stroke:var(--muted-foreground)} .cd .s-primary{stroke:var(--primary)}
+.cd .s-border{stroke:var(--border-strong)} .cd .s-success{stroke:var(--success)}
+.cd .cd-line{fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round} /* ALWAYS pair with an s-* class */
+
+.concept-diagram[data-focus] .cd-panel{ opacity:.4; transition:opacity .15s }
+.concept-diagram[data-focus="campaign"] .cd-panel-campaign,
+.concept-diagram[data-focus="sequence"] .cd-panel-sequence,
+.concept-diagram[data-focus="account"]  .cd-panel-account { opacity:1 }
+.concept-diagram[data-focus="campaign"] .cd-panel-campaign .cd-card,
+.concept-diagram[data-focus="sequence"] .cd-panel-sequence .cd-card,
+.concept-diagram[data-focus="account"]  .cd-panel-account  .cd-card { stroke:var(--primary); stroke-width:2; fill:var(--accent-subtle) }
+/* "You're here" badge under a panel — shown only on the focused page's own panel (gated by data-focus). */
+.cd .cd-here{ opacity:0 }
+.concept-diagram[data-focus="campaign"] .cd-panel-campaign .cd-here,
+.concept-diagram[data-focus="sequence"] .cd-panel-sequence .cd-here,
+.concept-diagram[data-focus="account"]  .cd-panel-account  .cd-here{ opacity:1 }
+
+/* ---- Domain authentication (SPF / DKIM / DMARC) card ---- */
+.da-row { border: 1px solid var(--border); border-radius: var(--radius); background: var(--gray-50); }
+.da-row-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; flex-wrap: wrap; }
+.da-domain { font-weight: var(--weight-semibold); font-size: var(--text-sm); }
+.da-accounts { color: var(--muted-foreground); font-size: var(--text-xs); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.da-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: var(--text-xs); font-weight: var(--weight-semibold); border: 1px solid var(--border); background: var(--card-bg); color: var(--muted-foreground); }
+.da-chip.pass { color: var(--success); background: var(--success-subtle); border-color: var(--success); }
+.da-chip.warn, .da-chip.unknown { color: #92600a; background: var(--warning-subtle); border-color: var(--warning); }
+.da-chip.missing, .da-chip.misconfigured { color: var(--destructive); background: var(--destructive-subtle); border-color: var(--destructive); }
+.da-note { color: var(--muted-foreground); font-size: var(--text-sm); padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+.da-note .material-symbols-outlined { color: var(--success); font-size: 18px; }
+.da-detail { border-top: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 14px; background: var(--card-bg); border-radius: 0 0 var(--radius) var(--radius); }
+.da-record h4 { margin: 0 0 4px; font-size: var(--text-sm); display: flex; align-items: center; gap: 8px; }
+.da-findings { margin: 4px 0; padding-left: 18px; font-size: var(--text-xs); color: var(--muted-foreground); }
+.da-instructions { margin: 4px 0; padding-left: 18px; font-size: var(--text-xs); color: var(--foreground); }
+.da-value { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.da-value code { flex: 1; min-width: 0; font-size: var(--text-xs); background: var(--gray-50); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; overflow-wrap: anywhere; }
+.da-found code { background: transparent; border: none; padding: 0; font-size: var(--text-xs); overflow-wrap: anywhere; color: var(--muted-foreground); }
+.da-actions { display: flex; gap: 8px; margin-top: 4px; }

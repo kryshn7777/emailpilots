@@ -61,6 +61,14 @@
             <span class="material-symbols-outlined" aria-hidden="true">list_alt</span>
             System Logs
           </li>
+          <li data-view="ai" title="Optional on-device AI. Runs a local model — your emails never leave your computer.">
+            <span class="material-symbols-outlined" aria-hidden="true">smart_toy</span>
+            Local AI
+          </li>
+          <li data-view="deliverability" title="Check an email's spam risk before sending — advisory only.">
+            <span class="material-symbols-outlined" aria-hidden="true">mark_email_read</span>
+            Deliverability
+          </li>
         </ul>
       </nav>
       
@@ -694,6 +702,18 @@
             <div id="accounts-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;"></div>
           </div>
 
+          <div class="card" id="domain-auth-card" style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h3 style="margin: 0;">Domain authentication</h3>
+              <button id="domain-auth-refresh-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em;">
+                <span class="material-symbols-outlined">refresh</span>
+                Re-check all
+              </button>
+            </div>
+            <p class="help-text" style="margin-bottom: 12px;">SPF, DKIM and DMARC records prove to receiving inboxes that your mail really comes from your domain. We check each sending domain and show the exact DNS records to add at your registrar.</p>
+            <div id="domain-auth-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+          </div>
+
           <div class="card">
             <h3 style="margin-top: 0;">Add an account</h3>
             <p class="help-text" style="margin-bottom: 16px;">Use an app password, not your normal login password. We verify the connection before saving.</p>
@@ -890,6 +910,145 @@
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        <!-- Local AI View (optional feature #1) -->
+        <div id="ai" class="view">
+          <header>
+            <h1>Local AI <span class="adv-tag">optional</span></h1>
+            <p>On-device AI that runs a local model on your computer. Your emails never leave your machine — no cloud, no account, no data sent anywhere.</p>
+          </header>
+
+          <div class="card settings-chunk" style="max-width: 720px;">
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="ai-enable-toggle">
+                Enable Local AI
+              </label>
+              <p class="help-text">Off by default. While off, the app behaves exactly as before.</p>
+            </div>
+            <div class="form-group">
+              <label>Model file (.gguf)</label>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <button type="button" id="ai-select-model-btn" class="btn outline">
+                  <span class="material-symbols-outlined">folder_open</span>
+                  Choose Model…
+                </button>
+                <span id="ai-model-path" class="help-text" style="margin:0; word-break:break-all;">No model selected</span>
+              </div>
+              <p class="help-text">Download an open-weight GGUF model (e.g. Qwen2.5-Instruct) and point here. The file stays on your computer.</p>
+            </div>
+            <div class="form-group">
+              <label for="ai-context-size">Context size <span class="adv-tag">optional</span></label>
+              <input type="number" id="ai-context-size" placeholder="auto" min="0" style="max-width:160px;">
+              <p class="help-text">Tokens of context. Leave blank for the model default.</p>
+            </div>
+            <div class="form-group">
+              <label>GPU acceleration <span class="adv-tag">optional</span></label>
+              <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                <div>
+                  <label for="ai-gpu-backend" class="help-text" style="display:block; margin:0 0 2px;">Backend</label>
+                  <select id="ai-gpu-backend" class="form-control" style="max-width:180px;">
+                    <option value="auto">Auto (recommended)</option>
+                    <option value="cuda">CUDA (NVIDIA)</option>
+                    <option value="vulkan">Vulkan</option>
+                    <option value="metal">Metal (Apple)</option>
+                    <option value="cpu">CPU only</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="ai-gpu-layers" class="help-text" style="display:block; margin:0 0 2px;">GPU layers</label>
+                  <input type="number" id="ai-gpu-layers" placeholder="auto" min="0" class="form-control" style="max-width:120px;">
+                </div>
+                <label style="display:flex; gap:6px; align-items:center; white-space:nowrap; margin-bottom:6px;">
+                  <input type="checkbox" id="ai-flash-attention" checked>
+                  Flash attention
+                </label>
+              </div>
+              <p class="help-text">Keeps generation on your GPU (much faster than CPU). Leave layers blank to auto-fit VRAM; set 0 to force CPU. Flash attention shrinks memory so more fits on the GPU.</p>
+            </div>
+            <div class="form-group">
+              <button type="button" id="ai-refresh-btn" class="btn outline">
+                <span class="material-symbols-outlined">refresh</span>
+                Check Status
+              </button>
+              <p id="ai-status-line" class="help-text" style="margin-top:8px;">Status: unknown</p>
+            </div>
+          </div>
+
+          <div class="card settings-chunk" style="max-width: 720px; margin-top:16px;">
+            <h3 style="margin-top:0; margin-bottom:12px;">Test generation</h3>
+            <div class="form-group">
+              <label for="ai-test-prompt">Prompt</label>
+              <textarea id="ai-test-prompt" rows="3" placeholder="Write a one-sentence friendly hello.">Write a one-sentence friendly hello.</textarea>
+            </div>
+            <div class="form-group">
+              <button type="button" id="ai-test-btn" class="btn">
+                <span class="material-symbols-outlined">bolt</span>
+                Generate
+              </button>
+              <p class="help-text">Runs entirely on your machine. The first run loads the model and may take a moment.</p>
+            </div>
+            <div class="form-group">
+              <label for="ai-test-output">Output</label>
+              <textarea id="ai-test-output" rows="4" readonly placeholder="Generated text appears here."></textarea>
+            </div>
+          </div>
+
+          <div class="card settings-chunk" style="max-width: 720px; margin-top:16px;">
+            <h3 style="margin-top:0; margin-bottom:8px;">Reply automation <span class="adv-tag">optional</span></h3>
+            <p class="help-text" style="margin-top:0;">The local model reads incoming replies and labels them. All off by default; reply content stays on your machine.</p>
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="ai-classify-toggle">
+                Classify incoming replies
+              </label>
+              <p class="help-text">Labels each reply (Interested, Out of Office, Unsubscribe, …). Needs AI enabled + a model.</p>
+            </div>
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="ai-suppress-unsub-toggle">
+                Auto-suppress unsubscribes
+              </label>
+              <p class="help-text">When a reply is classified as an unsubscribe, add that address to your suppression list automatically.</p>
+            </div>
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="ai-pause-ooo-toggle">
+                Keep drips running through out-of-office replies
+              </label>
+              <p class="help-text">An out-of-office auto-reply won't stop an active follow-up sequence.</p>
+            </div>
+            <p id="ai-reply-summary" class="help-text" style="margin:8px 0 0;">No classified replies yet.</p>
+          </div>
+        </div>
+
+        <!-- Deliverability View (feature #4) -->
+        <div id="deliverability" class="view">
+          <header>
+            <h1>Deliverability <span class="adv-tag">advisory</span></h1>
+            <p>Check an email's spam risk and inbox-placement quality before you send. Advisory only — nothing is changed or blocked.</p>
+          </header>
+
+          <div class="card settings-chunk" style="max-width: 760px;">
+            <div class="form-group">
+              <label for="deliv-subject">Subject</label>
+              <input type="text" id="deliv-subject" placeholder="Your subject line">
+            </div>
+            <div class="form-group">
+              <label for="deliv-body">Email body</label>
+              <textarea id="deliv-body" rows="8" placeholder="Paste or edit the email body to analyze."></textarea>
+              <p class="help-text">Pre-filled from your default subject + template. Edit freely — this never changes your saved content.</p>
+            </div>
+            <div class="form-group">
+              <button type="button" id="deliv-analyze" class="btn">
+                <span class="material-symbols-outlined">rule</span>
+                Analyze
+              </button>
+              <p id="deliv-score" class="help-text" style="margin-top:8px;">Not analyzed yet.</p>
+            </div>
+            <div id="deliv-result"></div>
           </div>
         </div>
 

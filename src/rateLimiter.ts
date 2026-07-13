@@ -20,6 +20,11 @@ interface LimitState {
   windowsToday: number;
   currentWindowCount: number;
   perRecipientToday: { [email: string]: number };
+  // Real (non-Practice) deliveries per recipient today — the A12 same-day dedupe
+  // signal. Distinct from perRecipientToday, which also counts Practice-Mode sends
+  // (those reserve a rate slot but reroute to the sender's own inbox, so they must
+  // NOT make the scheduler skip a later real send to the actual recipient).
+  deliveredPerRecipientToday: { [email: string]: number };
   // Account-age anchor for the warmup ramp; set once, survives daily rollover.
   warmupStartDate: string;
 }
@@ -71,6 +76,7 @@ export class RateLimiter {
       windowsToday: 1,
       currentWindowCount: 0,
       perRecipientToday: {},
+      deliveredPerRecipientToday: {},
       warmupStartDate: today,
     };
     if (!fs.existsSync(this.statePath)) return fresh;
@@ -82,6 +88,7 @@ export class RateLimiter {
         windowsToday: data.windowsToday || 1,
         currentWindowCount: data.currentWindowCount || 0,
         perRecipientToday: data.perRecipientToday || {},
+        deliveredPerRecipientToday: data.deliveredPerRecipientToday || {},
         // An existing limits.json without this field = an already-active account;
         // anchor warmup far in the past so we don't re-throttle it to day-1.
         // Only a brand-new install (no file at all) starts the ramp today.
@@ -110,6 +117,7 @@ export class RateLimiter {
         windowsToday: 1,
         currentWindowCount: 0,
         perRecipientToday: {},
+        deliveredPerRecipientToday: {},
         warmupStartDate: this.state.warmupStartDate, // account age persists
       };
       this.save();
@@ -242,6 +250,29 @@ export class RateLimiter {
     const { minDelayMs, maxDelayMs } = this.limits;
     if (maxDelayMs <= minDelayMs) return minDelayMs;
     return Math.floor(minDelayMs + Math.random() * (maxDelayMs - minDelayMs));
+  }
+
+  /** Real (non-Practice) deliveries to this recipient today, from the latest
+   *  persisted counts. Distinct from perRecipientToday, which also counts Practice-
+   *  Mode sends (rerouted to the sender's own inbox) — those must not make the
+   *  scheduler skip a later real send. Read-only; reloads first so a scheduler
+   *  processor sees a manual Send-Now recorded by another RateLimiter instance for
+   *  the same account. Powers the A12 same-day dedupe. */
+  deliveredToday(email: string): number {
+    this.reloadState();
+    return this.state.deliveredPerRecipientToday[(email || '').toLowerCase()] || 0;
+  }
+
+  /** Mark a genuine (non-Practice) delivery to this recipient for today's same-day
+   *  dedupe. MailProcessor calls this ONLY on real acceptance (mirrors the A3
+   *  ledger's !isTest-gated recordSent) — never in Practice Mode. Kept separate from
+   *  the rate counters (record/tryConsume) so it can never affect the send caps. */
+  markDelivered(email: string): void {
+    this.reloadState();
+    const key = (email || '').toLowerCase();
+    if (!key) return;
+    this.state.deliveredPerRecipientToday[key] = (this.state.deliveredPerRecipientToday[key] || 0) + 1;
+    this.save();
   }
 
   getState(): LimitState {

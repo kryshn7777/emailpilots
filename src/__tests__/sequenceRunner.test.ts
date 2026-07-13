@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { advanceSequenceRecord, SeqDeps } from '../sequenceRunner';
+import { advanceSequenceRecord, SeqDeps, replyCountsForGate } from '../sequenceRunner';
 import type { Sequence } from '../config';
 
 const NOW = Date.parse('2026-06-16T12:00:00.000Z');
@@ -97,5 +97,25 @@ describe('advanceSequenceRecord', () => {
     expect(await advanceSequenceRecord({ active: true, email: 'a@x.com', sequenceId: 's1', seqDone: true }, [seq], d)).toBe(false);
     expect(await advanceSequenceRecord({ active: false, email: 'a@x.com', sequenceId: 's1' }, [seq], d)).toBe(false);
     expect(d.sent).toHaveLength(0);
+  });
+});
+
+describe('replyCountsForGate (feature #2 OOO drip-skip)', () => {
+  it('a non-reply never counts', () => {
+    expect(replyCountsForGate(false, undefined, false)).toBe(false);
+    expect(replyCountsForGate(false, 'OutOfOffice', true)).toBe(false);
+  });
+
+  it('default (pauseOnOoo off): every reply counts, OOO included — behavior unchanged', () => {
+    expect(replyCountsForGate(true, 'OutOfOffice', false)).toBe(true);
+    expect(replyCountsForGate(true, 'Interested', false)).toBe(true);
+    expect(replyCountsForGate(true, undefined, false)).toBe(true);
+  });
+
+  it('pauseOnOoo on: an OOO reply is ignored (drip continues); others still stop it', () => {
+    expect(replyCountsForGate(true, 'OutOfOffice', true)).toBe(false);
+    expect(replyCountsForGate(true, 'Interested', true)).toBe(true);
+    expect(replyCountsForGate(true, 'Unsubscribe', true)).toBe(true);
+    expect(replyCountsForGate(true, undefined, true)).toBe(true);
   });
 });

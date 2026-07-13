@@ -21,6 +21,17 @@ function seqFields(r: any): Record<string, any> {
 }
 
 /**
+ * Whether a recorded reply should count toward the stopOnReply gate. An
+ * out-of-office auto-reply is ignored when `pauseOnOoo` is on, so the drip keeps
+ * going. Default (`pauseOnOoo=false`) ⇒ any reply counts — behavior unchanged.
+ */
+export function replyCountsForGate(replied: boolean, classification: string | undefined, pauseOnOoo: boolean): boolean {
+  if (!replied) return false;
+  if (pauseOnOoo && classification === 'OutOfOffice') return false;
+  return true;
+}
+
+/**
  * Advance one recipient through its sequence by at most one step, mutating the
  * record's seq* fields in place. Returns true when something changed (so the
  * caller persists). Pure except for the injected deps — no fs/cron/network.
@@ -118,6 +129,11 @@ export class SequenceRunner {
 
   async tick(): Promise<void> {
     if (this.ticking) return; // a slow tick must not overlap the next hour
+    // A9 fix: never advance real drip state from Practice Mode. Practice reroutes
+    // every send to the operator's own inbox; if a practice tick persisted seqStep,
+    // the real prospect would permanently skip that step once Practice is turned off.
+    // Drips simply pause while Practice Mode is on.
+    if (this.config.testMode) return;
     this.ticking = true;
     try {
       const { recipientsJson } = this.config.paths;
@@ -134,27 +150,57 @@ export class SequenceRunner {
       if (sequences.length === 0) return;
       const store = new ReplyStore(getBasePath());
 
+      // A4 (disabled/removed-account surfacing): a recipient tagged to an account
+      // with no processor resolves to null. We do NOT silently send it from the
+      // default identity — disabling an account is a reversible pause, and sending
+      // from the wrong address is a deliverability risk — but the stall must not be
+      // silent. Collect the affected account ids and warn once per tick.
+      const orphanedAccounts = new Set<string>();
+
       const deps: SeqDeps = {
         now: () => Date.now(),
-        hasRepliedSince: (email, since) => store.hasRepliedSince(email, since),
+        // Feature #2: when pauseOnOoo is on, an out-of-office reply doesn't count
+        // (drip continues). Off ⇒ identical to before: any reply stops the drip.
+        hasRepliedSince: (email, since) => {
+          const replied = store.hasRepliedSince(email, since);
+          const pauseOnOoo = this.config.ai?.actions?.pauseOnOoo === true;
+          return replyCountsForGate(replied, pauseOnOoo ? store.getClassification(email) : undefined, pauseOnOoo);
+        },
         send: (rec) => {
           const p = this.processorFor(rec);
-          return p ? p.processRecipient(rec) : Promise.resolve(false);
+          if (!p) { orphanedAccounts.add(String(rec.accountId || 'default')); return Promise.resolve(false); }
+          return p.processRecipient(rec);
         },
       };
 
-      // Collect seq-field updates keyed by email, then merge into a FRESH read so
-      // a concurrent UI save during the tick isn't clobbered.
-      const updates = new Map<string, Record<string, any>>();
+      // A2 fix: persist each advance IMMEDIATELY (merged into a FRESH read) rather
+      // than deferring one write to the end of the loop. A crash/forced-quit or an
+      // unhandled send rejection later in the tick used to skip that single
+      // end-of-loop persist and drop EVERY already-sent record's advance → the next
+      // tick re-sent them. Per-record persistence bounds any loss to the single
+      // in-flight record, and the per-record try/catch keeps one failing send from
+      // aborting the tick or losing the others. The fresh-read merge still protects
+      // against a concurrent UI save.
       for (const record of records) {
-        const changed = await advanceSequenceRecord(record, sequences, deps);
+        let changed = false;
+        try {
+          changed = await advanceSequenceRecord(record, sequences, deps);
+        } catch (e) {
+          console.error('Failed to advance a sequence record; continuing:', e);
+          continue;
+        }
         if (changed) {
           const email = String(record.email || record.Email || '').toLowerCase();
-          if (email) updates.set(email, seqFields(record));
+          if (email) this.persist(recipientsJson, new Map([[email, seqFields(record)]]));
         }
       }
 
-      if (updates.size > 0) this.persist(recipientsJson, updates);
+      if (orphanedAccounts.size > 0) {
+        console.warn(
+          `Sequence drips are paused for recipients on unavailable account(s): ${[...orphanedAccounts].join(', ')}. ` +
+          `Re-enable the account or reassign those recipients so their follow-ups can resume.`,
+        );
+      }
     } finally {
       this.ticking = false;
     }

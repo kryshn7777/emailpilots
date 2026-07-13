@@ -9,6 +9,9 @@ export interface ReplyEntry {
   /** Which sending account's inbox the reply landed in (if known). */
   accountId?: string;
   subject?: string;
+  /** AI-assigned reply category (feature #2), e.g. 'Interested', 'Unsubscribe'.
+   *  Absent until classification runs; optional so older records/readers are fine. */
+  classification?: string;
 }
 
 /**
@@ -63,7 +66,13 @@ export class ReplyStore {
     const isNew = !existing;
     if (existing) {
       // Lexicographic compare is chronological for fixed-format UTC ISO strings.
-      if (ts > existing.repliedAt) existing.repliedAt = ts;
+      if (ts > existing.repliedAt) {
+        existing.repliedAt = ts;
+        // A newer reply invalidates the stored AI label (feature #2): it gets
+        // re-classified this sweep, or stays undefined so the drip gate falls back
+        // to the safe "any reply counts" default instead of honoring a stale label.
+        existing.classification = undefined;
+      }
       if (accountId) existing.accountId = accountId;
       if (subject) existing.subject = subject;
     } else {
@@ -100,5 +109,23 @@ export class ReplyStore {
   list(): ReplyEntry[] {
     this.load();
     return Object.values(this.entries);
+  }
+
+  /** Attach/overwrite the AI classification label for an address (additive). The
+   *  reply must already exist (the poller records it first); no-op otherwise. */
+  setClassification(email: string, classification: string): void {
+    const key = (email || '').toLowerCase();
+    if (!key || !classification) return;
+    this.load();
+    const e = this.entries[key];
+    if (!e) return;
+    e.classification = classification;
+    this.save();
+  }
+
+  /** The stored AI classification label for an address, if any. */
+  getClassification(email: string): string | undefined {
+    this.load();
+    return this.entries[(email || '').toLowerCase()]?.classification;
   }
 }

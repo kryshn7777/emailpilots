@@ -125,6 +125,21 @@ export class Scheduler {
       const cronExpr = `${cronMin} ${cronHour} * * ${adjustedDaysCron}`;
 
       const task = cron.schedule(cronExpr, async () => {
+        // A12: one real send per recipient per day across paths. If a manual "Send
+        // to everyone now" (or an earlier scheduled slot) already delivered to this
+        // address today, skip this cron slot instead of double-sending. Checked at
+        // actual send time (after any entropy delay), so a Send-Now during the delay
+        // is still caught. Practice Mode is exempt inside alreadySentToday.
+        const fireOnce = async () => {
+          const email = record.email || record.Email;
+          if (processor.alreadySentToday(email)) {
+            console.log(`[${new Date().toLocaleString()}] Skipping scheduled send to ${email}: already sent today (manual Send-Now or an earlier scheduled slot).`);
+            return;
+          }
+          console.log(`\n[${new Date().toLocaleString()}] Sending scheduled email to ${email}...`);
+          await processor.processRecipient(record);
+        };
+
         let delayMs = 0;
         if (entropyMinutes > 0) {
           delayMs = Math.random() * (2 * entropyMinutes) * 60 * 1000;
@@ -133,14 +148,12 @@ export class Scheduler {
 
         if (delayMs > 0) {
           const timeoutId = setTimeout(async () => {
-            console.log(`\n[${new Date().toLocaleString()}] Sending scheduled email to ${record.email}...`);
-            await processor.processRecipient(record);
+            await fireOnce();
             this.activeTimeouts = this.activeTimeouts.filter(t => t !== timeoutId);
           }, delayMs);
           this.activeTimeouts.push(timeoutId);
         } else {
-          console.log(`\n[${new Date().toLocaleString()}] Sending scheduled email to ${record.email}...`);
-          await processor.processRecipient(record);
+          await fireOnce();
         }
       });
 

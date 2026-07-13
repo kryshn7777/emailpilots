@@ -20,6 +20,11 @@ import { readCampaigns, upsertCampaign, removeCampaign } from '../src/campaignSt
 import { upsertSequence, removeSequence } from '../src/sequenceStore';
 import type { Campaign, Sequence, SequenceStep } from '../src/config';
 import { atomicWriteFileSync } from '../src/atomicWrite';
+import {
+  buildConsumerDomainReport, buildDomainAuthReport, dkimSelectorsFor,
+  inferProvider, isConsumerDomain, isValidDomain,
+} from '../src/domainAuth';
+import type { DnsAnswer, DkimProbeResult } from '../src/domainAuth';
 import dotenv from 'dotenv';
 
 // Writing to a closed stdout/stderr pipe raises EPIPE. With no listener Node
@@ -289,6 +294,12 @@ import { StatsManager } from '../src/statsManager';
 import { ReplyPoller } from '../src/replyPoller';
 import { ReplyStore } from '../src/replyStore';
 import { SequenceRunner } from '../src/sequenceRunner';
+import { mergeSequenceState } from '../src/recipientMerge';
+import { AiService } from '../src/ai/aiService';
+import type { AiGenerateRequest } from '../src/ai/types';
+import { assist, type AssistRequest } from '../src/ai/writingAssistant';
+import { analyzeSpam, type SpamAnalyzeRequest } from '../src/ai/spamAdvisor';
+import { personalize, selectWinningExamples, type PersonalizeRequest } from '../src/ai/personalizer';
 
 let globalStatsManager: StatsManager | null = null;
 // Reads each account's INBOX for replies while the scheduler is running. Built
@@ -296,6 +307,9 @@ let globalStatsManager: StatsManager | null = null;
 let globalReplyPoller: ReplyPoller | null = null;
 // Drives follow-up sequences (drip). Same start/stop lifecycle as the scheduler.
 let globalSequenceRunner: SequenceRunner | null = null;
+// Optional Local AI service (feature #1). Inert unless config.ai.enabled + a model
+// is configured. Built in initServices, refreshed in rebuildProcessors.
+let globalAiService: AiService | null = null;
 
 /**
  * In-memory health of each account: result of the last test/real send. Drives
@@ -316,6 +330,21 @@ function statsOnSent(accountId?: string) {
   // still updates: a successful test send proves the account's SMTP creds work.
   if (!globalConfig?.testMode) globalStatsManager?.incrementEmailsSent(accountId);
   recordAccountStatus(accountId, { ok: true, at: Date.now(), kind: 'send' });
+}
+
+/** A14: per-account failure hook. Surfaces background (scheduler/sequence) send
+ *  failures — which run outside run-test-send's console→log bridge — to the UI log,
+ *  and reddens account health ONLY for account-level failures (auth/connection). A
+ *  per-recipient bounce ('ENOTACCEPTED') is logged but must not red-dot a healthy
+ *  account (it's handled via suppression). */
+function statsOnFailure(accountId: string | undefined, error: any) {
+  const msg = error?.message || String(error);
+  const tag = accountId && accountId !== 'default' ? ` [${accountId}]` : '';
+  const mode = globalConfig?.testMode ? ' (practice)' : '';
+  sendLog(`Send failed${tag}${mode}: ${msg}`, 'error');
+  const code = String(error?.code || '');
+  const accountLevel = ['EAUTH', 'ECONNECTION', 'ESOCKET', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'EDNS'].includes(code);
+  if (accountLevel) recordAccountStatus(accountId, { ok: false, error: msg, at: Date.now(), kind: 'send' });
 }
 
 /** Filesystem-safe, unique account id derived from the email address. */
@@ -345,9 +374,9 @@ function strategyDeps(): StrategyDeps {
 
 function rebuildProcessors() {
   if (!globalConfig) return;
-  globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps());
+  globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps(), statsOnFailure);
   globalMailProcessor = globalProcessors.get('default')
-    ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default');
+    ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default', statsOnFailure);
   if (globalScheduler) {
     globalScheduler.config = globalConfig;
     globalScheduler.mailProcessor = globalMailProcessor;
@@ -370,6 +399,11 @@ function rebuildProcessors() {
   } else {
     globalSequenceRunner = new SequenceRunner(globalConfig, globalMailProcessor, globalProcessors);
   }
+  // Refresh the optional Local AI service so a changed model path / enable flag
+  // takes effect. Close the old one (frees any loaded model); the new loads lazily.
+  globalAiService?.close().catch(() => {});
+  globalAiService = new AiService(globalConfig);
+  if (globalReplyPoller) globalReplyPoller.ai = globalAiService; // keep classifier pointed at fresh config
 }
 
 function initServices() {
@@ -382,13 +416,15 @@ function initServices() {
     globalStatsManager = new StatsManager(basePath);
 
     // One processor per sendable account; default processor preserved.
-    globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps());
+    globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps(), statsOnFailure);
     globalMailProcessor = globalProcessors.get('default')
-      ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default');
+      ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default', statsOnFailure);
 
     globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors);
     globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetAccessToken);
     globalSequenceRunner = new SequenceRunner(globalConfig, globalMailProcessor, globalProcessors);
+    globalAiService = new AiService(globalConfig);
+    globalReplyPoller.ai = globalAiService; // feature #2: enable reply classification
 
     sendLog('Services initialized successfully.', 'system');
   } catch (err: any) {
@@ -405,6 +441,14 @@ function initServices() {
       }
     }
   }
+}
+
+/** Lazily build the optional Local AI service singleton (mirrors the other
+ *  service globals). Safe to call from any handler. */
+function aiService(): AiService {
+  if (!globalConfig) initServices();
+  if (!globalAiService) globalAiService = new AiService(globalConfig);
+  return globalAiService;
 }
 
 // --- IPC Handlers ---
@@ -551,7 +595,22 @@ ipcMain.handle('save-account', async (_event, acc) => {
         else if (existing) passToStore = existing.pass;
         else return { ok: false, error: 'App password is required.' };
 
+        // A8 fix: preserve the existing account's transport identity (OAuth-SMTP /
+        // browser-session / IMAP fields) on an update. Rebuilding the record from the
+        // partial form payload silently downgraded a connected OAuth/browser account
+        // to a broken blank-password SMTP one on a routine enable/disable toggle,
+        // destroying the encrypted refresh token. A newly TYPED password means the
+        // user is (re)configuring password-SMTP, so shed any prior transport identity.
+        const base: any = existing ? { ...existing } : {};
+        if (rawPass) {
+            delete base.transport;
+            delete base.oauthProvider;
+            delete base.oauthToken;
+            delete base.browserProvider;
+            delete base.browserPartition;
+        }
         const account: Account = {
+            ...base,
             id,
             label: (acc?.label || user).trim(),
             host,
@@ -668,6 +727,12 @@ ipcMain.handle('delete-account', (_event, id: string) => {
         if (!id || id === 'default') {
             return { ok: false, error: 'The primary account cannot be removed.' };
         }
+        // A17 fix: don't mutate account/limits state underneath an in-flight manual
+        // run (its RateLimiter reloads from disk each send — a mid-run change resets
+        // the daily cap). Refuse until the run finishes.
+        if (testRunInProgress) {
+            return { ok: false, error: 'Finish the current send run before removing an account.' };
+        }
         const basePath = getBasePath();
         // A browser account's logged-in cookies live in its Electron partition —
         // wipe them too so "delete" actually forgets the session.
@@ -676,9 +741,37 @@ ipcMain.handle('delete-account', (_event, id: string) => {
             try { void session.fromPartition(acc.browserPartition).clearStorageData(); } catch {}
         }
         removeAccount(basePath, String(id));
-        // Best-effort cleanup of that account's rate-limit state file.
-        const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
-        try { fs.unlinkSync(path.join(basePath, `limits.${safeId}.json`)); } catch {}
+
+        // A4 fix: strip the now-dangling accountId from recipients.json (exactly as
+        // delete-campaign detaches campaignId) so those recipients fall back to the
+        // default account instead of being owned by ZERO processors — which silently
+        // stalled their sends and drips forever with nothing logged.
+        const jsonPath = globalConfig.paths.recipientsJson;
+        if (fs.existsSync(jsonPath)) {
+            try {
+                const recipients = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                if (Array.isArray(recipients)) {
+                    let reassigned = 0;
+                    for (const r of recipients) {
+                        if (r && r.accountId === id) { delete r.accountId; reassigned++; }
+                    }
+                    if (reassigned > 0) {
+                        atomicWriteFileSync(jsonPath, JSON.stringify(recipients, null, 2));
+                        sendLog(`${reassigned} recipient(s) from the removed account moved to the primary account.`, 'system');
+                    }
+                }
+            } catch (e) {
+                sendLog('Failed to reassign recipients from the deleted account', 'error');
+            }
+        }
+
+        // A17 fix: do NOT unlink this account's limits.<id>.json here. An in-flight
+        // scheduler-cron or sequence-tick send holds a RateLimiter that reloads from
+        // disk on every tryConsume — deleting the file mid-run would reset its daily
+        // counter to 0 and blow past the send cap. The file is harmless to leave:
+        // account ids are unique (genAccountId), so it is never read again (no
+        // processor owns this id; its recipients were reassigned to default above).
+        // sign-out still wipes every limits file as part of its full reset.
         accountStatus.delete(String(id));
 
         globalConfig = loadConfig();
@@ -911,6 +1004,16 @@ MIN_DELAY_MIN=${Math.round(globalConfig.limits.minDelayMs / 60000)}
 MAX_DELAY_MIN=${Math.round(globalConfig.limits.maxDelayMs / 60000)}
 MAX_ATTACHMENT_MB=${Math.round(globalConfig.limits.maxAttachmentBytes / (1024 * 1024))}
 MAX_RECIPIENT_PER_DAY=${globalConfig.limits.maxPerRecipientPerDay}
+AI_ENABLED=${(newConfig.aiEnabled ?? globalConfig.ai?.enabled) ? 'true' : 'false'}
+AI_PROVIDER=${envText(newConfig.aiProvider ?? globalConfig.ai?.provider ?? 'local-llama')}
+AI_MODEL_PATH=${envPath(newConfig.aiModelPath ?? globalConfig.ai?.modelPath ?? '')}
+AI_CONTEXT_SIZE=${envText(String(newConfig.aiContextSize ?? globalConfig.ai?.contextSize ?? ''))}
+AI_GPU=${envText(newConfig.aiGpu ?? globalConfig.ai?.gpu ?? 'auto')}
+AI_GPU_LAYERS=${envText(String(newConfig.aiGpuLayers ?? globalConfig.ai?.gpuLayers ?? ''))}
+AI_FLASH_ATTENTION=${(newConfig.aiFlashAttention ?? globalConfig.ai?.flashAttention ?? true) ? 'true' : 'false'}
+AI_CLASSIFY_REPLIES=${(newConfig.aiClassifyReplies ?? globalConfig.ai?.actions?.classifyReplies) ? 'true' : 'false'}
+AI_AUTO_SUPPRESS_UNSUB=${(newConfig.aiAutoSuppressUnsub ?? globalConfig.ai?.actions?.autoSuppressUnsubscribe) ? 'true' : 'false'}
+AI_PAUSE_ON_OOO=${(newConfig.aiPauseOnOoo ?? globalConfig.ai?.actions?.pauseOnOoo) ? 'true' : 'false'}
 `;
 
     atomicWriteFileSync(envFilePath, envContent);
@@ -947,6 +1050,12 @@ ipcMain.handle('save-config', (_event, newConfig) => saveConfigToEnv(newConfig))
 ipcMain.handle('sign-out', () => {
   try {
     if (!globalConfig) initServices();
+    // A17 fix: sign-out unlinks every limits.<id>.json as part of its full wipe; if
+    // a manual run is in flight, that would reset live rate caps mid-send. Refuse
+    // until it finishes. (The scheduler/sequence/poller are stopped below.)
+    if (testRunInProgress) {
+      return { ok: false, error: 'Finish the current send run before signing out.' };
+    }
     const basePath = getBasePath();
 
     // Stop scheduled sending and don't auto-resume on the next launch.
@@ -957,12 +1066,15 @@ ipcMain.handle('sign-out', () => {
     writeSchedulerEnabled(false);
     sendStatus(false);
 
-    // Forget every stored credential: extra accounts (and their per-account
-    // rate-limit files), then the .env primary. Non-credential settings
-    // (subject, schedule, limits, paths) are preserved by saveConfigToEnv.
+    // Forget every stored credential: extra accounts' sessions, then the .env
+    // primary. Non-credential settings (subject, schedule, limits, paths) are
+    // preserved by saveConfigToEnv.
+    // A17 fix: do NOT unlink limits.<id>.json here. stop() above cancels future cron
+    // fires but does not interrupt a send already mid-`await`; deleting the file
+    // under it would make its RateLimiter reload day-0 and blow past the cap. Rate
+    // state isn't a credential, and re-added accounts get fresh unique ids, so a
+    // stale limits file is never re-read — harmless to leave.
     for (const a of readAccounts(basePath)) {
-      const safeId = a.id.replace(/[^a-zA-Z0-9_-]/g, '_');
-      try { fs.unlinkSync(path.join(basePath, `limits.${safeId}.json`)); } catch {}
       // Wipe any browser-session cookies (OAuth token caches go with accounts.json).
       if (a.transport === 'browser' && a.browserPartition) {
         try { void session.fromPartition(a.browserPartition).clearStorageData(); } catch {}
@@ -1062,7 +1174,7 @@ ipcMain.handle('run-test-send', async () => {
     try {
         // Run every sendable account in parallel (one account ⇒ identical to the
         // old single processEmails() call). Aggregated summary across accounts.
-        summary = await runAllAccounts(globalConfig, statsOnSent, strategyDeps());
+        summary = await runAllAccounts(globalConfig, statsOnSent, strategyDeps(), statsOnFailure);
         sendLog(
             `Test execution completed. sent=${summary.sent} skipped=${summary.skipped} failed=${summary.failed}`,
             summary.sent > 0 ? 'success' : 'error',
@@ -1111,7 +1223,19 @@ ipcMain.handle('save-recipients', (event, recipients) => {
     if (!globalConfig) initServices();
     const jsonPath = globalConfig.paths.recipientsJson;
     try {
-        atomicWriteFileSync(jsonPath, JSON.stringify(recipients, null, 2));
+        // A1 fix: preserve runner-owned seq* drip progress from the current disk
+        // state so a blind overwrite from the renderer's stale startup snapshot
+        // can't revert an in-flight sequence (→ duplicate step-0 send). See
+        // src/recipientMerge.ts. Deletions/edits to other fields still apply.
+        let disk: any[] = [];
+        try {
+            if (fs.existsSync(jsonPath)) {
+                const d = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                if (Array.isArray(d)) disk = d;
+            }
+        } catch { /* unreadable/corrupt disk → nothing to preserve */ }
+        const merged = mergeSequenceState(disk, Array.isArray(recipients) ? recipients : []);
+        atomicWriteFileSync(jsonPath, JSON.stringify(merged, null, 2));
         sendLog('Recipients saved successfully', 'success');
         // Re-arm a running scheduler so deletions/deactivations take effect
         // immediately — otherwise jobs built from the old list keep firing.
@@ -1139,6 +1263,118 @@ ipcMain.handle('select-file', async (event, title, extensions) => {
         return null;
     }
     return result.filePaths[0];
+});
+
+// --- Local AI (optional; inert unless config.ai.enabled + a model is set) ---
+// status() never throws by contract; the try/catch is belt-and-suspenders so a
+// renderer call can always render a well-formed status.
+ipcMain.handle('ai-status', async () => {
+    try {
+        return await aiService().status();
+    } catch (e: any) {
+        return { enabled: false, runtimeAvailable: false, modelConfigured: false, ready: false, error: e?.message || 'AI status failed' };
+    }
+});
+
+// Load the model now, streaming progress (0..1) over 'ai-load-progress' so the UI
+// can show a load bar after the user picks a model. Gated on enabled ⇒ a disabled
+// install never loads (stays inert). Returns the resulting status snapshot.
+ipcMain.handle('ai-load-model', async (event) => {
+    try {
+        const svc = aiService();
+        if (!svc.isEnabled()) return { ok: false, ...(await svc.status()) };
+        await svc.preload((p) => event.sender.send('ai-load-progress', p));
+        const st = await svc.status();
+        return { ok: st.ready, ...st };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Model load failed' };
+    }
+});
+
+// The single generic entrypoint every future AI feature builds on. Advisory:
+// returns generated text/JSON; never sends mail or mutates app state.
+ipcMain.handle('ai-generate', async (event, req: AiGenerateRequest) => {
+    try {
+        if (!req || typeof req.prompt !== 'string' || !req.prompt.trim()) {
+            return { ok: false, error: 'A prompt is required.' };
+        }
+        const result = await aiService().generate(req, (chunk) => event.sender.send('ai-stream', chunk));
+        return { ok: true, ...result };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Generation failed' };
+    }
+});
+
+// Advisory writing assistant (feature #3): builds a prompt server-side and runs
+// it through the local model. Never mutates the user's editor — returns a
+// suggestion the renderer shows for optional Apply.
+ipcMain.handle('ai-assist', async (event, req: AssistRequest) => {
+    try {
+        if (!req || typeof req.action !== 'string') return { ok: false, error: 'Invalid request.' };
+        if (req.action !== 'write' && !(req.text || '').trim()) return { ok: false, error: 'Write some text first.' };
+        if (req.action === 'write' && !(req.instruction || '').trim()) return { ok: false, error: 'Describe what the email should say.' };
+        const text = await assist(aiService(), req, (chunk) => event.sender.send('ai-stream', chunk));
+        return text ? { ok: true, text } : { ok: false, error: 'The model returned nothing — try again.' };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Assist failed' };
+    }
+});
+
+// Advisory deliverability/spam analysis (feature #4). Read-only — returns a score
+// + issues + suggestions; never blocks a send and never rewrites the email.
+ipcMain.handle('ai-spam-check', async (_event, req: SpamAnalyzeRequest) => {
+    try {
+        if (!req || !`${req.subject || ''}${req.body || ''}`.trim()) return { ok: false, error: 'Nothing to analyze.' };
+        const advice = await analyzeSpam(aiService(), req);
+        return { ok: true, advice };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Analysis failed' };
+    }
+});
+
+// Personalized email generation (feature #5). Advisory: generates a per-prospect
+// draft from that recipient's own fields + a stated goal, conditioned by few-shot
+// examples drawn READ-ONLY from past positive replies (Interested/MeetingBooked).
+// Never sends mail and never mutates a recipient — returns a suggestion the
+// renderer shows for optional Apply. Streams over the shared 'ai-stream' channel.
+ipcMain.handle('ai-personalize', async (event, req: PersonalizeRequest) => {
+    try {
+        if (!req || !req.recipient || typeof req.recipient !== 'object') {
+            return { ok: false, error: 'A recipient is required.' };
+        }
+        if (!(req.instruction || '').trim() && !(req.baseTemplate || '').trim()) {
+            return { ok: false, error: 'Describe what the email should say.' };
+        }
+        // Build few-shot winners read-only from replies × recipients. Best effort:
+        // any failure (missing file, parse error) just yields zero-shot generation.
+        let examples: ReturnType<typeof selectWinningExamples> = [];
+        try {
+            if (!globalConfig) initServices();
+            const jsonPath = globalConfig.paths.recipientsJson;
+            const recipients = fs.existsSync(jsonPath) ? JSON.parse(fs.readFileSync(jsonPath, 'utf8')) : [];
+            const replies = new ReplyStore(getBasePath()).list();
+            examples = selectWinningExamples(replies, Array.isArray(recipients) ? recipients : []);
+        } catch { /* zero-shot fallback */ }
+        const text = await personalize(aiService(), { ...req, examples }, (chunk) => event.sender.send('ai-stream', chunk));
+        return text ? { ok: true, text } : { ok: false, error: 'The model returned nothing — try again.' };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Personalization failed' };
+    }
+});
+
+// Native picker for a local .gguf model; persists the path via the same .env
+// writer as save-config (rebuildProcessors then refreshes the AI service).
+ipcMain.handle('ai-select-model', async () => {
+    if (!win) return { ok: false, error: 'No window.' };
+    const result = await dialog.showOpenDialog(win, {
+        title: 'Select a local GGUF model',
+        properties: ['openFile'],
+        filters: [{ name: 'GGUF model', extensions: ['gguf'] }],
+    });
+    if (result.canceled || result.filePaths.length === 0) return { ok: false, canceled: true };
+    const modelPath = result.filePaths[0];
+    const saved = saveConfigToEnv({ aiModelPath: modelPath });
+    return { ok: saved, path: modelPath };
 });
 
 ipcMain.handle('import-recipients-csv', async () => {
@@ -1193,6 +1429,12 @@ ipcMain.handle('preview-unsaved-email', (event, record) => {
     }
 });
 
+// Transient / resolver-unreachable errors must NOT count as a definitive
+// "record missing" answer. c-ares (dns.resolve*) can fail with these even when
+// the domain is fine (offline, VPN, corporate DNS, refused resolver). Only
+// ENOTFOUND / ENODATA mean the record genuinely isn't there.
+const DNS_TRANSIENT_CODES = ['ECONNREFUSED', 'ETIMEOUT', 'ETIMEDOUT', 'ESERVFAIL', 'EREFUSED', 'ECANCELLED', 'EBADRESP'];
+
 ipcMain.handle('verify-email', async (_event, rawEmail) => {
     const email = String(rawEmail ?? '').trim();
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1201,12 +1443,6 @@ ipcMain.handle('verify-email', async (_event, rawEmail) => {
     }
     const domain = email.split('@')[1];
 
-    // Transient / resolver-unreachable errors must NOT reject a valid address.
-    // c-ares (dns.resolveMx) can fail with these even when the domain is fine
-    // (offline, VPN, corporate DNS, refused resolver). Only a definitive
-    // "no records" answer should count against the address.
-    const TRANSIENT = ['ECONNREFUSED', 'ETIMEOUT', 'ETIMEDOUT', 'ESERVFAIL', 'EREFUSED', 'ECANCELLED', 'EBADRESP'];
-
     try {
         const addresses = await dns.promises.resolveMx(domain);
         if (addresses && addresses.length > 0) {
@@ -1214,7 +1450,7 @@ ipcMain.handle('verify-email', async (_event, rawEmail) => {
         }
         // Empty MX → fall through to A/AAAA fallback below.
     } catch (err: any) {
-        if (TRANSIENT.includes(err?.code)) {
+        if (DNS_TRANSIENT_CODES.includes(err?.code)) {
             // Can't verify right now — don't block. SMTP send will surface a real failure.
             return { valid: true, reason: 'DNS check skipped (resolver unavailable)' };
         }
@@ -1226,11 +1462,73 @@ ipcMain.handle('verify-email', async (_event, rawEmail) => {
         await dns.promises.lookup(domain);
         return { valid: true };
     } catch (err: any) {
-        if (TRANSIENT.includes(err?.code)) {
+        if (DNS_TRANSIENT_CODES.includes(err?.code)) {
             return { valid: true, reason: 'DNS check skipped (resolver unavailable)' };
         }
         return { valid: false, reason: 'Domain does not exist or cannot receive email' };
     }
+});
+
+// SPF / DKIM / DMARC domain-authentication check. Read-only DNS lookups; all
+// pass/fail judgment lives in the pure module src/domainAuth.ts.
+ipcMain.handle('check-domain-auth', async (_event, arg) => {
+    const domain = String(arg?.domain ?? '').trim().toLowerCase();
+    const smtpHost = typeof arg?.smtpHost === 'string' ? arg.smtpHost : undefined;
+    const userEmail = typeof arg?.userEmail === 'string' ? arg.userEmail : undefined;
+    if (!isValidDomain(domain)) return { error: 'Invalid domain' };
+
+    // Consumer mailbox domains: the provider owns the DNS — skip lookups entirely.
+    if (isConsumerDomain(domain)) return buildConsumerDomainReport(domain, smtpHost);
+
+    const resolveTxtJoined = async (name: string): Promise<DnsAnswer> => {
+        try {
+            // resolveTxt returns each TXT record as chunk arrays; joining the
+            // chunks (no separator) reassembles records longer than 255 chars.
+            const records = await dns.promises.resolveTxt(name);
+            return { status: 'ok', records: records.map(chunks => chunks.join('')) };
+        } catch (err: any) {
+            return {
+                status: DNS_TRANSIENT_CODES.includes(err?.code) ? 'transient' : 'notfound',
+                records: [],
+            };
+        }
+    };
+
+    // resolveTxt follows healthy CNAME chains, so a probe only needs the CNAME
+    // fallback when TXT resolution failed — that reveals a dangling delegation
+    // (e.g. Microsoft 365 CNAMEs published before DKIM is enabled).
+    const probeSelector = async (selector: string): Promise<DkimProbeResult> => {
+        const name = `${selector}._domainkey.${domain}`;
+        const answer = await resolveTxtJoined(name);
+        if (answer.status === 'ok') return { selector, txt: answer.records };
+        if (answer.status === 'transient') return { selector, txt: [], transient: true };
+        try {
+            const targets = await dns.promises.resolveCname(name);
+            return { selector, txt: [], cname: targets[0] };
+        } catch {
+            return { selector, txt: [] };
+        }
+    };
+
+    // The parallel probe burst (~14 queries) can trip rate limits on consumer
+    // routers' resolvers. One retry keeps a momentary blip from surfacing as a
+    // "skipped" row. DKIM probes are not retried: a miss is a calm "unknown",
+    // and retrying 12 names would double the burst.
+    const resolveTxtRetrying = async (name: string): Promise<DnsAnswer> => {
+        const first = await resolveTxtJoined(name);
+        if (first.status !== 'transient') return first;
+        await new Promise(r => setTimeout(r, 400));
+        return resolveTxtJoined(name);
+    };
+
+    const provider = inferProvider(smtpHost);
+    const [spf, dmarc, dkim] = await Promise.all([
+        resolveTxtRetrying(domain),
+        resolveTxtRetrying(`_dmarc.${domain}`),
+        Promise.all(dkimSelectorsFor(provider).map(probeSelector)),
+    ]);
+
+    return buildDomainAuthReport({ domain, smtpHost, userEmail, spf, dmarc, dkim });
 });
 
 

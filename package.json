@@ -17,6 +17,10 @@
   "build": {
     "appId": "com.mailauto.app",
     "productName": "Email Pilots",
+    "asarUnpack": [
+      "node_modules/node-llama-cpp/**",
+      "node_modules/@node-llama-cpp/**"
+    ],
     "directories": {
       "output": "release/"
     },
@@ -29,14 +33,18 @@
     }
   },
   "dependencies": {
+    "@azure/msal-node": "^5.3.0",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.3.1",
     "imapflow": "^1.4.1",
+    "mailparser": "^3.9.14",
     "mustache": "^4.2.0",
     "node-cron": "^4.2.1",
+    "node-llama-cpp": "^3.19.0",
     "nodemailer": "^8.0.2"
   },
   "devDependencies": {
+    "@types/mailparser": "^3.4.6",
     "@types/mustache": "^4.2.6",
     "@types/node": "^25.4.0",
     "@types/node-cron": "^3.0.11",

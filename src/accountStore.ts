@@ -30,7 +30,7 @@ export function accountsFilePath(basePath: string): string {
 
 function normalize(a: any): Account | null {
   if (!a || !a.id || !a.user) return null;
-  return {
+  const acc: Account = {
     id: String(a.id),
     label: a.label ? String(a.label) : undefined,
     host: a.host || 'smtp.office365.com',
@@ -39,6 +39,16 @@ function normalize(a: any): Account | null {
     pass: a.pass || '',
     enabled: a.enabled !== false,
   };
+  // Carry optional fields through only when present, so a classic SMTP account
+  // stays free of transport/imap keys (and `transport` stays undefined ⇒ smtp).
+  if (a.imapHost) acc.imapHost = String(a.imapHost);
+  if (a.imapPort) acc.imapPort = parseInt(a.imapPort, 10) || 993;
+  if (a.transport === 'oauth-smtp' || a.transport === 'browser') acc.transport = a.transport;
+  if (a.oauthProvider) acc.oauthProvider = a.oauthProvider;
+  if (a.oauthToken) acc.oauthToken = String(a.oauthToken);
+  if (a.browserProvider) acc.browserProvider = a.browserProvider;
+  if (a.browserPartition) acc.browserPartition = String(a.browserPartition);
+  return acc;
 }
 
 /** Read the extra accounts. Returns [] when the file is absent or malformed —
