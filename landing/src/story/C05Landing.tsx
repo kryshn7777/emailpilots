@@ -3,8 +3,8 @@ import { Annotation } from '../components/ui/Annotation'
 
 const STAGES = [
   { tag: 'Inbound', title: 'Your message lands.', body: 'Sent at a natural pace from your own address — it arrives like a note from a person, not a broadcast.' },
-  { tag: 'Reply', title: 'They write back.', body: 'A read-only inbox check notices the reply. No tracking pixels, no rewriting your links.' },
-  { tag: 'Read', title: 'The intent is clear.', body: 'Optional on-device AI reads whether it’s a real yes, a not-now, or an opt-out — and routes it accordingly. It runs on your computer; the reply never leaves your machine.' },
+  { tag: 'Reply', title: 'They write back.', body: 'It quietly notices the reply — only ever reading your inbox, never changing it. No sneaky tracking, no rewriting your links.' },
+  { tag: 'Read', title: 'The AI reads the intent.', body: 'The built-in AI reads whether it’s a real yes, a not-now, or an opt-out — and routes it instantly. It runs on your computer; the reply never leaves your machine.' },
   { tag: 'Cleared', title: 'Follow-ups stop — automatically.', body: 'The moment someone replies, the sequence halts. You step in only for the conversations that matter.' },
 ]
 
@@ -17,7 +17,7 @@ export function C05Landing() {
     <section id="landing" className="night-panel relative overflow-hidden px-5 py-32 text-white">
       <div className="mx-auto max-w-4xl">
         <Reveal>
-          <Annotation code="04.0" label="Final approach" className="text-white/45" />
+          <Annotation code="03.0" label="Final approach" className="text-white/45" />
           <h2 className="mt-4 max-w-2xl font-display text-4xl font-extrabold tracking-tight sm:text-5xl">
             The last mile is the whole point.
           </h2>

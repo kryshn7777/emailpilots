@@ -12,16 +12,15 @@ export const PRICE = { amount: '$2.9', period: 'week', trialDays: 7 }
 export const NAV = [
   { label: 'How it works', href: '#how' },
   { label: 'Features', href: '#features' },
-  { label: 'AI', href: '#ai' },
-  { label: 'Deliverability', href: '#deliverability' },
+  { label: 'Why us', href: '#why' },
   { label: 'Pricing', href: '#pricing' },
 ]
 
 export const HERO = {
-  kicker: '✈ Personal outreach, automated',
-  title: ['Personal outreach,', 'on autopilot.'],
-  sub: 'Send personalized emails and follow-ups from your own mailbox — scheduled, naturally paced, and reply-aware. An optional AI copilot helps you write and triage, running entirely on your own machine. Private by default: your contacts and credentials never leave your computer.',
-  trust: 'Sensible sending limits keep your mailbox healthy and your messages welcome.',
+  kicker: '✈ AI-powered · runs on your machine',
+  title: ['Personal outreach,', 'supercharged by AI.'],
+  sub: 'A built-in AI copilot writes every email in your voice, personalizes it to each person, follows up on schedule, and reads every reply so it knows exactly when to step aside — all running on your own computer. Your contacts and credentials never leave your machine.',
+  trust: 'Smart enough to sound human. Private enough to trust — the AI runs on your device, never the cloud.',
 }
 
 export const STATS = [
@@ -36,24 +35,24 @@ export const HOW = [
   {
     step: '01',
     title: 'Connect your mailbox',
-    body: 'Sign in with your own Gmail, Outlook, or custom SMTP. Your password is encrypted on your device — it never touches a server.',
+    body: 'Sign in with your own Gmail, Outlook, or your own custom email address. Your password is kept in your computer’s built-in vault — it never touches a server.',
   },
   {
     step: '02',
-    title: 'Add contacts & write once',
-    body: 'Import a CSV or add people by hand, personalize with merge fields, and set when each message should go out. Run the pre-flight check to confirm you’re ready.',
+    title: 'Add contacts, let AI write',
+    body: 'Import a CSV or add people by hand — then let the built-in AI draft a tailored message for every single one. Tweak with a click, run the pre-flight check, and you’re ready. No blank page, no copy-paste.',
   },
   {
     step: '03',
-    title: 'Let the copilot follow up',
-    body: 'It sends on schedule at a natural pace, follows up automatically, and stops the instant someone replies — so you only step in for real conversations.',
+    title: 'AI flies the follow-ups',
+    body: 'It sends on schedule at a natural pace, follows up automatically, and reads every reply to judge intent — stopping the instant someone’s interested. You only step in for the conversations that matter.',
   },
 ]
 
 // Reframed from "anti-ban" to responsible-sending / deliverability hygiene.
 export const SAFEGUARDS = [
   { concern: 'Sending too much, too fast', guard: 'Daily and hourly sending limits you control, enforced precisely' },
-  { concern: 'New mailboxes straining', guard: 'Gradual ramp-up so a fresh account eases into volume' },
+  { concern: 'New mailboxes straining', guard: 'Eases a brand-new account into volume, slowly' },
   { concern: 'Emailing people who opted out', guard: 'Automatic do-not-contact list for opt-outs and bounces' },
   { concern: 'Unnatural sending bursts', guard: 'Natural spacing and timing between every send' },
   { concern: 'Pestering someone who replied', guard: 'Follow-ups stop automatically the moment they respond' },
@@ -68,169 +67,88 @@ export const DELIVERABILITY = {
     { title: 'Reads like a real person', body: 'Defaults to a personal 1:1 style — plain, personalized messages from your own name and address, not a templated blast.' },
     { title: 'Respects sensible limits', body: 'Stays within healthy daily volumes and paces sends naturally, the way a careful human would.' },
     { title: 'Honors every opt-out', body: 'One-click unsubscribe support and a permanent do-not-contact list keep you respectful and compliant.' },
-    { title: 'A pre-flight check before you send', body: 'A built-in review — with an optional on-device AI second opinion — flags anything that could hurt deliverability before a single message leaves.' },
+    { title: 'AI guards every send', body: 'The built-in AI reviews each draft for spam-filter triggers and rewrites the risky parts before a single message leaves — so you land in the inbox, not the promotions tab.' },
   ],
 }
 
-// On-device AI (Feature #5) — optional, private, runs a local model. Framed
-// honestly: off by default, no cloud/API keys. Reinforces the privacy positioning.
+// Plain-language trust proofs, folded into the "Why fly with us" chapter.
+export const TRUST = [
+  { title: 'Sends like a careful person', body: 'It paces your emails at natural, human times and eases a brand-new mailbox in slowly — never a robotic burst, always within the limits you set.' },
+  { title: 'Respects every unsubscribe', body: 'One click opts anyone out for good. Opted-out and dead addresses are set aside automatically, shared across every account.' },
+  { title: 'Checks each message before it flies', body: 'The built-in AI reviews every draft for anything that trips spam filters and fixes it — and all of it happens right on your own machine.' },
+]
+
+// On-device AI (Feature #5) — private, runs a local model on the user's own
+// machine. Marketed as a built-in, core capability. Reinforces the privacy positioning.
 export const AI = {
   title: 'A copilot that never leaves the cockpit.',
-  sub: 'Optional on-device AI helps you write, personalize, and triage replies — running a model right on your own computer. No API keys, no account, nothing sent to any cloud. Off by default; yours to switch on.',
-  points: [
-    { title: 'Writes in your voice', body: 'Draft, rewrite, shorten, or fix the tone of any message — a first draft in seconds that still sounds like you.' },
-    { title: 'Personalizes per person', body: 'Turns each contact’s details into a genuinely tailored email, not a template with a {{name}} swapped in.' },
-    { title: 'Reads the room on replies', body: 'Sorts responses by intent — interested, not now, out-of-office, unsubscribe — and can file opt-outs and pause follow-ups while someone’s away.' },
-    { title: 'Checks deliverability', body: 'Reviews a draft for spam-filter triggers and suggests fixes before you hit send.' },
-    { title: '100% on your machine', body: 'The model runs locally. Your drafts, contacts, and replies never touch OpenAI, our servers, or anyone else’s.' },
-  ],
+  sub: 'Your copilot writes every email in your voice, personalizes it to each person, reads every reply to know exactly what they mean, and double-checks it will land — all running on your own computer. No accounts, no cloud: the smarts of a big AI, with none of the exposure.',
 }
 
 export type FeatureGroup = { title: string; blurb: string; items: string[] }
 
 export const FEATURE_GROUPS: FeatureGroup[] = [
   {
-    title: 'Sending',
-    blurb: 'Personal email straight from your own mailbox.',
+    title: 'Writes every email for you',
+    blurb: 'Your on-device copilot drafts, personalizes, and perfects every message.',
     items: [
-      'Send via Gmail, Outlook, or any custom SMTP',
-      'Rich HTML with an automatic plain-text version',
-      'Your real name and address on every message',
-      'Merge fields ({{name}}) for genuine personalization',
-      'Per-recipient attachments with custom names',
-      'Practice mode — send a copy to yourself first',
+      'A tailored first draft for every single contact',
+      'Rewrites, shortens, or fixes the tone in one click',
+      'Drops each person’s name and details in naturally',
     ],
   },
   {
-    title: 'On-device AI (optional)',
-    blurb: 'A private copilot that runs on your computer, never the cloud.',
+    title: 'Reads every reply, knows what to do',
+    blurb: 'It watches for answers and handles them the way you would.',
     items: [
-      'Drafts and personalizes emails to the person, not a template',
-      'Rewrite, shorten, or fix the tone in one click',
-      'Sorts replies by intent — interested, not now, unsubscribe',
-      'Auto-handles opt-outs and pauses follow-ups for out-of-office',
-      'Reviews drafts for deliverability risks before you send',
-      'Runs a local model — no API keys, nothing leaves your machine',
+      'Quietly checks for replies — only reads your mailbox, never changes it',
+      'Tells interested from not-now from out-of-office',
+      'Files opt-outs and pauses follow-ups automatically',
     ],
   },
   {
-    title: 'Responsible sending',
-    blurb: 'Sensible limits and pacing that protect your sender reputation.',
+    title: 'Follows up until they answer',
+    blurb: 'Polite, on-schedule follow-ups that stop the moment someone replies.',
     items: [
-      'Daily, hourly, and per-recipient sending limits',
-      'Gradual ramp-up for newer mailboxes',
-      'Natural spacing and timing between sends',
-      'Stops cleanly when you reach your own limits',
-      'Per-recipient daily cap',
-      'Attachment-size guardrails',
+      'Multi-step sequences with a natural wait between each',
+      'Sends at natural, human-looking times',
+      'Stops the instant they write back',
     ],
   },
   {
-    title: 'Multiple mailboxes',
-    blurb: 'Keep several accounts organized in one place.',
+    title: 'Lands in the inbox, not spam',
+    blurb: 'The copilot checks every message before it flies and tells you — in plain words — anything to fix.',
     items: [
-      'Your main mailbox plus up to 5 more',
-      'Each account kept separate and tidy',
-      'Independent limits per account',
-      'Choose which account a contact is emailed from',
+      'Flags spam-filter triggers before you send',
+      'Adds a one-click unsubscribe automatically',
+      'Shows you exactly what to fix to reach inboxes',
     ],
   },
   {
-    title: 'Scheduling',
-    blurb: 'Per-contact send times, not one big blast.',
+    title: 'Runs on your machine — nothing leaves',
+    blurb: 'The AI and all your data live on your own computer.',
     items: [
-      'Pick the days and times for each contact',
-      'Natural timing jitter so nothing looks robotic',
-      'Today’s schedule on the dashboard',
+      'The AI runs locally — no accounts, no cloud',
+      'Contacts and passwords never leave your device',
+      'Passwords kept in your computer’s built-in vault',
     ],
   },
   {
-    title: 'Follow-up sequences',
-    blurb: 'Polite, reply-aware follow-ups that know when to stop.',
+    title: 'All your mailboxes in one place',
+    blurb: 'Bring your accounts and contacts together, tidily.',
     items: [
-      'Multi-step sequences with a wait between steps',
-      'Stops automatically the moment they reply',
-      'Per-step subject and message',
-      'Retries a step later if you were at your limit',
-    ],
-  },
-  {
-    title: 'Reply tracking',
-    blurb: 'Knows who answered so follow-ups behave.',
-    items: [
-      'Read-only inbox checks for replies',
-      'Lightweight — never re-scans old mail',
-      'Reply-rate insights per account',
-      'Powers the “stop on reply” behavior',
-      'Optional AI sorts replies by intent (interested / not now / unsubscribe)',
-    ],
-  },
-  {
-    title: 'Lists & campaigns',
-    blurb: 'Group contacts and give each group its own voice.',
-    items: [
-      'Organize contacts into named campaigns',
-      'Per-campaign default subject and template',
-      'Sensible precedence: contact > campaign > global',
-    ],
-  },
-  {
-    title: 'Contacts & CSV',
-    blurb: 'Bring your own list without the spreadsheet pain.',
-    items: [
-      'CSV import with automatic column mapping',
-      'Duplicate and invalid-address skipping',
-      'Keeps every column as a merge variable',
-      'Address validation (format + domain check)',
-    ],
-  },
-  {
-    title: 'Opt-out handling',
-    blurb: 'Stay respectful, automatically.',
-    items: [
-      'Permanent do-not-contact list',
-      'Auto-adds opt-outs and hard bounces',
-      'Clear reason recorded for each entry',
-      'Shared across every account',
-    ],
-  },
-  {
-    title: 'Deliverability & compliance',
-    blurb: 'Land where you’re meant to, on the right side of the rules.',
-    items: [
-      'A pre-flight content review before you send',
-      'SPF, DKIM & DMARC check — with the exact records to paste',
-      'Unsubscribe footer + one-click List-Unsubscribe',
-      'Personal 1:1 style by default',
-    ],
-  },
-  {
-    title: 'Privacy & security',
-    blurb: 'Your contacts and credentials never leave your laptop.',
-    items: [
-      '100% local desktop app — no cloud, no servers',
-      'Credentials encrypted with your OS keychain',
-      'Passwords never shown back in the app',
-      'Sign-out wipes every stored secret',
-    ],
-  },
-  {
-    title: 'Dashboard',
-    blurb: 'A cockpit that tells you you’re ready to go.',
-    items: [
-      'Pre-flight readiness check before any send',
-      'Live usage against your own limits',
-      'Sent and reply counts, per account',
-      'Today’s schedule at a glance',
+      'Your main mailbox plus up to 5 more, each kept separate',
+      'Import a CSV — duplicates and bad addresses skipped',
+      'Group contacts into lists with their own message',
     ],
   },
 ]
 
 // Who it's for — legitimate, permission-based personas.
 export const WHO_FOR = [
-  { who: 'Founders', body: 'Reach the partners, investors, and early customers you already have a reason to email — and actually follow up.' },
+  { who: 'Founders', body: 'Reach the partners, investors, and early customers you already have a reason to email — let AI draft each one and never drop a follow-up.' },
   { who: 'Recruiters', body: 'Stay in touch with candidates personally, on a schedule, without a candidate ever slipping through the cracks.' },
-  { who: 'Job-seekers', body: 'Send thoughtful, personalized applications and polite follow-ups from your own inbox.' },
+  { who: 'Job-seekers', body: 'Let AI craft a thoughtful, tailored application for every role — plus the polite follow-ups — all from your own inbox.' },
   { who: 'Freelancers & agencies', body: 'Nurture warm leads and past clients with personal check-ins that don’t feel automated.' },
 ]
 
@@ -242,36 +160,40 @@ export const COMPARISON = [
   },
   {
     them: 'vs cloud outreach apps',
-    point: 'They keep your contacts on their servers and bill per contact. Here your list and credentials stay on your machine — one simple price.',
+    point: 'They keep your contacts on their servers, bill per contact, and pipe your emails through someone else’s AI. Here your list, your credentials, and the AI itself all stay on your machine — one simple price.',
+  },
+  {
+    them: 'vs bolt-on AI writers',
+    point: 'Generic AI tools paste in a draft and forget the context. Email Pilots’ copilot knows each contact, learns from your past replies, respects your sending limits — and never sends a word to the cloud.',
   },
   {
     them: 'vs doing it by hand',
-    point: 'Schedule, personalize, follow up, and track replies automatically — without living inside your inbox all day.',
+    point: 'Let AI write, schedule, personalize, follow up, and read every reply — without living inside your inbox all day.',
   },
 ]
 
 export const PRICING_INCLUDES = [
   'Sensible daily limits to protect your mailbox',
   'Up to 5 accounts (Gmail / Outlook / custom)',
-  'Scheduling, personalization & merge fields',
+  'Scheduling & per-person personalization',
   'Reply-aware follow-up sequences',
-  'Optional on-device AI — drafting, reply triage & deliverability checks',
+  'Built-in AI — writes, personalizes & triages every email, on your machine',
   'CSV import, lists & opt-out handling',
   '100% local — your data never leaves your machine',
 ]
 
 export const FAQ = [
   { q: 'Is this a bulk or spam tool?', a: 'No. Email Pilots is for personal, permission-based email you have a genuine reason to send — to your own contacts, from your own mailbox. It defaults to a personal 1:1 style, supports one-click unsubscribe, and keeps a do-not-contact list. It is not built for buying lists or blasting strangers.' },
-  { q: 'Will it keep my mailbox in good standing?', a: 'That’s the whole point of the sending limits, gradual ramp-up, and natural pacing: to send the way a careful person would, stay within healthy volumes, and keep your messages welcome.' },
-  { q: 'Where does my data live?', a: 'Entirely on your computer. There is no cloud backend — your contact list and credentials never leave your machine, and passwords are encrypted with your operating system’s keychain.' },
-  { q: 'Does the AI send my emails to the cloud?', a: 'No. The optional AI runs a model directly on your own computer — there are no API keys, and nothing (your drafts, contacts, or replies) is ever sent to OpenAI, to us, or to any server. Prefer not to use it? Leave it off and everything else works exactly the same.' },
-  { q: 'Which email providers work?', a: 'Anything that uses standard email protocols — Gmail, Outlook / Microsoft 365, and custom domains. Reply tracking uses a standard read-only inbox check.' },
+  { q: 'Will it keep my mailbox in good standing?', a: 'That’s the whole point of the sending limits, easing new mailboxes in slowly, and natural pacing: to send the way a careful person would, stay within healthy volumes, and keep your messages welcome.' },
+  { q: 'Where does my data live?', a: 'Entirely on your computer. There is no cloud backend — your contact list and passwords never leave your machine, and passwords are kept safe in your computer’s built-in vault.' },
+  { q: 'Does the AI send my emails to the cloud?', a: 'Never. The AI is built in and runs directly on your own computer. There are no accounts to set up, and nothing — not a draft, a contact, or a reply — is ever sent to OpenAI, to us, or to any server. You get the intelligence of a cloud AI with none of the exposure.' },
+  { q: 'Which email providers work?', a: 'Gmail, Outlook / Microsoft 365, and your own custom email address all work. To spot replies, it quietly checks your inbox — only ever reading it, never changing anything.' },
   { q: 'How does billing work?', a: `${PRICE.amount}/week, everything included, cancel anytime. It starts with a ${PRICE.trialDays}-day trial.` },
 ]
 
 export const FINAL = {
   title: 'Cleared for takeoff.',
-  sub: 'Set up your outreach once, schedule it, and let the copilot handle the follow-ups — while you focus on the replies that matter.',
+  sub: 'Set up your outreach once and let your AI copilot write it, schedule it, and handle every follow-up — while you focus on the replies that matter.',
 }
 
 // Real app screenshots (captured into /public/shots by scripts/capture-shots.mjs).
@@ -301,14 +223,10 @@ export const PLAN = {
 export const CHAPTERS = [
   { id: 'top', code: '00', name: 'Preflight' },
   { id: 'how', code: '01', name: 'Flight plan' },
-  { id: 'deliverability', code: '02', name: 'Takeoff' },
-  { id: 'features', code: '03', name: 'The cockpit' },
-  { id: 'ai', code: '03.5', name: 'The copilot' },
-  { id: 'landing', code: '04', name: 'Landing & reply' },
-  { id: 'why', code: '05', name: 'Why fly with us' },
-  { id: 'business', code: '06', name: 'Next frontier' },
-  { id: 'pricing', code: '07', name: 'Boarding pass' },
-  { id: 'faq', code: '08', name: 'Final approach' },
+  { id: 'features', code: '02', name: 'The cockpit' },
+  { id: 'landing', code: '03', name: 'Landing & reply' },
+  { id: 'why', code: '04', name: 'Why fly with us' },
+  { id: 'pricing', code: '05', name: 'Final approach' },
 ] as const
 
 // --- Coming soon: Business & Teams (NOT yet available) -----------------------
@@ -317,13 +235,7 @@ export const COMING_SOON = {
   eyebrow: 'On the horizon',
   title: 'Built for Business & Teams.',
   sub: 'A longer-haul tier we’re charting now. Planned, not yet available — and we don’t promise dates. Leave your address and we’ll tell you when it boards.',
+  summary: 'A shared team workspace, one-click sign-in, and simple analytics — planned, not yet available.',
   waitlistHref: 'mailto:hello@emailpilots.app?subject=Business%20%26%20Teams%20waitlist',
   waitlistLabel: 'Get notified when Business & Teams launches',
-  items: [
-    { title: 'SSO sign-in', body: 'One-click Google & Microsoft sign-in (OAuth2) — no app passwords to generate.' },
-    { title: 'One-click domain setup', body: 'Today Email Pilots shows you the exact SPF, DKIM and DMARC records to paste; soon it can apply them for you automatically.' },
-    { title: 'Open & click analytics', body: 'See opens and click-throughs per message, with privacy-respecting measurement.' },
-    { title: 'Team workspace + secure sync', body: 'Share campaigns and contacts across a team, synced securely across devices.' },
-    { title: 'Visual email builder', body: 'Design emails with drag-and-drop blocks — no HTML required.' },
-  ],
 }

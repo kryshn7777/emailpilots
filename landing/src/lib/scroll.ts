@@ -11,9 +11,9 @@ export const isSmall =
 export const prefersReducedMotion =
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export const CHAPTERS_TOTAL = 10
+export const CHAPTERS_TOTAL = 6
 
-// Map 0..1 scroll progress to a chapter index 0..8 (equal-height approximation).
+// Map 0..1 scroll progress to a chapter index 0..5 (equal-height approximation).
 export function chapterIndex(progress: number): number {
   const i = Math.floor(progress * CHAPTERS_TOTAL)
   return i < 0 ? 0 : i >= CHAPTERS_TOTAL ? CHAPTERS_TOTAL - 1 : i

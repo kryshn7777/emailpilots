@@ -1,6 +1,6 @@
 import { Reveal } from '../components/ui/Reveal'
 import { Annotation } from '../components/ui/Annotation'
-import { COMPARISON, WHO_FOR } from '../config'
+import { COMPARISON, TRUST, WHO_FOR } from '../config'
 
 /** Chapter 06 — Why fly with us (blueprint world): comparison + personas. */
 export function C06WhyFly() {
@@ -8,7 +8,7 @@ export function C06WhyFly() {
     <section id="why" className="relative px-5 py-28">
       <div className="mx-auto max-w-6xl">
         <Reveal>
-          <Annotation code="05.0" label="Why fly with us" />
+          <Annotation code="04.0" label="Why fly with us" />
           <h2 className="mt-4 max-w-2xl font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
             A different kind of aircraft.
           </h2>
@@ -34,6 +34,20 @@ export function C06WhyFly() {
               <div className="rounded-2xl border border-paper-line bg-white/60 p-6">
                 <div className="font-display text-lg font-bold text-ink">{w.who}</div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-ink">{w.body}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        <Reveal>
+          <h3 className="mt-20 font-display text-2xl font-bold text-ink">You’re in good hands</h3>
+        </Reveal>
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
+          {TRUST.map((t, i) => (
+            <Reveal key={t.title} delay={(i % 3) * 0.06}>
+              <div className="blueprint-panel h-full rounded-2xl p-6">
+                <h4 className="font-display text-lg font-bold text-ink">{t.title}</h4>
+                <p className="mt-2 text-[15px] leading-relaxed text-slate-ink">{t.body}</p>
               </div>
             </Reveal>
           ))}
