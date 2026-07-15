@@ -612,6 +612,9 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
   border-radius: var(--radius-lg);
   width: 90%; max-width: 750px; padding: 28px; position: relative;
   box-shadow: var(--shadow-dialog);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .modal-content h2 { font-size: var(--text-lg); font-weight: var(--weight-semibold); color: var(--brand-ink); margin-bottom: 16px; }
 .close-modal {
