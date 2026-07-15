@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <script type="module" crossorigin src="./assets/index-BleBTpI1.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BqEnYF6T.css">
+    <script type="module" crossorigin src="./assets/main-DnWzT34m.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/main-EiznBXJI.css">
   </head>
   <body>
     <div class="noise-overlay"></div>
@@ -28,25 +28,34 @@
             <span class="material-symbols-outlined" aria-hidden="true">group</span>
             Recipients
           </li>
-          <li data-view="campaigns">
-            <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
-            Campaigns
-          </li>
-          <li data-view="sequences">
-            <span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>
-            Sequences
-          </li>
-          <li data-view="accounts">
-            <span class="material-symbols-outlined" aria-hidden="true">alternate_email</span>
-            Accounts
-          </li>
           <li data-view="settings">
             <span class="material-symbols-outlined" aria-hidden="true">settings</span>
             Settings
           </li>
+          <li class="nav-section" role="presentation">Advanced · optional</li>
+          <li data-view="campaigns" title="Separate outreach efforts that each get their own subject line and template.">
+            <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
+            Campaigns
+          </li>
+          <li data-view="sequences" title="Automatic timed follow-ups that stop once someone replies.">
+            <span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>
+            Sequences
+          </li>
+          <li data-view="accounts" title="Extra sending inboxes for higher daily limits — most people only need the primary.">
+            <span class="material-symbols-outlined" aria-hidden="true">alternate_email</span>
+            Accounts
+          </li>
           <li data-view="logs">
             <span class="material-symbols-outlined" aria-hidden="true">list_alt</span>
             System Logs
+          </li>
+          <li data-view="ai" title="Optional on-device AI. Runs a local model — your emails never leave your computer.">
+            <span class="material-symbols-outlined" aria-hidden="true">smart_toy</span>
+            Local AI
+          </li>
+          <li data-view="deliverability" title="Check an email's spam risk before sending — advisory only.">
+            <span class="material-symbols-outlined" aria-hidden="true">mark_email_read</span>
+            Deliverability
           </li>
         </ul>
       </nav>
@@ -106,8 +115,8 @@
             </div>
           </div>
           
-          <div id="setup-banner" style="display: none; align-items: center; gap: 12px; margin-bottom: 24px; padding: 14px 18px; border-radius: var(--radius); background: rgba(245,158,11,0.1); border: 1px solid #f59e0b;">
-            <span class="material-symbols-outlined" style="color: #f59e0b;">warning</span>
+          <div id="setup-banner" style="display: none; align-items: center; gap: 12px; margin-bottom: 24px; padding: 14px 18px; border-radius: var(--radius); background: var(--warning-subtle); border: 1px solid var(--warning);">
+            <span class="material-symbols-outlined" style="color: var(--warning);">warning</span>
             <div style="flex: 1;">
               <strong>Almost there — add your email login.</strong>
               <div style="font-size: 0.85em; color: var(--muted-foreground);">No emails can be sent until you enter your SMTP credentials.</div>
@@ -115,9 +124,80 @@
             <button type="button" id="setup-banner-btn" class="btn primary">Open Settings</button>
           </div>
 
-          <div class="cards-grid" style="display: none;">
-            <div class="card quick-actions" style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; padding: 32px;">
-              <button id="test-run-btn" class="btn primary btn-lg" style="width: 100%; max-width: 400px; padding: 16px; font-size: 1.1rem; height: auto; margin-bottom: 12px;">
+          <div class="card getting-started" id="getting-started-card" style="display: none; margin-bottom: 24px;">
+            <div class="gs-head">
+              <h3 style="margin: 0;"><span class="material-symbols-outlined" aria-hidden="true">rocket_launch</span> Get your first emails flying</h3>
+              <button type="button" id="gs-dismiss" class="gs-dismiss">Dismiss</button>
+            </div>
+            <p class="gs-sub">Three quick steps from a connected inbox to your first scheduled send.</p>
+            <ol class="gs-steps" id="gs-steps">
+              <li class="gs-step" data-step="connect">
+                <span class="gs-check material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span>
+                <div class="gs-step-body">
+                  <span class="gs-step-title">Connect your inbox</span>
+                </div>
+              </li>
+              <li class="gs-step" data-step="recipient">
+                <span class="gs-check material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span>
+                <div class="gs-step-body">
+                  <span class="gs-step-title">Add your first recipient</span>
+                  <span class="gs-step-desc">Name, message, and a send time — all in one quick form.</span>
+                </div>
+                <button type="button" class="btn primary gs-cta" data-action="add-recipient">Add recipient</button>
+              </li>
+              <li class="gs-step" data-step="start">
+                <span class="gs-check material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span>
+                <div class="gs-step-body">
+                  <span class="gs-step-title">Start sending</span>
+                  <span class="gs-step-desc">Flip the schedule on — Email Pilots delivers at the right times.</span>
+                </div>
+                <button type="button" class="btn primary gs-cta" data-action="start-sending">Start sending</button>
+              </li>
+            </ol>
+            <p class="gs-foot help-text">Campaigns &amp; Sequences are optional — add them later for advanced follow-ups.</p>
+          </div>
+
+          <div class="card" id="how-it-works-card" style="display: none; margin-bottom: 24px;">
+            <h3 style="margin-top: 0;">How Email Pilots works</h3>
+            <figure class="concept-diagram" style="margin: 4px 0 0;">
+              <svg class="cd" viewBox="0 0 540 190" role="img" aria-labelledby="cd-loop-t">
+                <title id="cd-loop-t">The core loop: add recipients, set a schedule, Email Pilots auto-sends, and if there's no reply it follows up after a few days. As soon as someone replies, follow-ups stop.</title>
+                <g class="cd-line s-muted"><line x1="86" y1="55" x2="166" y2="55"/><line x1="226" y1="55" x2="306" y2="55"/><line x1="366" y1="55" x2="444" y2="55"/></g>
+                <g class="cd-muted"><path d="M166 55l-8-4v8z"/><path d="M306 55l-8-4v8z"/><path d="M444 55l-8-4v8z"/></g>
+                <circle cx="58" cy="55" r="24" class="cd-subtle s-primary" stroke-width="1.5"/>
+                <circle cx="58" cy="49" r="6" class="cd-primary"/>
+                <path d="M46 70c0-8 5-12 12-12s12 4 12 12" class="cd-line s-primary"/>
+                <text x="58" y="98" text-anchor="middle" font-size="11" font-weight="600">Recipients</text>
+                <text x="58" y="110" text-anchor="middle" font-size="9" class="cd-muted">who you email</text>
+                <circle cx="198" cy="55" r="24" class="cd-subtle s-primary" stroke-width="1.5"/>
+                <circle cx="198" cy="55" r="12" fill="none" class="s-primary" stroke-width="1.5"/>
+                <path d="M198 55v-7M198 55l6 4" class="cd-line s-primary"/>
+                <text x="198" y="98" text-anchor="middle" font-size="11" font-weight="600">Schedule</text>
+                <text x="198" y="110" text-anchor="middle" font-size="9" class="cd-muted">days &amp; times</text>
+                <circle cx="338" cy="55" r="24" class="cd-subtle s-primary" stroke-width="1.5"/>
+                <path d="M326 55l25-9-9 25-4-9z" class="cd-primary"/>
+                <text x="338" y="98" text-anchor="middle" font-size="11" font-weight="600">Auto-send</text>
+                <text x="338" y="110" text-anchor="middle" font-size="9" class="cd-muted">at the right time</text>
+                <rect x="452" y="37" width="36" height="36" rx="5" transform="rotate(45 470 55)" class="cd-paper s-muted" stroke-width="1.5"/>
+                <text x="470" y="60" text-anchor="middle" font-size="15" font-weight="700" class="cd-muted">?</text>
+                <text x="470" y="98" text-anchor="middle" font-size="11" font-weight="600">Reply?</text>
+                <line x1="470" y1="79" x2="470" y2="98" class="cd-line s-success"/>
+                <path d="M470 98l-4-7h8z" class="cd-success"/>
+                <circle cx="470" cy="128" r="13" class="cd-success" opacity="0.13"/>
+                <path d="M464 128l4 4 8-9" class="cd-line s-success" stroke-width="2"/>
+                <text x="470" y="160" text-anchor="middle" font-size="9" font-weight="600" class="cd-success">Replied → stop</text>
+                <path d="M453 66C404 100 398 150 338 150 300 150 304 100 330 82" class="cd-line s-primary" stroke-dasharray="5 3"/>
+                <path d="M330 82l9-2-3 8z" class="cd-primary"/>
+                <text x="372" y="174" text-anchor="middle" font-size="9" class="cd-muted">No reply → follow up in a few days</text>
+              </svg>
+              <figcaption class="cd-caption">Add the people you want to reach, choose when to send, and Email Pilots delivers automatically. No reply? It follows up a few days later — and stops the moment someone answers.</figcaption>
+            </figure>
+          </div>
+
+          <div class="cards-grid">
+            <div class="card quick-actions" style="grid-column: 1 / -1; padding: 24px;">
+              <h3 style="margin-top: 0; margin-bottom: 16px;">Quick Actions</h3>
+              <button id="test-run-btn" class="btn primary btn-lg" style="display: none; width: 100%; max-width: 400px; padding: 16px; font-size: 1.1rem; height: auto; margin-bottom: 12px;">
                 <span class="material-symbols-outlined" style="font-size: 24px;">play_arrow</span>
                 Send to All Now
               </button>
@@ -125,12 +205,12 @@
                 <input type="checkbox" id="test-mode-checkbox" style="width: auto; height: auto;">
                 Practice mode — send every email to my own inbox instead
               </label>
-              <div class="action-buttons" style="display: flex; gap: 16px; width: 100%; max-width: 400px;">
-                <button id="toggle-scheduler-btn" class="btn ghost full-width" style="color: var(--text-muted); border: 1px dashed rgba(0,0,0,0.2); background: transparent; box-shadow: none;">
+              <div class="action-buttons" style="display: flex; gap: 16px; flex-wrap: wrap;">
+                <button id="toggle-scheduler-btn" class="btn outline full-width">
                   <span class="material-symbols-outlined">pause</span>
                   Pause Schedule
                 </button>
-                <button id="open-json-btn" class="btn ghost full-width" style="color: var(--text-muted); border: 1px dashed rgba(0,0,0,0.2); background: transparent; box-shadow: none;">
+                <button id="open-json-btn" class="btn outline full-width">
                   <span class="material-symbols-outlined">data_object</span>
                   Recipients File
                 </button>
@@ -148,23 +228,23 @@
                 <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 6px;">
                   <span>Emails sent</span><span id="usage-emails">0 / 50</span>
                 </div>
-                <div style="height: 8px; background: #e5e5e5; border-radius: 4px; overflow: hidden;">
+                <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
                   <div id="usage-emails-bar" style="height: 100%; width: 0%; background: var(--primary); transition: width .3s, background .3s;"></div>
                 </div>
               </div>
               <div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 6px;">
-                  <span title="A batch is a burst of up to 10 emails; a few batches are spread across the day.">Send batches today</span><span id="usage-windows">0 / 5</span>
+                  <span title="A sending session delivers up to 10 emails; a few are spread across the day.">Sending sessions today</span><span id="usage-windows">0 / 5</span>
                 </div>
-                <div style="height: 8px; background: #e5e5e5; border-radius: 4px; overflow: hidden;">
+                <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
                   <div id="usage-windows-bar" style="height: 100%; width: 0%; background: var(--primary); transition: width .3s, background .3s;"></div>
                 </div>
               </div>
               <div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 6px;">
-                  <span title="Emails sent in the current batch before a longer pause.">Current batch</span><span id="usage-window">0 / 10</span>
+                  <span title="Emails sent in the current session before a longer pause.">This session</span><span id="usage-window">0 / 10</span>
                 </div>
-                <div style="height: 8px; background: #e5e5e5; border-radius: 4px; overflow: hidden;">
+                <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
                   <div id="usage-window-bar" style="height: 100%; width: 0%; background: var(--primary); transition: width .3s, background .3s;"></div>
                 </div>
               </div>
@@ -220,11 +300,23 @@
           </header>
           
           <div id="recipients-empty-state" class="empty-state" style="display: none;">
-            <div class="empty-state-icon">
-              <span class="material-symbols-outlined">group_add</span>
+            <div class="empty-state-art">
+              <svg class="cd" viewBox="0 0 172 100" role="img" aria-labelledby="es-rec-t">
+                <title id="es-rec-t">Once you add people, your recipients appear as a list here.</title>
+                <rect x="6" y="6" width="160" height="88" rx="8" class="cd-paper s-border" stroke-width="1.5"/>
+                <line x1="6" y1="26" x2="166" y2="26" class="s-border" stroke-width="1"/>
+                <g fill="currentColor">
+                  <circle cx="22" cy="42" r="6" opacity="0.18"/><rect x="36" y="38" width="46" height="5" rx="2.5" opacity="0.5"/><rect x="36" y="46" width="72" height="4" rx="2" opacity="0.22"/>
+                  <rect x="134" y="38" width="24" height="11" rx="5.5" opacity="0.16"/><circle cx="151" cy="43.5" r="3.5" opacity="0.9"/>
+                  <circle cx="22" cy="64" r="6" opacity="0.18"/><rect x="36" y="60" width="40" height="5" rx="2.5" opacity="0.5"/><rect x="36" y="68" width="66" height="4" rx="2" opacity="0.22"/>
+                  <rect x="134" y="60" width="24" height="11" rx="5.5" opacity="0.16"/><circle cx="151" cy="65.5" r="3.5" opacity="0.9"/>
+                  <circle cx="22" cy="84" r="6" opacity="0.18"/><rect x="36" y="80" width="50" height="5" rx="2.5" opacity="0.5"/><rect x="36" y="88" width="60" height="4" rx="2" opacity="0.22"/>
+                  <rect x="134" y="80" width="24" height="11" rx="5.5" opacity="0.16"/><circle cx="143" cy="85.5" r="3.5" opacity="0.45"/>
+                </g>
+              </svg>
             </div>
             <h3>No recipients yet</h3>
-            <p>Add people to your list so the pilots have somewhere to fly.</p>
+            <p>Recipients are the people you'll email. Add your first one below, or import a CSV list, to get started.</p>
             <button id="empty-add-recipient-btn" class="btn primary" onclick="document.getElementById('add-recipient-btn').click()">
               <span class="material-symbols-outlined">add</span>
               Add Your First Recipient
@@ -288,8 +380,55 @@
         <div id="campaigns" class="view">
           <header>
             <h1>Campaigns</h1>
-            <p>Group recipients into separate efforts. Each campaign has its own default subject line and email template, so a "Job Hunting" and a "Past Clients" push never share messaging.</p>
+            <p>Group recipients into separate efforts. Each campaign has its own default subject line and email template, so a "Spring Outreach" and a "Past Clients" push never share messaging.</p>
           </header>
+
+          <figure class="concept-diagram" data-focus="campaign">
+            <svg class="cd" viewBox="0 0 540 160" role="img" aria-labelledby="cd-3-campaign-t">
+              <title id="cd-3-campaign-t">Three different things. A Campaign is a group of people who share one subject and template. A Sequence is a timed follow-up schedule — day 0, day 3, day 7 — that stops when someone replies. An Account is an inbox that sends the mail.</title>
+              <g class="cd-panel cd-panel-campaign">
+                <rect class="cd-card cd-paper s-border" x="8" y="8" width="166" height="124" rx="8" stroke-width="1.5"/>
+                <text x="91" y="30" text-anchor="middle" font-size="12" font-weight="700" class="cd-primary">Campaign</text>
+                <rect x="36" y="44" width="34" height="44" rx="3" class="cd-subtle s-primary" stroke-width="1.5"/>
+                <line x1="43" y1="55" x2="63" y2="55" class="cd-line s-primary"/>
+                <line x1="43" y1="64" x2="63" y2="64" class="cd-line s-muted"/>
+                <line x1="43" y1="73" x2="57" y2="73" class="cd-line s-muted"/>
+                <path d="M70 60h20M70 66l18 14M70 66l18 0" class="cd-line s-muted"/>
+                <circle cx="100" cy="50" r="5" class="cd-primary"/><circle cx="100" cy="66" r="5" class="cd-primary"/><circle cx="100" cy="82" r="5" class="cd-primary"/>
+                <text x="91" y="110" text-anchor="middle" font-size="9.5" class="cd-muted">one message,</text>
+                <text x="91" y="121" text-anchor="middle" font-size="9.5" class="cd-muted">many people</text>
+                <g class="cd-here"><path d="M87 142l4-5 4 5z" class="cd-primary"/><text x="91" y="154" text-anchor="middle" font-size="9" font-weight="700" class="cd-primary">You're here</text></g>
+              </g>
+              <g class="cd-panel cd-panel-sequence">
+                <rect class="cd-card cd-paper s-border" x="187" y="8" width="166" height="124" rx="8" stroke-width="1.5"/>
+                <text x="270" y="30" text-anchor="middle" font-size="12" font-weight="700" class="cd-primary">Sequence</text>
+                <line x1="205" y1="66" x2="334" y2="66" class="cd-line s-muted"/>
+                <circle cx="212" cy="66" r="4" class="cd-primary"/><circle cx="258" cy="66" r="4" class="cd-primary"/><circle cx="304" cy="66" r="4" class="cd-primary"/>
+                <text x="212" y="54" text-anchor="middle" font-size="8" class="cd-muted">Day 0</text>
+                <text x="258" y="54" text-anchor="middle" font-size="8" class="cd-muted">Day 3</text>
+                <text x="304" y="54" text-anchor="middle" font-size="8" class="cd-muted">Day 7</text>
+                <rect x="206" y="74" width="12" height="9" rx="1.5" class="cd-subtle s-primary"/>
+                <rect x="252" y="74" width="12" height="9" rx="1.5" class="cd-subtle s-primary"/>
+                <rect x="298" y="74" width="12" height="9" rx="1.5" class="cd-subtle s-primary"/>
+                <circle cx="332" cy="66" r="9" class="cd-success" opacity="0.14"/>
+                <path d="M327 66l3.5 3.5 6-7" class="cd-line s-success" stroke-width="1.8"/>
+                <text x="270" y="110" text-anchor="middle" font-size="9.5" class="cd-muted">timed follow-ups,</text>
+                <text x="270" y="121" text-anchor="middle" font-size="9.5" class="cd-muted">stop on reply</text>
+                <g class="cd-here"><path d="M266 142l4-5 4 5z" class="cd-primary"/><text x="270" y="154" text-anchor="middle" font-size="9" font-weight="700" class="cd-primary">You're here</text></g>
+              </g>
+              <g class="cd-panel cd-panel-account">
+                <rect class="cd-card cd-paper s-border" x="366" y="8" width="166" height="124" rx="8" stroke-width="1.5"/>
+                <text x="449" y="30" text-anchor="middle" font-size="12" font-weight="700" class="cd-primary">Account</text>
+                <path d="M421 80h56v8a4 4 0 0 1-4 4h-48a4 4 0 0 1-4-4z" class="cd-subtle s-primary" stroke-width="1.5"/>
+                <path d="M421 80l8-22h40l8 22" class="cd-line s-primary"/>
+                <path d="M449 72V48M442 56l7-8 7 8" class="cd-line s-primary" stroke-width="2"/>
+                <text x="449" y="110" text-anchor="middle" font-size="9.5" class="cd-muted">an inbox that</text>
+                <text x="449" y="121" text-anchor="middle" font-size="9.5" class="cd-muted">sends your mail</text>
+                <g class="cd-here"><path d="M445 142l4-5 4 5z" class="cd-primary"/><text x="449" y="154" text-anchor="middle" font-size="9" font-weight="700" class="cd-primary">You're here</text></g>
+              </g>
+            </svg>
+            <figcaption class="cd-caption">A campaign groups people who share one subject and template — distinct from a sequence (timed follow-ups) and an account (an inbox that sends).</figcaption>
+          </figure>
 
           <div class="card" style="margin-bottom: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -298,11 +437,19 @@
             </div>
 
             <div id="campaigns-empty-state" class="empty-state" style="display: none;">
-              <div class="empty-state-icon">
-                <span class="material-symbols-outlined">campaign</span>
+              <div class="empty-state-art">
+                <svg class="cd" viewBox="0 0 172 100" role="img" aria-labelledby="es-camp-t">
+                  <title id="es-camp-t">Your campaigns will be listed here, each a group with its own subject and template.</title>
+                  <rect x="40" y="14" width="104" height="30" rx="6" class="cd-paper s-border" stroke-width="1.5" opacity="0.5"/>
+                  <rect x="30" y="30" width="114" height="32" rx="6" class="cd-paper s-border" stroke-width="1.5" opacity="0.75"/>
+                  <rect x="20" y="48" width="132" height="40" rx="7" class="cd-paper s-primary" stroke-width="1.5"/>
+                  <rect x="30" y="58" width="60" height="6" rx="3" class="cd-primary"/>
+                  <rect x="30" y="70" width="84" height="5" rx="2.5" class="cd-muted" opacity="0.4"/>
+                  <circle cx="124" cy="68" r="4" class="cd-primary"/><circle cx="134" cy="68" r="4" class="cd-primary"/><circle cx="144" cy="68" r="4" class="cd-primary" opacity="0.5"/>
+                </svg>
               </div>
               <h3>No campaigns yet</h3>
-              <p>Create one below, then assign recipients to it from the Recipients tab.</p>
+              <p>A campaign is a named group with its own subject line and template — handy when different audiences need different messaging. Create one below, then assign recipients from the Recipients tab.</p>
             </div>
 
             <div id="campaigns-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;"></div>
@@ -315,7 +462,7 @@
               <input type="hidden" id="campaign-id" value="">
               <div class="form-group">
                 <label for="campaign-name">Name</label>
-                <input type="text" id="campaign-name" required placeholder="e.g. Job Hunting">
+                <input type="text" id="campaign-name" required placeholder="e.g. Spring Outreach">
               </div>
               <div class="form-group">
                 <label for="campaign-subject">Default subject line <span style="color: var(--muted-foreground); font-weight: 400;">(optional)</span></label>
@@ -327,7 +474,7 @@
                 <textarea id="campaign-template" rows="8" spellcheck="false" style="font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 0.85rem;" placeholder="&lt;p&gt;Hello {{name}},&lt;/p&gt;&#10;&lt;div&gt;{{{message}}}&lt;/div&gt;"></textarea>
                 <p class="help-text">Overrides the global template for this campaign. <code>{{{message}}}</code> is replaced with each recipient's content; <code>{{name}}</code> personalizes. Leave blank to use the global template.</p>
               </div>
-              <p id="campaign-error" style="display: none; color: #ef4444; font-size: 0.85em; margin-bottom: 12px;"></p>
+              <p id="campaign-error" style="display: none; color: var(--destructive); font-size: 0.85em; margin-bottom: 12px;"></p>
               <div style="display: flex; gap: 8px;">
                 <button type="submit" class="btn primary" id="campaign-submit-btn">
                   <span class="material-symbols-outlined">add</span>
@@ -343,8 +490,55 @@
         <div id="sequences" class="view">
           <header>
             <h1>Sequences</h1>
-            <p>Build follow-up drips: an initial email, then timed follow-ups that automatically stop once a recipient replies. Assign a sequence to recipients from the Recipients tab.</p>
+            <p>Build automatic follow-ups: an initial email, then timed follow-ups that automatically stop once a recipient replies. Assign a sequence to recipients from the Recipients tab.</p>
           </header>
+
+          <figure class="concept-diagram" data-focus="sequence">
+            <svg class="cd" viewBox="0 0 540 160" role="img" aria-labelledby="cd-3-sequence-t">
+              <title id="cd-3-sequence-t">Three different things. A Campaign is a group of people who share one subject and template. A Sequence is a timed follow-up schedule — day 0, day 3, day 7 — that stops when someone replies. An Account is an inbox that sends the mail.</title>
+              <g class="cd-panel cd-panel-campaign">
+                <rect class="cd-card cd-paper s-border" x="8" y="8" width="166" height="124" rx="8" stroke-width="1.5"/>
+                <text x="91" y="30" text-anchor="middle" font-size="12" font-weight="700" class="cd-primary">Campaign</text>
+                <rect x="36" y="44" width="34" height="44" rx="3" class="cd-subtle s-primary" stroke-width="1.5"/>
+                <line x1="43" y1="55" x2="63" y2="55" class="cd-line s-primary"/>
+                <line x1="43" y1="64" x2="63" y2="64" class="cd-line s-muted"/>
+                <line x1="43" y1="73" x2="57" y2="73" class="cd-line s-muted"/>
+                <path d="M70 60h20M70 66l18 14M70 66l18 0" class="cd-line s-muted"/>
+                <circle cx="100" cy="50" r="5" class="cd-primary"/><circle cx="100" cy="66" r="5" class="cd-primary"/><circle cx="100" cy="82" r="5" class="cd-primary"/>
+                <text x="91" y="110" text-anchor="middle" font-size="9.5" class="cd-muted">one message,</text>
+                <text x="91" y="121" text-anchor="middle" font-size="9.5" class="cd-muted">many people</text>
+                <g class="cd-here"><path d="M87 142l4-5 4 5z" class="cd-primary"/><text x="91" y="154" text-anchor="middle" font-size="9" font-weight="700" class="cd-primary">You're here</text></g>
+              </g>
+              <g class="cd-panel cd-panel-sequence">
+                <rect class="cd-card cd-paper s-border" x="187" y="8" width="166" height="124" rx="8" stroke-width="1.5"/>
+                <text x="270" y="30" text-anchor="middle" font-size="12" font-weight="700" class="cd-primary">Sequence</text>
+                <line x1="205" y1="66" x2="334" y2="66" class="cd-line s-muted"/>
+                <circle cx="212" cy="66" r="4" class="cd-primary"/><circle cx="258" cy="66" r="4" class="cd-primary"/><circle cx="304" cy="66" r="4" class="cd-primary"/>
+                <text x="212" y="54" text-anchor="middle" font-size="8" class="cd-muted">Day 0</text>
+                <text x="258" y="54" text-anchor="middle" font-size="8" class="cd-muted">Day 3</text>
+                <text x="304" y="54" text-anchor="middle" font-size="8" class="cd-muted">Day 7</text>
+                <rect x="206" y="74" width="12" height="9" rx="1.5" class="cd-subtle s-primary"/>
+                <rect x="252" y="74" width="12" height="9" rx="1.5" class="cd-subtle s-primary"/>
+                <rect x="298" y="74" width="12" height="9" rx="1.5" class="cd-subtle s-primary"/>
+                <circle cx="332" cy="66" r="9" class="cd-success" opacity="0.14"/>
+                <path d="M327 66l3.5 3.5 6-7" class="cd-line s-success" stroke-width="1.8"/>
+                <text x="270" y="110" text-anchor="middle" font-size="9.5" class="cd-muted">timed follow-ups,</text>
+                <text x="270" y="121" text-anchor="middle" font-size="9.5" class="cd-muted">stop on reply</text>
+                <g class="cd-here"><path d="M266 142l4-5 4 5z" class="cd-primary"/><text x="270" y="154" text-anchor="middle" font-size="9" font-weight="700" class="cd-primary">You're here</text></g>
+              </g>
+              <g class="cd-panel cd-panel-account">
+                <rect class="cd-card cd-paper s-border" x="366" y="8" width="166" height="124" rx="8" stroke-width="1.5"/>
+                <text x="449" y="30" text-anchor="middle" font-size="12" font-weight="700" class="cd-primary">Account</text>
+                <path d="M421 80h56v8a4 4 0 0 1-4 4h-48a4 4 0 0 1-4-4z" class="cd-subtle s-primary" stroke-width="1.5"/>
+                <path d="M421 80l8-22h40l8 22" class="cd-line s-primary"/>
+                <path d="M449 72V48M442 56l7-8 7 8" class="cd-line s-primary" stroke-width="2"/>
+                <text x="449" y="110" text-anchor="middle" font-size="9.5" class="cd-muted">an inbox that</text>
+                <text x="449" y="121" text-anchor="middle" font-size="9.5" class="cd-muted">sends your mail</text>
+                <g class="cd-here"><path d="M445 142l4-5 4 5z" class="cd-primary"/><text x="449" y="154" text-anchor="middle" font-size="9" font-weight="700" class="cd-primary">You're here</text></g>
+              </g>
+            </svg>
+            <figcaption class="cd-caption">A sequence is timed follow-ups that stop when someone replies — distinct from a campaign (a group sharing one message) and an account (an inbox that sends).</figcaption>
+          </figure>
 
           <div class="card" style="margin-bottom: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -353,11 +547,26 @@
             </div>
 
             <div id="sequences-empty-state" class="empty-state" style="display: none;">
-              <div class="empty-state-icon">
-                <span class="material-symbols-outlined">forward_to_inbox</span>
+              <div class="empty-state-art">
+                <svg class="cd" viewBox="0 0 172 100" role="img" aria-labelledby="es-seq-t">
+                  <title id="es-seq-t">Your follow-up sequences will appear here as a timed schedule that stops on reply.</title>
+                  <rect x="6" y="6" width="160" height="88" rx="8" class="cd-paper s-border" stroke-width="1.5"/>
+                  <line x1="24" y1="52" x2="140" y2="52" class="cd-line s-muted"/>
+                  <g>
+                    <circle cx="30" cy="52" r="5" class="cd-primary"/><circle cx="74" cy="52" r="5" class="cd-primary"/><circle cx="118" cy="52" r="5" class="cd-primary"/>
+                    <rect x="23" y="62" width="14" height="10" rx="2" class="cd-subtle s-primary"/>
+                    <rect x="67" y="62" width="14" height="10" rx="2" class="cd-subtle s-primary"/>
+                    <rect x="111" y="62" width="14" height="10" rx="2" class="cd-subtle s-primary"/>
+                    <text x="30" y="38" text-anchor="middle" font-size="8" class="cd-muted">Day 0</text>
+                    <text x="74" y="38" text-anchor="middle" font-size="8" class="cd-muted">Day 3</text>
+                    <text x="118" y="38" text-anchor="middle" font-size="8" class="cd-muted">Day 7</text>
+                  </g>
+                  <circle cx="146" cy="52" r="10" class="cd-success" opacity="0.14"/>
+                  <path d="M140 52l4 4 7-8" class="cd-line s-success" stroke-width="2"/>
+                </svg>
               </div>
               <h3>No sequences yet</h3>
-              <p>Create one below, then assign recipients to it from the Recipients tab.</p>
+              <p>A sequence is an automatic follow-up series that stops the moment someone replies. Create one below, then assign recipients from the Recipients tab.</p>
             </div>
 
             <div id="sequences-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;"></div>
@@ -379,7 +588,7 @@
                   <span class="material-symbols-outlined">add</span> Add step
                 </button>
               </div>
-              <p id="sequence-error" style="display: none; color: #ef4444; font-size: 0.85em; margin-bottom: 12px;"></p>
+              <p id="sequence-error" style="display: none; color: var(--destructive); font-size: 0.85em; margin-bottom: 12px;"></p>
               <div style="display: flex; gap: 8px;">
                 <button type="submit" class="btn primary" id="sequence-submit-btn">
                   <span class="material-symbols-outlined">add</span>
@@ -398,6 +607,53 @@
             <p>Connect more sending inboxes. Each account sends to its own recipients in parallel, with its own daily limits. Your primary account is managed in Settings.</p>
           </header>
 
+          <figure class="concept-diagram" data-focus="account">
+            <svg class="cd" viewBox="0 0 540 160" role="img" aria-labelledby="cd-3-account-t">
+              <title id="cd-3-account-t">Three different things. A Campaign is a group of people who share one subject and template. A Sequence is a timed follow-up schedule — day 0, day 3, day 7 — that stops when someone replies. An Account is an inbox that sends the mail.</title>
+              <g class="cd-panel cd-panel-campaign">
+                <rect class="cd-card cd-paper s-border" x="8" y="8" width="166" height="124" rx="8" stroke-width="1.5"/>
+                <text x="91" y="30" text-anchor="middle" font-size="12" font-weight="700" class="cd-primary">Campaign</text>
+                <rect x="36" y="44" width="34" height="44" rx="3" class="cd-subtle s-primary" stroke-width="1.5"/>
+                <line x1="43" y1="55" x2="63" y2="55" class="cd-line s-primary"/>
+                <line x1="43" y1="64" x2="63" y2="64" class="cd-line s-muted"/>
+                <line x1="43" y1="73" x2="57" y2="73" class="cd-line s-muted"/>
+                <path d="M70 60h20M70 66l18 14M70 66l18 0" class="cd-line s-muted"/>
+                <circle cx="100" cy="50" r="5" class="cd-primary"/><circle cx="100" cy="66" r="5" class="cd-primary"/><circle cx="100" cy="82" r="5" class="cd-primary"/>
+                <text x="91" y="110" text-anchor="middle" font-size="9.5" class="cd-muted">one message,</text>
+                <text x="91" y="121" text-anchor="middle" font-size="9.5" class="cd-muted">many people</text>
+                <g class="cd-here"><path d="M87 142l4-5 4 5z" class="cd-primary"/><text x="91" y="154" text-anchor="middle" font-size="9" font-weight="700" class="cd-primary">You're here</text></g>
+              </g>
+              <g class="cd-panel cd-panel-sequence">
+                <rect class="cd-card cd-paper s-border" x="187" y="8" width="166" height="124" rx="8" stroke-width="1.5"/>
+                <text x="270" y="30" text-anchor="middle" font-size="12" font-weight="700" class="cd-primary">Sequence</text>
+                <line x1="205" y1="66" x2="334" y2="66" class="cd-line s-muted"/>
+                <circle cx="212" cy="66" r="4" class="cd-primary"/><circle cx="258" cy="66" r="4" class="cd-primary"/><circle cx="304" cy="66" r="4" class="cd-primary"/>
+                <text x="212" y="54" text-anchor="middle" font-size="8" class="cd-muted">Day 0</text>
+                <text x="258" y="54" text-anchor="middle" font-size="8" class="cd-muted">Day 3</text>
+                <text x="304" y="54" text-anchor="middle" font-size="8" class="cd-muted">Day 7</text>
+                <rect x="206" y="74" width="12" height="9" rx="1.5" class="cd-subtle s-primary"/>
+                <rect x="252" y="74" width="12" height="9" rx="1.5" class="cd-subtle s-primary"/>
+                <rect x="298" y="74" width="12" height="9" rx="1.5" class="cd-subtle s-primary"/>
+                <circle cx="332" cy="66" r="9" class="cd-success" opacity="0.14"/>
+                <path d="M327 66l3.5 3.5 6-7" class="cd-line s-success" stroke-width="1.8"/>
+                <text x="270" y="110" text-anchor="middle" font-size="9.5" class="cd-muted">timed follow-ups,</text>
+                <text x="270" y="121" text-anchor="middle" font-size="9.5" class="cd-muted">stop on reply</text>
+                <g class="cd-here"><path d="M266 142l4-5 4 5z" class="cd-primary"/><text x="270" y="154" text-anchor="middle" font-size="9" font-weight="700" class="cd-primary">You're here</text></g>
+              </g>
+              <g class="cd-panel cd-panel-account">
+                <rect class="cd-card cd-paper s-border" x="366" y="8" width="166" height="124" rx="8" stroke-width="1.5"/>
+                <text x="449" y="30" text-anchor="middle" font-size="12" font-weight="700" class="cd-primary">Account</text>
+                <path d="M421 80h56v8a4 4 0 0 1-4 4h-48a4 4 0 0 1-4-4z" class="cd-subtle s-primary" stroke-width="1.5"/>
+                <path d="M421 80l8-22h40l8 22" class="cd-line s-primary"/>
+                <path d="M449 72V48M442 56l7-8 7 8" class="cd-line s-primary" stroke-width="2"/>
+                <text x="449" y="110" text-anchor="middle" font-size="9.5" class="cd-muted">an inbox that</text>
+                <text x="449" y="121" text-anchor="middle" font-size="9.5" class="cd-muted">sends your mail</text>
+                <g class="cd-here"><path d="M445 142l4-5 4 5z" class="cd-primary"/><text x="449" y="154" text-anchor="middle" font-size="9" font-weight="700" class="cd-primary">You're here</text></g>
+              </g>
+            </svg>
+            <figcaption class="cd-caption">An account is an inbox that sends your mail — distinct from a campaign (a group sharing one message) and a sequence (timed follow-ups).</figcaption>
+          </figure>
+
           <div id="fleet-strip" class="card" style="margin-bottom: 16px; display: none; gap: 20px; flex-wrap: wrap; align-items: center;"></div>
 
           <div class="card" style="margin-bottom: 24px;">
@@ -407,14 +663,25 @@
             </div>
 
             <div id="accounts-empty-state" class="empty-state" style="display: none;">
-              <div class="empty-state-icon">
-                <span class="material-symbols-outlined">mail</span>
+              <div class="empty-state-art">
+                <svg class="cd" viewBox="0 0 172 100" role="img" aria-labelledby="es-acct-t">
+                  <title id="es-acct-t">Your primary inbox sends by default. Connect extra inboxes here to raise your daily sending limit.</title>
+                  <path d="M36 70h44v8a5 5 0 0 1-5 5H41a5 5 0 0 1-5-5z" class="cd-subtle s-primary" stroke-width="1.5"/>
+                  <path d="M36 70l7-22h30l7 22" class="cd-line s-primary"/>
+                  <path d="M58 62V44M51 51l7-7 7 7" class="cd-line s-primary" stroke-width="2"/>
+                  <text x="58" y="96" text-anchor="middle" font-size="8" class="cd-muted">primary</text>
+                  <path d="M104 70h44v8a5 5 0 0 1-5 5h-34a5 5 0 0 1-5-5z" class="cd-line s-muted" stroke-dasharray="4 3"/>
+                  <path d="M104 70l7-22h30l7 22" class="cd-line s-muted" stroke-dasharray="4 3"/>
+                  <circle cx="126" cy="56" r="9" class="cd-subtle s-primary" stroke-width="1.5"/>
+                  <path d="M126 51v10M121 56h10" class="cd-line s-primary" stroke-width="2"/>
+                  <text x="126" y="96" text-anchor="middle" font-size="8" class="cd-muted">+ add more</text>
+                </svg>
               </div>
               <h3>No extra accounts</h3>
               <p>Connect additional inboxes to increase your daily sending limits.</p>
             </div>
 
-            <div id="accounts-bulk-bar" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; margin-top: 8px; background: #fafafa; border: 1px solid var(--border); border-radius: var(--radius);">
+            <div id="accounts-bulk-bar" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; margin-top: 8px; background: var(--gray-50); border: 1px solid var(--border); border-radius: var(--radius);">
               <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85em; cursor: pointer;">
                 <input type="checkbox" id="acct-select-all"> Select all
               </label>
@@ -423,16 +690,47 @@
               <button id="bulk-enable-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em;">Enable</button>
               <button id="bulk-disable-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em;">Disable</button>
               <button id="bulk-test-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em;">Test</button>
-              <button id="bulk-remove-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em; color: #ef4444;">Remove</button>
+              <button id="bulk-remove-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em; color: var(--destructive);">Remove</button>
             </div>
 
             <div id="accounts-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;"></div>
           </div>
 
+          <div class="card" id="domain-auth-card" style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h3 style="margin: 0;">Domain authentication</h3>
+              <button id="domain-auth-refresh-btn" class="btn outline" style="height: 32px; padding: 0 10px; font-size: 0.8em;">
+                <span class="material-symbols-outlined">refresh</span>
+                Re-check all
+              </button>
+            </div>
+            <p class="help-text" style="margin-bottom: 12px;">SPF, DKIM and DMARC records prove to receiving inboxes that your mail really comes from your domain. We check each sending domain and show the exact DNS records to add at your registrar.</p>
+            <div id="domain-auth-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+          </div>
+
           <div class="card">
             <h3 style="margin-top: 0;">Add an account</h3>
             <p class="help-text" style="margin-bottom: 16px;">Use an app password, not your normal login password. We verify the connection before saving.</p>
-            <p id="acct-cap-note" style="display: none; color: var(--muted-foreground); font-size: 0.85em; margin-bottom: 16px; padding: 10px 12px; background: #fafafa; border: 1px solid var(--border); border-radius: var(--radius);"></p>
+            <p id="acct-cap-note" style="display: none; color: var(--muted-foreground); font-size: 0.85em; margin-bottom: 16px; padding: 10px 12px; background: var(--gray-50); border: 1px solid var(--border); border-radius: var(--radius);"></p>
+            <!-- ===== LOW-FRICTION TRANSPORTS (Accounts view) — hidden via SHOW_NO_PASSWORD_TRANSPORTS flag in src/main.ts.
+                     Safe to delete this whole block (and the matching handlers/flag) to remove the feature entirely. ===== -->
+            <div id="acct-nopw-block" style="display:none;">
+              <button type="button" class="btn" id="ms-oauth-btn" style="width: 100%; justify-content: center; margin-bottom: 8px;">
+                <span class="material-symbols-outlined">login</span>
+                Sign in with Microsoft &mdash; no password
+              </button>
+              <button type="button" class="btn" id="connect-gmail-btn" style="width: 100%; justify-content: center; margin-bottom: 8px;">
+                <span class="material-symbols-outlined">mail</span>
+                Connect Gmail &mdash; no password (browser)
+              </button>
+              <button type="button" class="btn" id="connect-outlook-btn" style="width: 100%; justify-content: center; margin-bottom: 12px;">
+                <span class="material-symbols-outlined">mail</span>
+                Connect Outlook &mdash; no password (browser)
+              </button>
+              <p id="ms-oauth-status" style="display: none; font-size: 0.85em; margin-bottom: 12px;"></p>
+              <div style="text-align: center; color: var(--muted-foreground); font-size: 0.8em; margin-bottom: 16px;">&mdash; or add manually with an app password &mdash;</div>
+            </div>
+            <!-- ===== END LOW-FRICTION TRANSPORTS (Accounts view) ===== -->
             <form id="add-account-form">
               <div class="form-group">
                 <label for="acct-provider">Provider</label>
@@ -464,7 +762,7 @@
                 <label for="acct-pass">App Password</label>
                 <input type="password" id="acct-pass" placeholder="16-character app password">
               </div>
-              <p id="acct-error" style="display: none; color: #ef4444; font-size: 0.85em; margin-bottom: 12px;"></p>
+              <p id="acct-error" style="display: none; color: var(--destructive); font-size: 0.85em; margin-bottom: 12px;"></p>
               <button type="submit" class="btn primary" id="acct-submit-btn">
                 <span class="material-symbols-outlined">add</span>
                 Verify &amp; add account
@@ -486,6 +784,11 @@
               <div class="card settings-chunk" style="margin-bottom: 24px;">
                 <h3 style="margin-top: 0; margin-bottom: 16px;">Primary Account</h3>
                 <div class="form-group">
+                  <label for="user-name">Your Name</label>
+                  <input type="text" id="user-name" placeholder="Jane Doe">
+                  <p class="help-text">Shown as the sender name on your emails and in the dashboard greeting.</p>
+                </div>
+                <div class="form-group">
                   <label for="smtp-provider">Email Provider</label>
                 <select id="smtp-provider" class="form-control">
                   <option value="gmail">Gmail</option>
@@ -493,7 +796,7 @@
                   <option value="custom">Custom SMTP</option>
                 </select>
               </div>
-              <div id="custom-smtp-fields" style="display: none; background: #fafafa; border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+              <div id="custom-smtp-fields" style="display: none; background: var(--gray-50); border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
                 <div class="form-group">
                   <label for="smtp-host">SMTP Host</label>
                   <input type="text" id="smtp-host" placeholder="smtp.office365.com or smtp.gmail.com">
@@ -520,7 +823,7 @@
                     <span class="material-symbols-outlined">forward_to_inbox</span>
                     Send Test Email to Myself
                   </button>
-                  <button type="button" id="signout-btn" class="btn outline" style="color: #ef4444; border-color: rgba(239,68,68,0.3);">
+                  <button type="button" id="signout-btn" class="btn outline" style="color: var(--destructive); border-color: rgba(196,43,28,0.35);">
                     <span class="material-symbols-outlined">logout</span>
                     Sign Out
                   </button>
@@ -534,53 +837,64 @@
                 <h3 style="margin-top: 0; margin-bottom: 16px;">Email Content</h3>
                 <div class="form-group">
                   <label for="subject-line">Default Subject Line</label>
-                <input type="text" id="subject-line" placeholder="Application for Part-Time Opportunity">
+                <input type="text" id="subject-line" placeholder="Following up on our conversation">
                 <p class="help-text">Default subject — a recipient's own subject overrides it. Send times are set per recipient (Recipients tab).</p>
               </div>
 
-              <div class="form-group">
-                <label for="email-template">Email Template (HTML)</label>
-                <textarea id="email-template" rows="8" spellcheck="false" style="font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 0.85rem;" placeholder="&lt;p&gt;Hello {{name}},&lt;/p&gt;&#10;&lt;div&gt;{{{message}}}&lt;/div&gt;"></textarea>
-                <p class="help-text">Wrapper around each recipient's message. <code>{{{message}}}</code> is replaced with their content; <code>{{name}}</code> personalizes. Leave blank to send the message with no wrapper. The compliance footer (unsubscribe + address) is added separately below in Bulk mode.</p>
-              </div>
+              <details class="adv-disclosure">
+                <summary>Customize the email template (HTML) <span class="adv-tag">optional</span></summary>
+                <p class="help-text adv-why">Most people leave this. Your message is sent in a clean default layout that works everywhere. Edit only if you want custom HTML branding — heavy or broken HTML can look wrong in some apps and is likelier to land in the <strong>Promotions</strong> or <strong>Spam</strong> tab.</p>
+                <div class="form-group">
+                  <textarea id="email-template" aria-label="Email template (HTML)" rows="8" spellcheck="false" style="font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 0.85rem;" placeholder="&lt;p&gt;Hello {{name}},&lt;/p&gt;&#10;&lt;div&gt;{{{message}}}&lt;/div&gt;"></textarea>
+                  <p class="help-text">Wrapper around each recipient's message. <code>{{{message}}}</code> is replaced with their content; <code>{{name}}</code> personalizes. Leave blank to send the message with no wrapper. The compliance footer (unsubscribe + address) is added separately below in Bulk mode.</p>
+                </div>
+              </details>
 
               </div> <!-- End Email Content Card -->
 
               <div class="card settings-chunk" style="margin-bottom: 24px;">
-                <h3 style="margin-top: 0; color: var(--primary); margin-bottom: 16px;">Deliverability &amp; Compliance</h3>
+                <h3 style="margin-top: 0; color: var(--primary); margin-bottom: 16px;" title="Controls whether mail lands in the inbox vs spam, and the legal footer added to bulk email.">Inbox placement &amp; legal footer</h3>
 
-              <div class="form-group">
-                <label for="inbox-placement">Sending style</label>
+              <details class="adv-disclosure">
+                <summary>Sending style &amp; legal footer <span class="adv-tag">advanced · default: Personal</span></summary>
+                <div class="adv-why help-text">
+                  <p style="margin-top:0;"><strong>Personal (default)</strong> — reads like a normal 1:1 email, no footer. Best for personal outreach; helps land in the main <strong>Primary</strong> inbox.</p>
+                  <p><strong>Bulk</strong> — adds an unsubscribe link + your mailing address (legally required for mass mail). Use only for high-volume sending; the extra footer &amp; markup can push mail into Gmail's <strong>Promotions</strong> tab.</p>
+                  <p style="margin-bottom:0;">Getting this wrong has real consequences: Bulk on a few personal emails → lands in Promotions; mass mail without Bulk's unsubscribe footer → can breach anti-spam law.</p>
+                </div>
+                <div class="form-group">
+                <label for="inbox-placement" title="Personal = looks like a 1-to-1 email (no footer). Bulk = adds the legally-required unsubscribe link + mailing address.">Sending style</label>
                 <select id="inbox-placement" class="form-control">
                   <option value="primary">Personal — reads like 1:1 mail (Primary tab, no footer)</option>
-                  <option value="bulk">Bulk — adds unsubscribe link + address footer (CAN-SPAM)</option>
+                  <option value="bulk">Bulk — adds an unsubscribe link + mailing address (required by law)</option>
                 </select>
                 <p class="help-text">Personal strips heavy styling and hides the footer so email lands in Gmail's Primary tab. The unsubscribe link and mailing address below are only included in <strong>Bulk</strong> mode — choose Bulk for high-volume sending where an unsubscribe link is required.</p>
               </div>
 
-              <div class="form-group">
+              <div class="form-group" id="canspam-address-group">
                 <label for="physical-address">Physical Mailing Address</label>
                 <textarea id="physical-address" rows="2" placeholder="123 Main St, Suite 4, City, Country"></textarea>
-                <p class="help-text">Required by anti-spam law (CAN-SPAM). Appended to the footer in Bulk mode.</p>
+                <p class="help-text">Required by anti-spam law for bulk email. Appended to the footer in Bulk mode.</p>
               </div>
 
-              <div class="form-group">
+              <div class="form-group" id="canspam-unsub-group">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                   <input type="checkbox" id="unsubscribe-enabled" checked style="width: auto; height: auto;">
                   Add unsubscribe link + List-Unsubscribe header
                 </label>
                 <p class="help-text">One-click unsubscribe (mailto to your address). Improves inbox placement and is legally required for bulk mail. Applies in Bulk mode.</p>
               </div>
+              </details>
 
               <div class="form-group">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                   <input type="checkbox" id="warmup-enabled" checked style="width: auto; height: auto;">
-                  Warm up new accounts gradually
+                  Ease new inboxes in slowly (recommended)
                 </label>
-                <p class="help-text">Ramps the daily cap over the first days (5 → 50) to protect a fresh inbox from spam flags.</p>
+                <p class="help-text">New inboxes that suddenly send a lot get flagged as spam. This ramps your daily cap from ~5 up to ~50 over the first days.</p>
               </div>
 
-              </div> <!-- End Deliverability Card -->
+              </div> <!-- End Inbox placement card -->
               </div> <!-- End Settings Grid -->
 
               <div style="display: flex; justify-content: flex-end;">
@@ -590,6 +904,145 @@
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        <!-- Local AI View (optional feature #1) -->
+        <div id="ai" class="view">
+          <header>
+            <h1>Local AI <span class="adv-tag">optional</span></h1>
+            <p>On-device AI that runs a local model on your computer. Your emails never leave your machine — no cloud, no account, no data sent anywhere.</p>
+          </header>
+
+          <div class="card settings-chunk" style="max-width: 720px;">
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="ai-enable-toggle">
+                Enable Local AI
+              </label>
+              <p class="help-text">Off by default. While off, the app behaves exactly as before.</p>
+            </div>
+            <div class="form-group">
+              <label>Model file (.gguf)</label>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <button type="button" id="ai-select-model-btn" class="btn outline">
+                  <span class="material-symbols-outlined">folder_open</span>
+                  Choose Model…
+                </button>
+                <span id="ai-model-path" class="help-text" style="margin:0; word-break:break-all;">No model selected</span>
+              </div>
+              <p class="help-text">Download an open-weight GGUF model (e.g. Qwen2.5-Instruct) and point here. The file stays on your computer.</p>
+            </div>
+            <div class="form-group">
+              <label for="ai-context-size">Context size <span class="adv-tag">optional</span></label>
+              <input type="number" id="ai-context-size" placeholder="auto" min="0" style="max-width:160px;">
+              <p class="help-text">Tokens of context. Leave blank for the model default.</p>
+            </div>
+            <div class="form-group">
+              <label>GPU acceleration <span class="adv-tag">optional</span></label>
+              <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                <div>
+                  <label for="ai-gpu-backend" class="help-text" style="display:block; margin:0 0 2px;">Backend</label>
+                  <select id="ai-gpu-backend" class="form-control" style="max-width:180px;">
+                    <option value="auto">Auto (recommended)</option>
+                    <option value="cuda">CUDA (NVIDIA)</option>
+                    <option value="vulkan">Vulkan</option>
+                    <option value="metal">Metal (Apple)</option>
+                    <option value="cpu">CPU only</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="ai-gpu-layers" class="help-text" style="display:block; margin:0 0 2px;">GPU layers</label>
+                  <input type="number" id="ai-gpu-layers" placeholder="auto" min="0" class="form-control" style="max-width:120px;">
+                </div>
+                <label style="display:flex; gap:6px; align-items:center; white-space:nowrap; margin-bottom:6px;">
+                  <input type="checkbox" id="ai-flash-attention" checked>
+                  Flash attention
+                </label>
+              </div>
+              <p class="help-text">Keeps generation on your GPU (much faster than CPU). Leave layers blank to auto-fit VRAM; set 0 to force CPU. Flash attention shrinks memory so more fits on the GPU.</p>
+            </div>
+            <div class="form-group">
+              <button type="button" id="ai-refresh-btn" class="btn outline">
+                <span class="material-symbols-outlined">refresh</span>
+                Check Status
+              </button>
+              <p id="ai-status-line" class="help-text" style="margin-top:8px;">Status: unknown</p>
+            </div>
+          </div>
+
+          <div class="card settings-chunk" style="max-width: 720px; margin-top:16px;">
+            <h3 style="margin-top:0; margin-bottom:12px;">Test generation</h3>
+            <div class="form-group">
+              <label for="ai-test-prompt">Prompt</label>
+              <textarea id="ai-test-prompt" rows="3" placeholder="Write a one-sentence friendly hello.">Write a one-sentence friendly hello.</textarea>
+            </div>
+            <div class="form-group">
+              <button type="button" id="ai-test-btn" class="btn">
+                <span class="material-symbols-outlined">bolt</span>
+                Generate
+              </button>
+              <p class="help-text">Runs entirely on your machine. The first run loads the model and may take a moment.</p>
+            </div>
+            <div class="form-group">
+              <label for="ai-test-output">Output</label>
+              <textarea id="ai-test-output" rows="4" readonly placeholder="Generated text appears here."></textarea>
+            </div>
+          </div>
+
+          <div class="card settings-chunk" style="max-width: 720px; margin-top:16px;">
+            <h3 style="margin-top:0; margin-bottom:8px;">Reply automation <span class="adv-tag">optional</span></h3>
+            <p class="help-text" style="margin-top:0;">The local model reads incoming replies and labels them. All off by default; reply content stays on your machine.</p>
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="ai-classify-toggle">
+                Classify incoming replies
+              </label>
+              <p class="help-text">Labels each reply (Interested, Out of Office, Unsubscribe, …). Needs AI enabled + a model.</p>
+            </div>
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="ai-suppress-unsub-toggle">
+                Auto-suppress unsubscribes
+              </label>
+              <p class="help-text">When a reply is classified as an unsubscribe, add that address to your suppression list automatically.</p>
+            </div>
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="ai-pause-ooo-toggle">
+                Keep drips running through out-of-office replies
+              </label>
+              <p class="help-text">An out-of-office auto-reply won't stop an active follow-up sequence.</p>
+            </div>
+            <p id="ai-reply-summary" class="help-text" style="margin:8px 0 0;">No classified replies yet.</p>
+          </div>
+        </div>
+
+        <!-- Deliverability View (feature #4) -->
+        <div id="deliverability" class="view">
+          <header>
+            <h1>Deliverability <span class="adv-tag">advisory</span></h1>
+            <p>Check an email's spam risk and inbox-placement quality before you send. Advisory only — nothing is changed or blocked.</p>
+          </header>
+
+          <div class="card settings-chunk" style="max-width: 760px;">
+            <div class="form-group">
+              <label for="deliv-subject">Subject</label>
+              <input type="text" id="deliv-subject" placeholder="Your subject line">
+            </div>
+            <div class="form-group">
+              <label for="deliv-body">Email body</label>
+              <textarea id="deliv-body" rows="8" placeholder="Paste or edit the email body to analyze."></textarea>
+              <p class="help-text">Pre-filled from your default subject + template. Edit freely — this never changes your saved content.</p>
+            </div>
+            <div class="form-group">
+              <button type="button" id="deliv-analyze" class="btn">
+                <span class="material-symbols-outlined">rule</span>
+                Analyze
+              </button>
+              <p id="deliv-score" class="help-text" style="margin-top:8px;">Not analyzed yet.</p>
+            </div>
+            <div id="deliv-result"></div>
           </div>
         </div>
 
@@ -612,7 +1065,7 @@
               </div>
               <div class="timeline-content">
                 <span class="timeline-time">Just now</span>
-                <span class="timeline-message">Application initialized and cleared for takeoff.</span>
+                <span class="timeline-message">Email Pilots ready for takeoff.</span>
               </div>
             </div>
           </div>
@@ -691,6 +1144,17 @@
           <button type="submit" class="login-submit" id="login-submit-btn">Sign in</button>
         </form>
 
+        <!-- ===== LOW-FRICTION TRANSPORTS (login gate) — hidden via SHOW_NO_PASSWORD_TRANSPORTS flag in src/main.ts.
+                 Safe to delete this whole block (and the matching handlers/flag) to remove the feature entirely. ===== -->
+        <div id="login-nopw-block" style="display:none;">
+          <div style="text-align:center; color:var(--muted-foreground); font-size:0.8em; margin:14px 0 10px;">— or connect without a password —</div>
+          <button type="button" class="login-submit" id="login-ms-btn" style="background:#2563eb; border-color:#2563eb;">Sign in with Microsoft</button>
+          <button type="button" class="login-submit" id="login-gmail-btn" style="margin-top:8px;">Connect Gmail (browser)</button>
+          <button type="button" class="login-submit" id="login-outlook-btn" style="margin-top:8px;">Connect Outlook (browser)</button>
+          <p id="login-nopw-status" style="display:none; font-size:0.85em; margin-top:10px; text-align:center;"></p>
+        </div>
+        <!-- ===== END LOW-FRICTION TRANSPORTS (login gate) ===== -->
+
         <p class="login-footnote">
           <span class="material-symbols-outlined" style="font-size:16px;">lock</span>
           Credentials are stored locally on this device. We never see them.
@@ -721,7 +1185,7 @@
         </div>
         <div id="preview-spam"></div>
         <div class="preview-body-container">
-          <iframe id="preview-frame" style="width: 100%; height: 400px; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: white;"></iframe>
+          <iframe id="preview-frame" style="width: 100%; height: 400px; border: 1px solid var(--border); border-radius: 6px; background: white;"></iframe>
         </div>
       </div>
     </div>
@@ -759,6 +1223,9 @@
                 <label for="rec-subject">Subject <span style="color: var(--muted-foreground); font-weight: 400;">(optional)</span></label>
                 <input type="text" id="rec-subject" placeholder="Leave blank to use the default subject">
               </div>
+              <p class="help-text gs-contrast">
+                <strong>Both optional.</strong> A <strong>Campaign</strong> sets the subject &amp; template for a group; a <strong>Sequence</strong> adds timed follow-ups that stop when someone replies. Not sure? Skip both — you can add them anytime.
+              </p>
               <div class="form-group">
                 <label for="rec-campaign">Campaign</label>
                 <select id="rec-campaign" class="form-control"></select>
@@ -767,7 +1234,7 @@
               <div class="form-group">
                 <label for="rec-sequence">Follow-up sequence</label>
                 <select id="rec-sequence" class="form-control"></select>
-                <p class="help-text">Drip this recipient through a sequence. Assigning (or changing) one restarts the drip from step 1. Manage sequences in the Sequences tab.</p>
+                <p class="help-text">Send this recipient an automatic follow-up series. Assigning (or changing) one restarts from step 1. Manage sequences in the Sequences tab.</p>
               </div>
               <div class="form-group" id="rec-account-group" style="display: none;">
                 <label for="rec-account">Send from account</label>
@@ -804,7 +1271,7 @@
                 <button type="button" id="add-attachment-btn" class="btn outline" style="margin-top: 8px; font-size: 0.8rem;">
                   <span class="material-symbols-outlined">attach_file</span> Attach Document
                 </button>
-                <p class="help-text">If left empty, your default CV (Settings) is attached. The enrollment letter from Settings is always attached.</p>
+                <p class="help-text">Attach files to send with this email (PDF, DOCX, images, etc.).</p>
               </div>
             </div>
 
@@ -827,7 +1294,7 @@
                 <div id="rec-times-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 140px; overflow-y: auto;">
                     <div class="time-input-row" style="display: flex; gap: 8px; align-items: center;">
                         <input type="time" class="rec-time" required>
-                        <button type="button" class="btn outline remove-time-btn" style="padding: 0 8px;">&times;</button>
+                        <button type="button" class="btn outline remove-time-btn" style="padding: 0 8px;" aria-label="Remove time">&times;</button>
                     </div>
                 </div>
                 <button type="button" id="add-time-btn" class="btn outline" style="margin-top: 8px; font-size: 0.8rem;">+ Add Time</button>
@@ -836,7 +1303,7 @@
               <div class="form-group">
                 <label for="rec-entropy">Randomize send time by ± minutes</label>
                 <input type="number" id="rec-entropy" min="0" max="120" value="0" placeholder="e.g. 15">
-                <p class="help-text">Adds a random delay of +/- this many minutes to each scheduled send time, so sends look less robotic.</p>
+                <p class="help-text">Spreads each send a few minutes early or late so your schedule doesn't look automated. 0 = exact times. Try 15.</p>
               </div>
             </div>
             
@@ -866,7 +1333,7 @@
 
         <div class="form-group">
           <label style="font-weight: 600;">Map columns</label>
-          <p class="help-text">Match your CSV columns to recipient fields. Email is required; any unmapped columns are kept as <code>{{column}}</code> merge variables.</p>
+          <p class="help-text">Match your CSV columns to recipient fields. Email is required; any unmapped columns are kept as <code title="A placeholder like {{company}} is filled in per recipient from that CSV column.">{{column}}</code> placeholders you can drop into your message.</p>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-top: 8px;">
             <div>
               <label for="map-email">Email <span style="color: var(--muted-foreground);">(required)</span></label>
@@ -982,10 +1449,12 @@
       <div class="modal-content" style="max-width: 520px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 id="app-pw-title" style="margin: 0; font-size: 1.25rem;">How to get an app password</h2>
-          <button type="button" id="app-pw-close" class="btn outline" style="padding: 4px; height: auto; border: none; background: transparent;">
+          <button type="button" id="app-pw-close" class="btn outline" style="padding: 4px; height: auto; border: none; background: transparent;" aria-label="Close">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
+        <div class="app-pw-slides">
+        <section id="app-pw-slide-1" class="app-pw-slide" aria-label="How to create the app password">
         <div id="login-micro-guide" class="login-micro-guide" aria-hidden="true" style="margin-bottom: 16px;">
 
           <!-- Google replica: myaccount.google.com/apppasswords (2026) -->
@@ -1088,7 +1557,9 @@
           </div>
         </div>
         <ol id="login-steps" class="login-steps"></ol>
+        </section>
 
+        <section id="app-pw-slide-2" class="app-pw-slide" aria-label="Is it safe?" hidden>
         <div class="app-pw-safety" role="note">
           <span class="material-symbols-outlined app-pw-safety-icon">verified_user</span>
           <div class="app-pw-safety-body">
@@ -1100,11 +1571,145 @@
             </ul>
           </div>
         </div>
+        </section>
+        </div><!-- /.app-pw-slides -->
+
+        <div class="app-pw-nav">
+          <div class="app-pw-dots" aria-hidden="true">
+            <span class="app-pw-dot active" data-slide="1"></span>
+            <span class="app-pw-dot" data-slide="2"></span>
+          </div>
+          <div class="app-pw-nav-btns">
+            <button type="button" id="app-pw-back" class="btn outline" hidden>‹ Back</button>
+            <button type="button" id="app-pw-next" class="btn primary">Next ›</button>
+          </div>
+        </div>
 
         <a id="app-pw-open-link" class="app-pw-open" href="#" target="_blank" rel="noopener">
           <span class="material-symbols-outlined">open_in_new</span>
           <span id="app-pw-open-text">Open the App passwords page</span>
         </a>
+      </div>
+    </div>
+
+    <!-- First-run Setup Wizard — guides provider → app password → sign in.
+         Layers OVER the login screen (z-index above it + the app-pw modal). The login
+         form stays intact underneath; closing this wizard reveals it. Logic classes are
+         sw-* (NOT the recipient wizard's .wizard-* which are queried document-wide). -->
+    <div id="setup-wizard-modal" class="modal" style="display: none; z-index: 3200;">
+      <div class="modal-content" style="max-width: 560px;">
+        <span class="close-modal" id="setup-wizard-close" role="button" tabindex="0" aria-label="Skip setup and use the sign-in form">&times;</span>
+        <h2 id="setup-wizard-title" style="margin-top: 0;">Let's get you sending</h2>
+        <p class="help-text" style="margin-bottom: 16px;">Three quick steps to connect your inbox. You can close this anytime and use the sign-in form instead.</p>
+
+        <div class="sw-progress">
+          <div class="sw-step active" data-sw-step="1">1. Provider</div>
+          <div class="sw-step" data-sw-step="2">2. App password</div>
+          <div class="sw-step" data-sw-step="3">3. Sign in</div>
+        </div>
+
+        <!-- STEP 1: Provider -->
+        <div class="sw-panel" id="sw-panel-1">
+          <p style="margin-top: 0;">Which email account will you send from?</p>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button type="button" class="btn outline sw-provider-btn" data-sw-provider="gmail" style="justify-content: flex-start; gap: 10px; height: 48px;">
+              <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+              Gmail
+            </button>
+            <button type="button" class="btn outline sw-provider-btn" data-sw-provider="outlook" style="justify-content: flex-start; gap: 10px; height: 48px;">
+              <svg viewBox="0 0 21 21" width="18" height="18" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>
+              Outlook / Office 365
+            </button>
+            <button type="button" class="btn outline sw-provider-btn" data-sw-provider="other" style="justify-content: flex-start; gap: 10px; height: 48px;">
+              <span class="material-symbols-outlined" style="font-size:18px;">mail</span>
+              Other (custom SMTP)
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 2: App password -->
+        <div class="sw-panel" id="sw-panel-2" style="display: none;">
+          <p style="margin-top: 0;">Email providers need a one-time <strong>app password</strong> — not your normal login:</p>
+          <details class="sw-why">
+            <summary>Why an app password? <span class="sw-why-tag">it's safe</span></summary>
+            <figure class="concept-diagram">
+            <svg class="cd" viewBox="0 0 480 152" role="img" aria-labelledby="cd-apppw-t">
+              <title id="cd-apppw-t">Your email provider creates a send-only app password that you paste into Email Pilots. It is not your real password and you can revoke it anytime.</title>
+              <rect x="18" y="26" width="98" height="62" rx="8" class="cd-paper s-border" stroke-width="1.5"/>
+              <circle cx="67" cy="50" r="11" class="cd-subtle s-primary" stroke-width="1.5"/>
+              <path d="M51 76c0-9 7-14 16-14s16 5 16 14" class="cd-line s-primary"/>
+              <text x="67" y="104" text-anchor="middle" font-size="11" font-weight="600">Your account</text>
+              <text x="67" y="116" text-anchor="middle" font-size="9" class="cd-muted">Gmail / Outlook</text>
+              <line x1="120" y1="57" x2="176" y2="57" class="cd-line s-muted"/>
+              <path d="M176 57l-8-4v8z" class="cd-muted"/>
+              <text x="148" y="48" text-anchor="middle" font-size="9" class="cd-muted">creates</text>
+              <circle cx="208" cy="57" r="12" fill="none" stroke="currentColor" stroke-width="3"/>
+              <rect x="218" y="54" width="42" height="6" rx="2" fill="currentColor"/>
+              <rect x="246" y="54" width="5" height="12" rx="1" fill="currentColor"/>
+              <rect x="236" y="54" width="5" height="10" rx="1" fill="currentColor"/>
+              <text x="232" y="90" text-anchor="middle" font-size="11" font-weight="600">App password</text>
+              <text x="232" y="102" text-anchor="middle" font-size="9" class="cd-muted">a send-only key</text>
+              <line x1="284" y1="57" x2="340" y2="57" class="cd-line s-muted"/>
+              <path d="M340 57l-8-4v8z" class="cd-muted"/>
+              <text x="312" y="48" text-anchor="middle" font-size="9" class="cd-muted">paste</text>
+              <rect x="362" y="26" width="98" height="62" rx="8" class="cd-paper s-border" stroke-width="1.5"/>
+              <path d="M362 34a8 8 0 0 1 8-8h82a8 8 0 0 1 8 8v8H362z" class="cd-subtle"/>
+              <rect x="374" y="54" width="56" height="6" rx="3" class="cd-muted"/>
+              <rect x="374" y="66" width="40" height="6" rx="3" class="cd-muted"/>
+              <path d="M418 70l26-11-11 26-4-11z" fill="currentColor"/>
+              <text x="411" y="104" text-anchor="middle" font-size="11" font-weight="600">Email Pilots</text>
+              <rect x="96" y="130" width="150" height="18" rx="9" class="cd-subtle"/>
+              <text x="171" y="142" text-anchor="middle" font-size="9" class="cd-muted">✕ not your real password</text>
+              <rect x="258" y="130" width="120" height="18" rx="9" class="cd-success" opacity="0.12"/>
+              <text x="318" y="142" text-anchor="middle" font-size="9" class="cd-success" font-weight="600">↻ revoke anytime</text>
+            </svg>
+            <figcaption class="cd-caption">An app password is a one-purpose key your provider issues. It can only send mail — never reads your inbox, changes your account, or replaces your real password.</figcaption>
+          </figure>
+          </details>
+          <ol id="sw-steps" class="login-steps"></ol>
+          <div id="sw-custom-note" style="display:none; margin: 8px 0; font-size: 0.85em; color: var(--muted-foreground);">For a custom provider, use your mailbox password (or an app password if they require one). You'll enter the SMTP host and port on the next step.</div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+            <button type="button" id="sw-show-guide" class="btn outline" style="font-size: 0.85rem;">
+              <span class="material-symbols-outlined" style="font-size:18px;">smart_display</span> Show me (animated)
+            </button>
+            <a id="sw-open-help" class="btn outline" href="#" target="_blank" rel="noopener" style="font-size: 0.85rem; text-decoration: none;">
+              <span class="material-symbols-outlined" style="font-size:18px;">open_in_new</span> Open the app passwords page
+            </a>
+          </div>
+        </div>
+
+        <!-- STEP 3: Sign in -->
+        <div class="sw-panel" id="sw-panel-3" style="display: none;">
+          <p style="margin-top: 0;">Paste what you just created and you're done.</p>
+          <div id="sw-custom-fields" style="display:none; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div class="login-field">
+              <label for="sw-host">SMTP Host</label>
+              <input id="sw-host" type="text" placeholder="smtp.example.com">
+            </div>
+            <div class="login-field">
+              <label for="sw-port">Port</label>
+              <input id="sw-port" type="number" placeholder="587">
+            </div>
+          </div>
+          <div class="login-field">
+            <label for="sw-email">Email address</label>
+            <input id="sw-email" type="email" placeholder="you@gmail.com" autocomplete="username">
+          </div>
+          <div class="login-field" style="margin-top: 12px;">
+            <label for="sw-password">App password</label>
+            <input id="sw-password" type="password" placeholder="••••••••••••••••" autocomplete="current-password">
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 16px;">
+          <button type="button" id="sw-skip" class="btn ghost" style="font-size: 0.85rem; color: var(--muted-foreground);">Use the sign-in form instead</button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" id="sw-back" class="btn outline" style="display: none;">Back</button>
+            <button type="button" id="sw-next" class="btn primary" style="display: none;">Next</button>
+            <button type="button" id="sw-finish" class="btn primary" style="display: none;">Connect inbox</button>
+          </div>
+        </div>
       </div>
     </div>
 
