@@ -82,64 +82,73 @@ export class LocalLlamaProvider implements AiProvider {
       const userLayers = this.config.ai?.gpuLayers;       // number | undefined; 0 ⇒ CPU
       const wantFlash = this.config.ai?.flashAttention !== false; // default on
 
-      // Attempt ladder. The key to matching LM Studio/Ollama speed is to stay on the
-      // GPU: offload as many layers as FIT the intended context (`fitContext` reserves
-      // VRAM for the KV cache — the previous code let "auto" layers eat the VRAM, then
-      // the context alloc OOM'd → CPU) and use flash attention to shrink that KV. Only
-      // after the GPU options are exhausted do we fall back to CPU.
-      type Attempt = { gpu: any; contextSize: number; gpuLayers?: any; label: string };
-      const cpu = (ctx: number): Attempt => ({ gpu: { gpu: false }, contextSize: ctx, label: `cpu@${ctx}` });
-      const attempts: Attempt[] = [];
-      if (forced === 'cpu' || userLayers === 0) {
-        attempts.push(cpu(smallCtx));
-      } else {
-        const gpuOpt = forced === 'auto' ? {} : { gpu: forced };
-        // Explicit user layer count wins; otherwise auto-fit while reserving KV room.
-        const fit = (ctx: number) => (typeof userLayers === 'number' && userLayers > 0)
-          ? userLayers
-          : { fitContext: { contextSize: ctx } };
-        attempts.push({ gpu: gpuOpt, contextSize: wanted, gpuLayers: fit(wanted), label: `gpu@${wanted}` });
-        if (smallCtx < wanted) attempts.push({ gpu: gpuOpt, contextSize: smallCtx, gpuLayers: fit(smallCtx), label: `gpu@${smallCtx}` });
-        // Last GPU try: leave headroom (min 1 layer, fit the small context) before CPU.
-        attempts.push({ gpu: gpuOpt, contextSize: smallCtx, gpuLayers: { min: 1, fitContext: { contextSize: smallCtx } }, label: `gpu@${smallCtx}/fit` });
-        attempts.push(cpu(smallCtx));
+      // "AI always lands on GPU": the default path REQUIRES a real GPU backend and
+      // never silently degrades to CPU compute. Only an explicit backend='cpu' (or
+      // gpuLayers=0) opts out — a deliberate user choice in AI settings, not a
+      // fallback. flashAttention is used only when the model supports it.
+      const explicitCpu = forced === 'cpu' || userLayers === 0;
+      const flashFor = (model: any): boolean | 'auto' =>
+        this.config.ai?.flashAttention === false ? false
+          : (wantFlash && model.flashAttentionSupported ? true : 'auto');
+      const onLoadProgress = (p: number) => { try { this.loadProgressCb?.(p); } catch { /* ignore */ } };
+
+      // --- Deliberate CPU opt-out ---------------------------------------------
+      if (explicitCpu) {
+        this.llama = await nlc.getLlama({ gpu: false });
+        this.model = await this.llama.loadModel({ modelPath, onLoadProgress });
+        this.context = await this.model.createContext({ contextSize: smallCtx, flashAttention: flashFor(this.model) });
+        this.activeGpuLayers = 0;
+        this.activeGpuType = 'cpu';
+        return;
       }
+
+      // --- GPU-forced path (default) ------------------------------------------
+      // Resolve the runtime once and require an actual GPU backend UP FRONT, so a
+      // GPU-less machine fails loudly instead of quietly loading a multi-GB model
+      // onto the CPU. getLlama('auto') sets llama.gpu to the backend or false.
+      const gpuOpt = forced === 'auto' ? {} : { gpu: forced };
+      this.llama = await nlc.getLlama(gpuOpt);
+      if (!this.llama.gpu) {
+        this.llama = null;
+        throw new Error('No GPU backend available (CUDA / Vulkan / Metal). AI is set to run on the GPU — install or enable GPU drivers, or choose the CPU backend in AI settings to run on CPU.');
+      }
+
+      // Offload as many layers as FIT the intended context (fitContext reserves KV-
+      // cache VRAM so the context alloc can't OOM us onto the CPU), shrinking the
+      // context before the offload. Every rung stays on the GPU — there is NO CPU rung.
+      const fit = (ctx: number) => (typeof userLayers === 'number' && userLayers > 0)
+        ? userLayers
+        : { fitContext: { contextSize: ctx } };
+      type Attempt = { contextSize: number; gpuLayers: any; label: string };
+      const attempts: Attempt[] = [
+        { contextSize: wanted, gpuLayers: fit(wanted), label: `gpu@${wanted}` },
+      ];
+      if (smallCtx < wanted) attempts.push({ contextSize: smallCtx, gpuLayers: fit(smallCtx), label: `gpu@${smallCtx}` });
+      attempts.push({ contextSize: smallCtx, gpuLayers: { min: 1, fitContext: { contextSize: smallCtx } }, label: `gpu@${smallCtx}/fit` });
 
       let lastErr: any;
       for (const a of attempts) {
         try {
-          this.llama = await nlc.getLlama(a.gpu);
-          this.model = await this.llama.loadModel({
-            modelPath,
-            ...(a.gpuLayers !== undefined ? { gpuLayers: a.gpuLayers } : {}),
-            // Forward llama.cpp's load progress (0..1) to any active preload() listener.
-            onLoadProgress: (p: number) => { try { this.loadProgressCb?.(p); } catch { /* ignore */ } },
-          });
-          // Flash attention only when the model supports it; an explicit `false`
-          // disables it, otherwise fall back to the model's 'auto' default.
-          const flash: boolean | 'auto' = this.config.ai?.flashAttention === false
-            ? false
-            : (wantFlash && this.model.flashAttentionSupported ? true : 'auto');
-          this.context = await this.model.createContext({ contextSize: a.contextSize, flashAttention: flash });
-          // Trust the resolved backend + actual offload count, not what we requested:
-          // getLlama('auto') may pick CPU when no GPU is present (llama.gpu === false),
-          // and a GPU backend that offloads 0 layers is effectively CPU compute.
-          const backend = this.llama?.gpu; // 'cuda' | 'vulkan' | 'metal' | false
+          this.model = await this.llama.loadModel({ modelPath, gpuLayers: a.gpuLayers, onLoadProgress });
+          this.context = await this.model.createContext({ contextSize: a.contextSize, flashAttention: flashFor(this.model) });
           const layers = typeof this.model.gpuLayers === 'number' ? this.model.gpuLayers : undefined;
+          // A GPU backend that offloaded 0 layers is CPU compute — reject it so we
+          // never report a CPU load as "on GPU"; drop to the next (smaller) rung.
+          if (layers === 0) throw new Error('model loaded with 0 GPU layers');
           this.activeGpuLayers = layers;
-          this.activeGpuType = (backend && backend !== false && (layers === undefined || layers > 0)) ? String(backend) : 'cpu';
-          return; // loaded
+          this.activeGpuType = String(this.llama.gpu);
+          return; // loaded on GPU
         } catch (e) {
           lastErr = e;
-          // Free any partially-loaded handles before the next attempt.
+          // Free any partially-loaded handles before the next rung (keep the GPU runtime).
           try { await this.context?.dispose?.(); } catch { /* best effort */ }
           try { await this.model?.dispose?.(); } catch { /* best effort */ }
           this.context = null;
           this.model = null;
-          this.llama = null;
         }
       }
-      throw new Error(`Failed to load model (tried GPU + CPU): ${lastErr?.message || lastErr}`);
+      this.llama = null; // re-probe the runtime on the next retry
+      throw new Error(`Failed to load the model on the GPU: ${lastErr?.message || lastErr}. Try a smaller model or a smaller context size in AI settings.`);
     })();
     this.loadPromise = p;
     p.catch(() => { if (this.loadPromise === p) this.loadPromise = null; });
