@@ -17,6 +17,14 @@
   "build": {
     "appId": "com.mailauto.app",
     "productName": "Email Pilots",
+    "compression": "maximum",
+    "files": [
+      "dist-electron/**",
+      "dist-vite/**",
+      "package.json",
+      "!node_modules/@node-llama-cpp/win-arm64/**",
+      "!node_modules/@node-llama-cpp/**/*.{lib,exp,pdb}"
+    ],
     "asarUnpack": [
       "node_modules/node-llama-cpp/**",
       "node_modules/@node-llama-cpp/**"
