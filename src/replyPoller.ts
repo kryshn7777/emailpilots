@@ -6,6 +6,7 @@ import { StatsManager } from './statsManager';
 import { ReplyStore } from './replyStore';
 import { atomicWriteFileSync } from './atomicWrite';
 import { SuppressionManager } from './suppressionManager';
+import { parseBounce, looksLikeBounce } from './bounceParser';
 import { classifyReply, type ReplyClassification } from './ai/replyClassifier';
 import type { AiService } from './ai/aiService';
 
@@ -14,6 +15,9 @@ const FIRST_RUN_LOOKBACK_DAYS = 7;
 /** Upper bound on one reply's classify (source fetch + local inference) so a
  *  slow/wedged model can never hang a poll sweep and freeze all polling. */
 const CLASSIFY_TIMEOUT_MS = 30_000;
+/** Same bound for the async-bounce path: fetchOne + mailparser + extract must
+ *  never hang the sweep (and thus the main process). */
+const BOUNCE_PARSE_TIMEOUT_MS = 30_000;
 
 /** Resolve to the promise's value, or null if it doesn't settle within `ms`. */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
@@ -186,6 +190,7 @@ export class ReplyPoller {
         }
 
         const toClassify: Array<{ uid: number; key: string; subject?: string }> = [];
+        const bounceCandidates: Array<{ uid: number; subject?: string }> = [];
         if (source) {
           for await (const msg of source) {
             const uid: number = msg.uid;
@@ -194,6 +199,15 @@ export class ReplyPoller {
             if (uid <= lastUid) continue;
             const from = msg.envelope?.from?.[0]?.address;
             const key = from ? String(from).toLowerCase() : '';
+            // Async DSN auto-suppress (AI-independent). A delivery-status
+            // notification's From is mailer-daemon/postmaster — never one of our
+            // recipients — so gating on NOT-a-recipient keeps every genuine reply
+            // on the unchanged path below; this only reclaims mail the next line
+            // already discards. Full parse + authoritative check run in phase 2.
+            if (!recipients.has(key) && looksLikeBounce(key, msg.envelope?.subject)) {
+              bounceCandidates.push({ uid, subject: msg.envelope?.subject });
+              continue;
+            }
             if (!key || !recipients.has(key)) continue;
             // A malformed envelope date must not throw (RangeError) and abort the
             // sweep before the cursor advances (which would re-fail every poll).
@@ -212,6 +226,13 @@ export class ReplyPoller {
         // never block or revert it, even if it stalls or errors.
         const newCursor = uidNext > 0 ? uidNext - 1 : lastUid;
         if (newCursor > lastUid) this.writeCursor(account.id, newCursor);
+
+        // Async bounces: process the DSNs diverted in phase 1. Unconditional —
+        // no AI gate — and after the cursor advance so a slow parse can never
+        // block or revert it (mirrors the classify pass below).
+        for (const item of bounceCandidates) {
+          await withTimeout(this.handleBounceCandidate(client, item, recipients), BOUNCE_PARSE_TIMEOUT_MS);
+        }
 
         // Phase 2: classify collected replies. Runs after the batch stream is
         // drained (so a per-message source fetch doesn't nest inside it) and after
@@ -244,6 +265,43 @@ export class ReplyPoller {
       }
     } catch (e) {
       console.error('Reply classification failed:', e);
+    }
+  }
+
+  /**
+   * Phase-2 handler for a diverted DSN candidate. Fetches the full raw source
+   * (BODY.PEEK[] via `source:true` — no \Seen change), parses it, and — only
+   * when the recovered failed recipient is actually on our list — adds it to
+   * suppression as a bounce. Never throws; a parse failure degrades to "skip
+   * this message". Runs with AI disabled (unlike the gated Unsubscribe path).
+   */
+  private async handleBounceCandidate(client: ImapFlow, item: { uid: number; subject?: string }, recipients: Set<string>): Promise<void> {
+    try {
+      const msg: any = await client.fetchOne(String(item.uid), { source: true }, { uid: true });
+      if (!msg?.source) return;
+      // Reuse the lazy mailparser dep already used by the classify path.
+      const { simpleParser } = await import('mailparser');
+      const parsed = await simpleParser(msg.source as Buffer);
+      const headers: Record<string, string> = {};
+      for (const hl of parsed.headerLines || []) {
+        const i = hl.line.indexOf(':');
+        if (i > 0) headers[hl.key.toLowerCase()] = hl.line.slice(i + 1).trim();
+      }
+      const res = parseBounce({
+        from: String(parsed.from?.value?.[0]?.address || '').toLowerCase(),
+        subject: parsed.subject || item.subject,
+        headers,
+        // Raw source so the Final-Recipient line in the delivery-status part is visible.
+        body: String(msg.source),
+      });
+      if (!res) return;
+      // Safety: only suppress an address genuinely on our list — a spoofed or
+      // forwarded DSN naming a stranger must not poison suppression.json.
+      if (!recipients.has(res.failedRecipient)) return;
+      new SuppressionManager(getBasePath()).add(res.failedRecipient, 'bounce', `async DSN: ${(item.subject || '').trim()}`.trim());
+      console.log(`Async bounce suppressed ${res.failedRecipient}.`);
+    } catch (e) {
+      console.error('Bounce parse failed:', e);
     }
   }
 

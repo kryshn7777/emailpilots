@@ -25,6 +25,7 @@ import {
   inferProvider, isConsumerDomain, isValidDomain,
 } from '../src/domainAuth';
 import type { DnsAnswer, DkimProbeResult } from '../src/domainAuth';
+import { classifyMxRecords } from '../src/mxValidation';
 import dotenv from 'dotenv';
 
 // Writing to a closed stdout/stderr pipe raises EPIPE. With no listener Node
@@ -1445,10 +1446,16 @@ ipcMain.handle('verify-email', async (_event, rawEmail) => {
 
     try {
         const addresses = await dns.promises.resolveMx(domain);
-        if (addresses && addresses.length > 0) {
+        const cls = classifyMxRecords(addresses || []);
+        if (cls === 'null-mx') {
+            // RFC 7505: the domain publishes a null MX and refuses all mail.
+            // The RFC forbids A/AAAA fallback here — do NOT fall through.
+            return { valid: false, reason: 'Domain does not accept email' };
+        }
+        if (cls === 'accepts') {
             return { valid: true };
         }
-        // Empty MX → fall through to A/AAAA fallback below.
+        // cls === 'no-mx' (empty array) → fall through to A/AAAA fallback below.
     } catch (err: any) {
         if (DNS_TRANSIENT_CODES.includes(err?.code)) {
             // Can't verify right now — don't block. SMTP send will surface a real failure.
