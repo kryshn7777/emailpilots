@@ -935,6 +935,14 @@
                   <span class="material-symbols-outlined">folder_open</span>
                   Choose Model…
                 </button>
+                <!-- The same download the first-run offer makes. It lives here too so
+                     "Not now" is reversible: without this, declining once would leave
+                     the feature reachable only by hunting down a .gguf by hand, which
+                     is the problem the download exists to solve. -->
+                <button type="button" id="ai-download-model-btn" class="btn outline">
+                  <span class="material-symbols-outlined">download</span>
+                  Download recommended
+                </button>
                 <span id="ai-model-path" class="help-text" style="margin:0; word-break:break-all;">No model selected</span>
               </div>
               <p class="help-text">Download an open-weight GGUF model (e.g. Qwen2.5-Instruct) and point here. The file stays on your computer.</p>
@@ -1181,6 +1189,71 @@
       </div>
     </div>
     
+    <!-- Local AI offer — one-time, shown AFTER the first successful sign-in (so the
+         account is proven before we ask anyone to wait for a multi-GB download).
+         z-index clears the login gate (3000); the setup wizard (3200) only runs
+         pre-login, so the two can't collide. Mirrored verbatim from index.html —
+         src/__tests__/gui2Parity.test.ts fails if these ids drift apart. -->
+    <div id="ai-onboard-modal" class="modal" style="display: none; z-index: 3100;">
+      <div class="modal-content" style="max-width: 680px;">
+        <h2 style="margin-top: 0;">Add a local AI assistant?</h2>
+        <p class="help-text" style="margin-bottom: 16px;">
+          Entirely optional. Email Pilots does everything below without it — the AI only adds help with sorting replies and writing.
+        </p>
+
+        <div class="table-container" style="margin-bottom: 16px;">
+          <table class="recipients-table">
+            <thead>
+              <tr><th>What you get</th><th>Without AI</th><th>With Local AI</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Sending, scheduling, follow-ups, safety limits</td><td>Full</td><td>Identical</td></tr>
+              <tr><td>Reply detection and counts</td><td>Full</td><td>Full</td></tr>
+              <tr><td>Auto-blocking addresses that bounce</td><td>Full</td><td>Full</td></tr>
+              <tr><td>Spam check before sending</td><td>Built-in checks</td><td>Built-in <strong>+</strong> AI review</td></tr>
+              <tr><td>Sorts replies (interested, unsubscribe, out&#8209;of&#8209;office&hellip;)</td><td>&mdash;</td><td>Yes</td></tr>
+              <tr><td>Honours unsubscribe replies automatically</td><td>&mdash;</td><td>Yes</td></tr>
+              <tr><td>Pauses follow-ups when someone&rsquo;s away</td><td>&mdash;</td><td>Yes</td></tr>
+              <tr><td>Writing assistant while you compose</td><td>&mdash;</td><td>Yes</td></tr>
+              <tr><td>Tailors each email to the recipient</td><td>&mdash;</td><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p id="ai-onboard-hw" class="help-text" style="margin-bottom: 12px;"></p>
+
+        <p style="font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 4px;">
+          Everything stays on this PC. Your email password and sign-in tokens are encrypted using Windows&rsquo; built-in protection.
+          The AI runs entirely on your computer &mdash; no cloud, no account, nothing sent anywhere.
+        </p>
+
+        <details class="sw-why">
+          <summary>How your data is stored</summary>
+          <ul style="font-size: var(--text-xs); color: var(--text-muted); margin: 4px 0 0; padding-left: 18px;">
+            <li><strong>Passwords and sign-in tokens</strong> are encrypted, and are tied to this Windows account on this PC.</li>
+            <li><strong>Contacts, replies and drafts</strong> are kept in a folder on this PC and are <strong>not</strong> encrypted &mdash; anything running under your Windows account can read them.</li>
+            <li>File names show which of your own accounts sent mail, even though the contents are protected.</li>
+            <li>Nothing is uploaded, and the AI never makes a network connection. The only download is the model file itself.</li>
+          </ul>
+        </details>
+
+        <div id="ai-onboard-progress" style="display: none; margin: 12px 0;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <progress id="ai-onboard-progress-bar" max="100" value="0" style="flex: 1; height: 14px;"></progress>
+            <span id="ai-onboard-progress-label" class="help-text" style="margin: 0; min-width: 116px; text-align: right;"></span>
+          </div>
+        </div>
+
+        <p id="ai-onboard-error" class="help-text is-error" style="display: none;"></p>
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+          <button type="button" class="btn ghost" id="ai-onboard-skip-btn">Not now</button>
+          <button type="button" class="btn outline" id="ai-onboard-cancel-btn" style="display: none;">Cancel</button>
+          <button type="button" class="btn primary" id="ai-onboard-download-btn">Download</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Preview Modal -->
     <div id="preview-modal" class="modal" style="display: none; z-index: 1500;">
       <div class="modal-content">

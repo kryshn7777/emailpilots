@@ -8,6 +8,9 @@ import { detectProviderFromDomain, detectProviderFromEmail, type DetectedProvide
 
 const GS_DISMISS_KEY = 'eptGettingStartedDismissed';
 const SW_SKIP_KEY = 'eptSetupWizardSkipped';
+/** The local-AI offer is shown once. Same localStorage convention as the two above:
+ *  a decision the user already made must not be re-asked on every launch. */
+const AI_ONBOARD_KEY = 'eptAiOnboardShown';
 
 function escapeHTML(str: string | null | undefined): string {
   if (str == null) return '';
@@ -76,6 +79,21 @@ declare global {
       aiSelectModel: () => Promise<{ ok: boolean; path?: string; canceled?: boolean; error?: string }>;
       aiLoadModel: () => Promise<{ ok: boolean; ready?: boolean; gpuType?: string; gpuLayers?: number; contextSize?: number; error?: string }>;
       onAiLoadProgress: (cb: (progress: number) => void) => (() => void);
+      // What this machine can run. Cheap — resolves the GPU backend WITHOUT loading a
+      // model, unlike aiStatus()/aiLoadModel().
+      aiProbeHardware: () => Promise<{
+        hasRuntime: boolean; hasGpu: boolean; gpuType?: string; gpuNames?: string[];
+        vramBytes?: number; totalRamBytes: number; error?: string;
+        recommendation?: { model: { id: string }; comfortable: boolean; reason: string };
+      }>;
+      aiModelCatalog: () => Promise<Array<{
+        id: string; name: string; repo: string; file: string; sizeBytes: number;
+        sha256: string; minVramBytes: number; license: string; blurb: string; installed: boolean;
+      }>>;
+      aiDownloadModel: (modelId: string) => Promise<{ ok: boolean; path?: string; canceled?: boolean; error?: string }>;
+      aiDownloadCancel: () => Promise<{ ok: boolean }>;
+      // Separate channel from onAiLoadProgress: downloading the file, not loading it.
+      onAiDownloadProgress: (cb: (p: { modelId: string; phase: string; receivedBytes: number; totalBytes: number; fraction: number }) => void) => (() => void);
       onLog: (callback: (message: string, type: string) => void) => void;
       onStatusChange: (callback: (isActive: boolean) => void) => void;
     }
@@ -3251,7 +3269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const name = (document.getElementById('onboard-name') as HTMLInputElement).value;
         if (!name) return;
         currentUserName = name;
-        
+
         const newConfig = {
           userName: name,
           smtpHost: inputHost.value,
@@ -3266,6 +3284,158 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (welcomeTitle) welcomeTitle.textContent = `Welcome back, ${formattedName}`;
         document.getElementById('onboarding-modal')!.style.display = 'none';
         refreshSetupState();
+        // Queue the AI offer behind this one rather than stacking two dialogs.
+        void maybeOfferLocalAi();
+    });
+
+    // --- Local AI offer (one-time, post-sign-in) ---------------------------------
+    //
+    // Shown after the inbox is proven, never before: asking someone to wait for a
+    // multi-GB download before knowing their SMTP even works is a bad trade.
+    //
+    // Everything here reads AI state on a USER-INITIATED event only. aiStatus() loads
+    // the model by design, so touching it at mount would drag a multi-GB load into
+    // startup (F3-POT-002). The hardware probe deliberately does NOT do that — it
+    // resolves the backend without loading anything, which is the whole reason it
+    // exists.
+    const aiOnboardModal = document.getElementById('ai-onboard-modal');
+    const aiOnboardHw = document.getElementById('ai-onboard-hw');
+    const aiOnboardDownloadBtn = document.getElementById('ai-onboard-download-btn') as HTMLButtonElement | null;
+    const aiOnboardSkipBtn = document.getElementById('ai-onboard-skip-btn') as HTMLButtonElement | null;
+    const aiOnboardCancelBtn = document.getElementById('ai-onboard-cancel-btn') as HTMLButtonElement | null;
+    const aiOnboardProgress = document.getElementById('ai-onboard-progress');
+    const aiOnboardProgressBar = document.getElementById('ai-onboard-progress-bar') as HTMLProgressElement | null;
+    const aiOnboardProgressLabel = document.getElementById('ai-onboard-progress-label');
+    const aiOnboardError = document.getElementById('ai-onboard-error');
+
+    let aiOnboardModel: { id: string; name: string; sizeBytes: number } | null = null;
+    let aiOnboardBusy = false;
+
+    const fmtBytes = (b: number): string => {
+      if (!Number.isFinite(b) || b <= 0) return '—';
+      const gb = 1024 ** 3;
+      return b >= gb ? `${(b / gb).toFixed(1)} GB` : `${Math.round(b / (1024 * 1024))} MB`;
+    };
+
+    /** @param remember false ⇒ close without answering, so it can be offered again. */
+    function closeAiOnboard(remember = true) {
+      if (remember) {
+        try { localStorage.setItem(AI_ONBOARD_KEY, '1'); } catch { /* private mode */ }
+      }
+      if (aiOnboardModal) aiOnboardModal.style.display = 'none';
+    }
+
+    /**
+     * Show the offer. `force` skips the once-only check and the already-installed
+     * short-circuit — that's the Settings button, where the user asked for it
+     * explicitly and a silent no-op would look broken.
+     */
+    async function maybeOfferLocalAi(force = false): Promise<void> {
+      if (!aiOnboardModal || !aiOnboardDownloadBtn) return;
+      if (!force) {
+        try { if (localStorage.getItem(AI_ONBOARD_KEY)) return; } catch { /* private mode → offer */ }
+      }
+
+      let catalog: any[] = [];
+      try {
+        catalog = await window.electronAPI.aiModelCatalog();
+      } catch { return; } // no catalog → nothing to offer; stay silent rather than error
+      const model = catalog?.[0];
+      if (!model) return;
+      // Already on disk → nothing to sell, unless they came here on purpose.
+      if (model.installed && !force) { closeAiOnboard(); return; }
+
+      aiOnboardModel = model;
+      aiOnboardDownloadBtn.textContent = `Download (${fmtBytes(model.sizeBytes)})`;
+      if (aiOnboardHw) aiOnboardHw.textContent = 'Checking what this computer can run…';
+      aiOnboardModal.style.display = 'flex';
+
+      // Probe after showing: it's fast, but the dialog shouldn't wait on it.
+      try {
+        const hw = await window.electronAPI.aiProbeHardware();
+        if (!aiOnboardHw) return;
+        if (!hw?.hasRuntime) {
+          aiOnboardHw.textContent = hw?.error || 'The AI engine isn\'t available on this computer.';
+          aiOnboardHw.classList.add('is-error');
+          aiOnboardDownloadBtn.disabled = true;
+          return;
+        }
+        const gpu = hw.gpuNames?.[0];
+        const reason = hw.recommendation?.reason || '';
+        // Name the actual adapter when we know it — "your graphics card" is vaguer
+        // than the user's own machine deserves.
+        aiOnboardHw.textContent = gpu ? `${gpu} detected. ${reason}` : reason;
+        aiOnboardHw.classList.toggle('is-error', hw.recommendation?.comfortable === false);
+      } catch {
+        if (aiOnboardHw) aiOnboardHw.textContent = '';
+      }
+    }
+
+    aiOnboardSkipBtn?.addEventListener('click', () => {
+      if (aiOnboardBusy) return; // Cancel is the exit while a download runs
+      closeAiOnboard();
+    });
+
+    // Settings → "Download recommended". Reuses the same dialog rather than a second
+    // download path: one place decides what gets fetched and how it's verified.
+    document.getElementById('ai-download-model-btn')?.addEventListener('click', () => {
+      void maybeOfferLocalAi(true);
+    });
+
+    aiOnboardCancelBtn?.addEventListener('click', async () => {
+      try { await window.electronAPI.aiDownloadCancel(); } catch { /* nothing running */ }
+    });
+
+    aiOnboardDownloadBtn?.addEventListener('click', async () => {
+      if (!aiOnboardModel || aiOnboardBusy) return;
+      aiOnboardBusy = true;
+      aiOnboardDownloadBtn.disabled = true;
+      if (aiOnboardSkipBtn) aiOnboardSkipBtn.disabled = true;
+      if (aiOnboardCancelBtn) aiOnboardCancelBtn.style.display = '';
+      if (aiOnboardProgress) aiOnboardProgress.style.display = 'block';
+      if (aiOnboardError) aiOnboardError.style.display = 'none';
+
+      const off = window.electronAPI.onAiDownloadProgress((p) => {
+        if (aiOnboardProgressBar) aiOnboardProgressBar.value = Math.round((p.fraction || 0) * 100);
+        if (!aiOnboardProgressLabel) return;
+        // 'verifying' is not 'downloading': hashing gigabytes takes real time, and a bar
+        // parked at 100% with no explanation reads as a hang.
+        const pct = Math.round((p.fraction || 0) * 100);
+        aiOnboardProgressLabel.textContent =
+          p.phase === 'verifying' ? 'Checking file…'
+          : p.phase === 'resuming' ? 'Resuming…'
+          : p.phase === 'checking' ? 'Starting…'
+          : `${pct}% of ${fmtBytes(p.totalBytes)}`;
+      });
+
+      try {
+        const res = await window.electronAPI.aiDownloadModel(aiOnboardModel.id);
+        if (res?.ok) {
+          toast('Local AI is ready. Look for the ✨ buttons.', 'success', 'AI installed');
+          closeAiOnboard();
+          await refreshAiStatus();
+        } else if (res?.canceled) {
+          // Cancelling a download is not declining the feature, so don't record an
+          // answer: the partial file survives for resume, and burying the offer here
+          // would strand those gigabytes with nothing left able to finish them.
+          closeAiOnboard(false);
+        } else if (aiOnboardError) {
+          aiOnboardError.textContent = res?.error || 'The download failed.';
+          aiOnboardError.style.display = 'block';
+        }
+      } catch (e: any) {
+        if (aiOnboardError) {
+          aiOnboardError.textContent = e?.message || 'The download failed.';
+          aiOnboardError.style.display = 'block';
+        }
+      } finally {
+        off();
+        aiOnboardBusy = false;
+        aiOnboardDownloadBtn.disabled = false;
+        if (aiOnboardSkipBtn) aiOnboardSkipBtn.disabled = false;
+        if (aiOnboardCancelBtn) aiOnboardCancelBtn.style.display = 'none';
+        if (aiOnboardProgress) aiOnboardProgress.style.display = 'none';
+      }
     });
 
     // Setup banner → jump to Settings
@@ -3754,8 +3924,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderPreflight();
         refreshAccounts();
 
-        // No display name yet → run the existing name onboarding next.
+        // No display name yet → run the existing name onboarding next; its submit
+        // handler offers the AI afterwards, so the two never stack. Otherwise offer
+        // the AI straight away, now that the inbox is proven.
         if (!config.userName) document.getElementById('onboarding-modal')!.style.display = 'flex';
+        else void maybeOfferLocalAi();
       } catch {
         showLoginError('Couldn\'t save your login — try again in a moment.');
       } finally {
