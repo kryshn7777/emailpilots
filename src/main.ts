@@ -3383,6 +3383,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     aiOnboardCancelBtn?.addEventListener('click', async () => {
+      // The main process records the intent even when there's no request to abort yet
+      // (during the disk-space check or a long re-hash of an existing part file), so a
+      // click always lands. Acknowledge it immediately — cancelling a 2.5 GB download
+      // shouldn't leave the button looking dead while the current phase finishes.
+      if (aiOnboardProgressLabel) aiOnboardProgressLabel.textContent = 'Stopping…';
       try { await window.electronAPI.aiDownloadCancel(); } catch { /* nothing running */ }
     });
 

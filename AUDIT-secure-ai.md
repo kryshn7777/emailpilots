@@ -10,9 +10,9 @@ session's CSA work.
 
 | | Count |
 |---|---|
-| Confirmed | 4 (3 high, 1 medium) |
-| Fixed | 4 |
-| Open / deferred | 3 (see "Known and accepted") |
+| Confirmed | 7 (1 blocker, 3 high, 3 medium) |
+| Fixed | 7 |
+| Open / deferred | 4 (see "Known and accepted") |
 | Refuted | 10 |
 
 ---
@@ -220,6 +220,82 @@ reader concludes the asymmetry is drift.
 
 ---
 
+## S6 — the download's single-flight guarantee freed itself mid-download
+
+**Severity:** Blocker · **Status:** FIXED · **Found by:** the M8 whole-stack review (no
+earlier pass saw it; it only exists in the interaction between the reservation and the
+restart path)
+
+**Where:** `electron/ai/modelDownloader.ts` — the three `downloadModel(..., attempt + 1)`
+recursion sites
+
+**Mechanism.** The download reserves a module-level `active` slot synchronously, so a
+second click can't open a competing writer on the same `.part`. The restart paths then
+did `return downloadModel(model, onProgress, attempt + 1)` — a **bare return, inside a
+try whose `finally` sets `active = null`**.
+
+In an async function, `return somePromise` does **not** await it: the try block completes
+immediately, the `finally` runs, and only then is the outer promise resolved by adopting
+the inner one. So the slot was released *the instant a restart began* and stayed released
+for the whole remaining download:
+
+- `cancelDownload()` reads `active` ⇒ silently dead for the rest of the download; the
+  Cancel button stops working with no feedback.
+- `isDownloading()` reports false while gigabytes are still streaming ⇒ a second click
+  sails past the guard and opens its own writer on the same `.part` — precisely the race
+  the reservation exists to prevent, and the one I added it for.
+
+Bitterly ironic: the reservation was itself a fix for a race found in the M6 self-scan,
+and it was defeated three lines later by a missing keyword.
+
+**Verified, not reasoned about.** Isolated Node repro of the exact shape: with a bare
+`return`, the slot reads `null` mid-flight; with `return await`, it stays held and clears
+only after settling. The reviewer independently confirmed the same comma-expression shape
+survives into the built `dist-electron/main.js`, so it was real in the shipped artifact,
+not just in source.
+
+**Fix:** `return await` at all three sites.
+
+**Process note worth keeping.** The first fix used `replace_all` and reported *"All
+occurrences were successfully replaced"* — but it had matched on leading whitespace and
+silently missed the third site, which sits at a different indent. The blocker would have
+survived its own fix. A re-grep caught it. **Do not trust a bulk-replace confirmation; go
+look.**
+
+## S7 — cancelling during setup was a silent no-op
+
+**Severity:** Medium · **Status:** FIXED · **Found by:** the M8 review
+
+**Where:** `electron/ai/modelDownloader.ts` `cancelDownload()`; `src/main.ts` cancel handler
+
+`active.abort` is null until the network request exists — but the disk-space check and the
+re-hash of an existing `.part` (gigabytes, seconds) both run before that. A cancel in that
+window returned `ok:false`, the renderer discarded the result entirely, and **the download
+then started anyway** — doing the exact thing the user had just asked us not to do, with a
+Cancel button that appeared broken.
+
+Fixed properly rather than papered over: `cancelDownload()` records `cancelRequested` and
+the request-creation path honours it immediately, resolving explicitly rather than relying
+on an `'abort'` event that a never-`end()`ed request may not emit (which would hang the
+caller forever). The first attempt at this only made the label say *"Stopping…"* while the
+download proceeded — a nicer-looking lie, and rejected for being one.
+
+## S8 — stale bundling verification after the escape hatch moved
+
+**Severity:** Low · **Status:** FIXED
+
+`docs/ai-foundation-qa.md`'s "single highest-risk item; it is validated" claim was checked
+while the ESM-from-CJS hatch lived in `providers/localLlama.ts`. M5 moved it to
+`src/ai/runtime.ts`, and that claim silently became a statement about a file that no
+longer holds it — the kind of thing a future reader trusts at face value.
+
+Re-verified against a freshly built `dist-electron/main.js`: `return import(s)` present,
+`"node-llama-cpp"` still a plain string specifier, `require("node-llama-cpp")` count
+**zero**. Doc now records the re-check and says to re-run it if the hatch moves again —
+this fails only in a packaged build, where it is expensive to discover.
+
+---
+
 ## Known and accepted — not fixed, deliberately
 
 **K1 — a swallowed bounce/unsubscribe is lost permanently, not retried.**
@@ -240,6 +316,18 @@ per-account catch above it, so a throw on message N skips that cycle's cursor wr
 candidates and classification. Self-healing: the cursor never advanced, so the same messages
 are retried on the next 15-minute sweep. Narrow (needs a corrupt file *and* a new reply in
 the same window) and safe.
+
+**K4 — the privacy copy doesn't describe the browser transport's sign-in material.**
+The modal says *"Your email password and sign-in tokens are encrypted using Windows'
+built-in protection."* True for the two credential paths this app actually stores — the
+SMTP password and the Microsoft OAuth refresh-token cache, both via the fail-closed
+SecretBox. A `browser`-transport account (GUI2-only, gated by
+`SHOW_NO_PASSWORD_TRANSPORTS`) stores neither: its session lives in a Chromium
+`persist:acct-<id>` partition that this app never touches. The sentence stays **factually
+true** for those users — Chromium encrypts its cookie store with the same Windows DPAPI —
+so it is not a false claim, merely an incomplete one about a transport most users can't
+reach. Adding a line about Chromium partitions to a first-run dialog would cost more
+clarity than it buys. Revisit if the browser transport ever ships in the default shell.
 
 **K3 — a corrupt state file has no push signal.**
 Discovery depends on the operator opening the app: there is no OS notification, tray balloon

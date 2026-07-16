@@ -74,19 +74,28 @@ function downloadUrl(model: CatalogModel): string {
  * concurrent callers both pass the check and then append to the same `.part`.
  * `abort` is filled in later, once there's a request to abort.
  */
-let active: { modelId: string; abort: (() => void) | null } | null = null;
+let active: { modelId: string; abort: (() => void) | null; cancelRequested: boolean } | null = null;
 
 /** True while a download is running — the UI disables the button rather than racing. */
 export function isDownloading(): boolean {
   return active !== null;
 }
 
-/** Cancel the in-flight download, if any. The `.part` survives so a retry resumes.
- *  Returns false when there's nothing to cancel, or when the download is still in its
- *  local setup phase (space check / hash seed) and has no request to abort yet. */
+/**
+ * Cancel the in-flight download. The `.part` survives so a later retry resumes.
+ *
+ * A cancel can arrive before there is anything to abort: the disk-space check and the
+ * hash re-seed of an existing `.part` both run before the request exists, and re-seeding
+ * gigabytes is not instant. Rather than reporting "couldn't cancel" and then starting
+ * the download anyway — which is what the user just asked us not to do — the intent is
+ * recorded and honoured the moment the request is created.
+ *
+ * False means only that no download is running at all.
+ */
 export function cancelDownload(): boolean {
-  if (!active?.abort) return false;
-  active.abort();
+  if (!active) return false;
+  active.cancelRequested = true;
+  active.abort?.();
   return true;
 }
 
@@ -143,7 +152,7 @@ export async function downloadModel(
   // and inherits the slot its caller already holds.
   if (attempt === 0) {
     if (active) return { ok: false, error: 'A model download is already running.' };
-    active = { modelId: model.id, abort: null };
+    active = { modelId: model.id, abort: null, cancelRequested: false };
   }
   if (attempt > 1) {
     active = null;
@@ -211,12 +220,12 @@ export async function downloadModel(
       } catch {
         // Unreadable .part: drop it and start clean rather than resume onto garbage.
         await fs.promises.unlink(partPath).catch(() => {});
-        return downloadModel(model, onProgress, attempt + 1);
+        return await downloadModel(model, onProgress, attempt + 1); // `await` — see RESTART below
       }
       if (received !== start) {
         // The file changed under us mid-seed. Restart clean.
         await fs.promises.unlink(partPath).catch(() => {});
-        return downloadModel(model, onProgress, attempt + 1);
+        return await downloadModel(model, onProgress, attempt + 1); // `await` — see RESTART below
       }
     }
 
@@ -236,10 +245,21 @@ export async function downloadModel(
         resolve(r);
       };
 
-      // Fill in the abort now that there's a request to abort. Keeps the slot reserved
-      // at the top of downloadModel rather than claiming it here.
+      // Fill in the abort now that there's a request to abort. The slot itself was
+      // reserved at the top of downloadModel, not here.
       if (active) {
         active.abort = () => { canceled = true; try { request.abort(); } catch { /* already gone */ } };
+        // Honour a cancel that arrived while we were checking disk space or re-hashing
+        // the existing .part — otherwise we'd start downloading the very thing the user
+        // just cancelled. Resolve explicitly rather than leaning on the 'abort' event:
+        // aborting a request that was never .end()ed may not emit one, and a promise
+        // that never settles hangs the caller forever.
+        if (active.cancelRequested) {
+          canceled = true;
+          try { request.abort(); } catch { /* never started */ }
+          finish({ ok: false, canceled: true });
+          return;
+        }
       }
 
       request.on('response', (response) => {
@@ -334,7 +354,16 @@ export async function downloadModel(
       await fs.promises.unlink(partPath).catch(() => {});
       // Keep holding the slot across the restart — clearing it here would open a window
       // for a second caller to start a competing download onto the same .part.
-      return downloadModel(model, onProgress, attempt + 1);
+      //
+      // `return await`, not a bare `return` — here and at the two seed-restart sites
+      // above. This sits inside a try whose finally releases the slot, and in an async
+      // function a bare `return somePromise` runs that finally the instant the call is
+      // MADE, not when it settles. A bare return therefore freed the reservation while
+      // gigabytes were still streaming: cancelDownload() went dead for the rest of the
+      // download, and a second click sailed past the guard onto the same .part — the
+      // exact race the reservation exists to prevent. The await is what makes it mean
+      // anything.
+      return await downloadModel(model, onProgress, attempt + 1);
     }
     return result;
   } catch (e: any) {
