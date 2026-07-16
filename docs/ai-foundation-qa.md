@@ -2,6 +2,20 @@
 
 ## Runtime fixes (post-first-run)
 
+> **SUPERSEDED (2026-07-16) — there is no CPU rung any more.** RT-001 below, and the
+> GPU-acceleration section further down, both describe a load ladder that ends in an
+> automatic **CPU** fallback. That fallback was deliberately removed afterwards:
+> `providers/localLlama.ts` now **requires** a real GPU backend on the default path and
+> throws *"No GPU backend available"* rather than quietly loading a multi-GB model onto
+> the CPU, because a silent CPU load is indistinguishable from "the GPU is working" and
+> is many times slower. Every rung stays on the GPU. CPU is still fully supported, but
+> only as an **explicit** user choice — `AI_GPU=cpu` or `AI_GPU_LAYERS=0`, which routes
+> into the deliberate opt-out path. The onboarding hardware probe (`src/ai/hardware.ts`)
+> exists to detect a GPU-less machine and offer that choice up front, instead of letting
+> the user discover it as a failure after a multi-GB download. The entries below are kept
+> as the record of how the ladder got here; read them as history, not as current
+> behaviour.
+
 - **RT-001 (2026-07-13) — model load failed with Vulkan KV-cache OOM** (`alloc_tensor_range: failed to allocate Vulkan1 buffer of size 1073741824`). Root cause: `localLlama.ensureLoaded` passed the model's **native** context (32k-128k) → multi-GB KV cache → failed on a limited-VRAM GPU, with no CPU fallback. **FIXED:** default context capped to **4096** when unset; layered load attempts — GPU@wanted → GPU@≤2048 → **CPU (`getLlama({gpu:false})`)@≤2048** — disposing partial loads between tries, aggregate error if all fail. App already didn't crash (graceful `status()`); this makes the model actually load. Typecheck + 207 tests green; manual re-run pending on the affected machine.
 
 

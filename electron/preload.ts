@@ -82,6 +82,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('ai-stream', listener);
   },
   aiSelectModel: () => ipcRenderer.invoke('ai-select-model'),
+  // What can this machine run? Cheap: resolves the GPU backend WITHOUT loading a
+  // model (unlike aiStatus, which loads one by design). Lets onboarding warn a
+  // GPU-less user before a multi-GB download rather than after it.
+  aiProbeHardware: () => ipcRenderer.invoke('ai-probe-hardware'),
+  aiModelCatalog: () => ipcRenderer.invoke('ai-model-catalog'),
   // Load the model now; load progress (0..1) streams over onAiLoadProgress.
   aiLoadModel: () => ipcRenderer.invoke('ai-load-model'),
   onAiLoadProgress: (cb: (progress: number) => void) => {

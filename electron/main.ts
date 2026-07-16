@@ -23,6 +23,8 @@ import { upsertSequence, removeSequence, MAX_DELAY_DAYS } from '../src/sequenceS
 import type { Campaign, Sequence, SequenceStep } from '../src/config';
 import { atomicWriteFileSync } from '../src/atomicWrite';
 import { makeSecretBox } from '../src/crypto/factory';
+import { probeHardware } from '../src/ai/hardware';
+import { MODEL_CATALOG } from '../src/ai/modelCatalog';
 import {
   buildConsumerDomainReport, buildDomainAuthReport, dkimSelectorsFor,
   inferProvider, isConsumerDomain, isValidDomain,
@@ -1558,6 +1560,30 @@ ipcMain.handle('ai-select-model', async () => {
     const saved = saveConfigToEnv({ aiModelPath: modelPath });
     return { ok: saved, path: modelPath };
 });
+
+/**
+ * What can this machine run? Onboarding calls this BEFORE offering a download, so a
+ * GPU-less user is warned instead of waiting for gigabytes and then hitting
+ * localLlama's "No GPU backend available" error.
+ *
+ * Cheap by construction: probeHardware() resolves the backend but never loads a
+ * model. Do NOT reroute this through aiService().status(), which loads one by design.
+ */
+ipcMain.handle('ai-probe-hardware', async () => {
+    try {
+        return await probeHardware();
+    } catch (e: any) {
+        // probeHardware is total, but a caller-visible IPC must never reject on a
+        // path the UI treats as informational.
+        return {
+            hasRuntime: false, hasGpu: false, totalRamBytes: 0,
+            error: e?.message || 'Could not inspect this computer\'s hardware.',
+        };
+    }
+});
+
+/** The models onboarding may offer. Static data; no network, no disk. */
+ipcMain.handle('ai-model-catalog', () => MODEL_CATALOG);
 
 ipcMain.handle('import-recipients-csv', async () => {
     if (!win) return { canceled: true };

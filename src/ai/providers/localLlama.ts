@@ -2,25 +2,10 @@ import * as fs from 'fs';
 import type { Config } from '../../config';
 import type { AiProvider } from '../aiProvider';
 import type { AiStatus, AiGenerateRequest, AiGenerateResult } from '../types';
-
-/**
- * Bundler-opaque dynamic import.
- *
- * node-llama-cpp v3 is ESM-only, but the Electron main process is bundled to CJS
- * (no `"type":"module"`). A literal `import('node-llama-cpp')` would be rewritten
- * to `require()` by esbuild/tsc under CJS output and throw `ERR_REQUIRE_ESM`.
- * Hiding the specifier inside `new Function` keeps a genuine runtime ESM
- * `import()`, which Node's loader resolves from CJS.
- *
- * DO NOT "simplify" this back to a literal dynamic import — it will break the
- * packaged app. (See the plan's "ESM-from-CJS gotcha".)
- *
- * SECURITY: the function body is a fixed string literal with NO interpolation or
- * concatenation, and the sole caller passes the hardcoded constant
- * `'node-llama-cpp'` — no user/network/file input ever reaches it. It is therefore
- * not a code-injection vector. Do not extend it to accept caller-supplied bodies.
- */
-const dynamicImport = new Function('s', 'return import(s)') as (s: string) => Promise<any>;
+// The ESM-from-CJS escape hatch this file used to carry inline. It moved to ../runtime
+// when the hardware probe needed the same import without loading a model — see that
+// module's docblock before touching it; it is load-bearing for the packaged app.
+import { loadAiRuntime } from '../runtime';
 
 /** Generation cap when a request omits `maxTokens` (kept modest for latency). */
 const DEFAULT_MAX_TOKENS = 512;
@@ -50,11 +35,12 @@ export class LocalLlamaProvider implements AiProvider {
 
   constructor(private config: Config) {}
 
-  /** Import node-llama-cpp once. Returns null (never throws) when unavailable. */
+  /** Import node-llama-cpp once. Returns null (never throws) when unavailable —
+   *  status() turns that into a reportable state rather than an error. */
   private async runtime(): Promise<any> {
     if (this.nlc) return this.nlc;
     try {
-      this.nlc = await dynamicImport('node-llama-cpp');
+      this.nlc = await loadAiRuntime();
       return this.nlc;
     } catch (e: any) {
       this.lastError = `AI runtime unavailable: ${e?.message || e}`;
