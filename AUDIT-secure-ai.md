@@ -296,6 +296,48 @@ this fails only in a packaged build, where it is expensive to discover.
 
 ---
 
+## S9 — the CLI setup wrote a plaintext password to disk
+
+**Severity:** High · **Status:** FIXED · **Found by:** the original storage audit (the last of
+its four defects; the other three closed by M1's fail-closed box and CSA-8)
+
+**Where:** `src/setup.ts:34,42` (file now deleted); `src/index.ts:26-35`
+
+`runInteractiveSetup` prompted for a password and wrote `SMTP_PASS=<plaintext>` straight to
+`.env` — only shell-quoted, never encrypted, and bypassing `atomicWriteFileSync` besides. It
+never imported `makeSecretBox`. Because `config.ts`'s `decryptPassword` passes any non-`ENC:`
+value through verbatim, a CLI-configured install kept a plaintext password on disk **forever**
+— it could never self-heal.
+
+**Fix: deleted, not repaired.** It could not be fixed in place — encryption goes through
+Electron's `safeStorage` and that file is pure Node. A passwordless variant would be worse
+than useless: `hasConfig()` requires `SMTP_PASS`, so it would write a config that still
+reports unconfigured and `index.ts` would loop. `src/index.ts` now prints what to do and
+exits, mirroring what its Docker branch already did.
+
+**Nothing that worked stops working — verified, not assumed:**
+- `src/setup.ts` was imported by exactly one place (`index.ts:6`), so the deletion is clean.
+- **Docker is unaffected**: `hasConfig()` reads `process.env`, the Docker path supplies
+  credentials as env vars, and it already refused interactive setup.
+- A hand-written `.env` still loads (legacy plaintext passthrough, pinned by
+  `secretBox.test.ts`). A developer choosing that for their own machine is categorically
+  different from the *app* writing a secret it cannot protect.
+- `npm run test-send` no longer self-configures — but that only ever worked in the insecure
+  configuration being removed, and it was **already** broken against a GUI-configured install
+  (an `ENC:` password outside Electron degrades to `''`, pre-existing since M1).
+
+**M3b (hosting the CLI under Electron) — DROPPED, not deferred.** Its only real justification
+was reading M2's encrypted stores, and M2 is parked. The remaining goal — a test send against
+a GUI-configured install — **already ships**: the `run-test-send` IPC calls the same
+`runAllAccounts` path behind the app's own button. A second CLI under Electron would be a
+runtime path to maintain for a capability that already exists.
+
+**No new spec.** It is a deletion; a test asserting a file's absence is noise. The behaviour
+that matters — legacy plaintext still loading, so Docker and hand-written `.env` keep working
+— is already pinned.
+
+---
+
 ## Known and accepted — not fixed, deliberately
 
 **K1 — a swallowed bounce/unsubscribe is lost permanently, not retried.**

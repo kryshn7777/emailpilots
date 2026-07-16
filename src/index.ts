@@ -1,9 +1,10 @@
-import dotenv from 'dotenv';
+// No dotenv import: it existed only to reload .env after the interactive setup wrote
+// it. config.ts loads .env at import time, which is what populates process.env for
+// hasConfig() below.
 import { loadConfig, hasConfig, getBasePath } from './config';
 import { EmailService } from './emailService';
 import { MailProcessor } from './mailProcessor';
 import { Scheduler } from './scheduler';
-import { runInteractiveSetup } from './setup';
 import readline from 'readline';
 
 async function waitExit() {
@@ -23,15 +24,23 @@ async function main() {
     const basePath = getBasePath();
     console.log('Base path:', basePath);
     
+    // No interactive setup any more. It prompted for a password and wrote it to .env
+    // in plaintext — it could not do otherwise, since encryption goes through
+    // Electron's safeStorage and this is a pure-Node process. The app must never write
+    // a secret it cannot protect, so configuring an account is now the desktop app's
+    // job alone; it encrypts the password before it touches disk.
+    //
+    // This costs nothing that worked: the CLI only ever self-configured INTO that
+    // insecure state, and it already could not read a GUI-written password (an `ENC:`
+    // value outside Electron has nothing to decrypt it with). Supplying credentials
+    // yourself still works — env vars (the Docker path) or a hand-written .env are a
+    // developer's own choice about their own machine, which is a different thing from
+    // the app making it for them.
     if (!hasConfig()) {
-      if (process.env.DOCKER) {
-        console.error('Configuration missing. Please provide .env file or environment variables in Docker.');
-        process.exit(1);
-      }
-      console.log('Configuration missing. Starting interactive setup...');
-      await runInteractiveSetup(basePath);
-      // Reload dotenv from the newly created file
-      dotenv.config({ path: `${basePath}/.env`, override: true });
+      console.error('No email account is configured.');
+      console.error('Open the Email Pilots desktop app and sign in — it stores your password encrypted.');
+      console.error('For headless/Docker use, supply SMTP_USER and SMTP_PASS as environment variables.');
+      process.exit(1);
     }
 
     const config = loadConfig();

@@ -25,6 +25,20 @@ explicitly wants a live send.
 - At least one active recipient in `recipients.json`.
 - Do not read/echo `.env` or `recipients.json` — they're in the deny list. Just confirm they exist.
 
+> **The CLI no longer configures itself.** It used to prompt for a password and write it to
+> `.env` in plaintext; it could not do otherwise, since encryption goes through Electron's
+> `safeStorage` and this is a pure-Node process. That prompt is gone — the app must never
+> write a secret it cannot protect.
+>
+> So `npm run test-send` needs credentials **you** supply: environment variables (the Docker
+> path) or a hand-written `.env`. If it exits with *"No email account is configured"*, that is
+> this, working as intended — not a bug to route around.
+>
+> It also **cannot** read a password saved by the desktop app: that's stored as `ENC:…`, and
+> only Electron's keystore can open it, so outside Electron it resolves to an empty password
+> and auth fails. To test a GUI-configured install, use the app's own **Send test** button —
+> it runs the same `runAllAccounts` path this CLI does.
+
 ## Run
 
 PowerShell (primary):
