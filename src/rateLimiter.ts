@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { atomicWriteFileSync } from './atomicWrite';
+import { accountStateFileName } from './accountFiles';
 
 export interface RateLimits {
   maxPerDay: number;
@@ -61,9 +62,7 @@ export class RateLimiter {
    *   can never escape basePath.
    */
   constructor(basePath: string, private limits: RateLimits, accountId?: string) {
-    const safeId = (accountId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = safeId && safeId !== 'default' ? `limits.${safeId}.json` : 'limits.json';
-    this.statePath = path.join(basePath, fileName);
+    this.statePath = path.join(basePath, accountStateFileName('limits', accountId));
     this.state = this.load();
     this.rolloverIfNeeded();
   }
@@ -272,6 +271,30 @@ export class RateLimiter {
     const key = (email || '').toLowerCase();
     if (!key) return;
     this.state.deliveredPerRecipientToday[key] = (this.state.deliveredPerRecipientToday[key] || 0) + 1;
+    this.save();
+  }
+
+  /**
+   * Restart the warmup ramp, keeping every counter intact (audit CSA-3).
+   *
+   * warmupStartDate is the account's age anchor and deliberately survives daily
+   * rollover — which is right for one mailbox over time, and wrong the moment a
+   * DIFFERENT mailbox takes over the file. The primary's id is the fixed literal
+   * 'default', so signing out and back in with another address reuses this exact
+   * limits.json: without this, a brand-new cold inbox inherits the old one's age,
+   * effectiveMaxPerDay() returns the full cap, and the warmup ramp — the whole
+   * anti-ban protection — is skipped on day one.
+   *
+   * Resets in place rather than deleting the file, because a scheduler cron or
+   * sequence tick can be mid-`await` (stop() only cancels FUTURE fires) and every
+   * method here reloads from disk: a missing file would reset emailsToday to 0 and
+   * overshoot the cap. Preserving the counters means the worst a concurrent send
+   * sees is a LOWER effective cap — it fails safe. Any stale emailsToday clears at
+   * the next local-midnight rollover.
+   */
+  resetWarmupAnchor(): void {
+    this.reloadState();
+    this.state.warmupStartDate = todayStr();
     this.save();
   }
 

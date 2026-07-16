@@ -11,6 +11,9 @@ import { atomicWriteFileSync } from './atomicWrite';
  * Mirrors campaignStore.ts; basePath is passed in to avoid a config.ts import cycle.
  */
 
+/** Upper bound on a step's wait, in days (~1 year). See normalizeStep (CSA-15). */
+export const MAX_DELAY_DAYS = 365;
+
 export function sequencesFilePath(basePath: string): string {
   return path.join(basePath, 'sequences.json');
 }
@@ -19,14 +22,22 @@ function normalizeStep(s: any): SequenceStep | null {
   // A step with no body can't be sent — drop it so the runner never emits blanks.
   if (!s || s.messageContent == null || String(s.messageContent).trim() === '') return null;
   const delayDays = Number(s.delayDays);
-  return {
+  const step: SequenceStep = {
     subject: s.subject != null ? String(s.subject) : '',
     messageContent: String(s.messageContent),
-    delayDays: Number.isFinite(delayDays) && delayDays >= 0 ? delayDays : 0,
+    // Clamp the wait to something a human could mean. Unbounded values are not
+    // just silly: past ~1e8 days the due-date arithmetic overflows the max Date
+    // and toISOString() throws AFTER the send has gone out, so the advance is
+    // never persisted and the step re-sends every hour forever (audit CSA-15).
+    delayDays: Number.isFinite(delayDays) && delayDays >= 0 ? Math.min(delayDays, MAX_DELAY_DAYS) : 0,
     // Default true: follow-ups stop once the recipient replies (the headline
     // drip behavior). Only an explicit false opts out.
     stopOnReply: s.stopOnReply !== false,
   };
+  // Carry the stable step id through. This rebuild is the one place a round-trip
+  // could silently drop it, which would make seqNextStepId meaningless (CSA-1).
+  if (s.id) step.id = String(s.id);
+  return step;
 }
 
 function normalize(s: any): Sequence | null {

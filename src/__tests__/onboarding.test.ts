@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { computeOnboardingSteps, type OnboardingState } from '../onboarding';
+import {
+  computeOnboardingSteps,
+  isInboxConnected,
+  type OnboardingState,
+} from '../onboarding';
 
 const base: OnboardingState = {
   hasCreds: false,
@@ -54,5 +58,94 @@ describe('computeOnboardingSteps', () => {
   it('stays hidden when the user dismissed it, even if not graduated', () => {
     const r = computeOnboardingSteps({ ...base, hasCreds: true, dismissed: true });
     expect(r.visible).toBe(false);
+  });
+});
+
+describe('isInboxConnected — .env primary account', () => {
+  it('is connected with a user and a stored password', () => {
+    expect(isInboxConnected({ smtpUser: 'a@b.com', smtpHasPass: true })).toBe(true);
+  });
+
+  it('is not connected with a user but no password', () => {
+    expect(isInboxConnected({ smtpUser: 'a@b.com', smtpHasPass: false })).toBe(false);
+  });
+
+  it('is not connected with a password but no user', () => {
+    expect(isInboxConnected({ smtpUser: '', smtpHasPass: true })).toBe(false);
+  });
+
+  it('is not connected on empty input', () => {
+    expect(isInboxConnected({})).toBe(false);
+  });
+});
+
+describe('isInboxConnected — accounts.json', () => {
+  const oauth = { enabled: true, hasPass: false, transport: 'oauth-smtp' };
+  const browser = { enabled: true, hasPass: false, transport: 'browser' };
+  const extraPw = { enabled: true, hasPass: true, transport: 'smtp' };
+
+  // The regression this predicate exists to prevent. An OAuth account persists
+  // to accounts.json with pass:'' and never touches .env, so every reader that
+  // only checked config.smtp.* called a freshly-connected user "not connected":
+  // the login gate let them in, then the setup banner told them to connect an
+  // inbox and the Getting Started checklist refused to appear.
+  it('counts an OAuth account as connected when OAuth is available', () => {
+    expect(isInboxConnected({ accounts: [oauth], allowOauth: true })).toBe(true);
+  });
+
+  it('ignores an OAuth account when OAuth is unavailable', () => {
+    // No client ID shipped => the token cannot refresh => the account cannot
+    // send. It must not unlock an app that has no working transport.
+    expect(isInboxConnected({ accounts: [oauth], allowOauth: false })).toBe(false);
+  });
+
+  it('counts a browser account only when browser transports are allowed', () => {
+    expect(isInboxConnected({ accounts: [browser], allowBrowser: true })).toBe(true);
+    expect(isInboxConnected({ accounts: [browser], allowBrowser: false })).toBe(false);
+  });
+
+  it('keeps the two transport flags independent', () => {
+    // Phase 3 ships OAuth to the default GUI while browser stays GUI2-only, so
+    // allowOauth must not imply allowBrowser or vice versa.
+    expect(isInboxConnected({ accounts: [browser], allowOauth: true, allowBrowser: false })).toBe(false);
+    expect(isInboxConnected({ accounts: [oauth], allowOauth: false, allowBrowser: true })).toBe(false);
+  });
+
+  it('ignores disabled accounts', () => {
+    expect(isInboxConnected({ accounts: [{ ...oauth, enabled: false }], allowOauth: true })).toBe(false);
+    expect(isInboxConnected({ accounts: [{ ...browser, enabled: false }], allowBrowser: true })).toBe(false);
+  });
+
+  it('treats a missing enabled field as enabled', () => {
+    expect(isInboxConnected({ accounts: [{ transport: 'oauth-smtp' }], allowOauth: true })).toBe(true);
+  });
+
+  it('counts an extra password account only under the browser flag', () => {
+    // Preserves today's exact per-GUI behaviour: the default GUI ignores
+    // accounts.json at the gate entirely. Widening this is a behaviour change
+    // to the default path, so it is deliberately NOT done here.
+    expect(isInboxConnected({ accounts: [extraPw], allowBrowser: true })).toBe(true);
+    expect(isInboxConnected({ accounts: [extraPw], allowBrowser: false })).toBe(false);
+  });
+
+  it('finds a usable account among unusable ones', () => {
+    expect(isInboxConnected({
+      accounts: [{ ...oauth, enabled: false }, browser, oauth],
+      allowOauth: true,
+    })).toBe(true);
+  });
+
+  it('falls back to the .env check when accounts are absent or empty', () => {
+    expect(isInboxConnected({ smtpUser: 'a@b.com', smtpHasPass: true, allowOauth: true })).toBe(true);
+    expect(isInboxConnected({ accounts: [], allowOauth: true, allowBrowser: true })).toBe(false);
+  });
+
+  it('lets the .env account win regardless of the flags', () => {
+    expect(isInboxConnected({ smtpUser: 'a@b.com', smtpHasPass: true, accounts: [] })).toBe(true);
+  });
+
+  it('survives malformed account entries', () => {
+    expect(isInboxConnected({ accounts: [null as any, undefined as any], allowOauth: true })).toBe(false);
+    expect(isInboxConnected({ accounts: [{} as any], allowOauth: true, allowBrowser: true })).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { Config, Account } from './config';
+import { accountHasCredentials } from './onboarding';
 import { EmailService } from './emailService';
 import type { StrategyDeps } from './transport/sendStrategy';
 import { MailProcessor } from './mailProcessor';
@@ -17,9 +18,15 @@ export function sendableAccounts(config: Config): Account[] {
 }
 
 /** An account can send if it carries a password (classic SMTP) OR uses a
- *  credential-less transport (OAuth token / logged-in browser session). */
+ *  credential-less transport (OAuth token / logged-in browser session).
+ *
+ *  Delegates to the pure predicate so this rule lives in exactly one place: the
+ *  renderer can only see the redacted DTO (`hasPass`, no `pass`), and when it
+ *  re-derived the rule by hand the two drifted — hiding OAuth/browser accounts
+ *  from every recipient-routing surface while this function kept building them a
+ *  processor (audit CSA-5). */
 export function hasCredentials(a: Account): boolean {
-  return !!a.pass || a.transport === 'oauth-smtp' || a.transport === 'browser';
+  return accountHasCredentials({ hasPass: !!a.pass, transport: a.transport });
 }
 
 /**

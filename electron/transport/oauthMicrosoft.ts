@@ -1,10 +1,11 @@
-import { shell, safeStorage } from 'electron';
+import { shell } from 'electron';
 import http from 'http';
 import { AddressInfo } from 'net';
 import { PublicClientApplication, CryptoProvider, LogLevel } from '@azure/msal-node';
 import type { Account } from '../../src/config';
 import { getBasePath } from '../../src/config';
 import { upsertAccount } from '../../src/accountStore';
+import { makeSecretBox } from '../../src/crypto/factory';
 
 /**
  * Microsoft OAuth for SMTP/IMAP (XOAUTH2). Uses the authorization-code + PKCE
@@ -46,28 +47,31 @@ function newClient(): PublicClientApplication {
   });
 }
 
+/**
+ * Protect the serialized MSAL token cache — which contains a live refresh token —
+ * for storage in accounts.json. Delegates to the SecretBox seam (src/crypto/).
+ *
+ * THROWS when protection is unavailable. It previously returned `plain`, writing
+ * an unencrypted refresh-token cache to disk behind a console.error.
+ */
 function encryptSecret(plain: string): string {
-  if (plain && safeStorage.isEncryptionAvailable()) {
-    try {
-      return `ENC:${safeStorage.encryptString(plain).toString('base64')}`;
-    } catch (e) {
-      console.error('OAuth cache encryption failed:', e);
-    }
-  }
-  return plain;
+  return makeSecretBox().encrypt(plain);
 }
 
+/**
+ * Open a stored MSAL cache. Returns '' when it cannot be opened: an unreadable
+ * cache is equivalent to no cache, and MSAL re-prompts for interactive login —
+ * the correct recovery. Legacy plaintext caches are returned verbatim by the box
+ * and get re-protected on the next persist.
+ */
 function decryptSecret(stored: string | undefined): string {
   if (!stored) return '';
-  if (stored.startsWith('ENC:') && safeStorage.isEncryptionAvailable()) {
-    try {
-      return safeStorage.decryptString(Buffer.from(stored.substring(4), 'base64'));
-    } catch (e) {
-      console.error('OAuth cache decryption failed:', e);
-      return '';
-    }
+  try {
+    return makeSecretBox().decrypt(stored);
+  } catch (e: any) {
+    console.error('OAuth cache decryption failed:', e?.message || e);
+    return '';
   }
-  return stored;
 }
 
 export interface MicrosoftLoginResult {

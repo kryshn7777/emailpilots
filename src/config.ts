@@ -4,6 +4,7 @@ import fs from 'fs';
 import { readAccounts } from './accountStore';
 import { readCampaigns } from './campaignStore';
 import { readSequences } from './sequenceStore';
+import { makeSecretBox } from './crypto/factory';
 
 export function getBasePath(): string {
   // Electron injects MAIL_DATA_DIR (a per-user writable dir) when packaged so
@@ -91,6 +92,16 @@ export interface Campaign {
  * recipient replies.
  */
 export interface SequenceStep {
+  /**
+   * Stable identity for this step, minted on save (see save-sequence). A
+   * recipient's progress records the id of the step it is waiting for
+   * (`seqNextStepId`), so inserting/removing/reordering steps no longer silently
+   * re-points people mid-drip at different content — which is what a bare
+   * positional index did (audit CSA-1). Optional: sequences written by older
+   * builds have no ids and fall back to the index, so they behave exactly as
+   * before until their next save.
+   */
+  id?: string;
   subject?: string;
   messageContent: string;
   delayDays: number;
@@ -215,23 +226,26 @@ function numEnv(val: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+/**
+ * Open a stored secret. Delegates to the SecretBox seam (src/crypto) — this
+ * function used to hand-roll the safeStorage calls, as did two sites in
+ * electron/.
+ *
+ * loadConfig() must stay total: it runs at startup and on every config reload,
+ * and dozens of IPC handlers dereference its result. So an undecryptable secret
+ * degrades to '' rather than propagating. '' surfaces as "no password" and the
+ * account reads as not-connected — honest, and far better than the previous
+ * behaviour of returning the raw `ENC:...` string, which was then handed to
+ * nodemailer AS the password and produced an inscrutable auth failure.
+ */
 function decryptPassword(pass: string | undefined): string {
   if (!pass) return '';
-  if (pass.startsWith('ENC:')) {
-    try {
-      if (process.versions && process.versions.electron) {
-        const { safeStorage } = require('electron');
-        if (safeStorage.isEncryptionAvailable()) {
-          const buffer = Buffer.from(pass.substring(4), 'base64');
-          return safeStorage.decryptString(buffer);
-        }
-      }
-    } catch (err) {
-      console.error('safeStorage decryption failed:', err);
-    }
-    console.warn('Could not decrypt password (not in Electron or decryption unavailable).');
+  try {
+    return makeSecretBox().decrypt(pass);
+  } catch (err: any) {
+    console.warn('Could not decrypt a stored secret:', err?.message || err);
+    return '';
   }
-  return pass;
 }
 
 export function hasConfig(): boolean {

@@ -5,6 +5,7 @@ import { Config, Account, deriveImapHost, getBasePath } from './config';
 import { StatsManager } from './statsManager';
 import { ReplyStore } from './replyStore';
 import { atomicWriteFileSync } from './atomicWrite';
+import { accountStateFileName } from './accountFiles';
 import { SuppressionManager } from './suppressionManager';
 import { parseBounce, looksLikeBounce } from './bounceParser';
 import { classifyReply, type ReplyClassification } from './ai/replyClassifier';
@@ -43,6 +44,20 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
 export class ReplyPoller {
   private timer: NodeJS.Timeout | null = null;
   private polling = false;
+  /**
+   * Bumped by stop(). A sweep captures this at entry and drops its cursor write if
+   * the value has moved on, because stop() cannot interrupt a poll that is already
+   * mid-`await` (CSA-3). Without it, signing out during a sweep let the departing
+   * mailbox's straggler write recreate the imap.json that sign-out had just removed
+   * — and since the cursor only ever advances, the next mailbox to hold the
+   * 'default' id would inherit a foreign, too-high UID and silently never detect a
+   * reply again (taking the stopOnReply drip gate and DSN bounce-suppress with it).
+   *
+   * Dropping a cursor advance is safe: the next sweep simply re-scans those UIDs,
+   * and every effect is idempotent (recordReply reports isNew=false for a reply it
+   * already has, so stats can't double-count; suppression re-adds are no-ops).
+   */
+  private generation = 0;
 
   constructor(
     public config: Config,
@@ -68,6 +83,9 @@ export class ReplyPoller {
       clearInterval(this.timer);
       this.timer = null;
     }
+    // Outside the timer guard: a pollNow() can be in flight with no timer set, and
+    // that sweep must be disowned too.
+    this.generation++;
   }
 
   /** Manual one-shot poll (poll-now IPC / tests). */
@@ -76,11 +94,7 @@ export class ReplyPoller {
   }
 
   private cursorPath(accountId: string): string {
-    // Same sanitize + default-id rule as RateLimiter's limits.<id>.json so the
-    // id can never escape basePath and 'default' keeps the bare filename.
-    const safeId = (accountId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = safeId && safeId !== 'default' ? `imap.${safeId}.json` : 'imap.json';
-    return path.join(getBasePath(), fileName);
+    return path.join(getBasePath(), accountStateFileName('imap', accountId));
   }
 
   private readCursor(accountId: string): number {
@@ -122,6 +136,10 @@ export class ReplyPoller {
   private async poll(): Promise<void> {
     if (this.polling) return; // a slow poll must not overlap the next interval
     this.polling = true;
+    // Captured for the WHOLE sweep, not per account: a stop() during account 1's
+    // scan must disown accounts 2..n too, which a per-scanAccount read would miss
+    // (they'd sample the already-bumped value and consider themselves current).
+    const gen = this.generation;
     try {
       const recipients = this.recipientEmails();
       if (recipients.size === 0) return; // nothing to match — skip all connections
@@ -138,7 +156,7 @@ export class ReplyPoller {
       });
       for (const account of accounts) {
         try {
-          await this.scanAccount(account, recipients, store);
+          await this.scanAccount(account, recipients, store, gen);
         } catch (e: any) {
           console.error(`Reply poll failed for account ${account.id}:`, e?.message || e);
         }
@@ -148,7 +166,7 @@ export class ReplyPoller {
     }
   }
 
-  private async scanAccount(account: Account, recipients: Set<string>, store: ReplyStore): Promise<void> {
+  private async scanAccount(account: Account, recipients: Set<string>, store: ReplyStore, gen = this.generation): Promise<void> {
     const isOAuth = account.transport === 'oauth-smtp';
     // Microsoft's IMAP endpoint is outlook.office365.com (not the imap.* swap of
     // the SMTP host). Classic accounts keep the derived/overridden host.
@@ -224,8 +242,11 @@ export class ReplyPoller {
 
         // Advance the cursor FIRST — classification below is best-effort and must
         // never block or revert it, even if it stalls or errors.
+        // Unless this sweep has been disowned by a stop() (sign-out): writing then
+        // would resurrect the departing mailbox's cursor over sign-out's reset. See
+        // `generation`. Re-scanning next sweep is harmless; a foreign cursor is not.
         const newCursor = uidNext > 0 ? uidNext - 1 : lastUid;
-        if (newCursor > lastUid) this.writeCursor(account.id, newCursor);
+        if (newCursor > lastUid && gen === this.generation) this.writeCursor(account.id, newCursor);
 
         // Async bounces: process the DSNs diverted in phase 1. Unconditional —
         // no AI gate — and after the cursor advance so a slow parse can never

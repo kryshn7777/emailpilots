@@ -10,7 +10,7 @@
  */
 
 /** Runtime drip-state fields the SequenceRunner owns (renderer never sets them). */
-export const SEQ_STATE_FIELDS = ['seqStep', 'seqLastSentAt', 'seqNextDueAt', 'seqDone'] as const;
+export const SEQ_STATE_FIELDS = ['seqStep', 'seqLastSentAt', 'seqNextDueAt', 'seqDone', 'seqNextStepId'] as const;
 
 /**
  * Overlay the runner-owned `seq*` fields from `disk` onto `incoming` (by lowercased

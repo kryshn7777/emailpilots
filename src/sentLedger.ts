@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
 import { atomicWriteFileSync } from './atomicWrite';
+import { accountStateFileName } from './accountFiles';
 
 /**
  * Per-account, per-content delivery ledger (audit fix A3). The batch send path
@@ -44,11 +45,7 @@ export class SentLedger {
   private entries: { [email: string]: { [hash: string]: string } } = {};
 
   constructor(basePath: string, accountId?: string) {
-    // Same sanitization + naming as RateLimiter so it can never escape basePath and
-    // the default account collapses to the legacy-style single filename.
-    const safeId = (accountId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = safeId && safeId !== 'default' ? `sent-ledger.${safeId}.json` : 'sent-ledger.json';
-    this.filePath = path.join(basePath, fileName);
+    this.filePath = path.join(basePath, accountStateFileName('sent-ledger', accountId));
     this.load();
   }
 

@@ -4,6 +4,7 @@ import { Config, Sequence, getBasePath } from './config';
 import { MailProcessor } from './mailProcessor';
 import { ReplyStore } from './replyStore';
 import { atomicWriteFileSync } from './atomicWrite';
+import { SEQ_STATE_FIELDS } from './recipientMerge';
 
 /** Injected side-effects so the step state machine is unit-testable. */
 export interface SeqDeps {
@@ -13,10 +14,12 @@ export interface SeqDeps {
   send(record: any): Promise<boolean>;
 }
 
-const seqFieldNames = ['seqStep', 'seqLastSentAt', 'seqNextDueAt', 'seqDone'] as const;
+/** The runner-owned drip fields, shared with the save-time merge so the two can't
+ *  disagree about what "drip state" is — they were separate identical literals, and
+ *  adding seqNextStepId meant hand-editing every copy (one got missed). */
 function seqFields(r: any): Record<string, any> {
   const out: Record<string, any> = {};
-  for (const k of seqFieldNames) out[k] = r[k];
+  for (const k of SEQ_STATE_FIELDS) out[k] = r[k];
   return out;
 }
 
@@ -32,6 +35,30 @@ export function replyCountsForGate(replied: boolean, classification: string | un
 }
 
 /**
+ * Which step this record is waiting for.
+ *
+ * CSA-1: progress used to be the bare index `seqStep`, so editing a sequence's
+ * steps silently re-pointed everyone mid-drip — remove the first step and someone
+ * at seqStep=1 jumps past the step you kept; someone at the end gets marked done
+ * and never hears from you again. Recording the id of the step we're waiting for
+ * survives insert/remove/reorder anywhere in the list.
+ *
+ * The index remains the fallback, which keeps this fully backward-compatible:
+ *  - a record written before this change has no seqNextStepId → index, as before;
+ *  - a sequence saved by an older build has no step ids → nothing to match → index;
+ *  - the awaited step was itself deleted → id is gone → index is the best guess,
+ *    and lands on whatever now occupies that slot (the old behavior).
+ */
+function resolveStepIdx(record: any, seq: Sequence): number {
+  const wanted = record.seqNextStepId;
+  if (wanted) {
+    const byId = seq.steps.findIndex(s => s.id === wanted);
+    if (byId >= 0) return byId;
+  }
+  return Number(record.seqStep) || 0;
+}
+
+/**
  * Advance one recipient through its sequence by at most one step, mutating the
  * record's seq* fields in place. Returns true when something changed (so the
  * caller persists). Pure except for the injected deps — no fs/cron/network.
@@ -43,6 +70,9 @@ export function replyCountsForGate(replied: boolean, classification: string | un
  *    recipient replied at/after the previous step's send time.
  *  - a step that didn't actually send (rate-limited/suppressed) leaves the due
  *    time untouched so it retries on the next tick.
+ *  - the step to send is resolved by `seqNextStepId` when the record carries one
+ *    (CSA-1), so editing the sequence's step list doesn't re-point a recipient at
+ *    someone else's content. `seqStep` remains the fallback and stays maintained.
  */
 export async function advanceSequenceRecord(record: any, sequences: Sequence[], deps: SeqDeps): Promise<boolean> {
   if (record.active === false) return false;
@@ -51,7 +81,7 @@ export async function advanceSequenceRecord(record: any, sequences: Sequence[], 
   const seq = sequences.find(s => s.id === record.sequenceId);
   if (!seq || seq.steps.length === 0) return false;
 
-  const stepIdx = Number(record.seqStep) || 0;
+  const stepIdx = resolveStepIdx(record, seq);
   if (stepIdx >= seq.steps.length) {
     record.seqDone = true;
     return true;
@@ -82,10 +112,15 @@ export async function advanceSequenceRecord(record: any, sequences: Sequence[], 
   record.seqStep = stepIdx + 1;
   if (record.seqStep < seq.steps.length) {
     const nextStep = seq.steps[record.seqStep];
+    // Both are maintained: the id is what we resolve by, the index is the fallback
+    // for a sequence whose steps predate ids. Undefined id ⇒ resolveStepIdx uses
+    // the index, which is exactly the old behavior.
+    record.seqNextStepId = nextStep.id;
     record.seqNextDueAt = new Date(now + (Number(nextStep.delayDays) || 0) * 86400000).toISOString();
   } else {
     record.seqDone = true;
     delete record.seqNextDueAt;
+    delete record.seqNextStepId;
   }
   return true;
 }
@@ -167,6 +202,18 @@ export class SequenceRunner {
           return replyCountsForGate(replied, pauseOnOoo ? store.getClassification(email) : undefined, pauseOnOoo);
         },
         send: (rec) => {
+          // CSA-9: `records` was snapshotted once, before the first send. Every send
+          // is a real SMTP round-trip, so IPC handlers interleave freely and a later
+          // record can be minutes stale — deleting or deactivating a recipient
+          // mid-tick would still email them, because both the ownership check and the
+          // `active === false` guard read the stale object. Re-check against disk
+          // here, the one place that runs per SEND rather than per record, so a long
+          // list doesn't pay a file read for recipients that aren't due.
+          // Returning false is the existing "didn't send" contract: the due time is
+          // left untouched and it retries next tick (correct if they were merely
+          // deactivated). persist() established the fresh-read pattern; this applies
+          // it where staleness actually costs an email.
+          if (!this.stillSendable(recipientsJson, rec)) return Promise.resolve(false);
           const p = this.processorFor(rec);
           if (!p) { orphanedAccounts.add(String(rec.accountId || 'default')); return Promise.resolve(false); }
           return p.processRecipient(rec);
@@ -203,6 +250,29 @@ export class SequenceRunner {
       }
     } finally {
       this.ticking = false;
+    }
+  }
+
+  /**
+   * Is this record still on disk, still active, and still enrolled in the same
+   * sequence? Guards the gap between the tick's one-time snapshot and each send
+   * (CSA-9). Called once per SEND, not per record. Fails OPEN — an unreadable or
+   * absent file leaves the tick behaving exactly as it did before, since the
+   * alternative is silently stalling every drip on a transient read error.
+   */
+  private stillSendable(recipientsJson: string, record: any): boolean {
+    const email = String(record.email || record.Email || '').toLowerCase();
+    if (!email) return true; // advanceSequenceRecord handles the no-email case
+    try {
+      const fresh = JSON.parse(fs.readFileSync(recipientsJson, 'utf-8'));
+      if (!Array.isArray(fresh)) return true;
+      const live = fresh.find((r: any) => String(r?.email || r?.Email || '').toLowerCase() === email);
+      if (!live) return false;                                  // deleted mid-tick
+      if (live.active === false) return false;                  // deactivated mid-tick
+      if (live.sequenceId !== record.sequenceId) return false;  // unenrolled/re-assigned mid-tick
+      return true;
+    } catch {
+      return true;
     }
   }
 

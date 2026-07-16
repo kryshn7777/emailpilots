@@ -1,5 +1,6 @@
 import type { AiService } from './aiService';
 import { ASSIST_TONES } from './writingAssistant';
+import { SEQ_STATE_FIELDS } from '../recipientMerge';
 
 /**
  * Personalized email generation (feature #5). Pure over an injected AiService —
@@ -39,12 +40,15 @@ export interface PersonalizeRequest {
 /** Reply outcome labels that count as "this message worked" for few-shot selection. */
 export const POSITIVE_OUTCOMES = ['Interested', 'MeetingBooked'] as const;
 
-/** Record keys that are plumbing, not prospect facts — never described to the model as "about them". */
-const INTERNAL_KEYS = new Set([
+/** Record keys that are plumbing, not prospect facts — never described to the model as "about them".
+ *  The drip fields come from the shared list rather than a fourth copy: this set silently
+ *  missed seqNextStepId when it was added, and a stale entry here leaks plumbing into the
+ *  prompt as though it were a fact about the prospect. */
+const INTERNAL_KEYS = new Set<string>([
   'email', 'subject', 'messageType', 'messageContent', 'attachments',
   'active', 'campaignId', 'sequenceId', 'accountId',
   'scheduledDays', 'scheduledTimes', 'entropyMinutes',
-  'seqStep', 'seqLastSentAt', 'seqNextDueAt', 'seqDone',
+  ...SEQ_STATE_FIELDS,
 ]);
 
 const MAX_FACT_LEN = 200;        // per-field value cap

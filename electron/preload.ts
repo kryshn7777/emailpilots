@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   previewUnsavedEmail: (record: any) => ipcRenderer.invoke('preview-unsaved-email', record),
   verifyEmail: (email: string) => ipcRenderer.invoke('verify-email', email),
   checkDomainAuth: (arg: { domain: string; smtpHost?: string; userEmail?: string }) => ipcRenderer.invoke('check-domain-auth', arg),
+  detectProviderMx: (domain: string) => ipcRenderer.invoke('detect-provider-mx', domain),
 
   // Local AI (optional feature #1). All inference is local; these are no-ops
   // unless the user enabled AI and configured a model.

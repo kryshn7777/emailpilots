@@ -2,10 +2,12 @@
 import { checkSpam } from './spamCheck';
 import { detectMapping, buildRecordsFromRows, type ColumnMapping } from './csvMapping';
 import { normalizeAppPassword, friendlySmtpError } from './smtpUtils';
-import { computeOnboardingSteps } from './onboarding';
+import { computeOnboardingSteps, isInboxConnected, accountHasCredentials, type ConnectedAccount } from './onboarding';
 import { deriveDomain, type DomainAuthReport, type RecordCheck } from './domainAuth';
+import { detectProviderFromDomain, detectProviderFromEmail, type DetectedProvider } from './providerDetect';
 
 const GS_DISMISS_KEY = 'eptGettingStartedDismissed';
+const SW_SKIP_KEY = 'eptSetupWizardSkipped';
 
 function escapeHTML(str: string | null | undefined): string {
   if (str == null) return '';
@@ -64,6 +66,7 @@ declare global {
       previewUnsavedEmail: (record: any) => Promise<{ subject?: string; body?: string; error?: string }>;
       verifyEmail: (email: string) => Promise<{ valid: boolean; reason?: string }>;
       checkDomainAuth: (arg: { domain: string; smtpHost?: string; userEmail?: string }) => Promise<DomainAuthReport | { error: string }>;
+      detectProviderMx: (domain: string) => Promise<{ provider: DetectedProvider | null }>;
       aiStatus: () => Promise<{ enabled: boolean; runtimeAvailable: boolean; modelConfigured: boolean; ready: boolean; modelPath?: string; contextSize?: number; gpuType?: string; gpuLayers?: number; error?: string }>;
       aiGenerate: (req: { prompt: string; system?: string; json?: boolean; maxTokens?: number; temperature?: number }) => Promise<{ ok: boolean; text?: string; json?: unknown; ms?: number; error?: string }>;
       aiAssist: (req: { action: string; text?: string; instruction?: string; tone?: string }) => Promise<{ ok: boolean; text?: string; error?: string }>;
@@ -88,6 +91,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   // blocks marked "LOW-FRICTION TRANSPORTS" in index.html/gui2.html + this file,
   // then the src/transport and electron/transport modules.
   const SHOW_NO_PASSWORD_TRANSPORTS = document.body.dataset.gui === '2';
+
+  // Adapter over the pure isInboxConnected(): maps the renderer's shapes onto it
+  // and pins the transport flags in one place. Every "is the inbox connected?"
+  // question goes through here — see the note on isInboxConnected for why the
+  // four hand-rolled copies this replaced were a bug, not just duplication.
+  // Passing no accounts reproduces the .env-only check exactly.
+  const inboxConnected = (cfg: any, accounts?: ConnectedAccount[]): boolean => isInboxConnected({
+    smtpUser: cfg?.smtp?.user,
+    smtpHasPass: !!(cfg?.smtp?.hasPass || cfg?.smtp?.pass),
+    accounts,
+    allowOauth: SHOW_NO_PASSWORD_TRANSPORTS,
+    allowBrowser: SHOW_NO_PASSWORD_TRANSPORTS,
+  });
 
   // --- UI Navigation ---
   const navLinks = document.querySelectorAll('.nav-links li[data-view]');
@@ -773,6 +789,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const testRunBtn = document.getElementById('test-run-btn') as HTMLButtonElement;
   const openJsonBtn = document.getElementById('open-json-btn') as HTMLButtonElement;
   const settingsForm = document.getElementById('settings-form') as HTMLFormElement;
+  /** The SMTP address the currently-stored password belongs to ('' when none is
+   *  stored). Lets the settings form tell an edit of the address apart from a
+   *  no-op save, since the password itself never reaches the renderer (CSA-10). */
+  let loadedSmtpUser = '';
   const clearLogsBtn = document.getElementById('clear-logs-btn')!;
   const logOutput = document.getElementById('log-output')!;
   const scheduleDisplay = document.getElementById('schedule-display')!;
@@ -1172,7 +1192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     type Row = { status: 'ok' | 'warn' | 'fail' | 'info'; label: string; action?: { label: string; view: string } };
     const rows: Row[] = [];
-    const hasCreds = !!(cfg?.smtp?.user && (cfg?.smtp?.hasPass || cfg?.smtp?.pass));
+    const hasCreds = inboxConnected(cfg, accountsCache);
     rows.push({ status: hasCreds ? 'ok' : 'fail', label: hasCreds ? 'Email credentials set' : 'Email credentials missing — add them in Settings', action: hasCreds ? undefined : { label: 'Connect Email', view: 'settings' } });
     rows.push({ status: cfg?.email?.subject ? 'ok' : 'warn', label: cfg?.email?.subject ? `Default subject: "${cfg.email.subject}"` : 'No default subject set' });
     rows.push({ status: cfg?.sender?.physicalAddress ? 'ok' : 'warn', label: cfg?.sender?.physicalAddress ? 'Mailing address set' : 'No mailing address — required for compliant bulk email', action: cfg?.sender?.physicalAddress ? undefined : { label: 'Fix it', view: 'settings' } });
@@ -1258,7 +1278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       totalSent = stats?.totalEmailsSent || 0;
     } catch { /* leave at 0 */ }
 
-    const hasCreds = !!(cfg?.smtp?.user && (cfg?.smtp?.hasPass || cfg?.smtp?.pass));
+    const hasCreds = inboxConnected(cfg, accountsCache);
     const hasScheduledRecipient = active.some(
       (r: any) => (r.scheduledDays || []).length && (r.scheduledTimes || []).length
     );
@@ -1286,7 +1306,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let configured = false;
     try {
       const cfg = await window.electronAPI.getConfig();
-      configured = !!(cfg?.smtp?.user && (cfg?.smtp?.hasPass || cfg?.smtp?.pass));
+      configured = inboxConnected(cfg, accountsCache);
     } catch { /* treat as unconfigured */ }
 
     const banner = document.getElementById('setup-banner');
@@ -1836,6 +1856,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!await confirmDialog(msg, { title: 'Delete campaign?', confirmLabel: 'Delete', danger: true })) return;
         const res = await window.electronAPI.deleteCampaign(c.id);
         if (!res.ok) { toast(res.error || 'Couldn\'t delete that campaign. Check System Logs, then try again.', 'error'); return; }
+        // CSA-6: the form and the list share this view, so "Edit, change my mind,
+        // Delete" leaves the deleted id sitting in the hidden field. Saving then
+        // re-creates the campaign (upsert pushes an id it can't find) — but the
+        // detach below has already stripped every recipient link, so it comes back
+        // empty. Clear the form when it's holding the campaign we just deleted.
+        if ((document.getElementById('campaign-id') as HTMLInputElement | null)?.value === c.id) resetCampaignForm();
         // Mirror the main-process detach locally so the table updates immediately.
         recipientsData.forEach(r => { if (r.campaignId === c.id) delete r.campaignId; });
         await refreshCampaigns();
@@ -1878,7 +1904,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- Sequences (follow-up drips) ---
-  type SeqStep = { subject?: string; messageContent: string; delayDays: number; stopOnReply: boolean };
+  type SeqStep = { id?: string; subject?: string; messageContent: string; delayDays: number; stopOnReply: boolean };
 
   function populateSequenceSelects() {
     const el = document.getElementById('rec-sequence') as HTMLSelectElement | null;
@@ -1905,9 +1931,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       `<input type="text" class="seq-step-subject form-control" placeholder="Subject (optional — blank reuses the recipient's subject)">` +
       `<textarea class="seq-step-message form-control" rows="4" placeholder="Message for this step. Use {{name}} to personalize." style="font-family:inherit;"></textarea>` +
       `<div class="seq-step-followup" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">` +
-        `<label style="display:flex;align-items:center;gap:6px;font-size:0.85em;margin:0;">Wait <input type="number" class="seq-step-delay form-control" min="0" value="3" style="width:70px;height:32px;"> days after previous step</label>` +
+        `<label style="display:flex;align-items:center;gap:6px;font-size:0.85em;margin:0;">Wait <input type="number" class="seq-step-delay form-control" min="0" max="365" value="3" style="width:70px;height:32px;"> days after previous step</label>` +
         `<label style="display:flex;align-items:center;gap:6px;font-size:0.85em;margin:0;"><input type="checkbox" class="seq-step-stoponreply" checked> Stop if replied</label>` +
       `</div>`;
+    // Carry the step's stable id on the row so collectSteps can hand it back
+    // unchanged. Without this round-trip every save would re-mint ids and a
+    // recipient's seqNextStepId would never match anything (CSA-1). A new row has
+    // no id; save-sequence mints one.
+    if (step?.id) row.dataset.stepId = step.id;
     (row.querySelector('.seq-step-subject') as HTMLInputElement).value = step?.subject || '';
     (row.querySelector('.seq-step-message') as HTMLTextAreaElement).value = step?.messageContent || '';
     (row.querySelector('.seq-step-delay') as HTMLInputElement).value = String(step?.delayDays ?? 3);
@@ -1917,15 +1948,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     renumberStepRows();
   }
 
-  /** Keep step titles in order; step 1 is the immediate initial send, so hide its
-   *  delay/stop controls. Hide Remove when only one step remains. */
+  /** Keep step titles in order; step 1 is the initial send with no wait of its own,
+   *  so hide its delay/stop controls. Hide Remove when only one step remains. */
   function renumberStepRows() {
     const rows = Array.from(document.querySelectorAll('#sequence-steps .seq-step-row'));
     rows.forEach((row, i) => {
       const title = row.querySelector('.seq-step-title');
       const followup = row.querySelector('.seq-step-followup') as HTMLElement | null;
       const remove = row.querySelector('.seq-step-remove') as HTMLElement | null;
-      if (title) title.textContent = i === 0 ? 'Step 1 · initial email (sent immediately)' : `Step ${i + 1}`;
+      // CSA-16: this said "sent immediately", which it never was. Enrolling a
+      // recipient only writes recipients.json; the SequenceRunner picks it up on its
+      // hourly tick, so step 1 goes out within the hour — not on save.
+      if (title) title.textContent = i === 0 ? 'Step 1 · initial email (sent at the next hourly check)' : `Step ${i + 1}`;
       if (followup) followup.style.display = i === 0 ? 'none' : 'flex';
       if (remove) remove.style.display = rows.length > 1 ? 'inline-flex' : 'none';
     });
@@ -1934,10 +1968,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   function collectSteps(): SeqStep[] {
     const rows = Array.from(document.querySelectorAll('#sequence-steps .seq-step-row'));
     return rows.map((row, i) => ({
+      // Hand back the id this row came in with, so a step keeps its identity across
+      // an edit even if it moved (CSA-1). Undefined for a newly added row.
+      id: (row as HTMLElement).dataset.stepId || undefined,
       subject: (row.querySelector('.seq-step-subject') as HTMLInputElement).value,
       messageContent: (row.querySelector('.seq-step-message') as HTMLTextAreaElement).value,
       // Step 1 is immediate + ungated, so force delay 0 / stopOnReply off there.
-      delayDays: i === 0 ? 0 : Math.max(0, parseInt((row.querySelector('.seq-step-delay') as HTMLInputElement).value, 10) || 0),
+      // Upper bound mirrors sequenceStore.MAX_DELAY_DAYS (CSA-15).
+      delayDays: i === 0 ? 0 : Math.min(365, Math.max(0, parseInt((row.querySelector('.seq-step-delay') as HTMLInputElement).value, 10) || 0)),
       stopOnReply: i === 0 ? false : (row.querySelector('.seq-step-stoponreply') as HTMLInputElement).checked,
     }));
   }
@@ -1953,14 +1991,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (sequencesCache.length === 0) { if (emptyEl) emptyEl.style.display = 'flex'; return; }
     if (emptyEl) emptyEl.style.display = 'none';
     sequencesCache.forEach(s => {
-      const count = recipientsData.filter(r => r.sequenceId === s.id).length;
+      const enrolled = recipientsData.filter(r => r.sequenceId === s.id);
+      const count = enrolled.length;
+      // CSA-11: "N steps · M recipients" reads as "M people are on an N-step drip",
+      // but advanceSequenceRecord returns early on seqDone — so anyone who already
+      // finished will never receive a step added later. Split the count out rather
+      // than letting the card imply an audience that no longer exists.
+      const done = enrolled.filter(r => r.seqDone).length;
+      const doneLine = done > 0 ? ` · ${done} finished` : '';
       const card = document.createElement('div');
       card.className = 'card';
       card.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;margin:0;';
       const info = document.createElement('div');
       info.innerHTML = `<div style="font-weight:600;">${escapeHTML(s.name)}</div>` +
-        `<div style="font-size:0.8em;color:var(--muted-foreground);margin-top:2px;">` +
-        `${s.steps.length} step${s.steps.length === 1 ? '' : 's'} · ${count} recipient${count === 1 ? '' : 's'}</div>`;
+        `<div style="font-size:0.8em;color:var(--muted-foreground);margin-top:2px;" ` +
+        `title="${done > 0 ? escapeHTML(`${done} recipient${done === 1 ? ' has' : 's have'} completed this sequence and won't receive steps added later.`) : ''}">` +
+        `${s.steps.length} step${s.steps.length === 1 ? '' : 's'} · ${count} recipient${count === 1 ? '' : 's'}${doneLine}</div>`;
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;';
       const editBtn = document.createElement('button');
@@ -1979,9 +2025,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!await confirmDialog(msg, { title: 'Delete sequence?', confirmLabel: 'Delete', danger: true })) return;
         const res = await window.electronAPI.deleteSequence(s.id);
         if (!res.ok) { toast(res.error || 'Couldn\'t delete that sequence. Check System Logs, then try again.', 'error'); return; }
+        // CSA-6: same trap as campaigns, and worse here — resurrecting a sequence
+        // restores its steps but not one byte of the drip progress delete-sequence
+        // just stripped, so re-enrolling those recipients re-sends step 0 to people
+        // already deep in the drip. Clear the form when it holds this sequence.
+        if ((document.getElementById('sequence-id') as HTMLInputElement | null)?.value === s.id) resetSequenceForm();
         recipientsData.forEach(r => {
           if (r.sequenceId === s.id) {
-            delete r.sequenceId; delete r.seqStep; delete r.seqLastSentAt; delete r.seqNextDueAt; delete r.seqDone;
+            delete r.sequenceId; delete r.seqStep; delete r.seqLastSentAt;
+            delete r.seqNextDueAt; delete r.seqDone; delete r.seqNextStepId;
           }
         });
         await refreshSequences();
@@ -2065,7 +2117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // The Distribute button only makes sense with 2+ usable inboxes.
     const distBtn = document.getElementById('distribute-btn');
     if (distBtn) {
-      const usable = accountsCache.filter(a => a.hasPass && a.enabled !== false).length;
+      const usable = accountsCache.filter(a => accountHasCredentials(a) && a.enabled !== false).length;
       distBtn.style.display = usable > 1 ? 'inline-flex' : 'none';
     }
 
@@ -2132,7 +2184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         sel.className = 'form-control';
         sel.style.cssText = 'margin-top:4px;height:28px;font-size:0.75em;padding:0 6px;max-width:220px;';
         sel.title = 'Send this recipient from';
-        const sendable = accountsCache.filter(a => a.hasPass && a.enabled !== false);
+        const sendable = accountsCache.filter(a => accountHasCredentials(a) && a.enabled !== false);
         const cur = rec.accountId || 'default';
         const pool = sendable.slice();
         // Keep showing the current account even if it's disabled/removed, so the
@@ -2331,6 +2383,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!acc.isDefault && acc.enabled === false) {
       return { color: 'var(--text-muted)', text: 'Disabled', title: 'This account is paused' };
     }
+    // CSA-10: an account with no credentials used to fall through to green "Ready".
+    // get-accounts reports every account in the config, and loadConfig always
+    // synthesizes the primary even when .env carries no user/password — so a fresh
+    // or signed-out install showed a healthy-looking Primary row that sendableAccounts
+    // excludes entirely. The user got no signal until a send silently did nothing.
+    if (!accountHasCredentials(acc) || !acc.user) {
+      return { color: 'var(--text-muted)', text: 'Not connected', title: 'Add this account\'s credentials before it can send' };
+    }
     if (usage && usage.maxPerDay > 0 && usage.emailsToday / usage.maxPerDay >= 0.8) {
       const near = usage.emailsToday >= usage.maxPerDay;
       return { color: 'var(--warning)', text: near ? 'Daily limit reached' : 'Near daily limit', title: `${usage.emailsToday}/${usage.maxPerDay} sent today` };
@@ -2521,17 +2581,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderFleetStrip() {
     const strip = document.getElementById('fleet-strip');
     if (!strip) return;
-    const sendable = accountsCache.filter(a => a.hasPass && a.enabled !== false);
+    // CSA-14: pin the cache for the whole render. refreshAccounts() replaces
+    // accountsCache wholesale and this is called un-awaited, so reading it again
+    // after the await below built one strip out of two different generations —
+    // "Sent today" from the old, "Disabled" from the new.
+    const snapshot = accountsCache;
+    const sendable = snapshot.filter(a => accountHasCredentials(a) && a.enabled !== false);
     // Only worth showing once a 2nd inbox is in play.
-    if (accountsCache.length <= 1) { strip.style.display = 'none'; return; }
+    if (snapshot.length <= 1) { strip.style.display = 'none'; return; }
 
     const usages = await Promise.all(
       sendable.map(a => window.electronAPI.getUsage(a.id).catch(() => null))
     );
+    // A newer refresh landed while we were reading usage. It owns this node now —
+    // bail rather than let a slower earlier call overwrite fresher numbers.
+    if (accountsCache !== snapshot) return;
     let sent = 0, cap = 0;
     for (const u of usages) { if (u) { sent += u.emailsToday; cap += u.maxPerDay; } }
-    const disabled = accountsCache.filter(a => !a.isDefault && a.enabled === false).length;
-    const attention = accountsCache.filter(a => a.status && a.status.ok === false).length;
+    const disabled = snapshot.filter(a => !a.isDefault && a.enabled === false).length;
+    const attention = snapshot.filter(a => a.status && a.status.ok === false).length;
     const remaining = Math.max(0, cap - sent);
 
     const item = (label: string, value: string, color?: string) =>
@@ -2554,7 +2622,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sel = document.getElementById('rec-account') as HTMLSelectElement | null;
     if (!sel || !group) return;
     // Only surface the selector once there's a real choice to make.
-    const sendable = accountsCache.filter(a => a.hasPass);
+    const sendable = accountsCache.filter(a => accountHasCredentials(a));
     group.style.display = sendable.length > 1 ? 'block' : 'none';
     sel.innerHTML = '';
     (sendable.length ? sendable : accountsCache).forEach(a => {
@@ -2804,7 +2872,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Distribute unassigned recipients round-robin across usable inboxes. Only
   // touches records with no explicit accountId, so manual assignments survive.
   document.getElementById('distribute-btn')?.addEventListener('click', async () => {
-    const sendable = accountsCache.filter(a => a.hasPass && a.enabled !== false);
+    const sendable = accountsCache.filter(a => accountHasCredentials(a) && a.enabled !== false);
     if (sendable.length < 2) { toast('Connect a second account first.', 'info'); return; }
     const unassigned = recipientsData.filter(r => !r.accountId).length;
     if (!unassigned) { toast('Every recipient is already assigned to an account.', 'info'); return; }
@@ -2981,6 +3049,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!name) { if (errEl) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; } return; }
     const steps = collectSteps().filter(s => s.messageContent.trim() !== '');
     if (steps.length === 0) { if (errEl) { errEl.textContent = 'Add at least one step with a message.'; errEl.style.display = 'block'; } return; }
+
+    // CSA-1: a recipient's progress is a plain index into this array (seqStep), so
+    // adding or removing steps re-points anyone mid-drip at different content — they
+    // skip the step you kept, or get marked finished and never hear from you again.
+    // Editing a step's TEXT is safe (the index still means the same step), so only
+    // warn when the shape actually changed. The tick fires within milliseconds of
+    // this save (save-sequence rebuilds the processors, which restarts the runner),
+    // so there is no window to undo it afterwards.
+    if (id) {
+      const before = sequencesCache.find(s => s.id === id)?.steps || [];
+      const inFlight = recipientsData.filter(r => r.sequenceId === id && !r.seqDone).length;
+      if (before.length !== steps.length && inFlight > 0) {
+        const verb = steps.length < before.length ? 'Removing' : 'Adding';
+        const ok = await confirmDialog(
+          `${inFlight} recipient${inFlight === 1 ? ' is' : 's are'} partway through "${name}". ` +
+          `${verb} a step shifts where they resume: they may skip a step you kept, or finish early and get no further follow-ups. ` +
+          `Recipients who already finished won't receive new steps either way.`,
+          { title: 'Change steps mid-sequence?', confirmLabel: 'Change steps', danger: true });
+        if (!ok) return;
+      }
+    }
+
     const res = await window.electronAPI.saveSequence({ id: id || undefined, name, steps });
     if (!res.ok) { if (errEl) { errEl.textContent = res.error || 'Save failed.'; errEl.style.display = 'block'; } return; }
     resetSequenceForm();
@@ -3047,7 +3137,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {
       showErr('Couldn\'t reach your email provider. Check your internet and app password, then try again.');
     } finally {
-      submitBtn.disabled = false;
+      // CSA-12: refreshAccounts() above re-gates THIS button on the account cap
+      // (renderAccountsList sets addBtn.disabled = atCap on the same element), and
+      // this finally used to run after it and blindly undo that. The cap note then
+      // said "you've reached the limit" next to a live button, and clicking it spent
+      // a real SMTP auth round-trip before save-account rejected the add.
+      submitBtn.disabled = accountsCache.filter(a => !a.isDefault).length >= MAX_EXTRA_ACCOUNTS;
       submitBtn.innerHTML = original;
     }
   });
@@ -3209,6 +3304,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Leaving the field blank on save keeps the stored password.
     inputPass.value = '';
     if (config.smtp?.hasPass) inputPass.placeholder = 'Saved — leave blank to keep';
+    // The address the stored password actually belongs to, so save can tell whether
+    // "leave blank to keep" still means anything (CSA-10).
+    loadedSmtpUser = config.smtp?.hasPass ? (config.smtp?.user || '') : '';
 
     // Practice mode (test sends to own inbox). Persisted in .env via save-config.
     const testModeCheckbox = document.getElementById('test-mode-checkbox') as HTMLInputElement | null;
@@ -3302,6 +3400,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       },
     };
     let loginProvider = 'gmail';
+    /** True once the user picks a tab by hand — detection must never override that. */
+    let loginProviderTouched = false;
 
     const showLoginError = (msg: string) => {
       loginError.textContent = msg;
@@ -3367,18 +3467,85 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const providerBtns = Array.from(document.querySelectorAll('.login-provider')) as HTMLElement[];
     providerBtns.forEach((b, i) => {
-      b.addEventListener('click', () => setLoginProvider(b.getAttribute('data-provider')!));
+      b.addEventListener('click', () => {
+        loginProviderTouched = true;
+        setLoginProvider(b.getAttribute('data-provider')!);
+      });
       b.addEventListener('keydown', (e: KeyboardEvent) => {
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
         e.preventDefault();
         const next = e.key === 'ArrowRight'
           ? providerBtns[(i + 1) % providerBtns.length]
           : providerBtns[(i - 1 + providerBtns.length) % providerBtns.length];
+        loginProviderTouched = true;
         setLoginProvider(next.getAttribute('data-provider')!);
         next.focus();
       });
     });
     setLoginProvider('gmail');
+
+    // ---- Provider auto-detect -------------------------------------------
+    // The tab above defaults to Gmail, which used to mean an address typed
+    // without touching the tabs was sent to smtp.gmail.com no matter who hosts
+    // it — EAUTH, then friendlySmtpError blaming the user's app password. These
+    // two listeners resolve the preset from the address instead.
+    //
+    // The flag is set in the tab handlers, NOT inside setLoginProvider(), which
+    // is also called programmatically (init here, and by the setup wizard). Set
+    // it there and detection would be dead from boot.
+
+    const applyTableDetect = () => {
+      // Every keystroke: pure Set lookup, no DNS, no await. Instant for the
+      // common case. A miss leaves the tab alone — blur decides.
+      if (loginProviderTouched) return;
+      const hit = detectProviderFromEmail(loginEmail.value);
+      if (hit && hit !== loginProvider) setLoginProvider(hit);
+    };
+
+    const mxCache = new Map<string, DetectedProvider | null>();
+    let detectSeq = 0;
+
+    /**
+     * Table first, then MX for custom domains (Workspace / M365). Unknown
+     * resolves to 'other' — NEVER left on the default. 'other' reveals the
+     * host/port fields, which is the honest answer: we don't know your server.
+     *
+     * Deliberately not on `input`: debouncing keystrokes would still probe DNS
+     * for half-typed domains ("company.co" en route to "company.com"), and an
+     * intermediate hit could flip the tab to a wrong preset.
+     */
+    const runFullDetect = async (): Promise<void> => {
+      if (loginProviderTouched) return;
+      const seq = ++detectSeq;
+      const email = loginEmail.value;
+      const domain = deriveDomain(email);
+      if (!domain) return;
+
+      const hit = detectProviderFromDomain(domain);
+      if (hit) { setLoginProvider(hit); return; }
+
+      let mx: DetectedProvider | null;
+      if (mxCache.has(domain)) {
+        mx = mxCache.get(domain)!;
+      } else {
+        // Fails open: offline, timeout, refused resolver and NXDOMAIN all
+        // arrive here as null, which becomes 'other'. Never blocks, never
+        // errors, never guesses a host.
+        try {
+          mx = (await window.electronAPI.detectProviderMx(domain)).provider;
+        } catch {
+          mx = null;
+        }
+        mxCache.set(domain, mx);
+      }
+
+      // The user can click a tab or retype while DNS is in flight.
+      if (seq !== detectSeq || loginProviderTouched) return;
+      setLoginProvider(mx ?? 'other');
+    };
+
+    loginEmail.addEventListener('input', applyTableDetect);
+    loginEmail.addEventListener('blur', () => { void runFullDetect(); });
 
     document.getElementById('login-toggle-pass')?.addEventListener('click', () => {
       const reveal = loginPassword.type === 'password';
@@ -3428,15 +3595,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // app — exactly as before. With the low-friction transports enabled, also
     // treat a usable OAuth/browser account as "connected" so those flows can boot
     // the app without an .env password.
-    let hasAccount = !!(config?.smtp?.user && (config?.smtp?.hasPass || config?.smtp?.pass));
-    if (SHOW_NO_PASSWORD_TRANSPORTS && !hasAccount) {
-      try {
-        const gateAccounts = await window.electronAPI.getAccounts();
-        hasAccount = gateAccounts.some(
-          a => a.enabled !== false && (a.hasPass || a.transport === 'oauth-smtp' || a.transport === 'browser')
-        );
-      } catch { /* ignore */ }
+    // The gate runs long before refreshAccounts() populates accountsCache, so it
+    // fetches its own copy. Skipped entirely when no transport can use it, which
+    // keeps the flag-off path free of an extra IPC round-trip on boot.
+    let gateAccounts: ConnectedAccount[] = [];
+    if (SHOW_NO_PASSWORD_TRANSPORTS) {
+      try { gateAccounts = await window.electronAPI.getAccounts(); } catch { /* ignore */ }
     }
+    const hasAccount = inboxConnected(config, gateAccounts);
     loginScreen.style.display = hasAccount ? 'none' : 'flex';
 
     // ===== LOW-FRICTION TRANSPORTS (login gate) — gated behind SHOW_NO_PASSWORD_TRANSPORTS.
@@ -3451,14 +3617,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const setNoPwStatus = (m: string, color = 'var(--muted-foreground)') => {
       if (loginNoPwStatus) { loginNoPwStatus.textContent = m; loginNoPwStatus.style.color = color; loginNoPwStatus.style.display = 'block'; }
     };
-    const enterAppAfterConnect = (who: string) => {
+    const enterAppAfterConnect = async (who: string) => {
       loginScreen.style.display = 'none';
       toast(`${who} connected. You're cleared for takeoff. ✈`, 'success', 'Welcome aboard');
       fireTakeoff();
       fireConfetti();
+      // MUST await before the two readers below. An OAuth/browser account lives
+      // only in accounts.json (pass:'' — it never touches .env), so both of them
+      // decide "connected?" from accountsCache. refreshAccounts() used to run
+      // last and un-awaited, leaving the cache empty at this instant: the user
+      // who just connected got a "connect your inbox" banner and no Getting
+      // Started card. The order is load-bearing, not cosmetic.
+      await refreshAccounts();
       refreshSetupState();
       renderPreflight();
-      refreshAccounts();
       if (!config.userName) document.getElementById('onboarding-modal')!.style.display = 'flex';
     };
     const wireNoPwLogin = (
@@ -3476,7 +3648,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
           const res = await run();
           if (!res.ok) { setNoPwStatus(res.error || 'Could not connect.', 'var(--destructive)'); return; }
-          enterAppAfterConnect(res.email || fallbackName);
+          // Awaited: enterAppAfterConnect is async (it must load accounts before
+          // the banner/checklist read them). Un-awaited, a rejection would escape
+          // this try/catch as an unhandled rejection, and the finally below would
+          // re-enable the button before the boot finished.
+          await enterAppAfterConnect(res.email || fallbackName);
         } catch {
           setNoPwStatus('Hit some turbulence — give it another go.', 'var(--destructive)');
         } finally {
@@ -3498,13 +3674,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       loginError.style.display = 'none';
       const email = loginEmail.value.trim();
       const pass = normalizeAppPassword(loginPassword.value);
-      let host = PROVIDER_PRESETS[loginProvider].host;
-      let port = PROVIDER_PRESETS[loginProvider].port;
-      if (loginProvider === 'other') {
-        host = loginHost.value.trim();
-        port = parseInt(loginPort.value, 10) || 587;
-        if (!host) { showLoginError('Almost there — which runway? Add your SMTP host.'); return; }
-      }
       if (!email || !pass) { showLoginError('Pop in your email and app password to board.'); return; }
 
       loginSubmitBtn.disabled = true;
@@ -3517,6 +3686,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderBoarding();
       const boardingRotator = setInterval(() => { boardingIdx++; renderBoarding(); }, 1100);
       try {
+        // Enter-to-submit inside the email field never fires blur, so detection
+        // may not have run. Flush it before reading the preset, or we'd send a
+        // custom domain to whichever host the tab happens to be showing — the
+        // exact bug this is here to kill. Runs under the spinner, so the MX
+        // probe's ~2.5s worst case is covered by "Running pre-flight checks…".
+        await runFullDetect();
+
+        let host = PROVIDER_PRESETS[loginProvider].host;
+        let port = PROVIDER_PRESETS[loginProvider].port;
+        if (loginProvider === 'other') {
+          host = loginHost.value.trim();
+          port = parseInt(loginPort.value, 10) || 587;
+          if (!host) { showLoginError('Almost there — which runway? Add your SMTP host.'); return; }
+        }
+
         // Authenticate BEFORE persisting. If we save first and auth fails, the
         // bad credentials stay in .env, hasAccount becomes true, and the next
         // launch skips the login screen entirely — i.e. a normal (non-app)
@@ -3619,6 +3803,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       setupWizard.querySelectorAll('.sw-provider-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+          // Picking a provider here is as explicit as clicking a gate tab, so it
+          // must pin the choice against auto-detect: swFinishBtn assigns
+          // loginEmail.value programmatically (no input/blur) and calls
+          // requestSubmit(), whose flush would otherwise override this pick —
+          // including overriding a *correct* one with 'other' when the MX probe
+          // is merely offline. Set here, not in swApplyProvider(), which
+          // showSetupWizard() calls to reset the wizard on every open.
+          loginProviderTouched = true;
           swApplyProvider(btn.getAttribute('data-sw-provider') || 'gmail');
           swGoTo(2);
         });
@@ -3656,7 +3848,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       // Skip / close (and Esc, via setupModalA11y) → reveal the untouched login form.
-      const swClose = () => { setupWizard.style.display = 'none'; };
+      // All three routes land here — #setup-wizard-close carries .close-modal, which
+      // is what the Esc handler clicks — so remembering the choice here covers them
+      // all. swFinishBtn hides the wizard directly instead, which is correct:
+      // finishing is not skipping.
+      //
+      // Persisted because the wizard is layered over a login screen that stays
+      // fully usable underneath: a user who dismissed it wants the plain form, and
+      // re-shoving the wizard at them on every launch until they connect is not a
+      // safety net, it is nagging. Mirrors GS_DISMISS_KEY.
+      const swClose = () => {
+        setupWizard.style.display = 'none';
+        try { localStorage.setItem(SW_SKIP_KEY, '1'); } catch { /* private mode / quota */ }
+      };
       document.getElementById('sw-skip')?.addEventListener('click', swClose);
       document.getElementById('setup-wizard-close')?.addEventListener('click', swClose);
 
@@ -3673,8 +3877,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         swRender();
         setupWizard.style.display = 'flex';
       };
-      // First run only: layer the wizard over the (still-present) login screen.
-      if (!hasAccount) showSetupWizard();
+      // First run only, and only until the user waves it off: layer the wizard over
+      // the (still-present) login screen.
+      const swSkipped = (() => {
+        try { return localStorage.getItem(SW_SKIP_KEY) === '1'; } catch { return false; }
+      })();
+      if (!hasAccount && !swSkipped) showSetupWizard();
     }
 
     const isRunning = await window.electronAPI.getSchedulerStatus();
@@ -3771,7 +3979,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     const testMode = (document.getElementById('test-mode-checkbox') as HTMLInputElement | null)?.checked;
-    const accountCount = Math.max(1, accountsCache.filter(a => a.hasPass && a.enabled !== false).length);
+    const accountCount = Math.max(1, accountsCache.filter(a => accountHasCredentials(a) && a.enabled !== false).length);
     const summaryLine = `This will email ${activeCount} recipient${activeCount === 1 ? '' : 's'}`
       + (accountCount > 1 ? ` from ${accountCount} accounts` : '')
       + ' right now, ignoring scheduled times (daily limits still apply).';
@@ -3987,12 +4195,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       // attachments, Smart-Default schedule), so merging them into the existing row
       // would wipe its enrollment/attachments/schedule. Instead, open the existing
       // recipient in the Edit modal (which populates the form from the real row).
-      if (idx < 0 && email) {
-          const dupIdx = recipientsData.findIndex((r: any) =>
-              String(r.email || r.Email || '').trim().toLowerCase() === email.toLowerCase());
+      //
+      // CSA-4 fix: the same guard must cover EDIT. Retyping one row's address to match
+      // another's reaches the identical two-rows-one-address state A16 exists to
+      // prevent — SequenceRunner.persist() assigns its update to EVERY disk row whose
+      // email matches, so the two rows clobber each other's seqStep and re-send a step
+      // that was already delivered. Edit can't reuse Add's "open the existing one"
+      // recovery (that would silently discard the edits in the form), so it reports
+      // inline and lets the user correct the address.
+      if (email) {
+          const dupIdx = recipientsData.findIndex((r: any, i: number) =>
+              i !== idx && String(r.email || r.Email || '').trim().toLowerCase() === email.toLowerCase());
           if (dupIdx >= 0) {
-              toast('That email is already on your list — opening it to edit.', 'info', 'Already added');
-              openRecipientModal(dupIdx);
+              if (idx < 0) {
+                  toast('That email is already on your list — opening it to edit.', 'info', 'Already added');
+                  openRecipientModal(dupIdx);
+              } else {
+                  toast(`${email} is already on another row. Use a different address, or delete the other row first.`,
+                      'error', 'Duplicate email');
+              }
               return;
           }
       }
@@ -4039,6 +4260,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           delete record.seqLastSentAt;
           delete record.seqNextDueAt;
           delete record.seqDone;
+          // Leave seqNextStepId unset: seqStep 0 resolves to the first step by
+          // index, and the runner stamps the id from there on (see CSA-1).
+          delete record.seqNextStepId;
         }
       } else {
         delete record.sequenceId;
@@ -4046,6 +4270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         delete record.seqLastSentAt;
         delete record.seqNextDueAt;
         delete record.seqDone;
+        delete record.seqNextStepId;
       }
 
       if (idx >= 0) {
@@ -4130,6 +4355,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       toast('Add your email address before saving (use Sign out to disconnect).', 'error');
       return;
     }
+    // CSA-10: "leave blank to keep" means keep the password stored for the address
+    // it was saved against. Changing the address while leaving it blank re-encrypts
+    // the OLD mailbox's password against the NEW one — save-config has no way to know
+    // that isn't wanted — and the account then looks healthy while every send EAUTHs.
+    // A new address needs its own password.
+    if (loadedSmtpUser && inputUser.value.trim().toLowerCase() !== loadedSmtpUser.toLowerCase()
+        && !normalizeAppPassword(inputPass.value)) {
+      toast('You changed the email address, so enter that inbox\'s app password too — the saved one belongs to the previous address.',
+        'error', 'Password needed');
+      inputPass.focus();
+      return;
+    }
     const btn = settingsForm.querySelector('button[type="submit"]') as HTMLButtonElement;
     btn.disabled = true;
     const originalContent = btn.innerHTML;
@@ -4162,6 +4399,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (success) {
         addLog('Configuration saved successfully.', 'success');
         toast('Settings locked in.', 'success', 'Saved');
+        // The stored password now belongs to whatever address we just saved, so a
+        // later blank-password save of the same address must not re-trip the guard.
+        loadedSmtpUser = inputUser.value.trim();
+        inputPass.value = '';
+        inputPass.placeholder = 'Saved — leave blank to keep';
         refreshSetupState();
         updateAnalyticsAndSchedule();
         renderPreflight();

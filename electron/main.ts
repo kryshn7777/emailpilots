@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, dialog, Tray, Menu, nativeImage, safeStorage, session } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog, Tray, Menu, nativeImage, session } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import dns from 'dns';
@@ -16,16 +16,20 @@ import type { StrategyDeps } from '../src/transport/sendStrategy';
 import { loginMicrosoft, getAccessToken as msGetAccessToken, isMicrosoftOAuthConfigured } from './transport/oauthMicrosoft';
 import { connectBrowser, createBrowserStrategy } from './transport/browserSession';
 import { readAccounts, upsertAccount, removeAccount, accountsFilePath, MAX_EXTRA_ACCOUNTS } from '../src/accountStore';
+import { accountStateFileName, DEFAULT_ACCOUNT_STATE_FILES } from '../src/accountFiles';
+import { syncLedgerOwner, writeLedgerOwner } from '../src/sentLedgerOwner';
 import { readCampaigns, upsertCampaign, removeCampaign } from '../src/campaignStore';
-import { upsertSequence, removeSequence } from '../src/sequenceStore';
+import { upsertSequence, removeSequence, MAX_DELAY_DAYS } from '../src/sequenceStore';
 import type { Campaign, Sequence, SequenceStep } from '../src/config';
 import { atomicWriteFileSync } from '../src/atomicWrite';
+import { makeSecretBox } from '../src/crypto/factory';
 import {
   buildConsumerDomainReport, buildDomainAuthReport, dkimSelectorsFor,
   inferProvider, isConsumerDomain, isValidDomain,
 } from '../src/domainAuth';
 import type { DnsAnswer, DkimProbeResult } from '../src/domainAuth';
 import { classifyMxRecords } from '../src/mxValidation';
+import { detectProviderFromMx } from '../src/providerDetect';
 import dotenv from 'dotenv';
 
 // Writing to a closed stdout/stderr pipe raises EPIPE. With no listener Node
@@ -52,17 +56,17 @@ function envText(v: any): string {
   return '"' + String(v ?? '').replace(/"/g, '\\"').replace(/[\r\n]/g, ' ') + '"';
 }
 
+/**
+ * Protect a secret for at-rest storage. Delegates to the SecretBox seam so the
+ * `ENC:` scheme lives in exactly one place (src/crypto/).
+ *
+ * THROWS when protection is unavailable. It previously returned `pass` — writing
+ * an unmarked plaintext password to .env/accounts.json that was indistinguishable
+ * on disk from an encrypted one, announced only by a console.error nobody reads.
+ * Callers surface the failure instead of persisting an unprotected secret.
+ */
 function encryptPassword(pass: string): string {
-  if (!pass) return '';
-  if (safeStorage.isEncryptionAvailable()) {
-    try {
-      const encrypted = safeStorage.encryptString(pass);
-      return `ENC:${encrypted.toString('base64')}`;
-    } catch (err) {
-      console.error('safeStorage encryption failed:', err);
-    }
-  }
-  return pass; // Fallback to plaintext if not available
+  return makeSecretBox().encrypt(pass);
 }
 
 function envPath(v: any): string {
@@ -498,13 +502,29 @@ ipcMain.handle('add-suppression', (_event, email: string) => {
 ipcMain.handle('send-test-email', async (_event, accountId?: string) => {
     if (!globalConfig) initServices();
     const accounts = (globalConfig?.accounts || []) as Account[];
+    // CSA-7: an explicit accountId that doesn't resolve must NOT fall through to the
+    // primary. It used to, so a Test click on a row whose account had just been
+    // removed sent from the wrong identity, reported "Test sent to <primary>", and
+    // recorded the result against 'default' — reddening the Primary row's health dot
+    // for a failure on someone else's account.
+    if (accountId) {
+        const picked = accounts.find(a => a.id === accountId);
+        if (!picked) return { ok: false, error: 'That account no longer exists — refresh the Accounts list.' };
+        if (!picked.user || !hasCredentials(picked)) {
+            return { ok: false, error: 'That account has no credentials yet.' };
+        }
+        return await sendAccountTest(picked);
+    }
     // No accountId ⇒ the default account = today's behavior.
-    const account = (accountId ? accounts.find(a => a.id === accountId) : undefined)
-        || accounts.find(a => a.id === 'default')
-        || accounts[0];
+    const account = accounts.find(a => a.id === 'default') || accounts[0];
     if (!account || !account.user || !hasCredentials(account)) {
         return { ok: false, error: 'Add your email address and password in Settings first.' };
     }
+    return await sendAccountTest(account);
+});
+
+/** Send Email Pilots' own test message from one specific account. */
+async function sendAccountTest(account: Account): Promise<{ ok: boolean; to?: string; error?: string }> {
     try {
         // Direct send (bypasses rate limits) so a config check is instant and free.
         // Config slice + account => correct From/footer AND the right transport
@@ -525,7 +545,7 @@ ipcMain.handle('send-test-email', async (_event, accountId?: string) => {
         recordAccountStatus(account.id, { ok: false, error: e?.message || 'Send failed', at: Date.now(), kind: 'test' });
         return { ok: false, error: e?.message || 'Send failed' };
     }
-});
+}
 
 ipcMain.handle('verify-connection', async (_event, candidate) => {
     // Authenticate against SMTP without sending — used by the login screen so a
@@ -590,10 +610,43 @@ ipcMain.handle('save-account', async (_event, acc) => {
         if (!existing && allExtras.length >= MAX_EXTRA_ACCOUNTS) {
             return { ok: false, error: `Account limit reached (max ${MAX_EXTRA_ACCOUNTS} added accounts). Remove one before adding another.` };
         }
+        // One row per mailbox. The Add form never sends an id, so every submit mints a
+        // fresh one — re-adding an address that is already connected would give one
+        // real inbox two accounts, two processors and two limits.<id>.json, letting it
+        // send 2x its daily cap (the anti-ban invariant the limiter exists to hold).
+        // oauth-login-microsoft already dedupes by user; this is the same contract.
+        // Checked for a new account, and for an update that CHANGES the address —
+        // but not for one that resends its own unchanged user, so a row that already
+        // exists stays editable/toggleable, including a duplicate an older build let
+        // through. (No shipped caller edits the address of an existing row today; the
+        // check belongs at the IPC boundary rather than resting on that staying true.)
+        const userKey = user.toLowerCase();
+        if (!existing || existing.user.toLowerCase() !== userKey) {
+            if (String(globalConfig?.smtp?.user || '').trim().toLowerCase() === userKey) {
+                return { ok: false, error: 'That address is already your primary account — edit it in Settings.' };
+            }
+            if (allExtras.some(a => a.id !== id && a.user.toLowerCase() === userKey)) {
+                return { ok: false, error: 'That address is already connected as another account.' };
+            }
+        }
         const rawPass = normalizeAppPassword(acc?.pass);
         let passToStore: string;
         if (rawPass) passToStore = encryptPassword(rawPass);
+        // CSA-10, extras half: "blank keeps the stored password" only holds while the
+        // address is unchanged — the stored one belongs to the OLD mailbox, and
+        // re-encrypting it against a new address yields an account that looks healthy
+        // and EAUTHs on every send. save-config enforces this for the primary; the
+        // same rule belongs here rather than resting on no caller ever editing the
+        // address of an existing row.
+        else if (existing && existing.user.toLowerCase() !== user.toLowerCase()) {
+            return { ok: false, error: 'You changed the email address, so enter that inbox\'s app password too — the saved one belongs to the previous address.' };
+        }
         else if (existing) passToStore = existing.pass;
+        // CSA-13: a supplied id we can't find means the row is gone (removed in a bulk
+        // action, or a stale render), not that the user forgot a password. The
+        // Enable/Disable toggle sends no pass, so it used to land on the message below
+        // and demand credentials for an action that has nothing to do with them.
+        else if (acc?.id) return { ok: false, error: 'That account no longer exists — refresh the Accounts list.' };
         else return { ok: false, error: 'App password is required.' };
 
         // A8 fix: preserve the existing account's transport identity (OAuth-SMTP /
@@ -646,6 +699,10 @@ ipcMain.handle('oauth-login-microsoft', async () => {
         const { email, oauthToken } = await loginMicrosoft();
         if (!email) return { ok: false, error: 'Could not read the signed-in address.' };
 
+        // Read AFTER the interactive sign-in: that window can sit open for minutes,
+        // and a concurrent connect for the same mailbox would be invisible to a
+        // snapshot taken before it (upsertAccount matches on id only, so the
+        // duplicate would land — two processors, two limits files, 2x the cap).
         const allExtras = readAccounts(basePath);
         // Re-use the existing entry for this address (re-auth) instead of duplicating.
         const existing = allExtras.find(a => a.user.toLowerCase() === email.toLowerCase());
@@ -698,15 +755,39 @@ ipcMain.handle('browser-connect', async (_event, provider: 'gmail' | 'outlook') 
         const id = genAccountId(`browser-${provider}`);
         const { email, partition } = await connectBrowser(provider, id);
 
+        // One row per mailbox. Unlike oauth-login-microsoft — which knows the address
+        // up front and dedupes before minting an id — we only learn it after sign-in,
+        // so reconnecting an already-connected address must fold back into that row
+        // here. A second row for one inbox would get its own processor and its own
+        // limits.<id>.json, letting the real mailbox send 2x its daily cap.
+        //
+        // Re-read rather than reusing the pre-await `allExtras`: the sign-in above is
+        // an interactive window that can sit open for minutes, and nothing serializes
+        // it against a concurrent browser-connect or oauth-login-microsoft for the
+        // same mailbox. A snapshot from before the await would miss a row written
+        // during it, and upsertAccount matches on id only — so the duplicate this
+        // check exists to prevent would sail straight through.
+        const existing = email
+            ? readAccounts(basePath).find(a => a.user.toLowerCase() === email.toLowerCase())
+            : undefined;
+        // The fresh session lives in the just-created partition, so retire the row's
+        // old one rather than orphaning its cookies. BrowserSessionStrategy reads
+        // account.browserPartition ahead of partitionForAccount(id), so an id that no
+        // longer matches its partition name still resolves correctly.
+        if (existing?.browserPartition && existing.browserPartition !== partition) {
+            try { void session.fromPartition(existing.browserPartition).clearStorageData(); } catch {}
+        }
+        const accountId = existing?.id || id;
+
         const account: Account = {
-            id,
-            label: email || `${provider === 'outlook' ? 'Outlook' : 'Gmail'} (browser)`,
+            id: accountId,
+            label: existing?.label || email || `${provider === 'outlook' ? 'Outlook' : 'Gmail'} (browser)`,
             // Host/port are unused by the browser transport but keep the Account shape valid.
             host: provider === 'outlook' ? 'smtp.office365.com' : 'smtp.gmail.com',
             port: 587,
             user: email || `browser-${provider}`,
             pass: '',
-            enabled: true,
+            enabled: existing?.enabled !== false,
             transport: 'browser',
             browserProvider: provider,
             browserPartition: partition,
@@ -715,8 +796,8 @@ ipcMain.handle('browser-connect', async (_event, provider: 'gmail' | 'outlook') 
 
         globalConfig = loadConfig();
         rebuildProcessors();
-        recordAccountStatus(id, { ok: true, at: Date.now(), kind: 'test' });
-        return { ok: true, id, email };
+        recordAccountStatus(accountId, { ok: true, at: Date.now(), kind: 'test' });
+        return { ok: true, id: accountId, email };
     } catch (e: any) {
         return { ok: false, error: e?.message || 'Could not connect the account.' };
     }
@@ -772,7 +853,8 @@ ipcMain.handle('delete-account', (_event, id: string) => {
         // counter to 0 and blow past the send cap. The file is harmless to leave:
         // account ids are unique (genAccountId), so it is never read again (no
         // processor owns this id; its recipients were reassigned to default above).
-        // sign-out still wipes every limits file as part of its full reset.
+        // This holds only for EXTRAS. The primary reuses the fixed id 'default', so
+        // its files ARE re-read — sign-out resets them (see CSA-3 there).
         accountStatus.delete(String(id));
 
         globalConfig = loadConfig();
@@ -857,6 +939,13 @@ ipcMain.handle('delete-campaign', (_event, id: string) => {
 });
 
 // --- Sequences: follow-up drips (ordered steps, reply-gated) ---
+/** Stable per-step identity (CSA-1). Steps have no natural key — subject/body are
+ *  editable and duplicable — so this is random rather than derived. Collision only
+ *  matters within one sequence's step list, which is at most a handful of entries. */
+function genStepId(): string {
+  return `st-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function genSequenceId(seed?: string): string {
   const base = String(seed || 'seq')
     .toLowerCase()
@@ -879,9 +968,17 @@ ipcMain.handle('save-sequence', (_event, s) => {
     if (!name) return { ok: false, error: 'Sequence name is required.' };
     const steps: SequenceStep[] = (Array.isArray(s?.steps) ? s.steps : [])
       .map((st: any): SequenceStep => ({
+        // CSA-1: mint a stable id for any step that lacks one, so a recipient's
+        // seqNextStepId keeps pointing at the step it means even after the list is
+        // reordered or a step is inserted/removed. The renderer round-trips existing
+        // ids (see addStepRow/collectSteps) — re-minting them on every save would
+        // make the field worthless, so an id that arrives is always preserved.
+        id: (st?.id && String(st.id).trim()) || genStepId(),
         subject: st?.subject != null ? String(st.subject) : '',
         messageContent: st?.messageContent != null ? String(st.messageContent) : '',
-        delayDays: Number(st?.delayDays) >= 0 ? Number(st.delayDays) : 0,
+        // CSA-15: clamp. Unbounded delayDays overflows the max Date downstream and
+        // throws after the send, re-sending the step hourly forever.
+        delayDays: Number(st?.delayDays) >= 0 ? Math.min(Number(st.delayDays), MAX_DELAY_DAYS) : 0,
         stopOnReply: st?.stopOnReply !== false,
       }))
       .filter((st: SequenceStep) => st.messageContent.trim() !== '');
@@ -914,7 +1011,7 @@ ipcMain.handle('delete-sequence', (_event, id: string) => {
           for (const r of recipients) {
             if (r && r.sequenceId === id) {
               delete r.sequenceId; delete r.seqStep; delete r.seqLastSentAt;
-              delete r.seqNextDueAt; delete r.seqDone;
+              delete r.seqNextDueAt; delete r.seqDone; delete r.seqNextStepId;
               changed = true;
             }
           }
@@ -955,7 +1052,22 @@ ipcMain.handle('get-config', () => {
     ...globalConfig,
     templateContent,
     smtp: { ...globalConfig.smtp, pass: '', hasPass: !!globalConfig.smtp?.pass },
-    accounts: (globalConfig.accounts || []).map((a: Account) => ({ ...a, pass: '' })),
+    // CSA-8: pick fields explicitly rather than spreading `a` and blanking `pass`.
+    // The spread also shipped oauthToken (an encrypted refresh token) and
+    // browserPartition to the renderer — credentials by any reading of the
+    // redaction contract, and flatly against this handler's own note above that the
+    // extras are "only ever needed via get-accounts". Mirrors get-accounts' shape.
+    accounts: (globalConfig.accounts || []).map((a: Account) => ({
+      id: a.id,
+      label: a.label,
+      host: a.host,
+      port: a.port,
+      user: a.user,
+      enabled: a.enabled,
+      pass: '',
+      hasPass: !!a.pass,
+      transport: a.transport || 'smtp',
+    })),
   };
 });
 
@@ -973,6 +1085,9 @@ function saveConfigToEnv(newConfig: any): boolean {
     // user undefined = "not in this payload" (keep current); user '' = an
     // explicit clear (sign-out). Same convention as the other fields below.
     const newUser = String(newConfig.user ?? globalConfig.smtp.user ?? '').trim();
+    // The address being replaced — read BEFORE the rewrite below blanks it. Seeds
+    // the sent-ledger owner check for installs that predate the marker (S1).
+    const prevUser = String(globalConfig.smtp.user ?? '').trim();
     const newPass = normalizeAppPassword(newConfig.pass);
     // Blank password keeps the stored one (same rule as save-account) — unless
     // the user is also cleared (sign-out), which wipes both.
@@ -1019,6 +1134,24 @@ AI_PAUSE_ON_OOO=${(newConfig.aiPauseOnOoo ?? globalConfig.ai?.actions?.pauseOnOo
 
     atomicWriteFileSync(envFilePath, envContent);
 
+    // S1: reconcile the sent-ledger with whoever is now signed in. This is the one
+    // choke point where the primary's address can change (login, settings edit,
+    // sign-out), so it is the only place that can compare old against new. A
+    // different mailbox drops the ledger (it must not skip recipients it never
+    // emailed — CSA-3); the same mailbox keeps it (it must not re-send content
+    // already delivered — S1). A blank newUser (sign-out) is a no-op: the marker is
+    // what remembers the owner across the signed-out gap.
+    const ledgerSync = syncLedgerOwner(basePath, newUser, prevUser);
+    if (ledgerSync.error) {
+      sendLog(
+        `Could not clear the previous mailbox's delivery ledger (${ledgerSync.error}). ` +
+        'Recipients it already emailed may be skipped until this succeeds.',
+        'error',
+      );
+    } else if (ledgerSync.cleared) {
+      sendLog('New mailbox detected — cleared the previous inbox\'s delivery ledger.', 'system');
+    }
+
     // Email-template wrapper lives in template.html (not .env). Only rewrite it
     // when this payload actually carries `template` — partial saves (onboarding,
     // test-mode toggle, sign-out) omit it and must leave the file untouched.
@@ -1051,9 +1184,11 @@ ipcMain.handle('save-config', (_event, newConfig) => saveConfigToEnv(newConfig))
 ipcMain.handle('sign-out', () => {
   try {
     if (!globalConfig) initServices();
-    // A17 fix: sign-out unlinks every limits.<id>.json as part of its full wipe; if
-    // a manual run is in flight, that would reset live rate caps mid-send. Refuse
-    // until it finishes. (The scheduler/sequence/poller are stopped below.)
+    // A17 fix: sign-out rewrites the primary's limits.json (resetWarmupAnchor, below).
+    // A manual run reads it on every send, so let the run finish rather than move the
+    // ground under it. (The scheduler/sequence/poller are stopped below; they can
+    // still be mid-`await`, which is why the reset preserves counters and the poller's
+    // cursor write is generation-gated rather than racing.)
     if (testRunInProgress) {
       return { ok: false, error: 'Finish the current send run before signing out.' };
     }
@@ -1070,11 +1205,29 @@ ipcMain.handle('sign-out', () => {
     // Forget every stored credential: extra accounts' sessions, then the .env
     // primary. Non-credential settings (subject, schedule, limits, paths) are
     // preserved by saveConfigToEnv.
-    // A17 fix: do NOT unlink limits.<id>.json here. stop() above cancels future cron
-    // fires but does not interrupt a send already mid-`await`; deleting the file
-    // under it would make its RateLimiter reload day-0 and blow past the cap. Rate
-    // state isn't a credential, and re-added accounts get fresh unique ids, so a
-    // stale limits file is never re-read — harmless to leave.
+    //
+    // A17: do NOT unlink the EXTRAS' limits.<id>.json here. stop() above cancels
+    // future cron fires but does not interrupt a send already mid-`await`; deleting
+    // the file under it would make its RateLimiter reload day-0 and blow past the
+    // cap. Rate state isn't a credential, and a re-added extra gets a fresh unique
+    // id (genAccountId), so its stale file is never re-read — harmless to leave.
+    //
+    // CSA-3: that reasoning does NOT extend to the primary. Its id is the hard-coded
+    // literal 'default' (config.ts), so its files are fixed names — limits.json,
+    // sent-ledger.json, imap.json — and are ALWAYS re-read by whatever mailbox signs
+    // in next, which otherwise inherits the old one's warmup age (skipping the ramp
+    // on a cold inbox — the whole anti-ban point) and its IMAP UID cursor (no reply
+    // is ever detected). Reset below — the cursor by deletion, the warmup anchor in
+    // place, since limits.json is the one file a mid-`await` send reads back.
+    //
+    // S1: the sent-ledger is deliberately NOT reset here. Deleting it is correct only
+    // when a DIFFERENT mailbox signs in next, which this handler cannot know; doing it
+    // unconditionally re-sent already-delivered content whenever the same mailbox came
+    // back. Stamp the outgoing address instead and let the next sign-in decide
+    // (saveConfigToEnv → syncLedgerOwner). This must happen BEFORE saveConfigToEnv
+    // below blanks smtp.user, or the owner is lost.
+    writeLedgerOwner(basePath, globalConfig.smtp?.user || '');
+
     for (const a of readAccounts(basePath)) {
       // Wipe any browser-session cookies (OAuth token caches go with accounts.json).
       if (a.transport === 'browser' && a.browserPartition) {
@@ -1082,6 +1235,20 @@ ipcMain.handle('sign-out', () => {
       }
     }
     try { fs.unlinkSync(accountsFilePath(basePath)); } catch {}
+    // Safe to delete outright: neither carries rate state, so nothing in flight can
+    // read a missing one and overshoot a cap.
+    for (const prefix of DEFAULT_ACCOUNT_STATE_FILES) {
+      try { fs.unlinkSync(path.join(basePath, accountStateFileName(prefix, 'default'))); } catch {}
+    }
+    // limits.json is reset in place, never deleted — see resetWarmupAnchor(). This
+    // restarts the ramp for the next mailbox while leaving today's counters intact
+    // for any send still mid-`await`, so the race fails safe (a lower cap, never a
+    // higher one) and a same-address sign-out/sign-in can't mint a second daily cap.
+    try {
+      new RateLimiter(basePath, globalConfig.limits, 'default').resetWarmupAnchor();
+    } catch (e) {
+      sendLog('Could not reset the warmup ramp on sign-out; the next inbox may not be throttled as a new account.', 'error');
+    }
     accountStatus.clear();
 
     const ok = saveConfigToEnv({
@@ -1473,6 +1640,41 @@ ipcMain.handle('verify-email', async (_event, rawEmail) => {
             return { valid: true, reason: 'DNS check skipped (resolver unavailable)' };
         }
         return { valid: false, reason: 'Domain does not exist or cannot receive email' };
+    }
+});
+
+// Login-gate provider hint: whose mail infrastructure does this domain use?
+// Catches Google Workspace / Microsoft 365 custom domains, which no static
+// domain table can know about. Read-only DNS; the verdict lives in the pure
+// module src/providerDetect.ts.
+//
+// dns.resolveMx has NO built-in timeout and this runs on the login screen's
+// keystroke path, so the race is mandatory — it must never hang the gate.
+//
+// Unlike verify-email, transient and definitive DNS failures are NOT
+// distinguished here: this answer is advisory, and every failure mode (timeout,
+// offline, NXDOMAIN, refused resolver) means the same thing — "we don't know",
+// so show the manual host/port fields. A resolver hiccup must never surface as
+// an error on the login screen, and must never be rounded to a guessed host.
+const MX_PROBE_TIMEOUT_MS = 2500;
+
+ipcMain.handle('detect-provider-mx', async (_event, rawDomain) => {
+    const domain = String(rawDomain ?? '').trim().toLowerCase();
+    if (!isValidDomain(domain)) return { provider: null };
+
+    let timer: NodeJS.Timeout | undefined;
+    try {
+        const records = await Promise.race([
+            dns.promises.resolveMx(domain),
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new Error('mx-probe-timeout')), MX_PROBE_TIMEOUT_MS);
+            }),
+        ]);
+        return { provider: detectProviderFromMx(records || []) };
+    } catch {
+        return { provider: null };
+    } finally {
+        if (timer) clearTimeout(timer);
     }
 });
 
