@@ -87,6 +87,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // GPU-less user before a multi-GB download rather than after it.
   aiProbeHardware: () => ipcRenderer.invoke('ai-probe-hardware'),
   aiModelCatalog: () => ipcRenderer.invoke('ai-model-catalog'),
+  // Download a catalog model. Progress arrives on onAiDownloadProgress — a separate
+  // channel from onAiLoadProgress, which is the (later) load of an on-disk model into
+  // VRAM. Same-looking bars, different phases.
+  aiDownloadModel: (modelId: string) => ipcRenderer.invoke('ai-download-model', modelId),
+  aiDownloadCancel: () => ipcRenderer.invoke('ai-download-cancel'),
+  onAiDownloadProgress: (cb: (p: { modelId: string; phase: string; receivedBytes: number; totalBytes: number; fraction: number }) => void) => {
+    const listener = (_e: any, p: any) => cb(p);
+    ipcRenderer.on('ai-download-progress', listener);
+    return () => ipcRenderer.removeListener('ai-download-progress', listener);
+  },
   // Load the model now; load progress (0..1) streams over onAiLoadProgress.
   aiLoadModel: () => ipcRenderer.invoke('ai-load-model'),
   onAiLoadProgress: (cb: (progress: number) => void) => {

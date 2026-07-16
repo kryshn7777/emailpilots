@@ -24,7 +24,8 @@ import type { Campaign, Sequence, SequenceStep } from '../src/config';
 import { atomicWriteFileSync } from '../src/atomicWrite';
 import { makeSecretBox } from '../src/crypto/factory';
 import { probeHardware } from '../src/ai/hardware';
-import { MODEL_CATALOG } from '../src/ai/modelCatalog';
+import { MODEL_CATALOG, findModel } from '../src/ai/modelCatalog';
+import { downloadModel, cancelDownload, installedPath } from './ai/modelDownloader';
 import {
   buildConsumerDomainReport, buildDomainAuthReport, dkimSelectorsFor,
   inferProvider, isConsumerDomain, isValidDomain,
@@ -1582,8 +1583,36 @@ ipcMain.handle('ai-probe-hardware', async () => {
     }
 });
 
-/** The models onboarding may offer. Static data; no network, no disk. */
-ipcMain.handle('ai-model-catalog', () => MODEL_CATALOG);
+/** The models onboarding may offer, each tagged with whether it's already on disk. */
+ipcMain.handle('ai-model-catalog', () => {
+    return MODEL_CATALOG.map(m => ({ ...m, installed: !!installedPath(m) }));
+});
+
+/**
+ * Download a catalog model. Progress streams over 'ai-download-progress' — a DIFFERENT
+ * channel from 'ai-load-progress', which reports loading an existing model from disk
+ * into VRAM. They are separate phases and the UI shows both; conflating them would
+ * report "100%" while the multi-GB load hasn't started.
+ */
+ipcMain.handle('ai-download-model', async (event, modelId: string) => {
+    const model = findModel(modelId);
+    if (!model) return { ok: false, error: 'Unknown model.' };
+
+    const result = await downloadModel(model, (p) => {
+        // The window can close mid-download; sending to a destroyed frame throws.
+        if (!event.sender.isDestroyed()) event.sender.send('ai-download-progress', p);
+    });
+    if (!result.ok) return result;
+
+    // Point the app at it and turn AI on — mirrors the file-picker path, which also
+    // auto-enables. Someone who just waited for a multi-GB download has opted in about
+    // as clearly as a person can.
+    const saved = saveConfigToEnv({ aiModelPath: result.path, aiEnabled: true });
+    if (!saved) return { ok: false, error: 'The model downloaded, but saving the setting failed.' };
+    return result;
+});
+
+ipcMain.handle('ai-download-cancel', () => ({ ok: cancelDownload() }));
 
 ipcMain.handle('import-recipients-csv', async () => {
     if (!win) return { canceled: true };
