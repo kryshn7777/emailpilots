@@ -1,5 +1,6 @@
 import type { AiService } from './aiService';
 import { ASSIST_TONES } from './writingAssistant';
+import { EMAIL_SYSTEM_BASE } from './persona';
 import { SEQ_STATE_FIELDS } from '../recipientMerge';
 
 /**
@@ -56,7 +57,7 @@ const MAX_EXAMPLE_CHARS = 800;   // per winning-example cap (bounds prompt size)
 const MAX_EXAMPLES = 5;          // hard cap on examples fed to the model
 const DEFAULT_EXAMPLE_LIMIT = 3;
 
-const BASE = 'You are a writing assistant for personal outreach and follow-up email. Output ONLY the resulting email text — no preamble, no surrounding quotes, no markdown, no explanation.';
+const BASE = EMAIL_SYSTEM_BASE;
 
 /**
  * Format a prospect's meaningful fields into a compact "Key: value" block for the
@@ -132,7 +133,10 @@ export function buildPersonalizePrompt(req: PersonalizeRequest): { system: strin
   const tone = String(req.tone || 'professional').toLowerCase();
   const safeTone = (ASSIST_TONES as readonly string[]).includes(tone) ? tone : 'professional';
 
-  let system = `${BASE} Write a concise, warm, ${safeTone} message personalized to the specific recipient using the details provided — a few sentences unless the goal calls for more. You may keep merge tags like {{name}} intact. Do not invent facts about the recipient beyond what is given.`;
+  let system = `${BASE}
+Write to this ONE person, in a ${safeTone} tone. Three to six sentences unless the goal needs more.
+Use the recipient's details to show you know who you are writing to — reference something specific and true about them early, in your own words, not as a merge-tag salad. Their details are facts to draw on, not a list to recite: an email that names their company three times reads more automated than one that never does.
+If the details are thin, write a good short email that stands on its own. A plain honest note beats a hollow compliment or an invented "I saw your recent post about…".`;
 
   const facts = recipientFacts(req.recipient || {});
   const goal = (req.instruction || '').slice(0, 2000).trim() || 'a brief, friendly personalized outreach message';
@@ -144,7 +148,8 @@ export function buildPersonalizePrompt(req: PersonalizeRequest): { system: strin
   if (facts) parts.push(`About the recipient:\n${facts}`);
   if (base) parts.push(`Build on this current draft (keep what works):\n${base}`);
   if (examples.length) {
-    system += ' You are given examples of past messages that earned positive replies; match their style, tone, and structure — do NOT copy them verbatim or reuse their specific details.';
+    system += `
+You are shown past messages from this user that earned positive replies. Learn what they do — length, structure, how direct the ask is, how formal the voice — and write in that register. Do NOT copy their sentences, and do NOT reuse their specific details: those belong to a different recipient, and pasting another prospect's facts into this email is the worst thing you could do here.`;
     const ex = examples
       .map((e, i) => `Example ${i + 1} (earned a "${e.outcome}" reply):\n${e.body}`)
       .join('\n\n');

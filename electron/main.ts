@@ -25,6 +25,7 @@ import { atomicWriteFileSync } from '../src/atomicWrite';
 import { makeSecretBox } from '../src/crypto/factory';
 import { probeHardware } from '../src/ai/hardware';
 import { MODEL_CATALOG, findModel } from '../src/ai/modelCatalog';
+import { GENERATE_SYSTEM } from '../src/ai/persona';
 import { downloadModel, cancelDownload, installedPath } from './ai/modelDownloader';
 import {
   buildConsumerDomainReport, buildDomainAuthReport, dkimSelectorsFor,
@@ -1483,7 +1484,14 @@ ipcMain.handle('ai-generate', async (event, req: AiGenerateRequest) => {
         if (!req || typeof req.prompt !== 'string' || !req.prompt.trim()) {
             return { ok: false, error: 'A prompt is required.' };
         }
-        const result = await aiService().generate(req, (chunk) => event.sender.send('ai-stream', chunk));
+        // The one free-form surface, so the one place a user can ask "who are you?".
+        // Unprompted, the local open-weight model answers as whatever it was trained
+        // as ("I'm Qwen, created by Alibaba Cloud") — confusing, wrong for the product,
+        // and it reads as though the mail is going somewhere. GENERATE_SYSTEM pins the
+        // identity. An explicit system prompt from a caller still wins; the assistant
+        // and personalizer build their own and route through generate().
+        const system = req.system ?? GENERATE_SYSTEM;
+        const result = await aiService().generate({ ...req, system }, (chunk) => event.sender.send('ai-stream', chunk));
         return { ok: true, ...result };
     } catch (e: any) {
         return { ok: false, error: e?.message || 'Generation failed' };
