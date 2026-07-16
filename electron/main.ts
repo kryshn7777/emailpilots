@@ -484,8 +484,16 @@ ipcMain.handle('list-replies', () => {
 });
 
 ipcMain.handle('remove-suppression', (_event, email: string) => {
-    new SuppressionManager(getBasePath()).remove(email);
-    return true;
+    // S2/S3: add()/remove() now throw when the list exists but is unreadable, rather
+    // than silently rewriting it to just this one entry. An unguarded throw here
+    // rejects the renderer's invoke(), which its call site does not await-catch — so
+    // the action fails with no toast at all. Return the error instead.
+    try {
+        new SuppressionManager(getBasePath()).remove(email);
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Could not update the blocked list.' };
+    }
 });
 
 // Manual block — how a mailto: unsubscribe reply gets honored. Suppression
@@ -495,8 +503,14 @@ ipcMain.handle('add-suppression', (_event, email: string) => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) {
         return { ok: false, error: 'Enter a valid email address.' };
     }
-    new SuppressionManager(getBasePath()).add(addr, 'manual', 'blocked via UI');
-    return { ok: true };
+    // S3: honoring an unsubscribe must never fail silently — this handler already
+    // speaks {ok, error}, so surface the S2 throw through the same channel.
+    try {
+        new SuppressionManager(getBasePath()).add(addr, 'manual', 'blocked via UI');
+        return { ok: true };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Could not block that address.' };
+    }
 });
 
 ipcMain.handle('send-test-email', async (_event, accountId?: string) => {

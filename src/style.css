@@ -505,6 +505,8 @@ input[type="text"]:user-invalid, input[type="email"]:user-invalid, input[type="p
 
 label { display: block; font-size: var(--text-sm); font-weight: var(--weight-normal); margin-bottom: 6px; color: var(--foreground); }
 .help-text { display: block; font-size: var(--text-xs); color: var(--text-muted); margin-top: 6px; }
+/* Help text carrying a failure — muted grey reads as advice, not a problem. */
+.help-text.is-error { color: var(--destructive); }
 
 hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 

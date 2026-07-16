@@ -46,7 +46,7 @@ declare global {
       getSuppressions: () => Promise<{ email: string; reason: string; date: string; detail?: string }[]>;
       getReplies: () => Promise<{ email: string; repliedAt: string; accountId?: string; subject?: string; classification?: string }[]>;
       pollNow: () => Promise<{ ok: boolean; error?: string }>;
-      removeSuppression: (email: string) => Promise<boolean>;
+      removeSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
       addSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
       sendTestEmail: (accountId?: string) => Promise<{ ok: boolean; error?: string; to?: string }>;
       verifyConnection: (candidate: { host?: string; port?: number; user?: string; pass?: string }) => Promise<{ ok: boolean; error?: string }>;
@@ -1126,14 +1126,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     const count = document.getElementById('suppressed-count');
     if (!section || !list) return;
 
+    // Section stays visible even when empty so the "Block address" form is
+    // always reachable (it's how unsubscribe replies get honored) — and stays
+    // visible on failure too, since hiding it would take the form with it.
+    section.style.display = 'block';
+
     let entries: { email: string; reason: string; date: string }[] = [];
     try {
       entries = await window.electronAPI.getSuppressions();
-    } catch { return; }
+    } catch (e: any) {
+      // S2: the list now refuses to answer when the file exists but can't be read,
+      // rather than reporting "nothing is blocked" and letting a send go out to
+      // people who unsubscribed. Say so — an empty list here would be the same lie
+      // in the UI, and sending is blocked until it's repaired anyway.
+      if (count) count.textContent = '';
+      const p = document.createElement('p');
+      p.className = 'help-text is-error';
+      p.textContent = e?.message || 'The blocked-address list could not be read.';
+      list.replaceChildren(p);
+      return;
+    }
 
-    // Section stays visible even when empty so the "Block address" form is
-    // always reachable (it's how unsubscribe replies get honored).
-    section.style.display = 'block';
     if (!entries || entries.length === 0) {
       if (count) count.textContent = '';
       list.innerHTML = '<p class="help-text">No blocked addresses yet.</p>';
@@ -1162,7 +1175,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.style.cssText = 'height:32px;padding:0 12px;font-size:0.8rem;';
       btn.textContent = 'Remove';
       btn.addEventListener('click', async () => {
-        await window.electronAPI.removeSuppression(e.email);
+        // S3: don't claim success before knowing it. The list refuses to write when
+        // the file is unreadable (S2), and reporting "unblocked" anyway would tell
+        // the user this address can be emailed again when it still cannot.
+        const res = await window.electronAPI.removeSuppression(e.email);
+        if (!res?.ok) { toast(res?.error || 'Couldn\'t update the blocked list.', 'error'); return; }
         toast(`${e.email} can receive emails again.`, 'success', 'Unblocked');
         renderSuppressions();
       });

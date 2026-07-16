@@ -10,9 +10,10 @@ session's CSA work.
 
 | | Count |
 |---|---|
-| Confirmed | 1 (1 medium) |
-| Fixed | 1 |
-| Refuted | 5 |
+| Confirmed | 4 (3 high, 1 medium) |
+| Fixed | 4 |
+| Open / deferred | 3 (see "Known and accepted") |
+| Refuted | 10 |
 
 ---
 
@@ -88,6 +89,168 @@ Caught by the spec above before commit.
 
 ---
 
+## S2 — an unreadable suppression list silently disables suppression, then destroys itself
+
+**Severity:** High · **Status:** FIXED · **Found by:** tracing the blast radius of the
+(now postponed) at-rest encryption work — but **independent of it and live today**
+
+**Where:** `src/suppressionManager.ts` `load()`; `src/replyStore.ts` `load()`
+
+**Mechanism.** Every store collapsed *"there is no file"* and *"there is a file and I
+cannot read it"* into the same answer — empty:
+
+```ts
+this.entries = {};
+if (!fs.existsSync(p)) return;
+try { ...JSON.parse(fs.readFileSync(p)) } catch (e) { console.error(e); }
+```
+
+For a first run that is correct. For a truncated or hand-mangled file it fails in two
+directions at once:
+
+- **READ** — an empty suppression list means `isSuppressed()` answers `false`, so the app
+  mails addresses that **bounced or unsubscribed**. Silent beyond one console line. This is
+  the app's single biggest reputation guard (its own docblock says so) turning itself off,
+  and honoring unsubscribes is a CAN-SPAM obligation, not a nicety.
+- **WRITE** — the store then saves its empty in-memory map back over the file, so **one
+  `add()` permanently destroys every entry in it**. Nobody designed that; the ledger's
+  "resetting" was deliberate, this was not.
+
+Encryption would merely have been a *likelier trigger*. A truncated write, an I/O error, or
+a hand edit reaches it today.
+
+**Fix.** New `src/jsonState.ts` — `readJsonState()` returns `{ok:true, data:null}` for
+absent, `{ok:true, data}` for readable, `{ok:false, error}` for present-but-unreadable, and
+never throws. `SuppressionManager` and `ReplyStore` record a `loadError` in `load()` (which
+the constructor calls, so it must stay total) and raise it from the accessors via
+`assertReadable()`, at the point where an empty answer would actually do harm. Absent still
+means empty. A file that parses but isn't the expected shape (`{}`, `"nope"`) counts as
+unreadable — treating it as empty is the same fail-open.
+
+**Scope — SentLedger deliberately NOT changed.** The asymmetry is the point:
+
+- Suppression and replies exist to **block** a send. Answering "I can't read the list" as
+  "nobody is blocked" contradicts the guard's own purpose ⇒ fail closed restores it.
+- The ledger exists to **subtract** sends and never block one. `sentLedger.ts`'s docblock
+  ("can only ever prevent an over-delivery, never cause a missed send"), its `load()`
+  saying `"resetting"` out loud, and `sentLedger.test.ts:47` ("fails open on a missing or
+  corrupt file (never wrongly blocks a send)") all pin that. An earlier cut of this fix
+  changed it and broke that test; **the test was right and the change was reverted.** The
+  cost is understood and accepted: a corrupt ledger re-sends a batch, bounded by
+  `maxPerRecipientPerDay`. Overturning it is a separate decision, not S2's.
+
+`s2-*.audit.test.ts` now pins the ledger's preserved fail-open too, so a future reader
+doesn't "fix" the asymmetry into consistency.
+
+**Repro:** `src/__tests__/audit/s2-corrupt-state-fails-open-and-clobbers.audit.test.ts`
+(22 tests). Ran against the unfixed code first: **14 failed**, including both clobber cases.
+Covers six realistic corruptions (truncated, empty, whitespace, non-JSON, wrong shape ×2),
+that `[]` is a real empty list rather than "absent", and that the error is not sticky once
+the file is repaired.
+
+**Regression found in my own diff, fixed before commit.** `renderSuppressions`
+(`src/main.ts`) did `catch { return; }` *before* `section.style.display = 'block'`, so a
+throw hid the whole Blocked-addresses section — taking the "Block address" form with it,
+silently. Worse UX than the lie it replaced. The section now stays visible and shows the
+real reason (via `textContent`, not `innerHTML`), with a new `.help-text.is-error`
+modifier added to **both** `style.css` and `gui2.css`.
+
+---
+
+## S3 — blocking an address failed silently once S2 made the write throw
+
+**Severity:** High · **Status:** FIXED · **Found by:** independent send-path review of the
+S2 diff
+
+**Where:** `electron/main.ts` `add-suppression` / `remove-suppression`; `src/main.ts`
+`removeSuppression` call site + its type
+
+Direct fallout of S2, caught before shipping. `add-suppression` already spoke `{ok, error}`
+(it used it for a malformed address), but the `.add()` call itself was unguarded. Once S2
+made that throw on an unreadable list, `ipcMain.handle` turned it into a rejected `invoke()`
+— and the renderer's `const res = await addSuppression(...); if (!res.ok) toast(...)` never
+runs on a rejection. **Manually blocking an address — how a `mailto:` unsubscribe reply gets
+honored — failed with no toast, no error, nothing.** Silently breaking an unsubscribe path
+is worse than the fail-open S2 set out to fix.
+
+Fix: both handlers catch and return `{ok:false, error}`. The add path needed **no renderer
+change** — `src/main.ts`'s existing `if (!res.ok)` was correct all along and was simply being
+bypassed by the rejection.
+
+`remove-suppression` returned a bare `true` and its caller toasted *"can receive emails
+again"* unconditionally, without reading the result — so a failed unblock still claimed
+success. Now returns `{ok, error}`; the caller checks it. The declared type in `src/main.ts`
+(`Promise<boolean>`) was updated to match, which is how tsc caught the unchecked call site.
+
+## S4 — a detached scheduler timer could kill the whole CLI process
+
+**Severity:** High · **Status:** FIXED · **Found by:** the same review (a path I had not
+asked it to check)
+
+**Where:** `src/scheduler.ts` (the `entropyMinutes > 0` branch); interacts with
+`src/index.ts`'s `unhandledRejection` handler
+
+When a scheduled send carries an entropy delay, the send runs inside a **detached**
+`setTimeout(async () => { await fireOnce(); ... })`. Nothing awaits that timer, so a
+rejection inside it is an *unhandled* rejection rather than a caught one. `src/index.ts`
+registers `process.on('unhandledRejection', …)` → **`process.exit(1)`**. So one failing
+recipient would take down the entire CLI/Docker scheduler process and silently strand every
+other pending and future job.
+
+Latent before S2 — `processRecipient` rarely rejected. S2 made it **reliably reachable**:
+`isSuppressed()` now throws deterministically whenever the list is unreadable. Under
+Electron the existing `uncaughtException` handler absorbs it, so this is scoped to the CLI /
+Docker entry point.
+
+Fix: `try/catch/finally` inside the timer. One recipient's failure is logged; the schedule
+keeps running. The `finally` also fixes a companion leak — the `activeTimeouts` cleanup line
+sat after the `await` and was skipped on a throw, so `stop()` could no longer clear a timer
+it still owned.
+
+## S5 — `setClassification` dropped AI labels silently on a corrupt file
+
+**Severity:** Medium · **Status:** FIXED
+
+`src/replyStore.ts`'s `setClassification`/`getClassification` were the only accessors in the
+class not calling `assertReadable()`. On an unreadable file the map is empty, so the
+`if (!e) return;` guard swallowed the update — no clobber (that guard also skips `save()`),
+but silent, which is the pattern S2 exists to remove. Both now assert. Low real-world impact
+(an advisory AI label), fixed for consistency: an undocumented exemption is how the next
+reader concludes the asymmetry is drift.
+
+---
+
+## Known and accepted — not fixed, deliberately
+
+**K1 — a swallowed bounce/unsubscribe is lost permanently, not retried.**
+`replyPoller.ts` advances the IMAP cursor *before* `handleBounceCandidate` and
+`classifyAndAct` run. If `SuppressionManager.add()` throws there (unreadable list), the catch
+swallows it with the UID already past the cursor — that specific signal is never re-scanned,
+even after repair. Still a strict improvement on the pre-S2 behavior, which "succeeded" by
+destroying every *other* entry in the list. Self-heals at the cost of one extra bounce: while
+corrupt nothing sends at all, and after repair a re-bounce is caught normally. Fixing it
+properly means not advancing the cursor past a candidate whose add failed *for loadError
+specifically* — that touches the generation-gated cursor logic reviewed under CSA-3/S1, which
+is too much blast radius for the benefit. The misleading log messages ("Bounce parse failed"
+for an unreadable suppression list) **were** fixed.
+
+**K2 — a throw in `recordReply` abandons the rest of that account's sweep.**
+`replyPoller.ts`'s `recordReply` sits in the `for await` message loop with only the
+per-account catch above it, so a throw on message N skips that cycle's cursor write, bounce
+candidates and classification. Self-healing: the cursor never advanced, so the same messages
+are retried on the next 15-minute sweep. Narrow (needs a corrupt file *and* a new reply in
+the same window) and safe.
+
+**K3 — a corrupt state file has no push signal.**
+Discovery depends on the operator opening the app: there is no OS notification, tray balloon
+or persistent banner on a background failure, and a packaged Windows build has no console.
+So an unattended install could sit with every scheduled send and drip stalled, correctly but
+quietly. Fail-closed remains the right default — the alternative is mailing people who
+unsubscribed — but the "the user will notice and fix it" assumption is weaker than the design
+implies. Worth a follow-up (notification or a persistent banner); out of scope here.
+
+---
+
 ## Refuted — do not re-raise
 
 **R1 — `get-config`'s top-level `...globalConfig` spread leaks secrets.**
@@ -115,6 +278,32 @@ can interleave.
 `saveConfig({..., user: email, pass})` → `save-config` IPC → `saveConfigToEnv`. Traced
 the full sign-out → sign-in sequence in both the same-address and different-address
 directions. Wiring is correct.
+
+**R6 — S2's throws cause an unhandled rejection in the hourly sequence tick.**
+`sequenceRunner.ts` calls `store.hasRepliedSince` via `deps` inside
+`advanceSequenceRecord`, which is wrapped in a **per-record try/catch** (`:233-238`) that
+logs and `continue`s. `cron.schedule(..., () => void this.tick())` never sees a rejection.
+The drip stalls for that record and resumes when the file is repaired — the correct
+fail-closed outcome.
+
+**R7 — S2's throws kill the reply poller.** Both `SuppressionManager.add()` sites — the AI
+unsubscribe path (`replyPoller.ts:285`) and the **bounce auto-suppress** path (`:322`) —
+are already inside try/catch blocks whose docblocks promise "never throws". `recordReply`
+(`:236`) sits inside the per-account try/catch (`:158`). The sweep logs and continues.
+
+**R8 — S2's throws crash the main process via IPC.** `ipcMain.handle` converts a handler
+throw into a rejected `invoke` in the renderer; it cannot crash main. Every renderer caller
+is guarded: the preflight (`src/main.ts:1183-1188`) renders what it has, `ai-personalize`
+(`electron/main.ts:1519-1525`) falls back to zero-shot.
+
+**R9 — DPAPI decrypt cost on the send path would be prohibitive** (raised while scoping the
+now-postponed M2). Sends are **1–10 minutes apart** by default (`config.ts:362-363`,
+`MIN_DELAY_MIN=1`/`MAX_DELAY_MIN=10`), and the per-recipient state I/O is ~6 reads + 3
+writes. Per-call crypto is noise at that cadence. Do not optimize for it if M2 is revived.
+
+**R10 — a syntax error in `src/config.ts` (a bare `\` where `//` should be).** A Grep
+context-rendering artifact, not the file — `//` at the start of a context line can render
+as `\`. Seen twice, on two different files, both times refuted by reading the source.
 
 ---
 

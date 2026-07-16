@@ -285,7 +285,10 @@ export class ReplyPoller {
         new SuppressionManager(getBasePath()).add(item.key, 'unsubscribe', 'AI: unsubscribe reply');
       }
     } catch (e) {
-      console.error('Reply classification failed:', e);
+      // S2 can surface here as an unreadable replies.json / suppression.json rather
+      // than a classification problem — don't misattribute it, the operator is
+      // reading this line to decide what to repair.
+      console.error('Reply classification failed:', (e as any)?.message || e);
     }
   }
 
@@ -322,7 +325,10 @@ export class ReplyPoller {
       new SuppressionManager(getBasePath()).add(res.failedRecipient, 'bounce', `async DSN: ${(item.subject || '').trim()}`.trim());
       console.log(`Async bounce suppressed ${res.failedRecipient}.`);
     } catch (e) {
-      console.error('Bounce parse failed:', e);
+      // Covers both the parse and the suppression write. An unreadable suppression
+      // list reports itself here as "Bounce parse failed", which points the operator
+      // at the wrong file — carry the real message through (S2).
+      console.error('Bounce auto-suppress failed:', (e as any)?.message || e);
     }
   }
 

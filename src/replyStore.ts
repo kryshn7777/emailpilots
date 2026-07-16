@@ -1,6 +1,6 @@
-import fs from 'fs';
 import path from 'path';
 import { atomicWriteFileSync } from './atomicWrite';
+import { readJsonState } from './jsonState';
 
 export interface ReplyEntry {
   email: string;
@@ -24,23 +24,45 @@ export interface ReplyEntry {
 export class ReplyStore {
   private filePath: string;
   private entries: { [email: string]: ReplyEntry } = {};
+  /** Set when the file EXISTS but could not be read (audit S2). */
+  private loadError: string | null = null;
 
   constructor(basePath: string) {
     this.filePath = path.join(basePath, 'replies.json');
     this.load();
   }
 
+  /** Never throws — the constructor calls it. Records the failure for the accessors. */
   private load() {
     this.entries = {};
-    if (!fs.existsSync(this.filePath)) return;
-    try {
-      const data = JSON.parse(fs.readFileSync(this.filePath, 'utf-8'));
-      if (Array.isArray(data)) {
-        for (const e of data) if (e && e.email) this.entries[String(e.email).toLowerCase()] = e;
-      }
-    } catch (e) {
-      console.error('Failed to load replies.json:', e);
+    this.loadError = null;
+    const res = readJsonState<ReplyEntry[]>(this.filePath);
+    if (!res.ok) {
+      this.loadError = res.error;
+      console.error('Failed to load replies.json:', res.error);
+      return;
     }
+    if (res.data === null) return; // absent ⇒ no replies yet
+    if (!Array.isArray(res.data)) {
+      this.loadError = 'expected a JSON array of reply entries';
+      console.error('Failed to load replies.json:', this.loadError);
+      return;
+    }
+    for (const e of res.data) if (e && e.email) this.entries[String(e.email).toLowerCase()] = e;
+  }
+
+  /**
+   * Audit S2. An unreadable file read as "no replies" both keeps dripping at people
+   * who already answered and — once any write lands — saves the empty map over the
+   * file, destroying the whole reply history.
+   */
+  private assertReadable(action: string): void {
+    if (!this.loadError) return;
+    throw new Error(
+      `Cannot ${action}: the reply history at ${this.filePath} exists but could not be read ` +
+      `(${this.loadError}). Refusing to continue — proceeding would keep emailing people who ` +
+      `already replied, and would overwrite the file. Repair or delete it, then retry.`
+    );
   }
 
   private save() {
@@ -61,6 +83,7 @@ export class ReplyStore {
     const key = (email || '').toLowerCase();
     if (!key) return false;
     this.load();
+    this.assertReadable('record a reply');
     const ts = repliedAt || new Date().toISOString();
     const existing = this.entries[key];
     const isNew = !existing;
@@ -84,6 +107,7 @@ export class ReplyStore {
 
   hasReplied(email: string): boolean {
     this.load();
+    this.assertReadable('check the reply history');
     return !!this.entries[(email || '').toLowerCase()];
   }
 
@@ -94,6 +118,7 @@ export class ReplyStore {
    */
   hasRepliedSince(email: string, sinceIso?: string): boolean {
     this.load();
+    this.assertReadable('check the reply history');
     const e = this.entries[(email || '').toLowerCase()];
     if (!e) return false;
     if (!sinceIso) return true;
@@ -103,11 +128,13 @@ export class ReplyStore {
   /** Lowercased set of every address that has replied (for fast table lookups). */
   repliedEmails(): Set<string> {
     this.load();
+    this.assertReadable('read the reply history');
     return new Set(Object.keys(this.entries));
   }
 
   list(): ReplyEntry[] {
     this.load();
+    this.assertReadable('read the reply history');
     return Object.values(this.entries);
   }
 
@@ -117,6 +144,11 @@ export class ReplyStore {
     const key = (email || '').toLowerCase();
     if (!key || !classification) return;
     this.load();
+    // Without this the corrupt case is indistinguishable from "no such reply": the
+    // map is empty, the `!e` guard below returns, and the label is dropped in
+    // silence — the exact pattern S2 exists to remove. (No clobber either way, since
+    // that guard skips save(), but silence is still the wrong answer.)
+    this.assertReadable('classify a reply');
     const e = this.entries[key];
     if (!e) return;
     e.classification = classification;
@@ -126,6 +158,7 @@ export class ReplyStore {
   /** The stored AI classification label for an address, if any. */
   getClassification(email: string): string | undefined {
     this.load();
+    this.assertReadable('read a reply classification');
     return this.entries[(email || '').toLowerCase()]?.classification;
   }
 }

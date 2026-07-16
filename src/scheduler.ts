@@ -147,9 +147,27 @@ export class Scheduler {
         }
 
         if (delayMs > 0) {
+          // The entropy delay detaches this send from the cron callback: nothing
+          // awaits the timer, so a rejection inside it is an UNHANDLED rejection, not
+          // a caught one. That is fatal outside Electron — src/index.ts's
+          // unhandledRejection handler calls process.exit(1), so one failing
+          // recipient would take the whole scheduler process down and silently strand
+          // every other pending and future job. Contain it here: one recipient's
+          // failure is logged and the schedule keeps running.
+          //
+          // Latent before audit S2 (processRecipient rarely rejected); S2 made it
+          // reachable on purpose, since isSuppressed() now throws on an unreadable
+          // list rather than answering "not suppressed".
           const timeoutId = setTimeout(async () => {
-            await fireOnce();
-            this.activeTimeouts = this.activeTimeouts.filter(t => t !== timeoutId);
+            try {
+              await fireOnce();
+            } catch (e: any) {
+              console.error(`[${new Date().toLocaleString()}] Scheduled send for ${record.email} failed: ${e?.message || e}`);
+            } finally {
+              // In the finally, not after the await: a throw used to skip this and
+              // leak the entry, so stop() could no longer clear the timer it owns.
+              this.activeTimeouts = this.activeTimeouts.filter(t => t !== timeoutId);
+            }
           }, delayMs);
           this.activeTimeouts.push(timeoutId);
         } else {

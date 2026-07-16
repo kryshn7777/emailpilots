@@ -1,6 +1,6 @@
-import fs from 'fs';
 import path from 'path';
 import { atomicWriteFileSync } from './atomicWrite';
+import { readJsonState } from './jsonState';
 
 export type SuppressionReason = 'bounce' | 'unsubscribe' | 'complaint' | 'manual';
 
@@ -19,6 +19,9 @@ export interface SuppressionEntry {
 export class SuppressionManager {
   private filePath: string;
   private entries: { [email: string]: SuppressionEntry } = {};
+  /** Set when the file EXISTS but could not be read (audit S2). Null ⇒ entries is
+   *  trustworthy: either the file is absent (a first run) or it parsed cleanly. */
+  private loadError: string | null = null;
 
   constructor(basePath: string) {
     this.filePath = path.join(basePath, 'suppression.json');
@@ -30,18 +33,47 @@ export class SuppressionManager {
    * many short-lived instances (one per MailProcessor, fresh ones per IPC call)
    * never act on a stale copy — a stale add() would rewrite the file and
    * resurrect entries another instance had removed.
+   *
+   * Never throws: the constructor calls it, and a corrupt file must not stop the
+   * app from starting. It records the failure instead, and the accessors below
+   * raise it at the point where an empty list would actually do harm.
    */
   private load() {
     this.entries = {};
-    if (!fs.existsSync(this.filePath)) return;
-    try {
-      const data = JSON.parse(fs.readFileSync(this.filePath, 'utf-8'));
-      if (Array.isArray(data)) {
-        for (const e of data) if (e && e.email) this.entries[e.email.toLowerCase()] = e;
-      }
-    } catch (e) {
-      console.error('Failed to load suppression.json:', e);
+    this.loadError = null;
+    const res = readJsonState<SuppressionEntry[]>(this.filePath);
+    if (!res.ok) {
+      this.loadError = res.error;
+      console.error('Failed to load suppression.json:', res.error);
+      return;
     }
+    if (res.data === null) return; // absent ⇒ genuinely no suppressions yet
+    if (!Array.isArray(res.data)) {
+      // Parses, but isn't the list we wrote. Treating it as empty is the same
+      // fail-open as a corrupt file.
+      this.loadError = 'expected a JSON array of suppression entries';
+      console.error('Failed to load suppression.json:', this.loadError);
+      return;
+    }
+    for (const e of res.data) if (e && e.email) this.entries[e.email.toLowerCase()] = e;
+  }
+
+  /**
+   * Audit S2. The suppression list is the app's single biggest reputation guard, so
+   * "I couldn't read it" must never be answered as "nobody is suppressed" — that
+   * mails people who bounced or unsubscribed, silently. It must also never be
+   * answered by WRITING, which would save the empty map over the file and destroy
+   * every entry in it.
+   *
+   * Absent is fine and stays fine. Only present-but-unreadable raises.
+   */
+  private assertReadable(action: string): void {
+    if (!this.loadError) return;
+    throw new Error(
+      `Cannot ${action}: the suppression list at ${this.filePath} exists but could not be read ` +
+      `(${this.loadError}). Refusing to continue — proceeding would risk emailing addresses that ` +
+      `bounced or unsubscribed, and would overwrite the file. Repair or delete it, then retry.`
+    );
   }
 
   private save() {
@@ -52,35 +84,46 @@ export class SuppressionManager {
     }
   }
 
+  /** @throws if the list exists but is unreadable — see assertReadable. */
   isSuppressed(email: string): boolean {
     this.load();
+    this.assertReadable('check the suppression list');
     return !!this.entries[(email || '').toLowerCase()];
   }
 
+  /** Deliberately does not reload: callers reach here immediately after an
+   *  isSuppressed() that returned true, so the map is fresh and already vouched for. */
   reasonFor(email: string): SuppressionReason | undefined {
     return this.entries[(email || '').toLowerCase()]?.reason;
   }
 
+  /** @throws if the list exists but is unreadable — writing would destroy it. */
   add(email: string, reason: SuppressionReason, detail?: string) {
     const key = (email || '').toLowerCase();
     if (!key) return;
     this.load();
+    this.assertReadable('add to the suppression list');
     if (this.entries[key]) return; // keep first/strongest reason
     this.entries[key] = { email: key, reason, date: new Date().toISOString(), detail };
     this.save();
   }
 
+  /** @throws if the list exists but is unreadable — writing would destroy it. */
   remove(email: string) {
     const key = (email || '').toLowerCase();
     this.load();
+    this.assertReadable('remove from the suppression list');
     if (this.entries[key]) {
       delete this.entries[key];
       this.save();
     }
   }
 
+  /** @throws if the list exists but is unreadable — an empty list would read to the
+   *  user as "nothing is blocked", inviting them to re-add what is already there. */
   list(): SuppressionEntry[] {
     this.load();
+    this.assertReadable('read the suppression list');
     return Object.values(this.entries);
   }
 }
