@@ -141,6 +141,60 @@ export function isConsumerDomain(domain: string): boolean {
   return CONSUMER_DOMAINS.has((domain || '').toLowerCase());
 }
 
+/** Microsoft's own consumer mailbox families (outlook.com, hotmail.fr,
+ *  live.co.uk, msn.com, …). Mail From these through Microsoft's servers is
+ *  aligned by definition (Microsoft DKIM-signs its own domains) — and their
+ *  SPF deliberately does NOT carry the M365 include, so testing them against
+ *  spfAuthorizesMicrosoft() would false-alarm on every normal sign-in. */
+const MICROSOFT_CONSUMER_FAMILY = /^(outlook|hotmail|live|msn)\./i;
+
+export function isMicrosoftConsumerFamily(domain: string): boolean {
+  return MICROSOFT_CONSUMER_FAMILY.test((domain || '').toLowerCase());
+}
+
+/** True when the domain's published TXT set carries exactly one SPF record and
+ *  it authorizes Microsoft's outbound (the M365 include, any regional zone).
+ *  Zero or multiple SPF records ⇒ not provably authorized (multiple = PermError
+ *  at receivers anyway). */
+export function spfAuthorizesMicrosoft(records: string[]): boolean {
+  const spf = (records || []).filter(r => /^\s*v=spf1(\s|$)/i.test(r));
+  if (spf.length !== 1) return false;
+  return /include:spf\.protection\.outlook\.[a-z.]+/i.test(spf[0]);
+}
+
+/**
+ * Identity-alignment guard for Microsoft OAuth sign-ins (send-triage Slice C).
+ *
+ * A Microsoft account's sign-in alias can live on a FOREIGN domain (the
+ * triggering case: an MSA whose username is @protonmail.com). The transport
+ * forces From = the authenticated user, so mail leaves Microsoft's servers
+ * carrying a From domain whose SPF excludes Microsoft — SPF fails, DKIM can't
+ * align, and a strict DMARC (protonmail.com publishes p=quarantine; aspf=s;
+ * adkim=s) junks or drops it at every enforcing receiver. The app would report
+ * "sent" (Microsoft 250-accepts the submission) while nothing ever arrives.
+ *
+ * Returns the user-facing warning, or null when aligned or unknowable:
+ * Microsoft's own consumer families are exempt; a legitimate M365 custom
+ * domain passes the SPF check; `spfRecords === null` (DNS unavailable) stays
+ * silent — this is advisory, and a network blip must not scare users.
+ */
+export function microsoftIdentityWarning(email: string, spfRecords: string[] | null): string | null {
+  const domain = deriveDomain(email);
+  if (!domain) return null;
+  if (isMicrosoftConsumerFamily(domain)) return null;
+  if (spfRecords === null) return null;
+  if (spfAuthorizesMicrosoft(spfRecords)) return null;
+  const protonFix = domain === 'protonmail.com' || domain === 'proton.me' || domain === 'pm.me';
+  return (
+    `This Microsoft account signs in as ${email}, but ${domain} does not authorize Microsoft's ` +
+    `servers to send its mail (SPF). Messages sent from here fail SPF/DKIM/DMARC at most providers ` +
+    `and land in spam — or vanish without a bounce. ` +
+    (protonFix
+      ? `To send as this Proton address, use Proton Mail Bridge instead (Accounts → add manually, host 127.0.0.1).`
+      : `Send through ${domain}'s real mail provider instead, or use an @outlook.com address here.`)
+  );
+}
+
 export function inferProvider(smtpHost?: string): AuthProvider {
   const host = (smtpHost || '').toLowerCase();
   if (/(^|\.)(gmail|googlemail|google)\.com$/.test(host)) return 'google';

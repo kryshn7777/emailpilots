@@ -15,6 +15,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getReplies: () => ipcRenderer.invoke('list-replies'),
   // Manually trigger an IMAP reply sweep now (instead of waiting for the interval).
   pollNow: () => ipcRenderer.invoke('poll-now'),
+  // Fires when the poller detects a new (non-backfill) reply. Returns a disposer.
+  onRepliesUpdated: (cb: () => void) => {
+    const listener = () => cb();
+    ipcRenderer.on('replies-updated', listener);
+    return () => ipcRenderer.removeListener('replies-updated', listener);
+  },
+  // Fires on an account-level BACKGROUND send failure (E1). Returns a disposer.
+  onSendFailure: (cb: (p: { accountId: string; message: string }) => void) => {
+    const listener = (_e: any, p: any) => cb(p);
+    ipcRenderer.on('send-failure', listener);
+    return () => ipcRenderer.removeListener('send-failure', listener);
+  },
+  // Fires when an async DSN bounce was auto-suppressed (E2). Returns a disposer.
+  onBounceDetected: (cb: (p: { email: string; accountId: string }) => void) => {
+    const listener = (_e: any, p: any) => cb(p);
+    ipcRenderer.on('bounce-detected', listener);
+    return () => ipcRenderer.removeListener('bounce-detected', listener);
+  },
   removeSuppression: (email: string) => ipcRenderer.invoke('remove-suppression', email),
   addSuppression: (email: string) => ipcRenderer.invoke('add-suppression', email),
   sendTestEmail: (accountId?: string) => ipcRenderer.invoke('send-test-email', accountId),
@@ -23,7 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Multi-account management
   getAccounts: () => ipcRenderer.invoke('get-accounts'),
-  saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean }) =>
+  saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean; copyToSent?: boolean }) =>
     ipcRenderer.invoke('save-account', account),
   deleteAccount: (id: string) => ipcRenderer.invoke('delete-account', id),
   // Password-less Microsoft sign-in (OAuth-SMTP). Opens the system browser;
@@ -44,6 +62,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSequence: (sequence: { id?: string; name?: string; steps?: any[] }) =>
     ipcRenderer.invoke('save-sequence', sequence),
   deleteSequence: (id: string) => ipcRenderer.invoke('delete-sequence', id),
+
+  // Send history behind the "Sent" screen: merged across accounts, newest first.
+  getSentLog: () => ipcRenderer.invoke('get-sent-log'),
+  // Fires with the new entry after every send attempt (any path). Returns a disposer.
+  onSentLogUpdated: (cb: (entry: any) => void) => {
+    const listener = (_e: any, entry: any) => cb(entry);
+    ipcRenderer.on('sent-log-updated', listener);
+    return () => ipcRenderer.removeListener('sent-log-updated', listener);
+  },
 
   startScheduler: () => ipcRenderer.invoke('start-scheduler'),
   stopScheduler: () => ipcRenderer.invoke('stop-scheduler'),
@@ -105,9 +132,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('ai-load-progress', listener);
   },
 
+  // K3: state files that exist but can't be read (empty ⇒ all clear). Pull on load,
+  // because the push below fires from the send path — potentially hours before this
+  // window existed. Re-probes on each call, so it answers "is it still broken?".
+  getStateFileErrors: () => ipcRenderer.invoke('get-state-file-errors'),
+  revealStateFile: (filePath: string) => ipcRenderer.invoke('reveal-state-file', filePath),
+
   // Listeners from main
   onLog: (callback: (message: string, type: string) => void) => {
     ipcRenderer.on('log-message', (_event, message, type) => callback(message, type));
+  },
+  /** K3: fires with the full current set whenever it changes (empty ⇒ all clear). */
+  onStateFileStatus: (callback: (errors: any[]) => void) => {
+    ipcRenderer.on('state-file-status', (_event, errors) => callback(errors));
   },
   onStatusChange: (callback: (isActive: boolean) => void) => {
     ipcRenderer.on('scheduler-status', (_event, isActive) => callback(isActive));

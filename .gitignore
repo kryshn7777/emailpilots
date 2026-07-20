@@ -25,9 +25,13 @@ imap.json
 imap.*.json
 campaigns.json
 sequences.json
-# Idempotency send-ledger (audit A3): per-recipient delivered-content hashes (recipient PII)
-sent-ledger.json
-sent-ledger.*.json
+# Idempotency send-ledger (audit A3): per-recipient delivered-content hashes (recipient PII).
+# Glob covers sent-ledger.json, sent-ledger.<id>.json AND sent-ledger-owner.json (the
+# ownership cursor) + .corrupt sidecars — the old sent-ledger.*.json pattern missed the
+# -owner variant (no dot after "sent-ledger"). Mirrors the sent-log* convention below.
+sent-ledger*
+# Send history behind the Sent screen (recipient emails + subjects = PII), incl. .corrupt sidecars
+sent-log*
 
 # Brainstorming visual-companion scratch (mockups, server state)
 .superpowers/

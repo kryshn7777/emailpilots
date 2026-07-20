@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, dialog, Tray, Menu, nativeImage, session } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog, Tray, Menu, nativeImage, session, Notification } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import dns from 'dns';
@@ -8,6 +8,10 @@ import { MailProcessor } from '../src/mailProcessor';
 import { Scheduler } from '../src/scheduler';
 import { RateLimiter } from '../src/rateLimiter';
 import { SuppressionManager } from '../src/suppressionManager';
+import {
+  onStateFileError, onStateFileRecovered, listStateFileErrors,
+  type StateFileError, type StateFileKind,
+} from '../src/jsonState';
 import { renderEmail } from '../src/renderer';
 import { readCsvFile } from '../src/csvImport';
 import { normalizeAppPassword } from '../src/smtpUtils';
@@ -17,6 +21,8 @@ import { loginMicrosoft, getAccessToken as msGetAccessToken, isMicrosoftOAuthCon
 import { connectBrowser, createBrowserStrategy } from './transport/browserSession';
 import { readAccounts, upsertAccount, removeAccount, accountsFilePath, MAX_EXTRA_ACCOUNTS } from '../src/accountStore';
 import { accountStateFileName, DEFAULT_ACCOUNT_STATE_FILES } from '../src/accountFiles';
+import { SentLog, type SentLogEntry } from '../src/sentLog';
+import { shouldCopyToSent } from '../src/sentCopy';
 import { syncLedgerOwner, writeLedgerOwner } from '../src/sentLedgerOwner';
 import { readCampaigns, upsertCampaign, removeCampaign } from '../src/campaignStore';
 import { upsertSequence, removeSequence, MAX_DELAY_DAYS } from '../src/sequenceStore';
@@ -30,10 +36,11 @@ import { downloadModel, cancelDownload, installedPath } from './ai/modelDownload
 import {
   buildConsumerDomainReport, buildDomainAuthReport, dkimSelectorsFor,
   inferProvider, isConsumerDomain, isValidDomain,
+  deriveDomain, isMicrosoftConsumerFamily, microsoftIdentityWarning,
 } from '../src/domainAuth';
 import type { DnsAnswer, DkimProbeResult } from '../src/domainAuth';
 import { classifyMxRecords } from '../src/mxValidation';
-import { detectProviderFromMx } from '../src/providerDetect';
+import { detectProviderFromMx, detectProviderFromEmail, isMsBasicAuthDeadHost } from '../src/providerDetect';
 import dotenv from 'dotenv';
 
 // Writing to a closed stdout/stderr pipe raises EPIPE. With no listener Node
@@ -125,9 +132,21 @@ let globalConfig: any = null;
 // until initServices() runs. globalMailProcessor stays = the default processor.
 let globalProcessors: Map<string, MailProcessor> = new Map();
 
+// Captured before run-test-send's temporary console override can exist. sendLog
+// MUST echo through this raw reference: the override itself calls sendLog, so
+// routing sendLog's echo back through the (overridden) console.log recurses to a
+// RangeError whenever any background sendLog fires mid-manual-run (send-path
+// review F23 — latent since the override was added, widened by the onSent hook).
+const rawConsoleLog = console.log.bind(console);
+
 function sendLog(msg: string, type: 'info' | 'error' | 'success' | 'system' = 'info') {
-  console.log(`[${type.toUpperCase()}] ${msg}`);
-  if (win) {
+  rawConsoleLog(`[${type.toUpperCase()}] ${msg}`);
+  // `win` is never reassigned to null, so a DESTROYED window still passes a bare
+  // `if (win)` and webContents.send throws "Object has been destroyed". That happens
+  // exactly when a background failure most needs reporting: with no tray icon
+  // (trayAvailable false) a close destroys the window, and window-all-closed
+  // deliberately keeps the scheduler running headless. Mirrors showWindow().
+  if (win && !win.isDestroyed()) {
     win.webContents.send('log-message', msg, type);
   }
 }
@@ -255,7 +274,7 @@ function createTray() {
   }
   tray = new Tray(image);
   trayAvailable = true;
-  tray.setToolTip('Email Pilots — running in background');
+  tray.setToolTip(TRAY_TOOLTIP_OK);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open Email Pilots', click: () => showWindow() },
     { type: 'separator' },
@@ -346,6 +365,10 @@ function statsOnSent(accountId?: string) {
  *  and reddens account health ONLY for account-level failures (auth/connection). A
  *  per-recipient bounce ('ENOTACCEPTED') is logged but must not red-dot a healthy
  *  account (it's handled via suppression). */
+// E1 (merges audits U34 + A14-residual + k3-open): alert throttle for the OS ping.
+const SEND_FAILURE_NOTIFY_WINDOW_MS = 60 * 60 * 1000;
+const sendFailureNotifiedAt = new Map<string, number>();
+
 function statsOnFailure(accountId: string | undefined, error: any) {
   const msg = error?.message || String(error);
   const tag = accountId && accountId !== 'default' ? ` [${accountId}]` : '';
@@ -354,6 +377,227 @@ function statsOnFailure(accountId: string | undefined, error: any) {
   const code = String(error?.code || '');
   const accountLevel = ['EAUTH', 'ECONNECTION', 'ESOCKET', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'EDNS'].includes(code);
   if (accountLevel) recordAccountStatus(accountId, { ok: false, error: msg, at: Date.now(), kind: 'send' });
+
+  // E1: an unattended install whose background sends persistently fail must not
+  // die in a buried log line. Alert ONLY for account-level codes (they don't
+  // self-heal; per-recipient ENOTACCEPTED stays log-only — K3's transient-noise
+  // line), never during a manual run (the user is watching the console bridge)
+  // and never in practice mode. OS ping throttled to once per account per hour.
+  if (accountLevel && !testRunInProgress && !globalConfig?.testMode) {
+    try {
+      const key = accountId || 'default';
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('send-failure', { accountId: key, message: msg });
+      }
+      const last = sendFailureNotifiedAt.get(key) || 0;
+      if (Date.now() - last > SEND_FAILURE_NOTIFY_WINDOW_MS && Notification.isSupported()) {
+        sendFailureNotifiedAt.set(key, Date.now());
+        const n = new Notification({
+          title: 'Sends are failing ✈',
+          body: `${key === 'default' ? 'Your primary inbox' : key} can't send right now. Click to open Email Pilots and see why.`,
+        });
+        n.on('click', () => showWindow());
+        n.show();
+      }
+    } catch { /* alerting must never touch the send path */ }
+  }
+}
+
+/** Send-history hook: every attempt on every path lands here with the full
+ *  entry (already persisted to sent-log.<id>.json by MailProcessor). Narrates
+ *  BACKGROUND sends into the in-app System Logs — manual runs already stream
+ *  line-by-line through run-test-send's console bridge, and failures reach the
+ *  log via statsOnFailure, so narrating those here would double-log. Always
+ *  pushes 'sent-log-updated' so the Sent screen refreshes the moment a send
+ *  happens instead of waiting for the renderer's 60s poll. */
+function onSentEntry(entry: SentLogEntry) {
+  try {
+    // Exactly one narrator per source (send-path review F24): manual runs stream
+    // through run-test-send's console bridge, scheduled sends through the
+    // Scheduler's onEvent (with duration). Only sequence sends have no other
+    // voice, so only they are narrated here.
+    if (entry.source === 'sequence' && (entry.status === 'sent' || entry.status === 'practice')) {
+      const practice = entry.status === 'practice' ? ` (practice — rerouted to ${entry.target})` : '';
+      const resp = entry.smtpResponse ? ` — SMTP ${entry.smtpResponse}` : '';
+      sendLog(`Follow-up to ${entry.email} accepted${practice}${resp}.`, 'success');
+    }
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('sent-log-updated', entry);
+    }
+  } catch { /* history narration must never break the send path */ }
+}
+
+/* ── K3: a fail-closed stop must reach the user ──────────────────────────────────
+ *
+ * Audit S2 made an unreadable suppression list / reply history stop every send. Right
+ * call — the alternative is mailing people who unsubscribed — but it stops them
+ * SILENTLY, and an unattended install can sit with every scheduled send and every drip
+ * stalled with nothing said. src/jsonState announces at the single assertReadable
+ * choke point (every path passes through it; MailProcessor's onFailure sees only one
+ * of six, and none of the background ones); this is the Electron end of that seam.
+ *
+ * Deliberately narrow: ONLY "a state file exists but cannot be read" — rare,
+ * actionable, and the user can fix it. Never a transient SMTP failure, which is common
+ * and would train the user to ignore notifications.
+ */
+
+const TRAY_TOOLTIP_OK = 'Email Pilots — running in background';
+
+/** Human-readable name for the file, so the toast doesn't say "suppression.json". */
+const STATE_FILE_LABEL: Record<StateFileKind, string> = {
+  suppression: 'unsubscribe & bounce list',
+  replies: 'reply history',
+};
+
+/** Renderer-facing shape. NOT the StateFileError itself: IPC structured-clone does not
+ *  preserve custom fields on an Error subclass, so the banner would arrive blank. */
+interface StateFileErrorView {
+  filePath: string;
+  fileName: string;
+  reason: string;
+  kind: StateFileKind;
+  label: string;
+}
+
+function toStateFileView(err: StateFileError): StateFileErrorView {
+  return {
+    filePath: err.filePath,
+    fileName: path.basename(err.filePath),
+    reason: err.reason,
+    kind: err.kind,
+    label: STATE_FILE_LABEL[err.kind] ?? 'state file',
+  };
+}
+
+const stateFileViews = (): StateFileErrorView[] => listStateFileErrors().map(toStateFileView);
+
+/** Push the whole current set (empty ⇒ all clear) so the banner is a function of state
+ *  rather than of events it may have missed. */
+function pushStateFileStatus() {
+  if (win && !win.isDestroyed()) win.webContents.send('state-file-status', stateFileViews());
+}
+
+/** Tooltip reflects the worst outstanding file, or goes neutral when none remain. */
+function refreshTrayTooltip() {
+  const outstanding = listStateFileErrors();
+  tray?.setToolTip(outstanding.length
+    ? `Email Pilots — PAUSED: ${path.basename(outstanding[0].filePath)} is damaged`
+    : TRAY_TOOLTIP_OK);
+}
+
+/**
+ * U33: OS ping for the one event the user genuinely wants interrupted for — a
+ * new reply. The poller's first run backfills up to 7 days of history, so only
+ * replies that actually landed recently get a notification; the rest surface
+ * quietly in the app. Failures here must never touch the sweep (the poller
+ * already guards the hook, this is belt-and-braces).
+ */
+const NEW_REPLY_NOTIFY_WINDOW_MS = 6 * 60 * 60 * 1000;
+function notifyNewReply(email: string, _accountId: string, repliedAt: string, isBackfill: boolean) {
+  try {
+    // The poller's own signal beats any date math: a first-run sweep replays
+    // history and must never storm, regardless of envelope-date quality.
+    if (isBackfill) return;
+    // Slice D: live-refresh the Replies screen for EVERY newly detected reply —
+    // before the 6h window below, which only gates the OS ping (an old reply
+    // detected late should appear in the UI without pinging the desktop).
+    if (win && !win.isDestroyed()) win.webContents.send('replies-updated');
+    const at = Date.parse(repliedAt);
+    if (!Number.isFinite(at) || Date.now() - at > NEW_REPLY_NOTIFY_WINDOW_MS) return;
+    if (!Notification.isSupported()) return;
+    const n = new Notification({
+      title: 'New reply ✈',
+      body: `${email} replied. Click to read it in Email Pilots.`,
+    });
+    n.on('click', () => showWindow());
+    n.show();
+  } catch (e: any) { console.error('U33: could not show the reply notification:', e?.message || e); }
+}
+
+/** E2: an async DSN bounce was auto-suppressed — without this the recipient just
+ *  silently vanishes from future sends. System-Log line + live push + OS ping
+ *  (unthrottled: bounces are rare and each one matters). Never throws back into
+ *  the sweep (the poller contains it anyway — belt and braces). */
+function notifyBounce(email: string, accountId: string, detail: string) {
+  try {
+    const tag = accountId && accountId !== 'default' ? ` [${accountId}]` : '';
+    sendLog(`Delivery failed${tag}: ${email} bounced and was moved to the blocked list${detail ? ` (${detail})` : ''}.`, 'error');
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('bounce-detected', { email, accountId });
+    }
+    if (Notification.isSupported()) {
+      const n = new Notification({
+        title: 'Delivery failed ✈',
+        body: `${email} bounced — removed from your sending list. Click to review.`,
+      });
+      n.on('click', () => showWindow());
+      n.show();
+    }
+  } catch (e: any) { console.error('E2: could not surface the bounce:', e?.message || e); }
+}
+
+/**
+ * Fires once per file (jsonState de-duplicates), on the send path, via a sink that
+ * swallows anything thrown here. That makes a failure in this function INVISIBLE, so
+ * each surface is guarded separately: one that breaks must not take out the rest.
+ * Ordered most- to least-likely-to-reach-the-user.
+ */
+function notifyStateFileError(err: StateFileError) {
+  const view = toStateFileView(err);
+
+  try {
+    if (Notification.isSupported()) {
+      const n = new Notification({
+        title: 'Email Pilots has paused sending',
+        body: `Your ${view.label} (${view.fileName}) is damaged and can't be read, so `
+            + `nothing will send until it's repaired. Click to open Email Pilots.`,
+      });
+      // showWindow() recreates a destroyed window, so this is safe in exactly the
+      // headless state that produces this error.
+      n.on('click', () => showWindow());
+      n.show();
+    }
+  } catch (e: any) { console.error('K3: could not show the notification:', e?.message || e); }
+
+  // Persistent and dependency-free: a toast auto-dismisses while the user is away, and
+  // a portable build has no Start Menu shortcut ⇒ no AUMID ⇒ possibly no toast at all.
+  try { refreshTrayTooltip(); } catch (e: any) { console.error('K3: could not set the tray tooltip:', e?.message || e); }
+  try { pushStateFileStatus(); } catch (e: any) { console.error('K3: could not push the banner:', e?.message || e); }
+
+  // File path and reason only — never a recipient address.
+  try {
+    sendLog(
+      `Sending is paused: ${err.filePath} exists but could not be read (${err.reason}). `
+      + `Repair or delete the file — sending resumes automatically once it reads cleanly.`,
+      'error',
+    );
+  } catch (e: any) { console.error('K3: could not write the log line:', e?.message || e); }
+}
+
+/** The file reads cleanly again: clear the surfaces without needing a restart. */
+function recoverStateFileError(filePath: string) {
+  try { refreshTrayTooltip(); } catch (e: any) { console.error('K3: could not reset the tray tooltip:', e?.message || e); }
+  try { pushStateFileStatus(); } catch (e: any) { console.error('K3: could not clear the banner:', e?.message || e); }
+  try {
+    // "no longer blocked", not "has resumed": recovery can be observed by an IPC probe
+    // while the scheduler is stopped, in which case nothing has resumed at all.
+    sendLog(`${path.basename(filePath)} reads cleanly again — sending is no longer blocked.`, 'success');
+  } catch (e: any) { console.error('K3: could not write the log line:', e?.message || e); }
+}
+
+/**
+ * Re-read both fail-closed stores. clearStateFileError only fires from a SUCCESSFUL
+ * read, so without this a user who repairs the file while the scheduler is stopped
+ * would keep seeing "sending is paused" — nothing would ever read the file to disprove
+ * it. Probing on an explicit pull makes the banner answer "is it still broken?" rather
+ * than "was it broken?". Two file reads, on a user action.
+ */
+function probeStateFiles() {
+  const base = getBasePath();
+  // The throw IS the signal and the sink has already recorded it; there is nothing to
+  // handle here. An empty address is a no-op lookup that still forces load().
+  try { new SuppressionManager(base).isSuppressed(''); } catch { /* recorded by the sink */ }
+  try { new ReplyStore(base).hasReplied(''); } catch { /* recorded by the sink */ }
 }
 
 /** Filesystem-safe, unique account id derived from the email address. */
@@ -383,22 +627,25 @@ function strategyDeps(): StrategyDeps {
 
 function rebuildProcessors() {
   if (!globalConfig) return;
-  globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps(), statsOnFailure);
+  globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps(), statsOnFailure, onSentEntry);
   globalMailProcessor = globalProcessors.get('default')
-    ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default', statsOnFailure);
+    ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default', statsOnFailure, onSentEntry);
   if (globalScheduler) {
     globalScheduler.config = globalConfig;
     globalScheduler.mailProcessor = globalMailProcessor;
     globalScheduler.processors = globalProcessors;
+    globalScheduler.onEvent = sendLog;
     // Re-arm cron with the new set ONLY if it was already running; otherwise
     // clear any stale jobs. Saving must never silently start sending.
     if (isSchedulerRunning) globalScheduler.start(); else globalScheduler.stop();
   } else {
-    globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors);
+    globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors, sendLog);
   }
   // Keep the reply poller pointed at the fresh config (new/removed accounts).
   if (globalReplyPoller) globalReplyPoller.config = globalConfig;
   else globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetAccessToken);
+  globalReplyPoller.onNewReply = notifyNewReply; // U33: OS ping on fresh replies
+  globalReplyPoller.onBounce = notifyBounce; // E2: surface async DSN bounces
   // Same for the sequence runner: refresh config + processor set, re-arm if live.
   if (globalSequenceRunner) {
     globalSequenceRunner.config = globalConfig;
@@ -425,15 +672,17 @@ function initServices() {
     globalStatsManager = new StatsManager(basePath);
 
     // One processor per sendable account; default processor preserved.
-    globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps(), statsOnFailure);
+    globalProcessors = buildProcessors(globalConfig, statsOnSent, strategyDeps(), statsOnFailure, onSentEntry);
     globalMailProcessor = globalProcessors.get('default')
-      ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default', statsOnFailure);
+      ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default', statsOnFailure, onSentEntry);
 
-    globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors);
+    globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors, sendLog);
     globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetAccessToken);
     globalSequenceRunner = new SequenceRunner(globalConfig, globalMailProcessor, globalProcessors);
     globalAiService = new AiService(globalConfig);
     globalReplyPoller.ai = globalAiService; // feature #2: enable reply classification
+    globalReplyPoller.onNewReply = notifyNewReply; // U33: OS ping on fresh replies
+  globalReplyPoller.onBounce = notifyBounce; // E2: surface async DSN bounces
 
     sendLog('Services initialized successfully.', 'system');
   } catch (err: any) {
@@ -469,12 +718,49 @@ ipcMain.handle('get-stats', () => {
     return globalStatsManager.getStats();
 });
 
+/** Merged send history across every account, newest first, capped for the UI.
+ *  Files of since-removed accounts are deliberately not merged (their ids are
+ *  unknown once the account is gone) — documented non-goal. */
+ipcMain.handle('get-sent-log', () => {
+    try {
+        if (!globalConfig) initServices();
+        const ids = new Set<string>(['default']);
+        for (const a of globalConfig?.accounts || []) if (a?.id) ids.add(String(a.id));
+        const all: SentLogEntry[] = [];
+        for (const id of ids) all.push(...new SentLog(getBasePath(), id).list());
+        all.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+        return all.slice(0, 1000);
+    } catch {
+        return [];
+    }
+});
+
 ipcMain.handle('get-usage', (_event, accountId?: string) => {
     if (!globalConfig) initServices();
     // Fresh read of limits.<id>.json so the counter reflects the latest sends.
     // No accountId ⇒ legacy limits.json (the default account) = today's behavior.
     const limiter = new RateLimiter(getBasePath(), globalConfig.limits, accountId);
     return limiter.getUsage();
+});
+
+// K3: which state files are currently unreadable (empty ⇒ all clear). The PULL half
+// of the banner — the push event fires from the send path, which may be long before a
+// window exists (a drip stalls at 09:00 in the tray; the user opens the app at 17:00).
+// Re-probes rather than trusting the cached set; see probeStateFiles.
+ipcMain.handle('get-state-file-errors', () => {
+    probeStateFiles();
+    return stateFileViews();
+});
+
+// K3: reveal the damaged file in Explorer so the user can repair or delete it — the
+// one action that actually resolves this. Restricted to a path WE reported: the
+// renderer never gets to name an arbitrary file to surface (.env, say).
+ipcMain.handle('reveal-state-file', (_event, filePath: string) => {
+    if (!listStateFileErrors().some(e => e.filePath === filePath)) {
+        return { ok: false, error: 'That file is not currently reporting a problem.' };
+    }
+    shell.showItemInFolder(filePath);
+    return { ok: true };
 });
 
 ipcMain.handle('list-suppressions', () => {
@@ -544,6 +830,13 @@ ipcMain.handle('send-test-email', async (_event, accountId?: string) => {
 /** Send Email Pilots' own test message from one specific account. */
 async function sendAccountTest(account: Account): Promise<{ ok: boolean; to?: string; error?: string }> {
     try {
+        // Microsoft retired basic-auth SMTP, so a PASSWORD account aimed at a dead
+        // Microsoft host can never authenticate — the raw 535 would surface as "use
+        // an app password", a loop. Steer to OAuth up front. Gate on transport: an
+        // oauth-smtp account uses the same office365 host but a token, and must pass.
+        if ((account.transport ?? 'smtp') === 'smtp' && isMsBasicAuthDeadHost(account.host)) {
+            return { ok: false, error: 'Microsoft retired app passwords — connect this inbox with "Sign in with Microsoft" instead. No password needed.' };
+        }
         // Direct send (bypasses rate limits) so a config check is instant and free.
         // Config slice + account => correct From/footer AND the right transport
         // (SMTP password, OAuth-SMTP, or browser) for this specific account.
@@ -577,6 +870,11 @@ ipcMain.handle('verify-connection', async (_event, candidate) => {
     if (!user || !pass) {
         return { ok: false, error: 'Add your email address and app password first.' };
     }
+    // Same dead-host steer as save/test: a typed password against a retired
+    // Microsoft SMTP host can never authenticate — route to OAuth, not "app password".
+    if (isMsBasicAuthDeadHost(host)) {
+        return { ok: false, error: 'Microsoft retired app passwords — connect this inbox with "Sign in with Microsoft" instead. No password needed.' };
+    }
     const svc = new EmailService({ smtp: { host, port, user, pass } } as any);
     return svc.verifyConnection();
 });
@@ -600,6 +898,10 @@ ipcMain.handle('get-accounts', () => {
         transport: a.transport || 'smtp',
         isDefault: a.id === 'default',
         status: accountStatus.get(a.id) || null,
+        // Sent-folder copy: raw tri-state (undefined ⇒ provider default) plus
+        // the resolved policy so the UI can show what will actually happen.
+        copyToSent: a.copyToSent,
+        copyToSentEffective: shouldCopyToSent(a),
     }));
 });
 
@@ -616,7 +918,15 @@ ipcMain.handle('save-account', async (_event, acc) => {
             return { ok: false, error: 'The primary account is edited in Settings.' };
         }
 
-        const host = (acc?.host || 'smtp.office365.com').trim();
+        // Provider-aware host default (freemium #3). The old blanket default was
+        // smtp.office365.com — dead on arrival for a PASSWORD account since
+        // Microsoft retired basic-auth SMTP (personal accounts Sept 2024, M365
+        // April 2026). A Gmail address that arrives hostless now gets Gmail's
+        // server; unknown domains keep the legacy office365 fallback so no
+        // existing caller's behaviour changes shape.
+        const detectedProvider = detectProviderFromEmail(user);
+        const defaultHost = detectedProvider === 'gmail' ? 'smtp.gmail.com' : 'smtp.office365.com';
+        const host = (acc?.host || defaultHost).trim();
         const port = parseInt(acc?.port, 10) || 587;
 
         // Password: encrypt when provided; on an update with a blank field keep
@@ -648,6 +958,17 @@ ipcMain.handle('save-account', async (_event, acc) => {
             }
         }
         const rawPass = normalizeAppPassword(acc?.pass);
+        // Microsoft's SMTP hosts reject EVERY password now (basic auth retired:
+        // personal accounts Sept 2024, M365 April 2026), so a NEW password aimed
+        // at one can never authenticate. Refuse with the working route instead of
+        // storing credentials that EAUTH on every send. Host membership alone —
+        // no address check — so custom-domain Microsoft 365 mailboxes (invisible
+        // to the domain table) are covered too. Any other host passes through
+        // (a self-hosted relay is the user's own call), and passwordless updates
+        // (enable/disable toggles, blank-keeps-stored) are untouched.
+        if (rawPass && isMsBasicAuthDeadHost(host)) {
+            return { ok: false, error: 'Microsoft retired app passwords — connect this inbox with "Sign in with Microsoft" instead. No password needed.' };
+        }
         let passToStore: string;
         if (rawPass) passToStore = encryptPassword(rawPass);
         // CSA-10, extras half: "blank keeps the stored password" only holds while the
@@ -691,6 +1012,9 @@ ipcMain.handle('save-account', async (_event, acc) => {
             pass: passToStore,
             enabled: acc?.enabled !== false,
         };
+        // Sent-folder copy toggle: only an explicit boolean writes; absent keeps
+        // the stored value (via ...base) or the provider default (undefined).
+        if (typeof acc?.copyToSent === 'boolean') account.copyToSent = acc.copyToSent;
         upsertAccount(basePath, account);
 
         globalConfig = loadConfig();
@@ -746,7 +1070,28 @@ ipcMain.handle('oauth-login-microsoft', async () => {
         globalConfig = loadConfig();
         rebuildProcessors();
         recordAccountStatus(id, { ok: true, at: Date.now(), kind: 'test' });
-        return { ok: true, id, email };
+
+        // Identity-alignment guard (send-triage Slice C): a Microsoft account
+        // whose sign-in alias lives on a FOREIGN domain (e.g. @protonmail.com)
+        // sends From that domain through Microsoft's servers — SPF/DMARC fail at
+        // every enforcing receiver and the mail is junked or dropped while the
+        // app reports "sent". Advisory only: DNS failure stays silent, M365
+        // custom domains pass the SPF check, Microsoft's own families are exempt.
+        let identityWarning: string | undefined;
+        try {
+            const domain = deriveDomain(email);
+            let records: string[] | null = null;
+            if (domain && !isMicrosoftConsumerFamily(domain)) {
+                try {
+                    const txt = await dns.promises.resolveTxt(domain);
+                    records = txt.map(chunks => chunks.join(''));
+                } catch { records = null; }
+            }
+            identityWarning = microsoftIdentityWarning(email, records) || undefined;
+            if (identityWarning) sendLog(identityWarning, 'error');
+        } catch { /* advisory only — never block a successful sign-in */ }
+
+        return { ok: true, id, email, identityWarning };
     } catch (e: any) {
         return { ok: false, error: e?.message || 'Microsoft sign-in failed' };
     }
@@ -874,6 +1219,7 @@ ipcMain.handle('delete-account', (_event, id: string) => {
         // This holds only for EXTRAS. The primary reuses the fixed id 'default', so
         // its files ARE re-read — sign-out resets them (see CSA-3 there).
         accountStatus.delete(String(id));
+        sendFailureNotifiedAt.delete(String(id)); // E1 throttle map — same cleanup rule
 
         globalConfig = loadConfig();
         rebuildProcessors();
@@ -1113,6 +1459,15 @@ function saveConfigToEnv(newConfig: any): boolean {
       ? encryptPassword(newPass)
       : (newUser ? encryptPassword(globalConfig.smtp.pass || '') : '');
 
+    // Sent-folder copy for the PRIMARY account: tri-state ('' ⇒ provider
+    // default via shouldCopyToSent). Explicit boolean in the payload wins,
+    // else whatever the default account currently carries survives the rewrite.
+    const defaultAcct = (globalConfig.accounts || []).find((a: any) => a?.id === 'default');
+    const currentCopyToSent = defaultAcct?.copyToSent;
+    const copyToSentEnv = typeof (newConfig.copyToSent ?? currentCopyToSent) === 'boolean'
+      ? String(newConfig.copyToSent ?? currentCopyToSent)
+      : '';
+
     const envContent = `USER_NAME=${envText(newConfig.userName ?? globalConfig.userName ?? '')}
 SMTP_HOST=${envText(newConfig.smtpHost || globalConfig.smtp.host || 'smtp.office365.com')}
 SMTP_PORT=${parseInt(newConfig.smtpPort, 10) || globalConfig.smtp.port || 587}
@@ -1148,6 +1503,9 @@ AI_FLASH_ATTENTION=${(newConfig.aiFlashAttention ?? globalConfig.ai?.flashAttent
 AI_CLASSIFY_REPLIES=${(newConfig.aiClassifyReplies ?? globalConfig.ai?.actions?.classifyReplies) ? 'true' : 'false'}
 AI_AUTO_SUPPRESS_UNSUB=${(newConfig.aiAutoSuppressUnsub ?? globalConfig.ai?.actions?.autoSuppressUnsubscribe) ? 'true' : 'false'}
 AI_PAUSE_ON_OOO=${(newConfig.aiPauseOnOoo ?? globalConfig.ai?.actions?.pauseOnOoo) ? 'true' : 'false'}
+COPY_TO_SENT=${copyToSentEnv}
+IMAP_HOST=${envText(defaultAcct?.imapHost ?? '')}
+IMAP_PORT=${envText(defaultAcct?.imapPort ? String(defaultAcct.imapPort) : '')}
 `;
 
     atomicWriteFileSync(envFilePath, envContent);
@@ -1197,7 +1555,20 @@ AI_PAUSE_ON_OOO=${(newConfig.aiPauseOnOoo ?? globalConfig.ai?.actions?.pauseOnOo
   }
 }
 
-ipcMain.handle('save-config', (_event, newConfig) => saveConfigToEnv(newConfig));
+ipcMain.handle('save-config', (_event, newConfig) => {
+    // Mirror of save-account's Microsoft guard, for the .env primary: a new
+    // password aimed at a host that categorically rejects passwords must not be
+    // persisted. Host membership alone (no address table) so custom-domain M365
+    // mailboxes are covered. This channel's failure contract is a bare `false` —
+    // the renderer's connect surfaces run their own steer with a specific
+    // message first, so this is the last-resort backstop, not the primary UX.
+    // Sign-out is unaffected: it calls saveConfigToEnv directly, and blanks pass.
+    if (String(newConfig?.pass ?? '').length > 0
+        && isMsBasicAuthDeadHost(String(newConfig?.smtpHost ?? ''))) {
+        return false;
+    }
+    return saveConfigToEnv(newConfig);
+});
 
 ipcMain.handle('sign-out', () => {
   try {
@@ -1263,11 +1634,18 @@ ipcMain.handle('sign-out', () => {
     // for any send still mid-`await`, so the race fails safe (a lower cap, never a
     // higher one) and a same-address sign-out/sign-in can't mint a second daily cap.
     try {
-      new RateLimiter(basePath, globalConfig.limits, 'default').resetWarmupAnchor();
+      // resetWarmupAnchor() returns false (never throws) when limits.json is
+      // unreadable: save() no-ops to preserve the corrupt file (SIM-1), so the
+      // anchor was NOT reset. Surface that so the user deletes the file — a
+      // hand-repair to old content would let the next cold inbox skip the ramp.
+      if (!new RateLimiter(basePath, globalConfig.limits, 'default').resetWarmupAnchor()) {
+        sendLog('Could not reset the warmup ramp on sign-out: limits.json is unreadable. Delete it before the next inbox signs in, or that inbox may skip the new-account send ramp.', 'error');
+      }
     } catch (e) {
       sendLog('Could not reset the warmup ramp on sign-out; the next inbox may not be throttled as a new account.', 'error');
     }
     accountStatus.clear();
+    sendFailureNotifiedAt.clear(); // E1 throttle map — same cleanup rule
 
     const ok = saveConfigToEnv({
       user: '',
@@ -1360,7 +1738,7 @@ ipcMain.handle('run-test-send', async () => {
     try {
         // Run every sendable account in parallel (one account ⇒ identical to the
         // old single processEmails() call). Aggregated summary across accounts.
-        summary = await runAllAccounts(globalConfig, statsOnSent, strategyDeps(), statsOnFailure);
+        summary = await runAllAccounts(globalConfig, statsOnSent, strategyDeps(), statsOnFailure, onSentEntry);
         sendLog(
             `Test execution completed. sent=${summary.sent} skipped=${summary.skipped} failed=${summary.failed}`,
             summary.sent > 0 ? 'success' : 'error',
@@ -1829,6 +2207,18 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
+    // Windows shows a toast only for an app with an AppUserModelID backed by a Start
+    // Menu shortcut; without this, Notification silently no-ops (notably in dev, which
+    // runs an unpackaged electron.exe). Must match package.json build.appId.
+    app.setAppUserModelId('com.mailauto.app');
+
+    // K3: subscribe before anything can touch a state file, so a corrupt file hit
+    // during startup still reaches the user. Registered for the app's lifetime — the
+    // returned unsubscribers are deliberately dropped. Both handlers tolerate a tray
+    // or window that doesn't exist yet; the renderer pulls the same state on load.
+    onStateFileError(notifyStateFileError);
+    onStateFileRecovered(recoverStateFileError);
+
     setupDataDir();
     createWindow();
     createTray();

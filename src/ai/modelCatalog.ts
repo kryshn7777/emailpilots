@@ -4,8 +4,15 @@
  * Pure data + selection logic — no fs, no network, no node-llama-cpp — so it stays
  * trivially testable and safe to import from the renderer's IPC layer.
  *
- * WHY THESE MODELS. The obvious pick — an official `Qwen/Qwen3-*-GGUF` repo — is
- * wrong here, and the reason is not obvious:
+ * TWO MODELS, ONE PER TIER (freemium #5). The catalog carries exactly the pair the
+ * product sells: "Free thinks. First Class thinks better." — the AI gate is model
+ * QUALITY, not AI presence.
+ *
+ *  - First Class: Qwen3 4B Instruct (2.3 GB, wants a GPU).
+ *  - Free:        LFM2.5 350M (219 MB, runs happily on CPU).
+ *
+ * WHY QWEN3-4B, AND WHY FROM `unsloth`. The obvious pick — an official
+ * `Qwen/Qwen3-*-GGUF` repo — is wrong here, and the reason is not obvious:
  *
  *  - Qwen published GGUFs only for the ORIGINAL Qwen3 models, which are *hybrid*:
  *    they emit a `<think>` reasoning block by default. Every AI feature in this app
@@ -20,15 +27,30 @@
  *    (only 4B / 30B-A3B / 235B-A22B).
  *
  * So a true Qwen3-Instruct GGUF at a size a laptop can run only exists from the
- * community. `unsloth` is the most-used publisher of it by a wide margin. The trade
- * is deliberate: we pin the exact `sha256`, so the bytes are verified against the
- * ones this catalog was written for and any later re-upload or tampering FAILS the
- * download rather than silently swapping the model.
+ * community, and `unsloth` is the most-used publisher of it by a wide margin.
+ *
+ * WHY LFM2.5-350M FOR FREE. Same non-negotiable first: it is instruction-tuned with
+ * NO thinking blocks (the filename carries no "Instruct" — the repo has no other
+ * variant). It is built for "data extraction, structured outputs, and tool use" —
+ * the reply classifier's exact job — and scores far above same-size peers on
+ * instruction-following (IFEval ~77), while being explicitly WEAK at knowledge-heavy
+ * prose. That weakness is deliberate: it IS the Free↔First Class quality boundary.
+ * At 219 MB it downloads in seconds and runs CPU-only. Load-verified 2026-07-18
+ * through the real localLlama provider on the bundled llama.cpp b9842: CPU and
+ * Vulkan, back-to-back JSON generations green (the run also exposed the provider's
+ * sequence-reclaim race — AUDIT-freemium F21). Licence tripwire: `lfm1.0` grants
+ * free commercial use only under $10M annual revenue — an affordable, honest
+ * constraint, but it must stay displayed verbatim, never relabelled "open".
+ *
+ * The sha256 pin is the tamper seam for BOTH entries: bytes are verified against
+ * the ones this catalog was written for, and any later re-upload or tampering FAILS
+ * the download rather than silently swapping the model.
  *
  * Every `sizeBytes`/`sha256` below was read from the live Hugging Face API
- * (`/api/models/<repo>/tree/main`, raw JSON — not a summary). Re-verify the same way
- * before changing an entry; a wrong hash means every download fails checksum, and a
- * hash copied from memory is a guess.
+ * (`/api/models/<repo>/tree/main`, raw JSON — not a summary); the LFM2.5 pair was
+ * additionally confirmed by hashing the actually-downloaded file. Re-verify the
+ * same way before changing an entry; a wrong hash means every download fails
+ * checksum, and a hash copied from memory is a guess.
  */
 
 export interface CatalogModel {
@@ -60,9 +82,14 @@ const GB = 1024 * 1024 * 1024;
  * without first raising every cap in src/ai/* and stripping `<think>` from both
  * JSON.parse sites and both streaming paths.
  */
+/** Stable per-tier anchors. #7's tier gating and the onboarding picker key off
+ *  these ids — never positional catalog order. */
+export const FIRST_CLASS_MODEL_ID = 'qwen3-4b-instruct-2507-q4km';
+export const FREE_MODEL_ID = 'lfm25-350m-q4km';
+
 export const MODEL_CATALOG: readonly CatalogModel[] = Object.freeze([
   Object.freeze({
-    id: 'qwen3-4b-instruct-2507-q4km',
+    id: FIRST_CLASS_MODEL_ID,
     name: 'Qwen3 4B Instruct',
     repo: 'unsloth/Qwen3-4B-Instruct-2507-GGUF',
     file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
@@ -71,6 +98,17 @@ export const MODEL_CATALOG: readonly CatalogModel[] = Object.freeze([
     minVramBytes: 4 * GB,
     license: 'apache-2.0',
     blurb: 'Recommended. Fast, fits comfortably on most modern GPUs, and strong enough for reply sorting and drafting.',
+  }),
+  Object.freeze({
+    id: FREE_MODEL_ID,
+    name: 'LFM2.5 350M',
+    repo: 'LiquidAI/LFM2.5-350M-GGUF',
+    file: 'LFM2.5-350M-Q4_K_M.gguf',
+    sizeBytes: 229312224,
+    sha256: '7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4',
+    minVramBytes: 1 * GB,
+    license: 'lfm1.0',
+    blurb: 'Light and quick. Runs on any machine — no graphics card needed. Good for sorting replies and short drafts.',
   }),
 ]);
 
@@ -97,15 +135,37 @@ export interface Recommendation {
   reason: string;
 }
 
+/** The tiers recommendModel knows about. #7 wires the real entitlement here;
+ *  until then every caller gets the default and behaviour is unchanged. */
+export type AiTier = 'free' | 'first-class';
+
 /**
- * Pick what to offer. Never returns "nothing": a GPU-less machine is told the truth
- * (it will be slow) rather than being refused, because the CPU path genuinely works
- * — see providers/localLlama.ts, where an explicit `gpu:'cpu'` is a supported,
- * deliberate opt-out. What onboarding must NOT do is march someone through a
- * multi-GB download into the GPU-required hard error.
+ * Pick what to offer — tier first, then hardware. Never returns "nothing": a
+ * GPU-less machine is told the truth (it will be slow) rather than being refused,
+ * because the CPU path genuinely works — see providers/localLlama.ts, where an
+ * explicit `gpu:'cpu'` is a supported, deliberate opt-out. What onboarding must
+ * NOT do is march someone through a multi-GB download into the GPU-required hard
+ * error.
+ *
+ * `tier` defaults to 'first-class' so existing callers (ai/hardware.ts) keep the
+ * exact pre-freemium behaviour until #7 passes the real entitlement. The Free
+ * pick is comfortable EVERYWHERE by design — CPU-viability is the whole point of
+ * shipping a 219 MB model, so the no-GPU branch is its common case, not its sad
+ * path.
  */
-export function recommendModel(hw: HardwareFacts): Recommendation {
-  const model = MODEL_CATALOG[0];
+export function recommendModel(hw: HardwareFacts, tier: AiTier = 'first-class'): Recommendation {
+  if (tier === 'free') {
+    const model = findModel(FREE_MODEL_ID)!;
+    return {
+      model,
+      comfortable: true,
+      reason: hw.hasGpu
+        ? 'Small and quick — your machine runs this without breaking a sweat.'
+        : 'Light enough to run happily on your processor — no graphics card needed.',
+    };
+  }
+
+  const model = findModel(FIRST_CLASS_MODEL_ID)!;
 
   if (!hw.hasGpu) {
     return {

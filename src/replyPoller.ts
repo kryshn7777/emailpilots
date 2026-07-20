@@ -59,6 +59,28 @@ export class ReplyPoller {
    */
   private generation = 0;
 
+  /**
+   * Optional UI hook (U33): fired once per newly recorded reply — never on
+   * re-scans (recordReply's isNew gate) and never allowed to break a sweep.
+   * `isBackfill` is true on an account's first-ever sweep (no cursor yet),
+   * which replays up to 7 days of history — consumers use it to stay quiet
+   * instead of trusting envelope dates, which can be missing or skewed.
+   * Electron wires this to an OS notification; pure-Node contexts leave it
+   * unset and the poller behaves exactly as before. Keep implementations
+   * synchronous: the catch below only contains a synchronous throw.
+   */
+  public onNewReply?: (email: string, accountId: string, repliedAt: string, isBackfill: boolean) => void;
+
+  /**
+   * Optional UI hook (Slice E2): fired after an async DSN bounce has been
+   * auto-suppressed. Without it the recipient silently vanishes into the
+   * suppression list — the operator deserves to know a delivery failed.
+   * Same contract as onNewReply: keep implementations synchronous; a throw
+   * is contained and can never break the sweep. Pure-Node contexts leave it
+   * unset and the poller behaves exactly as before.
+   */
+  public onBounce?: (email: string, accountId: string, detail: string) => void;
+
   constructor(
     public config: Config,
     private stats: StatsManager | null,
@@ -91,6 +113,16 @@ export class ReplyPoller {
   /** Manual one-shot poll (poll-now IPC / tests). */
   async pollNow(): Promise<void> {
     await this.poll();
+  }
+
+  /**
+   * Constructing the IMAP client, isolated so a test can drive a whole sweep against a
+   * fake mailbox. The poller had no seam at all — ImapFlow was hard-constructed inline
+   * and every method below is private — which is why the cursor ordering and the CSA-3
+   * generation gate shipped untested. Nothing about the client itself changes.
+   */
+  protected createClient(opts: ConstructorParameters<typeof ImapFlow>[0]): ImapFlow {
+    return new ImapFlow(opts);
   }
 
   private cursorPath(accountId: string): string {
@@ -175,7 +207,7 @@ export class ReplyPoller {
     const auth = isOAuth
       ? { user: account.user, accessToken: await this.getAccessToken!(account) }
       : { user: account.user, pass: account.pass };
-    const client = new ImapFlow({
+    const client = this.createClient({
       host,
       port,
       secure: true, // implicit TLS on 993
@@ -234,7 +266,10 @@ export class ReplyPoller {
               ? envDate.toISOString()
               : new Date().toISOString();
             const isNew = store.recordReply(key, repliedAt, account.id, msg.envelope?.subject);
-            if (isNew) this.stats?.incrementReplies(account.id);
+            if (isNew) {
+              this.stats?.incrementReplies(account.id);
+              try { this.onNewReply?.(key, account.id, repliedAt, lastUid === 0); } catch { /* UI hook must never abort the sweep */ }
+            }
             console.log(`Reply detected from ${key} (account ${account.id}).`);
             if (doClassify) toClassify.push({ uid, key, subject: msg.envelope?.subject });
           }
@@ -252,7 +287,7 @@ export class ReplyPoller {
         // no AI gate — and after the cursor advance so a slow parse can never
         // block or revert it (mirrors the classify pass below).
         for (const item of bounceCandidates) {
-          await withTimeout(this.handleBounceCandidate(client, item, recipients), BOUNCE_PARSE_TIMEOUT_MS);
+          await withTimeout(this.handleBounceCandidate(client, item, recipients, account.id), BOUNCE_PARSE_TIMEOUT_MS);
         }
 
         // Phase 2: classify collected replies. Runs after the batch stream is
@@ -299,7 +334,7 @@ export class ReplyPoller {
    * suppression as a bounce. Never throws; a parse failure degrades to "skip
    * this message". Runs with AI disabled (unlike the gated Unsubscribe path).
    */
-  private async handleBounceCandidate(client: ImapFlow, item: { uid: number; subject?: string }, recipients: Set<string>): Promise<void> {
+  private async handleBounceCandidate(client: ImapFlow, item: { uid: number; subject?: string }, recipients: Set<string>, accountId = 'default'): Promise<void> {
     try {
       const msg: any = await client.fetchOne(String(item.uid), { source: true }, { uid: true });
       if (!msg?.source) return;
@@ -324,6 +359,13 @@ export class ReplyPoller {
       if (!recipients.has(res.failedRecipient)) return;
       new SuppressionManager(getBasePath()).add(res.failedRecipient, 'bounce', `async DSN: ${(item.subject || '').trim()}`.trim());
       console.log(`Async bounce suppressed ${res.failedRecipient}.`);
+      // E2: tell the host AFTER the suppression write succeeded. Contained —
+      // a throwing hook must not be mistaken for a failed suppression.
+      try {
+        this.onBounce?.(res.failedRecipient, accountId, (item.subject || '').trim());
+      } catch (e) {
+        console.error('onBounce hook failed:', (e as any)?.message || e);
+      }
     } catch (e) {
       // Covers both the parse and the suppression write. An unreadable suppression
       // list reports itself here as "Bounce parse failed", which points the operator

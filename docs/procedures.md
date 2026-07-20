@@ -39,11 +39,12 @@ Runs once per enabled account, fanned out in parallel by `campaignRunner.runAllA
 ### 6. Build & Distribution (`electron-builder`)
 - **Targets**: NSIS installer + portable, output to `release/`. Publisher name comes from the `author` field in `package.json`.
 - **Code Signing**: The build is currently **unsigned**. Windows SmartScreen therefore shows a "Windows protected your PC" / "can't scan this app" warning on first run (see `onboarding.md` for the user-facing "Run anyway" steps). This is a reputation/identity gap, not a malware detection.
-- **Removing the warning** requires an Authenticode signature. Drop-in options for `build.win` once a certificate exists:
-  - **EV certificate** (hardware token / cloud HSM) — grants SmartScreen reputation immediately.
-  - **OV certificate** — reputation accrues gradually after enough downloads.
-  - **Azure Trusted Signing** (~$10/mo) — cheapest route to SmartScreen reputation without a physical token.
-  - electron-builder reads a `.pfx` via `CSC_LINK` + `CSC_KEY_PASSWORD` env vars, or use `win.azureSignOptions` for Azure Trusted Signing. No code changes are needed beyond config + secrets.
+- **Removing the warning** requires an Authenticode signature **plus accrued reputation** — and the facts changed in 2024, so older guidance is wrong:
+  - **EV no longer grants instant SmartScreen reputation.** Microsoft removed that bypass in 2024; EV and OV now accrue reputation the same way — per file hash, by download volume. Every new release resets the counter (favor fewer, fatter releases).
+  - **Azure Trusted Signing is unavailable to this business** — individual/sole-proprietor enrollment is restricted to the US and Canada, and this is an India sole proprietorship.
+  - **Chosen route: Certum cloud OV certificate** (~$116–200/yr, cloud-based signing, no hardware token). Note certificates issued since 2026-03-01 cap at 458 days validity — renewal is an annual ritual, and each renewal's first release re-accrues reputation.
+  - Mechanics: electron-builder reads a `.pfx` via `CSC_LINK` + `CSC_KEY_PASSWORD` env vars, or signs via the vendor's cloud-signing tooling in CI. No code changes are needed beyond config + secrets.
+  - Until signing lands, the public explainer for the warning is the landing site's `install.html` ("Windows protected your PC", condition-first) — keep it in step with reality, not the other way around.
 - **False positives**: report a wrongly-flagged build at <https://www.microsoft.com/wdsi/filesubmission> ("Software developer") to clear it faster.
 
 ### 7. Configuration Management

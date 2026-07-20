@@ -16,8 +16,26 @@ export class Scheduler {
      * the scheduler uses the single mailProcessor for all active records —
      * exactly the legacy single-account behavior.
      */
-    public processors?: Map<string, MailProcessor>
+    public processors?: Map<string, MailProcessor>,
+    /**
+     * Optional narration sink for job-fire events (trigger / entropy delay /
+     * skip / outcome). Electron passes sendLog so scheduled sends are visible in
+     * the in-app System Logs the moment they happen — without it the app is
+     * silent at fire time and the UI's 60s poll makes on-time sends LOOK 30-60s
+     * late. Unset (CLI) ⇒ console.log, byte-identical to the old behavior.
+     */
+    public onEvent?: (msg: string, level: 'info' | 'success' | 'error') => void
   ) {}
+
+  /** Narrate a job-fire event to the host sink (in-app log) or the console.
+   *  Leading newlines are console-only cosmetics — strip them for the sink. */
+  private say(msg: string, level: 'info' | 'success' | 'error' = 'info'): void {
+    if (this.onEvent) {
+      try { this.onEvent(msg.replace(/^\n+/, ''), level); return; } catch { /* fall through to console */ }
+    }
+    if (level === 'error') console.error(msg);
+    else console.log(msg);
+  }
 
   start(): void {
     console.log(`Starting advanced recipient-based scheduler...`);
@@ -133,17 +151,24 @@ export class Scheduler {
         const fireOnce = async () => {
           const email = record.email || record.Email;
           if (processor.alreadySentToday(email)) {
-            console.log(`[${new Date().toLocaleString()}] Skipping scheduled send to ${email}: already sent today (manual Send-Now or an earlier scheduled slot).`);
+            this.say(`[${new Date().toLocaleString()}] Skipping scheduled send to ${email}: already sent today (manual Send-Now or an earlier scheduled slot).`);
             return;
           }
-          console.log(`\n[${new Date().toLocaleString()}] Sending scheduled email to ${email}...`);
-          await processor.processRecipient(record);
+          this.say(`\n[${new Date().toLocaleString()}] Sending scheduled email to ${email}...`);
+          const t0 = Date.now();
+          const ok = await processor.processRecipient(record);
+          const secs = ((Date.now() - t0) / 1000).toFixed(1);
+          if (ok) {
+            this.say(`[${new Date().toLocaleString()}] Scheduled send to ${email} delivered in ${secs}s.`, 'success');
+          } else {
+            this.say(`[${new Date().toLocaleString()}] Scheduled send to ${email} did not go out after ${secs}s (skipped or failed — a send error shows above; limits/suppression skips are in the terminal log).`, 'error');
+          }
         };
 
         let delayMs = 0;
         if (entropyMinutes > 0) {
           delayMs = Math.random() * (2 * entropyMinutes) * 60 * 1000;
-          console.log(`[${new Date().toLocaleString()}] Scheduled job for ${record.email} triggered. Applying entropy delay of ${(delayMs / 60000).toFixed(1)} minutes.`);
+          this.say(`[${new Date().toLocaleString()}] Scheduled job for ${record.email} triggered. Applying entropy delay of ${(delayMs / 60000).toFixed(1)} minutes.`);
         }
 
         if (delayMs > 0) {
@@ -162,7 +187,7 @@ export class Scheduler {
             try {
               await fireOnce();
             } catch (e: any) {
-              console.error(`[${new Date().toLocaleString()}] Scheduled send for ${record.email} failed: ${e?.message || e}`);
+              this.say(`[${new Date().toLocaleString()}] Scheduled send for ${record.email} failed: ${e?.message || e}`, 'error');
             } finally {
               // In the finally, not after the await: a throw used to skip this and
               // leak the entry, so stop() could no longer clear the timer it owns.

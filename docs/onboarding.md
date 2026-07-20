@@ -60,8 +60,12 @@ app — it is not a virus detection. To proceed:
 1. On the blue dialog, click **More info**.
 2. Click **Run anyway**.
 
-The warning appears only until the app builds enough download reputation (or
-until it is code-signed). It does **not** repeat once Windows trusts that copy.
+The warning appears until that release builds enough download reputation.
+Code signing (decided route: Certum cloud OV — see `procedures.md` §6) speeds
+the accrual and names a verified publisher on the dialog, but does not remove
+the warning instantly — reputation is earned per release either way. It does **not**
+repeat once Windows trusts that copy. The public, user-facing version of this
+explanation lives at the landing site's `install.html`.
 
 > If Windows ever quarantines the file as a false positive, report it at
 > <https://www.microsoft.com/wdsi/filesubmission> (choose "Software developer")

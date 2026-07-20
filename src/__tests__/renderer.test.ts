@@ -58,6 +58,36 @@ describe('renderEmail', () => {
     expect(withoutOverride.subject).toBe('Default Subject');
   });
 
+  it('renders Direct-Text paragraphs as <br> line breaks in the HTML body (U20)', () => {
+    const tpl = tmpFile('<body><div>{{{message}}}</div></body>');
+    const msg = 'Hi {{name}},\n\nSecond paragraph.\nSame paragraph, new line.';
+    const out = renderEmail({ email: 's@x.com', name: 'Sam', messageType: 'text', messageContent: msg }, makeConfig({ templateHtml: tpl }));
+    expect(out.body).toContain('Hi Sam,<br><br>Second paragraph.<br>Same paragraph');
+    // The plain-text part round-trips exactly: single break stays single,
+    // double stays double, and no literal <br> leaks through.
+    expect(out.text).not.toContain('<br>');
+    expect(out.text).toContain('Hi Sam,\n\nSecond paragraph.\nSame paragraph, new line.');
+  });
+
+  it('does not inject <br> inside a Mustache tag wrapped across a line break (U20)', () => {
+    const out = renderEmail({ email: 's@x.com', name: 'Sam', messageType: 'text', messageContent: 'Hi {{\nname}}!\nBye.' }, makeConfig());
+    expect(out.body).toContain('Hi Sam!<br>Bye.');
+  });
+
+  it('renders newlines as <br> in the no-template fallback too (U20)', () => {
+    const out = renderEmail({ email: 's@x.com', name: 'Sam', messageType: 'text', messageContent: 'One.\n\nTwo.' }, makeConfig());
+    expect(out.body).toContain('One.<br>');
+    expect(out.body).toContain('Two.');
+  });
+
+  it('leaves file-type (HTML) message content untouched by newline conversion (U20)', () => {
+    const html = '<p>Para one</p>\n<p>Para two</p>';
+    const f = tmpFile(html);
+    const out = renderEmail({ email: 's@x.com', name: 'Sam', messageType: 'file', messageContent: f }, makeConfig());
+    expect(out.body).not.toContain('<br>');
+    expect(out.body).toContain('<p>Para one</p>');
+  });
+
   it('uses the campaign subject when the recipient has none', () => {
     const cfg = makeConfig({ subject: 'Global Subject', campaigns: [{ id: 'c1', name: 'Job Hunting', subject: 'Application from {{name}}' }] });
     const out = renderEmail({ email: 's@x.com', name: 'Sam', campaignId: 'c1', messageType: 'text', messageContent: 'x' }, cfg);

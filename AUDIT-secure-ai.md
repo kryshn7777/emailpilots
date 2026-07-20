@@ -352,6 +352,25 @@ specifically* — that touches the generation-gated cursor logic reviewed under 
 is too much blast radius for the benefit. The misleading log messages ("Bounce parse failed"
 for an unreadable suppression list) **were** fixed.
 
+*Re-reviewed 2026-07-17 after K3 shipped, and deliberately left accepted.* K3 unblocked the
+narrow fix (`instanceof StateFileError` is now available), so the question was reopened — and
+answered the other way. K3 also **shrank the harm it would recover**: the corrupt state that
+triggers K1 is now loud (toast + tray tooltip + persistent banner), so the window is short by
+construction, and S2 stops every send for its duration. The cost stays one bounce per window,
+recovered by the next natural re-bounce. Against that, the fix edits the cursor write whose
+worst-case regression — a wedged cursor ⇒ permanent reply-blindness ⇒ the drip never stops on
+reply — is strictly worse than the bug. Bad trade; not taken.
+
+What *was* taken is the half with the durable value: `replyPoller.ts` had **no tests at all**,
+because `ImapFlow` was hard-constructed inline and every method below it is private. It now has
+a `protected createClient()` seam and `src/__tests__/replyPoller.test.ts` — 16 characterization
+tests driving whole sweeps against a fake mailbox, including the **first test ever** of the CSA-3
+generation gate, and a test that pins K1 itself as current behaviour (clearly marked: *invert it,
+don't delete it,* if K1 is ever fixed). Both the gate and the `uid <= lastUid` filter are
+mutation-proven. So the blast radius that made this "too expensive to fix" is now measurable —
+which is the precondition for revisiting it, should a corrupt state file ever prove common in
+practice. Findings in `docs/replypoller-tests-buglist.md`.
+
 **K2 — a throw in `recordReply` abandons the rest of that account's sweep.**
 `replyPoller.ts`'s `recordReply` sits in the `for await` message loop with only the
 per-account catch above it, so a throw on message N skips that cycle's cursor write, bounce
@@ -371,13 +390,35 @@ so it is not a false claim, merely an incomplete one about a transport most user
 reach. Adding a line about Chromium partitions to a first-run dialog would cost more
 clarity than it buys. Revisit if the browser transport ever ships in the default shell.
 
-**K3 — a corrupt state file has no push signal.**
-Discovery depends on the operator opening the app: there is no OS notification, tray balloon
-or persistent banner on a background failure, and a packaged Windows build has no console.
-So an unattended install could sit with every scheduled send and drip stalled, correctly but
-quietly. Fail-closed remains the right default — the alternative is mailing people who
-unsubscribed — but the "the user will notice and fix it" assumption is weaker than the design
-implies. Worth a follow-up (notification or a persistent banner); out of scope here.
+**K3 — a corrupt state file has no push signal. → FIXED, no longer accepted.**
+Was: discovery depended on the operator opening the app — no OS notification, tray balloon or
+persistent banner on a background failure, and a packaged Windows build has no console — so an
+unattended install could sit with every scheduled send and drip stalled, correctly but quietly.
+
+Fixed: `src/jsonState.ts` gained a typed `StateFileError` and a callback sink; both stores'
+`assertReadable` now announce through it *before* throwing. That point was chosen because the
+obvious seam does not work — `MailProcessor`'s `onFailure` fires on only one of the six paths a
+`StateFileError` takes, and on none of the background ones (`isSuppressed` at
+`mailProcessor.ts:212` is outside any try, so it escapes `processEmails`; `scheduler.ts` and
+`sequenceRunner.ts` are bare `console.error`; `replyPoller` swallows). Routing through `onFailure`
+would have meant wrapping `mailProcessor.ts:212` or `Promise.all`→`allSettled`, both send-behaviour
+changes. Announcing at the choke point covers all six with no control-flow change at all.
+
+`electron/main.ts` subscribes at `whenReady` and raises an OS notification (plus
+`setAppUserModelId`, without which Windows shows nothing), a tray tooltip, a persistent
+`#state-file-banner`, and the log line. Three surfaces because a portable build has no Start Menu
+shortcut ⇒ no AUMID ⇒ possibly no toast, and a toast auto-dismisses while the user is away — which
+is this bug's whole scenario. De-duplicated per file, so a 500-recipient drip notifies once; the
+banner both pushes and pulls (`get-state-file-errors` re-probes), so a stall that predates the
+window still shows and a repair clears it without a restart. Scope held to "a state file exists but
+cannot be read" — never a transient SMTP failure. Pinned by
+`src/__tests__/audit/k3-corrupt-state-has-no-push-signal.audit.test.ts`; findings in
+`docs/k3-notification-buglist.md`.
+
+Note K1 above needed exactly the `instanceof StateFileError` discrimination this introduced, so
+K3 unblocked it. It was then re-reviewed (2026-07-17) and **stays accepted** — partly *because*
+K3 shipped: a corrupt state file is now loud, which shortens the window K1 loses a bounce in. See
+K1 for the full reasoning.
 
 ---
 

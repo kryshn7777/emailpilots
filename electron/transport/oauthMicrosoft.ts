@@ -13,23 +13,34 @@ import { makeSecretBox } from '../../src/crypto/factory';
  * embedded webviews) with a transient loopback redirect — the standard desktop
  * pattern. No client secret: this is a public client.
  *
- * The dev/distributor registers ONE multitenant public-client Entra app and
- * supplies its id via MS_OAUTH_CLIENT_ID (or by editing PLACEHOLDER below).
+ * The app ships with Email Pilots' own multitenant public-client Entra
+ * registration ("Email Pilots"). A public client id is not a secret (RFC 8252
+ * §8.5) — it identifies the app, it grants nothing by itself. MS_OAUTH_CLIENT_ID
+ * remains as an override seam for forks and tests.
  * Required delegated permissions on that app:
  *   Office 365 Exchange Online → SMTP.Send, IMAP.AccessAsUser.All
  *   plus offline_access (for refresh tokens).
  */
 
 const PLACEHOLDER_CLIENT_ID = 'REPLACE_WITH_ENTRA_CLIENT_ID';
-const CLIENT_ID = process.env.MS_OAUTH_CLIENT_ID || PLACEHOLDER_CLIENT_ID;
+const DEFAULT_CLIENT_ID = '98e5ce29-bb3b-4da9-9065-d89d87c9f517';
+const CLIENT_ID = process.env.MS_OAUTH_CLIENT_ID || DEFAULT_CLIENT_ID;
 const AUTHORITY = 'https://login.microsoftonline.com/common';
 
-// SMTP.Send + IMAP.AccessAsUser.All share the outlook.office365.com resource, so
-// one access token covers both. offline_access yields the refresh token; the
-// OIDC scopes give us the signed-in address.
+// SMTP.Send + IMAP.AccessAsUser.All share one Exchange Online resource, so a
+// single access token covers both. The resource URI must be the
+// `outlook.office.com` alias: Entra registers Exchange Online under both
+// outlook.office365.com and outlook.office.com, but PERSONAL (MSA) accounts
+// only resolve the latter — the office365 form dies at the authorize step with
+// AADSTS70011 "The provided resource value for the input parameter 'scope' is
+// not valid" (verified live 2026-07-18). The office.com form works for both
+// account worlds (the Thunderbird pattern), and the tokens it mints are
+// accepted by smtp.office365.com/outlook.office365.com servers unchanged.
+// offline_access yields the refresh token; the OIDC scopes give us the
+// signed-in address.
 const SCOPES = [
-  'https://outlook.office365.com/SMTP.Send',
-  'https://outlook.office365.com/IMAP.AccessAsUser.All',
+  'https://outlook.office.com/SMTP.Send',
+  'https://outlook.office.com/IMAP.AccessAsUser.All',
   'offline_access',
   'openid',
   'profile',

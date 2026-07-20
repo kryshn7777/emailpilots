@@ -1,6 +1,6 @@
 import path from 'path';
 import { atomicWriteFileSync } from './atomicWrite';
-import { readJsonState } from './jsonState';
+import { readJsonState, StateFileError, reportStateFileError, clearStateFileError } from './jsonState';
 
 export type SuppressionReason = 'bounce' | 'unsubscribe' | 'complaint' | 'manual';
 
@@ -66,14 +66,27 @@ export class SuppressionManager {
    * every entry in it.
    *
    * Absent is fine and stays fine. Only present-but-unreadable raises.
+   *
+   * Audit K3: this is also where the stop is ANNOUNCED. It's the one point every
+   * caller passes through, so reporting here reaches the scheduler, the sequence
+   * runner and the reply poller — none of which have any other route to the user —
+   * without touching their control flow. The throw below is unchanged.
    */
   private assertReadable(action: string): void {
-    if (!this.loadError) return;
-    throw new Error(
+    if (!this.loadError) {
+      // Read cleanly ⇒ retract any outstanding report, so the UI clears without a
+      // restart and a LATER break is announced again rather than deduped away.
+      clearStateFileError(this.filePath);
+      return;
+    }
+    const err = new StateFileError(
       `Cannot ${action}: the suppression list at ${this.filePath} exists but could not be read ` +
       `(${this.loadError}). Refusing to continue — proceeding would risk emailing addresses that ` +
-      `bounced or unsubscribed, and would overwrite the file. Repair or delete it, then retry.`
+      `bounced or unsubscribed, and would overwrite the file. Repair or delete it, then retry.`,
+      this.filePath, this.loadError, 'suppression', action
     );
+    reportStateFileError(err); // never throws — see jsonState
+    throw err;
   }
 
   private save() {

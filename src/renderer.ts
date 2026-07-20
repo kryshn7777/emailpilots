@@ -93,7 +93,19 @@ export function renderEmail(record: any, config: Config): RenderedEmail {
     }
     message = fs.readFileSync(record.messageContent, 'utf-8');
   } else if (record.messageType === 'text' && record.messageContent) {
-    message = record.messageContent;
+    // Direct-Text messages are plain text but land inside an HTML template,
+    // where raw newlines collapse to spaces — every multi-paragraph message
+    // arrived as one run-on block (audit U20). Convert newlines to <br> for
+    // this type only: 'file' messages are already HTML and stay untouched, and
+    // untyped legacy records keep the old behavior. '<br>' with no trailing
+    // '\n' so htmlToText()'s <br>→\n mapping round-trips the plain-text part
+    // exactly (a trailing newline would double every break). Mustache tags are
+    // skipped: a {{tag}} wrapped across a line break is valid Mustache, and a
+    // <br> injected inside it would make the tag silently render as empty.
+    message = String(record.messageContent)
+      .split(/(\{\{\{[\s\S]*?\}\}\}|\{\{[\s\S]*?\}\})/)
+      .map((seg, i) => (i % 2 ? seg : seg.replace(/\r\n|\r|\n/g, '<br>')))
+      .join('');
   }
 
   // Resolve the recipient's campaign (if any) for per-campaign subject/template

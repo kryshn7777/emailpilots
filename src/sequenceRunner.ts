@@ -4,7 +4,7 @@ import { Config, Sequence, getBasePath } from './config';
 import { MailProcessor } from './mailProcessor';
 import { ReplyStore } from './replyStore';
 import { atomicWriteFileSync } from './atomicWrite';
-import { SEQ_STATE_FIELDS } from './recipientMerge';
+import { SEQ_STATE_FIELDS, recipientKey } from './recipientMerge';
 
 /** Injected side-effects so the step state machine is unit-testable. */
 export interface SeqDeps {
@@ -196,6 +196,14 @@ export class SequenceRunner {
         now: () => Date.now(),
         // Feature #2: when pauseOnOoo is on, an out-of-office reply doesn't count
         // (drip continues). Off ⇒ identical to before: any reply stops the drip.
+        //
+        // The reply gate is keyed by EMAIL only, so it is deliberately SHARED across
+        // accounts: once a person replies to any of your inboxes, their drip stops
+        // from every account, exactly like shared suppression. Drip PROGRESS stays
+        // per-account (recipientKey), but "they answered — stop contacting them" is a
+        // property of the person, not the sending identity. Scoping this per-account
+        // would keep a second inbox emailing someone who already replied — worse for
+        // the recipient and for deliverability. Intentional; do not thread accountId.
         hasRepliedSince: (email, since) => {
           const replied = store.hasRepliedSince(email, since);
           const pauseOnOoo = this.config.ai?.actions?.pauseOnOoo === true;
@@ -216,7 +224,7 @@ export class SequenceRunner {
           if (!this.stillSendable(recipientsJson, rec)) return Promise.resolve(false);
           const p = this.processorFor(rec);
           if (!p) { orphanedAccounts.add(String(rec.accountId || 'default')); return Promise.resolve(false); }
-          return p.processRecipient(rec);
+          return p.processRecipient(rec, 'sequence');
         },
       };
 
@@ -238,7 +246,9 @@ export class SequenceRunner {
         }
         if (changed) {
           const email = String(record.email || record.Email || '').toLowerCase();
-          if (email) this.persist(recipientsJson, new Map([[email, seqFields(record)]]));
+          // Key by email+accountId so this advance lands only on THIS account's row,
+          // not every disk row sharing the address (duplicates across accounts).
+          if (email) this.persist(recipientsJson, new Map([[recipientKey(record), seqFields(record)]]));
         }
       }
 
@@ -266,7 +276,8 @@ export class SequenceRunner {
     try {
       const fresh = JSON.parse(fs.readFileSync(recipientsJson, 'utf-8'));
       if (!Array.isArray(fresh)) return true;
-      const live = fresh.find((r: any) => String(r?.email || r?.Email || '').toLowerCase() === email);
+      const key = recipientKey(record);
+      const live = fresh.find((r: any) => recipientKey(r) === key);
       if (!live) return false;                                  // deleted mid-tick
       if (live.active === false) return false;                  // deactivated mid-tick
       if (live.sequenceId !== record.sequenceId) return false;  // unenrolled/re-assigned mid-tick
@@ -280,10 +291,23 @@ export class SequenceRunner {
     try {
       const fresh = JSON.parse(fs.readFileSync(recipientsJson, 'utf-8'));
       if (!Array.isArray(fresh)) return;
-      for (const rec of fresh) {
-        const email = String(rec.email || rec.Email || '').toLowerCase();
-        const u = updates.get(email);
-        if (u) Object.assign(rec, u);
+      for (const [key, u] of updates) {
+        // Primary: exact (email, accountId) match — a duplicate address on another
+        // account must NOT inherit this row's advance.
+        let targets = fresh.filter((r: any) => recipientKey(r) === key);
+        if (targets.length === 0) {
+          // The row's accountId was reassigned (inline "send from") in the window
+          // between the pre-send stillSendable() check and this write, so the exact
+          // key no longer resolves. Fall back to email — but ONLY when the address
+          // is unambiguous (exactly one row), so a duplicate pair is never
+          // cross-written. This restores the pre-composite-key safety for the common
+          // single-row case (the advance would otherwise be dropped and the step
+          // re-sent next tick) without weakening duplicate isolation.
+          const email = key.slice(0, key.lastIndexOf('|'));
+          const byEmail = fresh.filter((r: any) => String(r.email || r.Email || '').toLowerCase() === email);
+          if (byEmail.length === 1) targets = byEmail;
+        }
+        for (const rec of targets) Object.assign(rec, u);
       }
       atomicWriteFileSync(recipientsJson, JSON.stringify(fresh, null, 2));
     } catch (e) {

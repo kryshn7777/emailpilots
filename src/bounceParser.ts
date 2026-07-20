@@ -62,9 +62,12 @@ export function looksLikeBounce(from?: string, subject?: string): boolean {
  * message is not a delivery-status notification, or when no on-address can be
  * recovered. Pure (no IMAP/DOM) so every branch is unit-testable.
  *
- * Detection accepts ANY of: a mailer-daemon/postmaster From; an
- * X-Failed-Recipients header; a `multipart/report; report-type=delivery-status`
- * content type; or a known non-delivery subject.
+ * Detection accepts ANY of these STRUCTURAL signals: a mailer-daemon/postmaster
+ * From; an X-Failed-Recipients header; or a `multipart/report;
+ * report-type=delivery-status` content type. A bounce-like Subject is NOT
+ * sufficient (it is trivially forgeable — see the isDsn comment below); it only
+ * feeds the cheap phase-1 divert prefilter (looksLikeBounce), never authorizes
+ * a suppression here.
  *
  * Extraction prefers structured signals over a body scan:
  *   1. X-Failed-Recipients header (Gmail sets this to exactly the failed addr)

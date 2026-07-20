@@ -2,25 +2,28 @@
 
 *Companion to `AUDIT.md`, whose schema and conventions this follows. IDs are namespaced `O<n>` to stay distinct from that report's `A1..A17`. Repros live at `src/__tests__/audit/o<n>-<slug>.audit.test.ts` under the same inverted-assertion contract: a passing repro proves the bug present, the full suite stays green as each is added, and the assertion flips when the bug is fixed.*
 
-*Scope: the onboarding path — login gate, setup wizard, provider presets, first-run state, transport visibility. Findings are raised during per-task bug-scans of the diffs in this workstream, including regressions introduced by the workstream itself.*
+*Scope: the onboarding path — login gate, setup wizard, provider presets, first-run state, transport visibility, and (Phase 5) the landing site's trust + legal pages. Findings are raised during per-task bug-scans of the diffs in this workstream, including regressions introduced by the workstream itself.*
 
 ---
 
 ## Status
 
-| Severity | Confirmed | Suspected / Investigating | Refuted |
-|----------|:---------:|:-------------------------:|:-------:|
-| High | 2 | 0 | 0 |
-| Medium | 0 | 0 | 0 |
-| Low | 2 | 0 | 1 |
-| **Total** | **4** | **0** | **1** |
+| Severity | Confirmed | Suspected / Investigating | Refuted | Accepted (user decision) |
+|----------|:---------:|:-------------------------:|:-------:|:------------------------:|
+| High | 3 | 0 | 0 | 0 |
+| Medium | 2 | 0 | 0 | 2 |
+| Low | 4 | 0 | 2 | 1 |
+| **Total** | **9** | **0** | **2** | **3** |
 
-All four confirmed findings were fixed within the task gate that raised them. They are recorded rather than silently squashed because each carries a lesson that outlives its fix:
+Every confirmed finding was fixed within the task gate that raised it. They are recorded rather than silently squashed because each carries a lesson that outlives its fix:
 
-- **O1** and **O5** are regressions this workstream introduced and caught in its own bug-scan — the honest record of a fix that briefly made things worse.
+- **O1**, **O5** and **O7** are regressions this workstream introduced and caught in its own bug-scan — the honest record of fixes that briefly made things worse.
 - **O1** is a design trap that will re-appear at any future call site of `setLoginProvider`.
 - **O4** is a **pre-existing high-severity bug, live in GUI2 today**, and the reason `VERIFICATION.md` 12.8 sitting unchecked was expensive: nobody had exercised the path, so nobody saw it.
-- **O3** is refuted and stays refuted, with reasoning, so it does not get re-litigated.
+- **O6** is a **contract/marketing contradiction**, not a code defect — the class of bug a test suite structurally cannot see.
+- **O7** is the sharpest lesson here: my *fix* for O6b was itself broken, passed the check I first ran, and only failed under a different navigation. Optional chaining turned a race into a silent no-op.
+- **O3** and **O8** are refuted and stay refuted, with reasoning, so they don't get re-litigated.
+- **A1–A3** are accepted risks: raised, investigated, and consciously kept by the user.
 
 ---
 
@@ -90,7 +93,102 @@ All four confirmed findings were fixed within the task gate that raised them. Th
 
 ---
 
+### O6 — The Terms of Service name a price the checkout does not charge (€2/week vs $2.9/week)
+**Severity:** high · **Kind:** contract/marketing contradiction · **Repro:** n/a — not a code defect; no test can see it (the two values live in a markdown draft and a TS constant that never meet) · **Status:** confirmed → **fixed** · **Lenses (2, independent):** legal-accuracy, build-output · **Found by:** reading the source docs before porting them, not by any tool
+
+**Locations:** docs/terms-and-conditions.md:11 (pre-fix); landing/src/config.ts:10; landing/src/pages/terms/main.tsx (fix)
+
+**Mechanism:** `docs/terms-and-conditions.md:11` read *"currently priced at **€2 per week**"*. `landing/src/config.ts:10` is `PRICE = { amount: '$2.9', period: 'week', trialDays: 7 }`, and that constant feeds every visible surface: the Header CTA, the boarding-pass ticket, and the billing FAQ (`config.ts:191`). Different currency **and** different amount — €2 ≈ $2.2, so this is not an FX rounding artifact. The draft was never published, so nothing ever forced the two into agreement.
+
+**Failure scenario:** Phase 5 publishes `terms.html`. A customer is charged $2.9/week under a contract stating €2/week. That is a chargeback vector, a Merchant-of-Record (LemonSqueezy) compliance problem, and in several jurisdictions a consumer-protection issue — the published Terms are the binding document, not the pricing page.
+
+**Goal impact:** *Trust* — the phase exists to make a paying customer feel safe; a contract contradicting the checkout does the exact opposite. It would have shipped the moment the page went live.
+
+**Fix applied:** the Terms page **derives** the price from `config.ts` (`{PRICE.amount} per {PRICE.period}, beginning with a {PRICE.trialDays}-day trial`) rather than restating it. The contract and the pricing page now read from one constant and are structurally unable to drift. Fixes the class, not the instance. Verified in-browser: the rendered page reads *"currently priced at $2.9 per week, beginning with a 7-day trial"*, with zero occurrences of `€2`.
+
+**Verification notes:** the user confirmed $2.9 is correct and the markdown was the stale outlier. Two adjacent claims were checked and are **not** contradictions: a 7-day trial and a 14-day money-back guarantee can coexist (trial precedes billing, refund follows it) — the Terms merely omitted the trial, now included; and the "six call sites" style drift elsewhere is unrelated. `docs/terms-and-conditions.md` remains the human-editable draft — a pointer comment in the page marks the published artifact, and the price is deliberately *not* duplicated back into the markdown.
+
+---
+
+### O7 — The O6b anchor fix silently no-opped on link-click navigation (optional chaining hid a race)
+**Severity:** medium · **Kind:** regression (introduced by my own fix) · **Repro:** eligible but skipped — requires a real browser + a cross-document navigation; the vitest suite is pure-Node and `landing/` has no test harness. Covered by the Playwright walk recorded below. · **Status:** confirmed → **fixed in-task** · **Lenses (2, independent):** build-output, link-hygiene
+
+**Locations:** landing/src/App.tsx (the hash-restore effect)
+
+**Mechanism:** Cross-page anchors (`/#features` from a standalone page) didn't scroll: the browser fires scroll-to-fragment at document load, before React renders `Story`, so the section doesn't exist and the anchor is dropped — and nothing retries once it mounts. My first fix routed through Lenis: `lenisRef.current?.lenis?.scrollTo(target, { immediate: true, offset: -margin })`, one `requestAnimationFrame` after mount. **`ReactLenis` had not always populated the ref by that frame**, and the optional chain turned "Lenis isn't ready" into a silent no-op with no error and no log.
+
+**Failure scenario — why this is the interesting one:** the fix **passed** the first verification I ran. `page.goto('/#features')` landed correctly at scrollY 1200 / top 84, repeatedly and stably across six samples. It only failed on a **link click** from `terms.html` — same URL, same `navigation.type: "navigate"`, opposite result — because Lenis initialised a beat later on that path. A single-method check would have shipped it. The clean signal was `scrollYBefore: 0` while `elementExistsNow: true`: the element was there, so the effect had run and bailed inside the optional chain.
+
+**Fix applied:** dropped Lenis from the path entirely — `target.scrollIntoView()`. It honours the CSS `scroll-margin-top` (styles/index.css) natively, so the 84px header offset stays in one place instead of being mirrored via `getComputedStyle`, and it has no initialisation order to race. Empirically verified that Lenis **syncs to a native jump and holds it** (scrollY 1200 stable at 0/500/1500/3000ms) rather than lerping back — which was the stated reason the first version avoided `scrollIntoView`. The assumption was wrong, and testing it is what removed the dependency.
+
+**Verification notes:** the fix is strictly wider than my own change. Any external deep link (`…/#pricing` shared in a post) was already broken before Phase 5 — the standalone pages merely made the case reachable from inside the site. Regression-checked in-browser: plain `/` still starts at scrollY 0 (hero intact), and the home footer's bare `#pricing` still smooth-scrolls via Lenis (5940 / top 84), so `home = true` preserves the story behaviour exactly.
+
+---
+
+### O9 — The install page claimed code signing "is in progress" before the certificate exists
+**Severity:** low · **Kind:** contract/marketing contradiction (O6's class) · **Repro:** n/a — content claim, invisible to tests · **Status:** confirmed → **fixed in-task** · **Lenses (2, independent):** legal-accuracy, claim-vs-reality
+
+**Locations:** landing/src/pages/install/main.tsx (T3 first draft)
+
+**Mechanism:** The first draft of the SmartScreen explainer wrote *"code signing — the identity-verification process that shortcuts it — is slow and is in progress."* Rev 2 makes the Certum purchase sub-project #0, user-owned and not yet started — so at the moment of writing, nothing is in progress. Same failure shape as O6: a published claim tied to a state of the world that nothing forces to stay true. If the purchase slips, the page overstates indefinitely; a reader who checks (the exact skeptical reader this page exists for) finds the one dishonest sentence on a page whose entire job is honesty.
+
+**Fix applied:** removed the temporal claim entirely rather than softening it — the paragraph now explains that reputation is earned per release and there is no overnight shortcut, which is true before *and* after signing lands (the page's condition-first rule, applied to its own prose). When the certificate is real, T3 can gain a "releases are signed by …" line as a *statement of present fact*.
+
+**Verification notes (T3 gate, all green):** `npx tsc -p landing/tsconfig.json --noEmit` clean; `GITHUB_ACTIONS=1` build emits `dist/install.html` with 5 base-path (`/Emailpilots3/`) refs and zero non-base root-absolute refs; tree grep for `href="/` in `landing/src` returns only the links.ts doc comment; no `cold email` anywhere in `landing/src/pages`; built chunk contains the target phrase "Windows protected your PC" and zero mojibake signatures (O8's console-decode trap checked against the artifact itself, per its lesson). The plan-gate prohibition held: no Digital-Signatures-tab claim exists in the copy — an unsigned binary has no such tab.
+
+---
+
+### O10 — The app-password page promised replies stop follow-ups "the moment someone answers"
+**Severity:** low · **Kind:** claim-precision (O6's class, milder) · **Repro:** n/a — content claim · **Status:** confirmed → **fixed in-task** · **Lenses (2, independent):** claim-vs-reality, send-path semantics
+
+**Locations:** landing/src/pages/app-passwords/main.tsx (T4 first draft)
+
+**Mechanism:** The draft described IMAP access as letting the app "stop a follow-up **the moment** someone answers." Reply detection is a 15-minute polling sweep (`replyPoller`), and the reply gate is evaluated per sequence tick — worst case, a reply lands just after a sweep and just before a due follow-up, and the follow-up still goes out. "The moment" states a real-time guarantee the architecture doesn't make, on the page whose entire premise is precision about what the credential does.
+
+**Fix applied:** "so follow-ups stop when someone answers" — the true claim, with no latency promise. The genuinely-rare overlap case remains (documented in AUDIT-campaigns-sequences-accounts.md territory), but the page no longer denies it.
+
+**Verification notes (T4 gate, all green):** `tsc` clean; `GITHUB_ACTIONS=1` build emits `dist/app-passwords.html` with 5 base-path refs; built chunk has zero mojibake signatures and the SEO phrase "app password" ×7; `cold email` greps to zero in `landing/src/pages` (the two `config.ts` hits are the known invariant *comments*, not rendered copy). Claim audit performed line-by-line: the storage claim ("encrypted with Windows' own user-level encryption, never plain text, never shown again") verified against the safeStorage `ENC:` path and the redaction contract, scoped deliberately to what *the app writes*; Microsoft retirement dates (Sept 2024 personal / early 2026 M365) match the verified sources; **the Microsoft section makes no claim about Email Pilots' own Microsoft flow** — ecosystem facts only — because that claim only becomes true when the Entra registration (sub-project #1) ships; writing it now would be exactly O9 again. `Steps` was extracted to `PageShell.tsx` (shared with T3); the export is additive, and privacy/terms imports are unaffected.
+
+---
+
+### O11 — `procedures.md` recommended signing routes on facts Microsoft retired in 2024
+**Severity:** medium · **Kind:** doc rot with a purchase decision downstream · **Repro:** n/a · **Status:** confirmed (pre-existing) → **fixed in T5** · **Lenses (2, independent):** claim-vs-reality, decision-impact
+
+**Locations:** docs/procedures.md:43-45 (pre-fix); docs/onboarding.md:63-64 (pre-fix)
+
+**Mechanism:** The Build & Distribution section stated **"EV certificate — grants SmartScreen reputation immediately"** (Microsoft removed EV's instant-reputation bypass in 2024 — EV and OV now accrue identically, per file hash, by download volume) and recommended **Azure Trusted Signing** as the cheapest route (individual/sole-proprietor enrollment is restricted to US/Canada; this business is an India sole proprietorship — categorically ineligible). `onboarding.md` separately implied signing alone removes the warning ("until … it is code-signed").
+
+**Failure scenario:** Whoever executes sub-project #0 reads the repo's own procedures first — and buys an EV certificate at 3–4× the OV price for a benefit that no longer exists, or burns days attempting an Azure enrollment that cannot succeed. Severity is medium not low because #0 is now on the launch critical path: the doc pointed real money and real weeks in the wrong direction.
+
+**Fix applied:** rewrote the block with the 2026 facts: EV≈OV for reputation; per-release accrual → release-cadence discipline (fewer, fatter releases); Azure ineligible for this business; the decided route (Certum cloud OV, ~$116–200/yr, no token; 458-day validity cap since 2026-03-01); `CSC_LINK`/`CSC_KEY_PASSWORD` mechanics kept. `onboarding.md` now says signing *speeds accrual and names a publisher* but does not remove the warning instantly, and both docs cross-reference the public `install.html` explainer. One near-miss self-caught in the same edit: the first draft of the `onboarding.md` fix wrote code signing is *"in the works"* — the O9 forward-claim shape again, in the same session that recorded O9 — replaced with decision language ("decided route: Certum") before the gate.
+
+**Verification notes (T5 gate):** tree grep of `docs/` for `EV cert|Trusted Signing|immediately|instant` and `unsigned|SmartScreen|Run anyway` — every surviving hit is either an accurate present-tense statement ("currently unsigned" — true), the corrective text itself, or unrelated (buglists, AI feature copy, a competitor name inside an internal spec). No stale signing guidance survives.
+
+---
+
+## Accepted risk (raised, investigated, kept by user decision)
+
+*Not bugs to fix — conscious calls, recorded so they are not re-raised each pass. All three are safe-direction: they over-disclose or over-promise to the customer rather than under.*
+
+### A1 — Privacy policy claims Google Analytics; there is none in `landing/`
+`docs/privacy-policy.md:30` (§2C) and the §4 "For Analytics" bullet state web analytics that the site does not currently run — verified: zero analytics scripts, tags, or network calls anywhere in `landing/`. **User decision: true and planned for a later session; leave in place.** Over-disclosure cannot harm a visitor. Note for whoever adds GA: EU visitors will then need a consent banner, which does not exist either.
+
+### A2 — Terms promise a referral program that does not exist
+`docs/terms-and-conditions.md:13` offers "two (2) free weeks" per successful referral. No referral mechanism exists in the product or on the site. **User decision: planned; leave in place.** Risk is a customer claiming the credit before it ships — a promise the business must honour, which is the user's call to carry.
+
+### A3 — No cookie/consent surface
+Follows from A1. Out of scope until analytics actually lands.
+
+---
+
 ## Refuted
+
+### O8 — *"The em-dash is mojibake in the built output"*
+**Status:** **refuted** · **Lens:** build-output
+
+**Claim:** a raw dump of `dist/assets/PageShell-*.js` showed `Email Pilots â€" home`, the classic UTF-8-read-as-Windows-1252 signature, suggesting the build was corrupting non-ASCII copy.
+
+**Why refuted:** read the file back as explicit UTF-8 and inspected the codepoint — `U+2014`, bytes `E2 80 94`. A correct em-dash. The corruption was **PowerShell's console decoding**, not the artifact. Confirmed independently in-browser: `document.title` renders `Privacy Policy — Email Pilots` correctly. Recorded because the same false alarm will fire on every future PowerShell dump of this repo's output.
 
 ### O3 — *"Auto-detect resolving to `'other'` leaves the user staring at an empty host field"*
 **Severity:** — · **Status:** **refuted** · **Lenses (2):** first-run-state, renderer/main boundary
@@ -123,7 +221,10 @@ Every confirmed finding re-checked against the tree as built, not as remembered.
 
 ### Still open
 
-- **Phase 3 (MS OAuth)** — code-ready to write, blocked on an Entra app registration producing a client ID. O4's fix is its prerequisite and is now in place.
-- **Phase 5 (trust content)** — unblocked.
-- **Phase 6 (signing)** — repriced: Azure Artifact Signing is geo-restricted to US/Canada individuals, so it is unavailable; Certum Cloud (~$116/yr, no token) is the standing recommendation. Deferred behind the free wins because delivery is post-purchase.
-- **Accounts-view banner refresh** — the known gap noted under O4; belongs to Phase 3.
+*(Statuses below re-stated for the Rev 2 plan, which renumbered the workstreams — see `~/.claude/plans/goal-make-the-eager-crane.md`.)*
+
+- **Trust content (Rev 2 #4 / T1–T5)** — **complete.** T1/T2 (chrome + privacy/terms), T3 (`install.html`, O9), T4 (`app-passwords.html`, O10), T5 (doc rot, O11) all shipped through their gates.
+- **MS OAuth (Rev 2 #1)** — code-ready, still blocked on the user's Entra app registration. **Repriced from optional to launch-critical**: password SMTP is dead across all Microsoft mailboxes (personal Sept 2024; M365 fully retired April 2026), so the Microsoft segment is unreachable until the client ID lands. O4's fix remains its prerequisite and is in place.
+- **Signing (Rev 2 #0)** — **repriced from deferred to critical path** by the freemium pivot (free users have zero sunk cost). Certum cloud OV is the decided route; Azure remains geo-ineligible. `procedures.md` §6 now carries the accurate guidance (O11).
+- **Unlock gate + guided demo + provider-aware connect (Rev 2 #3)** — next up; findings go to `AUDIT-freemium.md` (`F<n>`).
+- **Accounts-view banner refresh** — the known gap noted under O4; folds into Rev 2 #3's null-config renderer pass.

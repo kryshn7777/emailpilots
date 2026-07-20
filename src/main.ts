@@ -1,16 +1,84 @@
 // Frontend UI Logic
-import { checkSpam } from './spamCheck';
+import {
+  checkSpam,
+  spamVerdict as verdictOf,
+  sortedFindings,
+  htmlToReadableText,
+  type SpamReport,
+  type SpamFinding,
+} from './spamCheck';
 import { detectMapping, buildRecordsFromRows, type ColumnMapping } from './csvMapping';
 import { normalizeAppPassword, friendlySmtpError } from './smtpUtils';
 import { computeOnboardingSteps, isInboxConnected, accountHasCredentials, type ConnectedAccount } from './onboarding';
 import { deriveDomain, type DomainAuthReport, type RecordCheck } from './domainAuth';
-import { detectProviderFromDomain, detectProviderFromEmail, type DetectedProvider } from './providerDetect';
+import { detectProviderFromDomain, detectProviderFromEmail, isMsBasicAuthDeadHost, type DetectedProvider } from './providerDetect';
+import { findNextRun, nextRunDayLabel, upcomingSends } from './nextRun';
+import { computeAwayDigest, digestLine, type DigestBaseline } from './digest';
 
 const GS_DISMISS_KEY = 'eptGettingStartedDismissed';
 const SW_SKIP_KEY = 'eptSetupWizardSkipped';
 /** The local-AI offer is shown once. Same localStorage convention as the two above:
  *  a decision the user already made must not be re-asked on every launch. */
 const AI_ONBOARD_KEY = 'eptAiOnboardShown';
+/** Same convention again: the "turn on the AI" hint on the Deliverability screen
+ *  is an aside, so once dismissed it stays dismissed. */
+const DELIV_AI_HINT_KEY = 'eptDelivAiHintDismissed';
+
+/** Explore-first (freemium #3): the login gate can be dismissed to look around
+ *  with no account connected. Persisted — a returning explorer lands in the app,
+ *  not back at the wall. Cleared only by Sign out, which is an explicit return to
+ *  the gate. Everything that can actually send stays gated on credentials (F4). */
+const EXPLORE_KEY = 'eptExploreMode';
+/** Each half of the guided demo plays once. Same one-shot convention as above. */
+const DEMO_CONTACT_SEEN_KEY = 'eptDemoContactShown';
+const DEMO_SEQ_SEEN_KEY = 'eptDemoSequenceShown';
+/** U35: lifetime-totals snapshot the away-digest diffs against at boot. */
+const DIGEST_BASELINE_KEY = 'eptDigestBaseline';
+
+function isExploring(): boolean {
+  try { return localStorage.getItem(EXPLORE_KEY) === '1'; } catch { return false; }
+}
+
+/** The guided demo's sample contact. A renderer-side constant BY DESIGN: it runs
+ *  through the real pipeline (preview-unsaved-email → renderEmail → spam check)
+ *  but is never written to recipients.json — a seeded demo contact would survive
+ *  into a later real "send to all", bounce, and land in suppression. example.com
+ *  is RFC 2606-reserved, so even a deliberate save-and-send cannot reach anyone. */
+const DEMO_CONTACT = {
+  name: 'Maya',
+  email: 'maya@example.com',
+  subject: 'Great meeting you, {{name}} — that portfolio piece',
+  message:
+`Hi {{name}},
+
+Really enjoyed our chat at the design meetup — your point about onboarding flows stuck with me.
+
+I've put together the portfolio piece I mentioned. If it's useful, I'd love to hear what you think — and if now isn't the right time, no worries at all.`,
+};
+
+/** The guided demo's sample follow-up plan. Prefills the sequence FORM only —
+ *  nothing touches sequences.json unless the user presses Create themselves. */
+const DEMO_SEQUENCE_NAME = 'Follow-up flight plan';
+const DEMO_SEQUENCE_STEPS = [
+  {
+    subject: 'Great meeting you, {{name}}',
+    messageContent: `Hi {{name}},\n\nReally enjoyed our chat — sending over the piece I mentioned. Would love your take when you have a minute.`,
+    delayDays: 0,
+    stopOnReply: false,
+  },
+  {
+    subject: '',
+    messageContent: `Hi {{name}},\n\nJust floating this back up in case it got buried — no rush at all.`,
+    delayDays: 3,
+    stopOnReply: true,
+  },
+  {
+    subject: '',
+    messageContent: `Hi {{name}},\n\nLast note from me — if the timing's wrong I'll leave it here. Either way, thanks for the chat, and good luck with the launch!`,
+    delayDays: 7,
+    stopOnReply: true,
+  },
+];
 
 function escapeHTML(str: string | null | undefined): string {
   if (str == null) return '';
@@ -20,6 +88,33 @@ function escapeHTML(str: string | null | undefined): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/** K3: one unreadable state file, as the main process describes it. Mirrors
+ *  StateFileErrorView in electron/main.ts — a plain object, because IPC's structured
+ *  clone would strip the fields off the StateFileError it came from. */
+interface StateFileErrorView {
+  filePath: string;
+  fileName: string;
+  reason: string;
+  kind: string;
+  label: string;
+}
+
+/** One send attempt, as the main process records it. Mirrors SentLogEntry in
+ *  src/sentLog.ts — declared locally because tsconfig.vite.json only includes
+ *  this file (the StateFileErrorView precedent above). */
+interface SentLogEntryView {
+  at: string;
+  accountId: string;
+  email: string;
+  target: string;
+  subject: string;
+  status: 'sent' | 'practice' | 'rejected' | 'failed';
+  source: 'manual' | 'scheduled' | 'sequence';
+  messageId?: string;
+  smtpResponse?: string;
+  error?: string;
 }
 
 // Type definitions for the exposed Electron API
@@ -49,14 +144,20 @@ declare global {
       getSuppressions: () => Promise<{ email: string; reason: string; date: string; detail?: string }[]>;
       getReplies: () => Promise<{ email: string; repliedAt: string; accountId?: string; subject?: string; classification?: string }[]>;
       pollNow: () => Promise<{ ok: boolean; error?: string }>;
+      // Fires when the poller detects a new (non-backfill) reply. Returns a disposer.
+      onRepliesUpdated: (cb: () => void) => (() => void);
+      // Fires on an account-level BACKGROUND send failure (E1). Returns a disposer.
+      onSendFailure: (cb: (p: { accountId: string; message: string }) => void) => (() => void);
+      // Fires when an async DSN bounce was auto-suppressed (E2). Returns a disposer.
+      onBounceDetected: (cb: (p: { email: string; accountId: string }) => void) => (() => void);
       removeSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
       addSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
       sendTestEmail: (accountId?: string) => Promise<{ ok: boolean; error?: string; to?: string }>;
       verifyConnection: (candidate: { host?: string; port?: number; user?: string; pass?: string }) => Promise<{ ok: boolean; error?: string }>;
-      getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'oauth-smtp' | 'browser'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null }[]>;
-      saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean }) => Promise<{ ok: boolean; error?: string; id?: string }>;
+      getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'oauth-smtp' | 'browser'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean }[]>;
+      saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean; copyToSent?: boolean }) => Promise<{ ok: boolean; error?: string; id?: string }>;
       deleteAccount: (id: string) => Promise<{ ok: boolean; error?: string }>;
-      oauthLoginMicrosoft: () => Promise<{ ok: boolean; error?: string; id?: string; email?: string }>;
+      oauthLoginMicrosoft: () => Promise<{ ok: boolean; error?: string; id?: string; email?: string; identityWarning?: string }>;
       connectBrowserAccount: (provider: 'gmail' | 'outlook') => Promise<{ ok: boolean; error?: string; id?: string; email?: string }>;
       getCampaigns: () => Promise<{ id: string; name: string; subject?: string; template?: string }[]>;
       saveCampaign: (campaign: { id?: string; name?: string; subject?: string; template?: string }) => Promise<{ ok: boolean; error?: string; id?: string }>;
@@ -94,20 +195,35 @@ declare global {
       aiDownloadCancel: () => Promise<{ ok: boolean }>;
       // Separate channel from onAiLoadProgress: downloading the file, not loading it.
       onAiDownloadProgress: (cb: (p: { modelId: string; phase: string; receivedBytes: number; totalBytes: number; fraction: number }) => void) => (() => void);
+      // Send history behind the "Sent" screen (merged across accounts, newest first).
+      getSentLog: () => Promise<SentLogEntryView[]>;
+      onSentLogUpdated: (cb: (entry: SentLogEntryView) => void) => (() => void);
       onLog: (callback: (message: string, type: string) => void) => void;
       onStatusChange: (callback: (isActive: boolean) => void) => void;
+      // K3: state files that exist but can't be read (empty ⇒ all clear).
+      getStateFileErrors: () => Promise<StateFileErrorView[]>;
+      revealStateFile: (filePath: string) => Promise<{ ok: boolean; error?: string }>;
+      onStateFileStatus: (callback: (errors: StateFileErrorView[]) => void) => void;
     }
   }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Feature flag for the low-friction transports (Microsoft OAuth-SMTP + browser-
-  // session "no password" connect). Hidden in the default GUI: the browser-session
-  // path automates webmail UIs (provider-ToS risk) and the whole feature is
-  // unverified live. GUI2 (gui2.html, <body data-gui="2">) surfaces the buttons on
-  // the login gate + Accounts view. To delete the feature outright, remove the
-  // blocks marked "LOW-FRICTION TRANSPORTS" in index.html/gui2.html + this file,
-  // then the src/transport and electron/transport modules.
+  // Feature flag for the BROWSER-SESSION transports (credential-less webmail
+  // connect). Hidden in the default GUI: that path automates webmail UIs
+  // (provider-ToS risk) and is unverified live. GUI2 (gui2.html,
+  // <body data-gui="2">) surfaces its buttons on the login gate + Accounts view.
+  //
+  // Microsoft OAuth-SMTP used to sit behind this flag too, but graduated out of
+  // it (freemium #3): Microsoft retired password SMTP across every mailbox
+  // (personal Sept 2024, M365 April 2026), so OAuth is the ONLY way a Microsoft
+  // address can connect — it must exist in the default GUI. The Entra app is
+  // registered ("Email Pilots"); its client id ships in
+  // electron/transport/oauthMicrosoft.ts.
+  //
+  // To delete the browser-session feature outright, remove the blocks marked
+  // "LOW-FRICTION TRANSPORTS" in index.html/gui2.html + this file, then the
+  // browser pieces of src/transport and electron/transport.
   const SHOW_NO_PASSWORD_TRANSPORTS = document.body.dataset.gui === '2';
 
   // Adapter over the pure isInboxConnected(): maps the renderer's shapes onto it
@@ -119,7 +235,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     smtpUser: cfg?.smtp?.user,
     smtpHasPass: !!(cfg?.smtp?.hasPass || cfg?.smtp?.pass),
     accounts,
-    allowOauth: SHOW_NO_PASSWORD_TRANSPORTS,
+    // OAuth accounts are first-class in every GUI (see the flag note above);
+    // browser-session accounts only count where their buttons exist.
+    allowOauth: true,
     allowBrowser: SHOW_NO_PASSWORD_TRANSPORTS,
   });
 
@@ -147,6 +265,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // lazily only when AI is enabled + a model is configured).
     if (targetViewId === 'ai') { void refreshAiStatus(); void reflectAiActions(); }
     if (targetViewId === 'deliverability') void initDeliverability();
+    if (targetViewId === 'sent') void refreshSentLog();
+    if (targetViewId === 'replies') void refreshReplies();
   };
 
   navItems.forEach((link, i) => {
@@ -204,19 +324,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (aiModelPathEl) aiModelPathEl.textContent = s.modelPath || 'No model selected';
       if (aiContextSizeInput && s.contextSize && !aiContextSizeInput.value) aiContextSizeInput.value = String(s.contextSize);
       if (aiStatusLine) {
-        const parts = [
-          s.enabled ? 'Enabled' : 'Disabled',
-          s.runtimeAvailable ? 'runtime OK' : 'runtime missing',
-          s.modelConfigured ? 'model found' : 'no model',
-          s.ready ? 'READY' : 'not ready',
-        ];
-        // Show where inference actually runs — the whole point of the GPU knobs.
-        if (s.ready && s.gpuType) {
-          parts.push(s.gpuType === 'cpu'
-            ? 'on CPU'
-            : `on GPU (${s.gpuType}${typeof s.gpuLayers === 'number' ? `, ${s.gpuLayers} layers` : ''})`);
+        // U30: one plain sentence + the single next action, not a fragment
+        // dump ("Disabled · runtime OK · no model · not ready").
+        let line: string;
+        if (s.ready) {
+          const where = s.gpuType
+            ? (s.gpuType === 'cpu' ? ' on the CPU' : ` on your GPU (${s.gpuType}${typeof s.gpuLayers === 'number' ? `, ${s.gpuLayers} layers` : ''})`)
+            : '';
+          line = `Local AI is ready — running${where}. Look for the ✨ buttons.`;
+        } else if (!s.runtimeAvailable) {
+          line = 'The AI engine isn\'t available on this computer.';
+        } else if (!s.enabled) {
+          line = 'Local AI is off. Tick "Enable Local AI" above to turn it on.';
+        } else if (!s.modelConfigured) {
+          line = 'Almost there — download the recommended model (or pick a .gguf file) to finish.';
+        } else {
+          line = 'Model found — loading. Give it a moment, then Check Status again.';
         }
-        aiStatusLine.textContent = 'Status: ' + parts.join(' · ') + (s.error ? ` — ${s.error}` : '');
+        aiStatusLine.textContent = line + (s.error ? ` (${s.error})` : '');
       }
     } catch (e: any) {
       aiReady = false;
@@ -717,10 +842,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- Deliverability screen (feature #4) ---
   const delivSubject = document.getElementById('deliv-subject') as HTMLInputElement | null;
   const delivBody = document.getElementById('deliv-body') as HTMLTextAreaElement | null;
+  const delivText = document.getElementById('deliv-text') as HTMLTextAreaElement | null;
   const delivAnalyze = document.getElementById('deliv-analyze') as HTMLButtonElement | null;
   const delivScore = document.getElementById('deliv-score');
   const delivResult = document.getElementById('deliv-result');
   let delivPrefilled = false;
+  /** Set once the user types in the readable box — see `delivBodyForCheck`. */
+  let delivTextDirty = false;
+
+  const sortedLabels = (findings: readonly SpamFinding[]): string[] =>
+    sortedFindings(findings).map(f => f.label);
 
   // Titled bullet list, reused for the heuristic + AI result sections.
   function delivSection(title: string, items: string[], color?: string): HTMLElement {
@@ -743,58 +874,142 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const cfg: any = await window.electronAPI.getConfig();
       if (delivSubject && !delivSubject.value) delivSubject.value = cfg?.email?.subject || '';
-      if (delivBody && !delivBody.value) delivBody.value = cfg?.templateContent || '';
+      if (delivBody && !delivBody.value) {
+        delivBody.value = cfg?.templateContent || '';
+        syncDelivTextFromHtml();
+      }
     } catch { /* leave blank */ }
+  }
+
+  /** Mirror the HTML into the readable box. Clears the dirty flag: the words now
+   *  match the markup again, so the markup is once more the better thing to check. */
+  function syncDelivTextFromHtml() {
+    if (!delivText || !delivBody) return;
+    delivText.value = htmlToReadableText(delivBody.value);
+    delivTextDirty = false;
+  }
+
+  /**
+   * Which box the check actually reads.
+   *
+   * Untouched: use the HTML. It is the real email, and only it carries the links
+   * and images the rules count — checking the stripped words would silently drop
+   * those findings for everyone who never opens the disclosure.
+   *
+   * Edited: use what the user typed. They are testing that wording now, and the
+   * old template's markup is no longer what they are asking about.
+   */
+  function delivBodyForCheck(): string {
+    if (delivTextDirty) return delivText?.value || '';
+    return delivBody?.value || delivText?.value || '';
+  }
+
+  if (delivText) delivText.addEventListener('input', () => { delivTextDirty = true; });
+  // Editing the HTML re-derives the words, so the two boxes never disagree.
+  if (delivBody) delivBody.addEventListener('input', syncDelivTextFromHtml);
+
+  /** Paint the verdict banner. Shared by the rule pass and the AI pass — the AI
+   *  upgrades the same banner rather than adding a second, competing one. */
+  function renderDelivVerdict(level: SpamReport['level'] | 'low' | 'medium' | 'high') {
+    if (!delivScore) return;
+    const v = verdictOf(level);
+    delivScore.replaceChildren();
+    const chip = document.createElement('span');
+    chip.textContent = v.text;
+    chip.style.cssText = 'display:inline-block; padding:4px 12px; border-radius:999px; '
+      + `color:#fff; font-weight:600; font-size:0.85rem; background:${v.color};`;
+    delivScore.appendChild(chip);
+  }
+
+  /** The quiet line under the results. Never replaces the verdict — an AI that is
+   *  off or broken is a footnote, not the answer. */
+  function delivNote(text: string, withDismiss = false): HTMLElement | null {
+    if (!delivResult) return null;
+    const p = document.createElement('p');
+    p.className = 'help-text';
+    p.style.cssText = 'margin-top:12px;';
+    p.textContent = text;
+    if (withDismiss) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Dismiss';
+      btn.style.cssText = 'margin-left:8px; background:none; border:none; padding:0; '
+        + 'font:inherit; color:var(--primary); text-decoration:underline; cursor:pointer;';
+      btn.addEventListener('click', () => {
+        try { localStorage.setItem(DELIV_AI_HINT_KEY, '1'); } catch { /* private mode */ }
+        p.remove();
+      });
+      p.appendChild(btn);
+    }
+    delivResult.appendChild(p);
+    return p;
+  }
+
+  function delivAiHintDismissed(): boolean {
+    try { return localStorage.getItem(DELIV_AI_HINT_KEY) === '1'; } catch { return false; }
   }
 
   if (delivAnalyze) {
     delivAnalyze.addEventListener('click', async () => {
       const subject = delivSubject?.value || '';
-      const body = delivBody?.value || '';
+      const body = delivBodyForCheck();
       if (!(subject + body).trim()) {
-        if (delivScore) delivScore.textContent = 'Enter a subject or body first.';
+        if (delivScore) delivScore.textContent = 'Add a subject or some body text first.';
+        if (delivResult) delivResult.replaceChildren();
         return;
       }
-      // Heuristic (instant, deterministic) first.
+
+      // Rule pass: instant, deterministic, always a complete answer on its own.
+      const heur = checkSpam(subject, body, true);
+      const ruleLabels = sortedLabels(heur.findings);
+      renderDelivVerdict(heur.level);
       if (delivResult) {
         delivResult.replaceChildren();
-        const heur = checkSpam(subject, body, true);
-        const hColor = heur.level === 'risky' ? '#dc2626' : heur.level === 'warn' ? '#d97706' : '#16a34a';
         delivResult.appendChild(delivSection(
-          `Quick check (rules): ${heur.level} · score ${heur.score}`,
-          heur.findings.length ? heur.findings.map(f => `${f.label} (${f.severity})`) : ['No heuristic flags.'],
-          hColor,
+          ruleLabels.length ? 'What to fix' : 'Looks good',
+          ruleLabels.length ? ruleLabels : ['Nothing stood out. This should be fine to send.'],
         ));
       }
-      // AI layer (only when ready).
-      if (delivScore) delivScore.textContent = 'Analyzing with AI…';
+
+      // AI pass: refines the above when available. Any failure here leaves the
+      // rule verdict standing and degrades to a footnote.
       delivAnalyze.disabled = true;
+      // Hoisted so the catch can clear it too — a throw must not strand the
+      // progress line above the error note.
+      let progress: HTMLElement | null = null;
       try {
         const status = await window.electronAPI.aiStatus();
         if (!status.ready) {
-          if (delivScore) delivScore.textContent = 'Quick check done. Enable Local AI + a model for the deeper AI analysis.';
+          if (!delivAiHintDismissed()) {
+            delivNote('Turn on the built-in AI for deeper suggestions.', true);
+          }
           return;
         }
+        // Progress lives in the results area, never in the verdict slot — the
+        // rule answer must stay on screen while the model thinks.
+        progress = delivNote('Checking with AI…');
         const r = await window.electronAPI.aiSpamCheck({ subject, body });
+        progress?.remove();
         if (r.ok && r.advice && !r.advice.note) {
           const a = r.advice;
-          if (delivScore) {
-            const color = a.level === 'high' ? '#dc2626' : a.level === 'medium' ? '#d97706' : '#16a34a';
-            delivScore.textContent = '';
-            const chip = document.createElement('span');
-            chip.textContent = `AI spam risk: ${a.level.toUpperCase()} (${a.score}/100)`;
-            chip.style.cssText = `display:inline-block; padding:2px 10px; border-radius:999px; color:#fff; font-weight:600; font-size:0.8rem; background:${color};`;
-            delivScore.appendChild(chip);
-          }
+          renderDelivVerdict(a.level);
           if (delivResult) {
-            if (a.issues.length) delivResult.appendChild(delivSection('Issues', a.issues, '#b45309'));
-            if (a.suggestions.length) delivResult.appendChild(delivSection('Suggestions', a.suggestions, '#2563eb'));
+            delivResult.replaceChildren();
+            const fixes = [...ruleLabels, ...a.issues];
+            delivResult.appendChild(delivSection(
+              fixes.length ? 'What to fix' : 'Looks good',
+              fixes.length ? fixes : ['Nothing stood out. This should be fine to send.'],
+            ));
+            if (a.suggestions.length) {
+              delivResult.appendChild(delivSection('How to improve it', a.suggestions));
+            }
           }
         } else {
-          if (delivScore) delivScore.textContent = (r.advice && r.advice.note) || r.error || 'AI analysis unavailable.';
+          delivNote("Couldn't run the AI check this time — the checks above still apply.");
         }
-      } catch (e: any) {
-        if (delivScore) delivScore.textContent = 'Error: ' + (e?.message || 'failed');
+      } catch {
+        progress?.remove();
+        delivNote("Couldn't run the AI check this time — the checks above still apply.");
       } finally {
         delivAnalyze.disabled = false;
       }
@@ -843,7 +1058,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let recipientsData: any[] = [];
   // All sending accounts (default + extras), refreshed from the main process.
   // Drives the Accounts view + the per-recipient "send from" selector.
-  let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'oauth-smtp' | 'browser'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null }[] = [];
+  let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'oauth-smtp' | 'browser'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean }[] = [];
   // Bulk-selection of extra accounts in the Accounts view (ids; default excluded).
   const selectedAccountIds = new Set<string>();
 
@@ -856,6 +1071,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   let repliedSet: Set<string> = new Set();
   // Feature #2: email → AI classification label (drives the Replied-column badge).
   let replyByEmail: Map<string, string> = new Map();
+  // Slice D: the raw reply list for the dedicated Replies screen (latest reply
+  // per recipient — replyStore semantics). Kept fresh by refreshReplies.
+  let repliesCache: { email: string; repliedAt: string; accountId?: string; subject?: string; classification?: string }[] = [];
+  // E2: lowercased suppressed address → reason, for the recipients-table chip
+  // (a suppressed recipient otherwise looks active but silently skips).
+  // Rebuilt by renderSuppressions; kept stale (not cleared) on a read error.
+  let suppressedByEmail: Map<string, string> = new Map();
   const AI_BADGE_LABELS: Record<string, string> = {
     Interested: 'Interested', Negative: 'Negative', OutOfOffice: 'OOO',
     Unsubscribe: 'Unsub', Bounce: 'Bounce', Referral: 'Referral',
@@ -974,11 +1196,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       `<div>${title ? `<div class="toast-title">${escapeHTML(title)}</div>` : ''}<div>${escapeHTML(message)}</div></div>`;
     layer.appendChild(el);
     const ttl = type === 'error' ? 6000 : 4000;
+    // U22: setTimeout is throttled while the window is occluded, so toasts
+    // could linger for minutes and greet the user as a stale stack on return.
+    // Stamp the intended death time; the focus sweep below reaps overdue ones.
+    el.dataset.dieAt = String(Date.now() + ttl);
     setTimeout(() => {
       el.classList.add('leaving');
       setTimeout(() => el.remove(), 500);
     }, ttl);
   }
+  window.addEventListener('focus', () => {
+    document.querySelectorAll<HTMLElement>('#toast-layer .toast').forEach(t => {
+      const dieAt = Number(t.dataset.dieAt || 0);
+      if (dieAt && Date.now() > dieAt + 1000) t.remove();
+    });
+  });
 
   /**
    * Styled, promise-based replacement for native confirm(). Native dialogs look
@@ -1067,16 +1299,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       box.innerHTML =
         '<div style="margin-bottom:12px;padding:8px 12px;border-radius:var(--radius);' +
         'background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);' +
-        'color:var(--success);font-size:0.85rem;">Looks clean — low spam risk.</div>';
+        `color:var(--success);font-size:0.85rem;">${escapeHTML(verdictOf('clean').text)}</div>`;
       return;
     }
     const color = report.level === 'risky' ? 'var(--destructive)' : 'var(--warning)';
-    const items = report.findings.map(f => `<li>${escapeHTML(f.label)}</li>`).join('');
+    // Same worst-first order and same verdict wording as the Deliverability
+    // screen — two surfaces disagreeing about the same email reads as a bug.
+    const items = sortedLabels(report.findings).map(l => `<li>${escapeHTML(l)}</li>`).join('');
     box.innerHTML =
       `<div style="margin-bottom:12px;padding:10px 12px;border-radius:var(--radius);` +
       `background:rgba(245,158,11,0.08);border:1px solid ${color};color:var(--foreground);font-size:0.85rem;">` +
-      `<strong style="color:${color};">Spam ${report.level === 'risky' ? 'risk' : 'warning'} ` +
-      `(score ${report.score})</strong><ul style="margin:6px 0 0 18px;">${items}</ul></div>`;
+      `<strong style="color:${color};">${escapeHTML(verdictOf(report.level).text)}</strong>` +
+      `<ul style="margin:6px 0 0 18px;">${items}</ul></div>`;
   }
 
   // Feature #4: append a gated "AI deliverability" button below the heuristic
@@ -1090,7 +1324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn outline';
-    btn.textContent = '✨ Check deliverability with AI';
+    btn.textContent = '✨ Check with AI';
     btn.style.cssText = 'padding:2px 10px; font-size:0.8rem; display:none;';
     const result = document.createElement('div');
     result.style.cssText = 'margin-top:8px; font-size:0.85rem;';
@@ -1107,25 +1341,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     btn.addEventListener('click', async () => {
-      msg('Analyzing…');
+      msg('Checking…');
       btn.disabled = true;
       try {
         const r = await window.electronAPI.aiSpamCheck({ subject, body });
         if (r.ok && r.advice && !r.advice.note) {
           const a = r.advice;
           result.replaceChildren();
-          const color = a.level === 'high' ? '#dc2626' : a.level === 'medium' ? '#d97706' : '#16a34a';
+          const v = verdictOf(a.level);
           const chip = document.createElement('span');
-          chip.textContent = `AI spam risk: ${a.level.toUpperCase()} (${a.score}/100)`;
-          chip.style.cssText = `display:inline-block; padding:2px 10px; border-radius:999px; color:#fff; font-weight:600; font-size:0.8rem; background:${color};`;
+          chip.textContent = v.text;
+          chip.style.cssText = 'display:inline-block; padding:2px 10px; border-radius:999px; '
+            + `color:#fff; font-weight:600; font-size:0.8rem; background:${v.color};`;
           result.appendChild(chip);
-          if (a.issues.length) result.appendChild(delivSection('Issues', a.issues, '#b45309'));
-          if (a.suggestions.length) result.appendChild(delivSection('Suggestions', a.suggestions, '#2563eb'));
+          if (a.issues.length) result.appendChild(delivSection('What to fix', a.issues, '#b45309'));
+          if (a.suggestions.length) result.appendChild(delivSection('How to improve it', a.suggestions, '#2563eb'));
         } else {
-          msg((r.advice && r.advice.note) || r.error || 'AI analysis unavailable.');
+          // The banner above already carries a complete rule verdict, so a failed
+          // AI pass is a footnote here too — never the headline.
+          msg("Couldn't run the AI check this time — the checks above still apply.");
         }
-      } catch (e: any) {
-        msg('Error: ' + (e?.message || 'failed'));
+      } catch {
+        msg("Couldn't run the AI check this time — the checks above still apply.");
       } finally {
         btn.disabled = false;
       }
@@ -1164,6 +1401,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       list.replaceChildren(p);
       return;
     }
+
+    // E2: refresh the chip cache from the same fetch (empty list clears it).
+    suppressedByEmail = new Map((entries || []).map(e => [String(e.email || '').toLowerCase(), e.reason]));
 
     if (!entries || entries.length === 0) {
       if (count) count.textContent = '';
@@ -1228,7 +1468,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     type Row = { status: 'ok' | 'warn' | 'fail' | 'info'; label: string; action?: { label: string; view: string } };
     const rows: Row[] = [];
     const hasCreds = inboxConnected(cfg, accountsCache);
-    rows.push({ status: hasCreds ? 'ok' : 'fail', label: hasCreds ? 'Email credentials set' : 'Email credentials missing — add them in Settings', action: hasCreds ? undefined : { label: 'Connect Email', view: 'settings' } });
+    // U15: route the fix to the connect flow (gate + wizard + OAuth), not the
+    // raw-SMTP Settings form. 'connect' is handled specially by the action
+    // renderer below.
+    rows.push({ status: hasCreds ? 'ok' : 'fail', label: hasCreds ? 'Email credentials set' : 'No inbox connected yet — nothing can send', action: hasCreds ? undefined : { label: 'Connect inbox', view: 'connect' } });
+    // E1: persistent "background sends are failing" row — driven by the same
+    // account-health status the red dot uses (statsOnFailure sets it for
+    // account-level codes on real sends). Un-missable on the dashboard.
+    const failingAccounts = accountsCache.filter(a => a.status && a.status.ok === false && a.status.kind === 'send');
+    if (failingAccounts.length > 0) {
+      const labels = failingAccounts.map(a => a.label || a.user).join(', ');
+      rows.push({
+        status: 'fail',
+        label: `Sends failing on ${labels} — ${failingAccounts[0].status?.error || 'see System Logs'}`,
+        action: { label: 'Open Accounts', view: 'accounts' },
+      });
+    }
     rows.push({ status: cfg?.email?.subject ? 'ok' : 'warn', label: cfg?.email?.subject ? `Default subject: "${cfg.email.subject}"` : 'No default subject set' });
     rows.push({ status: cfg?.sender?.physicalAddress ? 'ok' : 'warn', label: cfg?.sender?.physicalAddress ? 'Mailing address set' : 'No mailing address — required for compliant bulk email', action: cfg?.sender?.physicalAddress ? undefined : { label: 'Fix it', view: 'settings' } });
     if (cfg?.sender?.inboxPlacement !== 'bulk') {
@@ -1250,6 +1505,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       : warns > 0
         ? `<strong style="color:var(--warning);">Cleared with ${warns} advisor${warns === 1 ? 'y' : 'ies'}.</strong>`
         : `<strong style="color:var(--success);">Ready for takeoff. ✈</strong>`;
+
+    // U18: the verdict is the strongest status signal in the app but lived
+    // ~1400px down — mirror a compact copy into the hero Status card.
+    const chip = document.getElementById('status-preflight-chip');
+    if (chip) {
+      chip.textContent = fails > 0
+        ? `Grounded — ${fails} blocker${fails === 1 ? '' : 's'}`
+        : warns > 0
+          ? `Cleared · ${warns} advisor${warns === 1 ? 'y' : 'ies'}`
+          : 'Ready for takeoff ✈';
+      (chip as HTMLElement).style.color = fails > 0 ? 'var(--destructive)' : warns > 0 ? 'var(--warning)' : 'var(--success)';
+    }
 
     const ICON: Record<Row['status'], string> = { ok: 'check_circle', warn: 'warning', fail: 'error', info: 'info' };
     const COLOR: Record<Row['status'], string> = { ok: 'var(--success)', warn: 'var(--warning)', fail: 'var(--destructive)', info: 'var(--muted-foreground)' };
@@ -1278,6 +1545,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.style.cssText = 'padding: 0 10px; height: 26px; font-size: 0.75rem;';
         btn.textContent = r.action.label;
         btn.onclick = () => {
+          if (r.action!.view === 'connect') {
+            const gate = document.getElementById('login-screen');
+            if (gate) gate.style.display = 'flex';
+            return;
+          }
           document.querySelector(`[data-view="${r.action!.view}"]`)?.dispatchEvent(new Event('click'));
         };
         row.appendChild(btn);
@@ -1336,6 +1608,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  /**
+   * K3: a state file exists but can't be read, so every send has correctly stopped.
+   * Rendered from the whole current set rather than from an event, so the pull (on
+   * load) and the push (from the send path) can't disagree — and an empty set is the
+   * all-clear, which is what retracts the banner once the file is repaired.
+   */
+  let stateFileErrors: StateFileErrorView[] = [];
+
+  function renderStateFileBanner(errors: StateFileErrorView[]) {
+    stateFileErrors = errors || [];
+    const banner = document.getElementById('state-file-banner');
+    if (!banner) return;
+    if (!stateFileErrors.length) { banner.style.display = 'none'; return; }
+
+    const first = stateFileErrors[0];
+    const title = document.getElementById('state-file-banner-title');
+    const detail = document.getElementById('state-file-banner-detail');
+    const others = stateFileErrors.length - 1;
+    const more = others > 0 ? ` (and ${others} other file${others === 1 ? '' : 's'})` : '';
+    if (title) title.textContent = `Sending is paused — your ${first.label} is damaged${more}.`;
+    // textContent, not innerHTML: this interpolates a filesystem path and an fs error
+    // string. addLog() injects unescaped; don't copy that here.
+    if (detail) {
+      detail.textContent =
+        `${first.fileName} exists but can't be read (${first.reason}). Nothing will send until `
+        + `it's repaired — fix or delete the file and sending resumes on its own.`;
+    }
+    banner.style.display = 'flex';
+  }
+
+  async function refreshStateFileBanner() {
+    try {
+      renderStateFileBanner(await window.electronAPI.getStateFileErrors());
+    } catch { /* a failed probe must not break the rest of the dashboard render */ }
+  }
+
   // --- First-run gating: nothing can send without SMTP credentials (F4) ---
   async function refreshSetupState() {
     let configured = false;
@@ -1346,6 +1654,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const banner = document.getElementById('setup-banner');
     if (banner) banner.style.display = configured ? 'none' : 'flex';
+
+    // K3 pull half: re-probe every time the dashboard state refreshes, so a file
+    // repaired while nothing was sending stops claiming sending is paused. Not awaited
+    // — the setup gating below must not wait on two file reads.
+    void refreshStateFileBanner();
 
     // New-user concept aid: show the "How Email Pilots works" card only until an
     // inbox is connected (mirrors the setup-banner gating above).
@@ -1365,9 +1678,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   function refreshSubtitle() {
     const subtitle = document.getElementById('welcome-subtitle');
     if (!subtitle) return;
+    // U14: don't command "flip the Status switch" at someone with nothing to
+    // send — with zero active recipients that's the wrong next step (and it
+    // fights the Getting-Started card's correct one).
+    const hasAnyoneToSend = recipientsData.some(r => r.active !== false);
     const base = schedulerActiveUI
       ? 'Email Pilots is ready. Your outreach is scheduled and standing by.'
-      : 'Scheduling is paused — flip the Status switch to resume.';
+      : hasAnyoneToSend
+        ? 'Sending is paused — flip the Status switch when you\'re ready.'
+        : 'Add your first recipient — sending starts once someone\'s on the list.';
     subtitle.textContent = usageSummaryLine ? `${base} ${usageSummaryLine}` : base;
   }
 
@@ -1378,7 +1697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshSubtitle();
 
     if (isActive) {
-      statusText.textContent = 'System Active';
+      statusText.textContent = 'On autopilot';
       if (statusCheckbox) statusCheckbox.checked = true;
       if (statusContainer) {
         statusContainer.classList.remove('inactive-border');
@@ -1390,7 +1709,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
       toggleSchedulerBtn.classList.replace('primary', 'outline');
     } else {
-      statusText.textContent = 'System Stopped';
+      statusText.textContent = 'Paused';
       if (statusCheckbox) statusCheckbox.checked = false;
       if (statusContainer) {
         statusContainer.classList.remove('active-border');
@@ -1427,19 +1746,336 @@ document.addEventListener('DOMContentLoaded', async () => {
         : `${u.emailsToday} / ${u.maxPerDay}`;
       setText('usage-emails', emailsLabel);
       setBar('usage-emails-bar', u.emailsToday, u.maxPerDay);
-      setText('usage-windows', `${u.windowsToday} / ${u.maxWindowsPerDay}`);
-      setBar('usage-windows-bar', u.windowsToday, u.maxWindowsPerDay);
-      setText('usage-window', `${u.currentWindowCount} / ${u.maxPerWindow}`);
-      setBar('usage-window-bar', u.currentWindowCount, u.maxPerWindow);
+      // U16: windowsToday is a 1-indexed "which batch am I in" pacing counter
+      // seeded to 1 at install (rateLimiter.ts:84) — an always-on "1/5" bar on
+      // an idle app reads as phantom activity. Show batch progress only while
+      // a batch is actually in play, shout when today's batches are exhausted
+      // (the one state that hard-blocks sends), and teach the pacing concept
+      // in the footnote instead. The old second row is merged into this one.
+      const windowsRow = document.getElementById('usage-windows-row');
+      const windowRow = document.getElementById('usage-window-row');
+      if (windowRow) windowRow.style.display = 'none';
+      const exhausted = u.windowsToday >= u.maxWindowsPerDay && u.currentWindowCount >= u.maxPerWindow;
+      const batchActive = u.currentWindowCount > 0 || u.windowsToday > 1;
+      if (windowsRow) windowsRow.style.display = (batchActive || exhausted) ? '' : 'none';
+      const winLabel = document.getElementById('usage-windows-label');
+      if (exhausted) {
+        if (winLabel) winLabel.textContent = 'Today\'s batches are used up — sending resumes tomorrow';
+        setText('usage-windows', `${u.windowsToday} / ${u.maxWindowsPerDay}`);
+        setBar('usage-windows-bar', 1, 1);
+      } else if (batchActive) {
+        if (winLabel) winLabel.textContent = `Batch ${u.windowsToday} of ${u.maxWindowsPerDay}`;
+        setText('usage-windows', `${u.currentWindowCount} / ${u.maxPerWindow} this batch`);
+        setBar('usage-windows-bar', u.currentWindowCount, u.maxPerWindow);
+      }
       const warmupNote = u.warmupActive
         ? ` New-account warm-up is on: today's limit is ${u.maxPerDay} and grows daily toward ${u.hardMaxPerDay}.`
         : '';
-      setText('usage-note', `Resets at midnight. Max ${u.maxPerRecipientPerDay} emails per recipient per day.${warmupNote}`);
+      setText('usage-note', `Resets at midnight. Max ${u.maxPerRecipientPerDay} emails per recipient per day. Sends go out in short batches with pauses, so your account looks human.${warmupNote}`);
       usageSummaryLine = `${u.emailsToday} of ${u.maxPerDay} emails sent today.`;
       refreshSubtitle();
     } catch (e) {
       console.error('Failed to load usage', e);
     }
+  }
+
+  /** U35: boot-time "While you were away" card. Diffs lifetime totals against
+   *  the baseline stored at the previous boot, leads with replies (the reward),
+   *  and closes with the next scheduled run for anticipation. Baseline is
+   *  rewritten every boot regardless, so rapid restarts stay quiet. */
+  async function maybeShowAwayDigest() {
+    const card = document.getElementById('away-digest');
+    const lineEl = document.getElementById('away-digest-line');
+    if (!card || !lineEl) return;
+    try {
+      const stats = await window.electronAPI.getStats();
+      const interested = [...replyByEmail.values()].filter(v => v === 'Interested').length;
+      const now = {
+        sent: stats.totalEmailsSent || 0,
+        replies: stats.totalReplies || 0,
+        interested,
+      };
+      let baseline: DigestBaseline | null = null;
+      try {
+        const raw = localStorage.getItem(DIGEST_BASELINE_KEY);
+        if (raw) baseline = JSON.parse(raw);
+      } catch { /* corrupt/absent baseline → treated as first boot */ }
+
+      const result = computeAwayDigest(baseline, now);
+      try {
+        localStorage.setItem(DIGEST_BASELINE_KEY, JSON.stringify({ ...now, at: new Date().toISOString() }));
+      } catch { /* private mode — digest simply never fires */ }
+
+      if (!result.show) return;
+      const next = findNextRun(recipientsData, new Date());
+      const nextLabel = next ? `${nextRunDayLabel(new Date(), next.dayOffset)} at ${next.time}` : null;
+      lineEl.textContent = digestLine(result, nextLabel);
+      card.style.display = 'flex';
+    } catch (e) {
+      console.error('Away digest failed', e);
+    }
+  }
+
+  // --- Sent history (the "Sent" screen + recipients "last sent" chips) ---
+
+  let sentLogCache: SentLogEntryView[] = [];
+  /** Latest attempt per intended recipient (lower-cased). Input is newest-first,
+   *  so the first hit per address wins. */
+  const sentLatestByEmail = new Map<string, SentLogEntryView>();
+
+  function rebuildSentIndex() {
+    sentLatestByEmail.clear();
+    for (const e of sentLogCache) {
+      const key = String(e.email || '').toLowerCase();
+      if (key && !sentLatestByEmail.has(key)) sentLatestByEmail.set(key, e);
+    }
+  }
+
+  const SENT_STATUS_COLORS: Record<string, string> = {
+    sent: '#16a34a', practice: '#2563eb', rejected: '#d97706', failed: '#dc2626',
+  };
+  const SENT_STATUS_LABELS: Record<string, string> = {
+    sent: 'Sent', practice: 'Practice', rejected: 'Rejected', failed: 'Failed',
+  };
+  const SENT_SOURCE_LABELS: Record<string, string> = {
+    manual: 'Manual run', scheduled: 'Scheduled', sequence: 'Follow-up',
+  };
+
+  function accountLabelFor(id: string): string {
+    if (!id || id === 'default') {
+      const def = accountsCache.find(a => a.isDefault);
+      return def?.label || def?.user || 'Primary';
+    }
+    const acc = accountsCache.find(a => a.id === id);
+    return acc?.label || acc?.user || id;
+  }
+
+  function renderSentLog() {
+    const tbody = document.getElementById('sent-table-body');
+    const empty = document.getElementById('sent-empty-state') as HTMLElement | null;
+    if (!tbody || !empty) return;
+    const q = ((document.getElementById('sent-search') as HTMLInputElement | null)?.value || '').trim().toLowerCase();
+    const statusFilter = (document.getElementById('sent-status-filter') as HTMLSelectElement | null)?.value || '';
+
+    const rows = sentLogCache.filter(e => {
+      if (statusFilter && e.status !== statusFilter) return false;
+      if (!q) return true;
+      return `${e.email} ${e.target} ${e.subject}`.toLowerCase().includes(q);
+    });
+
+    tbody.innerHTML = '';
+    for (const e of rows.slice(0, 300)) {
+      const tr = document.createElement('tr');
+
+      const tdTime = document.createElement('td');
+      tdTime.style.whiteSpace = 'nowrap';
+      const d = new Date(e.at);
+      tdTime.textContent = isNaN(d.getTime()) ? e.at : d.toLocaleString();
+
+      const tdTo = document.createElement('td');
+      tdTo.textContent = e.email;
+      if (e.status === 'practice' && e.target && e.target !== e.email) {
+        const reroute = document.createElement('div');
+        reroute.textContent = `→ ${e.target}`;
+        reroute.style.cssText = 'font-size:0.75em;color:var(--muted-foreground);';
+        reroute.title = 'Practice mode delivered this to your own inbox';
+        tdTo.appendChild(reroute);
+      }
+
+      const tdSubject = document.createElement('td');
+      tdSubject.textContent = e.subject || '(no subject)';
+      tdSubject.style.cssText = 'max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      tdSubject.title = e.subject || '';
+
+      const tdAccount = document.createElement('td');
+      tdAccount.textContent = accountLabelFor(e.accountId);
+
+      const tdSource = document.createElement('td');
+      tdSource.textContent = SENT_SOURCE_LABELS[e.source] || e.source;
+
+      const tdStatus = document.createElement('td');
+      const chip = document.createElement('span');
+      chip.textContent = SENT_STATUS_LABELS[e.status] || e.status;
+      chip.style.cssText = `display:inline-block;padding:2px 10px;border-radius:999px;font-size:0.75rem;font-weight:600;color:#fff;background:${SENT_STATUS_COLORS[e.status] || '#9ca3af'};`;
+      // The SMTP response line is the delivery evidence ("250 2.0.0 OK…") —
+      // surface it plus Message-ID / error text as a hover tooltip.
+      const detail = [
+        e.smtpResponse ? `Server: ${e.smtpResponse}` : '',
+        e.messageId ? `Message-ID: ${e.messageId}` : '',
+        e.error ? `Error: ${e.error}` : '',
+      ].filter(Boolean).join('\n');
+      if (detail) { chip.title = detail; tr.title = detail; }
+      tdStatus.appendChild(chip);
+
+      tr.appendChild(tdTime); tr.appendChild(tdTo); tr.appendChild(tdSubject);
+      tr.appendChild(tdAccount); tr.appendChild(tdSource); tr.appendChild(tdStatus);
+      tbody.appendChild(tr);
+    }
+
+    empty.style.display = rows.length === 0 ? '' : 'none';
+  }
+
+  async function refreshSentLog() {
+    try {
+      sentLogCache = (await window.electronAPI.getSentLog()) || [];
+    } catch {
+      sentLogCache = [];
+    }
+    rebuildSentIndex();
+    renderSentLog();
+  }
+
+  document.getElementById('sent-refresh-btn')?.addEventListener('click', () => { void refreshSentLog(); });
+  document.getElementById('sent-search')?.addEventListener('input', renderSentLog);
+  document.getElementById('sent-status-filter')?.addEventListener('change', renderSentLog);
+
+  /** E6: per-recipient "person drawer" — one contact's whole story in one
+   *  place, joined purely from caches already in memory (sent log, replies,
+   *  suppression, drip position). Read-only, with jump-off actions. Built with
+   *  createElement (no static HTML ⇒ no shell-parity surface). */
+  function openPersonDrawer(index: number) {
+    const rec = recipientsData[index];
+    if (!rec) return;
+    const email = String(rec.email || rec.Email || '').toLowerCase();
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:2500;display:flex;justify-content:flex-end;';
+    const drawer = document.createElement('div');
+    drawer.style.cssText = 'width:min(480px,92vw);height:100%;background:#fff;box-shadow:-8px 0 24px rgba(0,0,0,0.18);padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;';
+    overlay.appendChild(drawer);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+
+    const section = (title: string): HTMLElement => {
+      const wrap = document.createElement('div');
+      const h = document.createElement('div');
+      h.textContent = title;
+      h.style.cssText = 'font-weight:600;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted-foreground);margin-bottom:6px;';
+      wrap.appendChild(h);
+      drawer.appendChild(wrap);
+      return wrap;
+    };
+
+    // Header: who + where they live in the app.
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px;';
+    const who = document.createElement('div');
+    const nm = document.createElement('div');
+    nm.textContent = rec.name || rec.company || rec.email || 'Recipient';
+    nm.style.cssText = 'font-weight:700;font-size:1.1rem;';
+    const em = document.createElement('div');
+    em.textContent = rec.email || '';
+    em.style.cssText = 'color:var(--muted-foreground);font-size:0.85rem;';
+    const meta = document.createElement('div');
+    meta.textContent = `Account: ${accountLabelFor(rec.accountId || 'default')} · Campaign: ${campaignNameById(rec.campaignId)}`;
+    meta.style.cssText = 'color:var(--muted-foreground);font-size:0.78rem;margin-top:4px;';
+    who.appendChild(nm); who.appendChild(em); who.appendChild(meta);
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn outline';
+    closeBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
+    closeBtn.style.cssText = 'height:32px;padding:0 8px;';
+    closeBtn.addEventListener('click', close);
+    head.appendChild(who); head.appendChild(closeBtn);
+    drawer.appendChild(head);
+
+    // Status chips: suppression + reply.
+    const chips = document.createElement('div');
+    chips.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+    const chip = (text: string, bg: string, title = '') => {
+      const c = document.createElement('span');
+      c.textContent = text;
+      c.title = title;
+      c.style.cssText = `display:inline-block;padding:2px 10px;border-radius:999px;font-size:0.75rem;font-weight:600;color:#fff;background:${bg};`;
+      chips.appendChild(c);
+    };
+    const supReason = suppressedByEmail.get(email);
+    if (supReason) chip(supReason === 'bounce' ? 'Bounced' : supReason === 'unsubscribe' ? 'Unsubscribed' : 'Blocked', supReason === 'bounce' ? '#dc2626' : '#d97706', `On the blocked list (${supReason}) — sends are skipped.`);
+    const reply = repliesCache.find(r => String(r.email || '').toLowerCase() === email);
+    if (reply) chip('Replied', '#16a34a', new Date(reply.repliedAt).toLocaleString());
+    if (reply?.classification) chip(AI_BADGE_LABELS[reply.classification] || reply.classification, AI_BADGE_COLORS[reply.classification] || '#9ca3af', `AI: ${reply.classification}`);
+    if (chips.children.length > 0) drawer.appendChild(chips);
+
+    // Drip position.
+    if (rec.sequenceId) {
+      const seq = sequencesCache.find(sq => sq.id === rec.sequenceId);
+      const st = dripStateLabel(rec, seq?.steps.length || 0);
+      const s = section('Follow-up sequence');
+      const line = document.createElement('div');
+      line.style.fontSize = '0.85rem';
+      line.textContent = `${seq?.name || 'Sequence'} — `;
+      const state = document.createElement('span');
+      state.textContent = st.text;
+      state.title = st.title;
+      state.style.color = st.color;
+      line.appendChild(state);
+      s.appendChild(line);
+    }
+
+    // Reply detail.
+    if (reply) {
+      const s = section('Latest reply');
+      const line = document.createElement('div');
+      line.style.cssText = 'font-size:0.85rem;display:flex;flex-direction:column;gap:2px;';
+      const t = document.createElement('div');
+      t.textContent = new Date(reply.repliedAt).toLocaleString();
+      t.style.color = 'var(--muted-foreground)';
+      const subj = document.createElement('div');
+      subj.textContent = reply.subject || '(no subject)';
+      line.appendChild(t); line.appendChild(subj);
+      const webmail = webmailUrlFor(reply.accountId, rec.email || '');
+      if (webmail) {
+        const openBtn = document.createElement('button');
+        openBtn.className = 'btn outline';
+        openBtn.style.cssText = 'align-self:flex-start;margin-top:4px;height:26px;padding:0 10px;font-size:0.75rem;';
+        openBtn.textContent = 'Open in webmail';
+        openBtn.addEventListener('click', () => { window.open(webmail); });
+        line.appendChild(openBtn);
+      }
+      s.appendChild(line);
+    }
+
+    // Send history (from the Sent screen's cache), newest first.
+    const sends = sentLogCache.filter(e => String(e.email || '').toLowerCase() === email).slice(0, 20);
+    const s = section(`Sends (${sends.length}${sends.length === 20 ? '+' : ''})`);
+    if (sends.length === 0) {
+      const none = document.createElement('div');
+      none.textContent = 'Nothing sent to this address yet.';
+      none.style.cssText = 'color:var(--muted-foreground);font-size:0.85rem;';
+      s.appendChild(none);
+    } else {
+      for (const e of sends) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;gap:10px;font-size:0.8rem;padding:4px 0;border-bottom:1px solid var(--border);';
+        const left = document.createElement('span');
+        const d = new Date(e.at);
+        left.textContent = isNaN(d.getTime()) ? e.at : d.toLocaleString();
+        left.style.cssText = 'color:var(--muted-foreground);white-space:nowrap;';
+        const mid = document.createElement('span');
+        mid.textContent = e.subject || '(no subject)';
+        mid.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        mid.title = [e.subject || '', e.smtpResponse ? `Server: ${e.smtpResponse}` : '', e.error || ''].filter(Boolean).join('\n');
+        const st = document.createElement('span');
+        st.textContent = SENT_STATUS_LABELS[e.status] || e.status;
+        st.style.cssText = `color:${SENT_STATUS_COLORS[e.status] || 'var(--muted-foreground)'};font-weight:600;white-space:nowrap;`;
+        row.appendChild(left); row.appendChild(mid); row.appendChild(st);
+        s.appendChild(row);
+      }
+    }
+
+    // Footer actions.
+    const foot = document.createElement('div');
+    foot.style.cssText = 'display:flex;gap:8px;margin-top:auto;padding-top:10px;';
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn primary';
+    editBtn.style.cssText = 'height:34px;padding:0 14px;';
+    editBtn.textContent = 'Edit recipient';
+    editBtn.addEventListener('click', () => { close(); openRecipientModal(index); });
+    foot.appendChild(editBtn);
+    drawer.appendChild(foot);
+
+    document.body.appendChild(overlay);
   }
 
   // --- IPC Listeners from Backend ---
@@ -1450,6 +2086,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.electronAPI.onStatusChange((isActive: boolean) => {
     updateStatusUI(isActive);
+  });
+
+  // K3 push half: fires when a state file breaks or is repaired. The pull half runs on
+  // load (refreshStateFileBanner) — a background stall can predate this window by hours.
+  window.electronAPI.onStateFileStatus((errors: StateFileErrorView[]) => {
+    renderStateFileBanner(errors);
+  });
+
+  // Sent history push: fires the moment ANY path (manual/scheduled/sequence)
+  // finishes a send attempt, so the Sent screen and the recipients "last sent"
+  // chips update instantly instead of waiting for the 60s poll below.
+  window.electronAPI.onSentLogUpdated((entry: SentLogEntryView) => {
+    sentLogCache.unshift(entry);
+    if (sentLogCache.length > 1000) sentLogCache.pop();
+    rebuildSentIndex();
+    if (document.getElementById('sent')?.classList.contains('active')) renderSentLog();
+    renderRecipients();
+  });
+  void refreshSentLog(); // initial load (history from before this window opened)
+
+  // Replies push (Slice D): the poller detected a new reply — refresh the cache
+  // (which repaints the Replies screen if open) and the recipients badges.
+  window.electronAPI.onRepliesUpdated(() => {
+    void refreshReplies().then(() => renderRecipients());
+  });
+
+  // E1: a background send failed at the account level (dead credentials, no
+  // connection). Loud toast + refresh the health dot and the preflight row.
+  window.electronAPI.onSendFailure(({ accountId, message }) => {
+    toast(friendlySmtpError(message), 'error', `Sends failing — ${accountLabelFor(accountId)}`);
+    void refreshAccounts().then(() => renderPreflight());
+  });
+
+  // E2: an async DSN bounce was auto-suppressed — refresh the blocked list,
+  // the recipients chips, and say it out loud.
+  window.electronAPI.onBounceDetected(({ email }) => {
+    toast(`${email} bounced and was removed from your sending list.`, 'error', 'Delivery failed');
+    void renderSuppressions().then(() => renderRecipients());
   });
 
   // --- Recipients Logic ---
@@ -1679,6 +2353,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Active recipients
     const activeCount = recipientsData.filter(r => r.active !== false).length;
     animateCount(document.getElementById('active-recips-display'), activeCount);
+    // Subtitle depends on whether anyone is on the list (U14) — recipientsData
+    // loads after the first updateStatusUI, so re-sync here on every render.
+    refreshSubtitle();
     
     // Today's schedule
     const scheduleList = document.getElementById('today-schedule-list');
@@ -1715,14 +2392,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     todayTasks.sort((a, b) => a.timeValue - b.timeValue);
 
-    // Hero "Next Run" — the soonest upcoming send today. Per-recipient schedule
-    // is the real source of truth (the scheduler ignores any global cron).
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const upcoming = todayTasks.find(t => t.timeValue >= nowMinutes);
+    // Hero "Next Run" — the soonest upcoming send within the next week, not
+    // just today (U13: a Mon–Fri schedule used to read "No runs scheduled"
+    // all weekend, contradicting Pre-flight right after setup).
     if (scheduleDisplay) {
-      scheduleDisplay.textContent = upcoming
-        ? `Today at ${upcoming.time} · ${upcoming.name}`
-        : (todayTasks.length ? 'No more runs today' : 'No runs scheduled');
+      const next = findNextRun(recipientsData, now);
+      scheduleDisplay.textContent = next
+        ? `${nextRunDayLabel(now, next.dayOffset)} at ${next.time} · ${next.name}`
+        : 'No runs scheduled';
     }
 
     scheduleList.innerHTML = '';
@@ -1789,6 +2466,44 @@ document.addEventListener('DOMContentLoaded', async () => {
             openRecipientModal(idx);
         });
     });
+
+    renderUpcomingWeek();
+  }
+
+  /** E4: the rest of the week under Today's Schedule — cron schedules merged
+   *  with follow-up dues (upcomingSends is pure + unit-tested), one collapsed
+   *  <details> per day. Today (dayOffset 0) is covered by the list above. */
+  function renderUpcomingWeek() {
+    const list = document.getElementById('upcoming-week-list');
+    if (!list) return;
+    const days = upcomingSends(recipientsData, new Date(), 7).filter(d => d.dayOffset > 0);
+    list.innerHTML = '';
+    if (days.length === 0) {
+      list.innerHTML = '<p class="help-text">Nothing else scheduled in the next 7 days.</p>';
+      return;
+    }
+    for (const d of days) {
+      const wrap = document.createElement('details');
+      wrap.style.cssText = 'border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;background:#fafafa;';
+      const sum = document.createElement('summary');
+      sum.style.cssText = 'cursor:pointer;font-weight:600;font-size:0.85rem;';
+      sum.textContent = `${nextRunDayLabel(new Date(), d.dayOffset)} · ${d.entries.length} email${d.entries.length === 1 ? '' : 's'}`;
+      wrap.appendChild(sum);
+      for (const e of d.entries) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;gap:10px;font-size:0.8rem;padding:4px 0;color:var(--muted-foreground);';
+        const left = document.createElement('span');
+        left.textContent = `${e.time}${e.detail ? ` (${e.detail})` : ''}`;
+        left.style.whiteSpace = 'nowrap';
+        const right = document.createElement('span');
+        right.textContent = e.name + (e.kind === 'sequence' ? ' · follow-up' : '');
+        right.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        row.appendChild(left);
+        row.appendChild(right);
+        wrap.appendChild(row);
+      }
+      list.appendChild(wrap);
+    }
   }
 
   // --- Campaigns ---
@@ -1994,7 +2709,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // CSA-16: this said "sent immediately", which it never was. Enrolling a
       // recipient only writes recipients.json; the SequenceRunner picks it up on its
       // hourly tick, so step 1 goes out within the hour — not on save.
-      if (title) title.textContent = i === 0 ? 'Step 1 · initial email (sent at the next hourly check)' : `Step ${i + 1}`;
+      if (title) title.textContent = i === 0 ? 'Step 1 · initial email (goes out within the hour once enrolled)' : `Step ${i + 1}`;
       if (followup) followup.style.display = i === 0 ? 'none' : 'flex';
       if (remove) remove.style.display = rows.length > 1 ? 'inline-flex' : 'none';
     });
@@ -2013,6 +2728,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       delayDays: i === 0 ? 0 : Math.min(365, Math.max(0, parseInt((row.querySelector('.seq-step-delay') as HTMLInputElement).value, 10) || 0)),
       stopOnReply: i === 0 ? false : (row.querySelector('.seq-step-stoponreply') as HTMLInputElement).checked,
     }));
+  }
+
+  /** E3: relative due-time for drip displays ("due now" / "in 3 days" / "in 2h"). */
+  function relDue(iso?: string): string {
+    if (!iso) return 'due now';
+    const ms = new Date(iso).getTime() - Date.now();
+    if (isNaN(ms)) return '';
+    if (ms <= 0) return 'due now';
+    const d = Math.floor(ms / 86400000);
+    if (d >= 1) return `in ${d} day${d === 1 ? '' : 's'}`;
+    const h = Math.floor(ms / 3600000);
+    if (h >= 1) return `in ${h}h`;
+    return `in ${Math.max(1, Math.floor(ms / 60000))}m`;
+  }
+
+  /** E3: one recipient's drip position. seqStep counts steps already SENT
+   *  (sequenceRunner sets seqStep = stepIdx + 1 after a send), so the step in
+   *  flight is seqStep + 1. seqDone with fewer sends than steps = stopped early
+   *  (usually a reply; possibly a shortened sequence). */
+  function dripStateLabel(rec: any, totalSteps: number): { text: string; color: string; title: string } {
+    const sent = Number(rec.seqStep) || 0;
+    if (rec.seqDone) {
+      return sent >= totalSteps && totalSteps > 0
+        ? { text: 'Finished', color: 'var(--success, #16a34a)', title: 'Every step was sent.' }
+        : { text: 'Stopped', color: '#0891b2', title: 'Stopped early — they replied, or the sequence was shortened.' };
+    }
+    const next = Math.min(sent + 1, Math.max(totalSteps, 1));
+    return {
+      text: `Step ${next} of ${totalSteps} · ${relDue(rec.seqNextDueAt)}`,
+      color: 'var(--muted-foreground)',
+      title: rec.seqNextDueAt ? `Next step ${relDue(rec.seqNextDueAt)} (${new Date(rec.seqNextDueAt).toLocaleString()})` : 'Next step is due on the next hourly check.',
+    };
   }
 
   function renderSequencesList() {
@@ -2036,7 +2783,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const doneLine = done > 0 ? ` · ${done} finished` : '';
       const card = document.createElement('div');
       card.className = 'card';
-      card.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;margin:0;';
+      card.style.cssText = 'display:flex;flex-direction:column;padding:14px 16px;margin:0;';
+      const topRow = document.createElement('div');
+      topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:12px;';
       const info = document.createElement('div');
       info.innerHTML = `<div style="font-weight:600;">${escapeHTML(s.name)}</div>` +
         `<div style="font-size:0.8em;color:var(--muted-foreground);margin-top:2px;" ` +
@@ -2044,6 +2793,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         `${s.steps.length} step${s.steps.length === 1 ? '' : 's'} · ${count} recipient${count === 1 ? '' : 's'}${doneLine}</div>`;
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;';
+      // U24: a freshly created sequence dead-ended at "0 recipients" with no
+      // path to enrollment (it lives inside each recipient's edit modal).
+      // Bridge it: an explicit action that lands the user where assignment
+      // actually happens.
+      if (count === 0) {
+        const assignBtn = document.createElement('button');
+        assignBtn.className = 'btn primary';
+        assignBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;';
+        assignBtn.textContent = 'Assign recipients';
+        assignBtn.addEventListener('click', () => {
+          (document.querySelector('.nav-links li[data-view="recipients"]') as HTMLElement)?.click();
+          toast(`Open a recipient (Edit) and pick "${s.name}" under Follow-up sequence.`, 'info', 'Enroll people');
+        });
+        actions.appendChild(assignBtn);
+      }
       const editBtn = document.createElement('button');
       editBtn.className = 'btn outline';
       editBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;';
@@ -2075,8 +2839,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderRecipients();
         toast('Sequence deleted.', 'success');
       });
+      // E3: per-recipient drip roster — who is on which step, next due when.
+      // Lazy-built on expand; pure client-side join (seq* fields already loaded).
+      let roster: HTMLElement | null = null;
+      if (count > 0) {
+        roster = document.createElement('div');
+        roster.style.cssText = 'display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:10px;flex-direction:column;gap:6px;';
+        const rosterBtn = document.createElement('button');
+        rosterBtn.className = 'btn outline';
+        rosterBtn.style.cssText = 'height:32px;padding:0 12px;font-size:0.85em;';
+        rosterBtn.textContent = 'Progress';
+        rosterBtn.addEventListener('click', () => {
+          if (roster!.style.display !== 'none') {
+            roster!.style.display = 'none';
+            rosterBtn.textContent = 'Progress';
+            return;
+          }
+          roster!.innerHTML = '';
+          enrolled.forEach(r => {
+            const st = dripStateLabel(r, s.steps.length);
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:0.82rem;';
+            const who = document.createElement('span');
+            who.textContent = r.name || r.company ? `${r.name || r.company} — ${r.email || r.Email || ''}` : String(r.email || r.Email || '');
+            who.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+            const state = document.createElement('span');
+            state.textContent = st.text;
+            state.title = st.title;
+            state.style.cssText = `color:${st.color};white-space:nowrap;flex-shrink:0;`;
+            row.appendChild(who);
+            row.appendChild(state);
+            roster!.appendChild(row);
+          });
+          roster!.style.display = 'flex';
+          rosterBtn.textContent = 'Hide progress';
+        });
+        actions.appendChild(rosterBtn);
+      }
       actions.appendChild(editBtn); actions.appendChild(delBtn);
-      card.appendChild(info); card.appendChild(actions);
+      topRow.appendChild(info); topRow.appendChild(actions);
+      card.appendChild(topRow);
+      if (roster) card.appendChild(roster);
       listEl.appendChild(card);
     });
   }
@@ -2115,6 +2918,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function refreshReplies() {
     try {
       const replies = await window.electronAPI.getReplies() || [];
+      repliesCache = replies;
       repliedSet = new Set(replies.map(r => String(r.email || '').toLowerCase()));
       // Feature #2: capture AI labels + render the per-category summary (if shown).
       replyByEmail = new Map(
@@ -2127,19 +2931,167 @@ document.addEventListener('DOMContentLoaded', async () => {
         const parts = Object.entries(counts).map(([k, v]) => `${AI_BADGE_LABELS[k] || k} ${v}`);
         summaryEl.textContent = parts.length ? `Classified replies: ${parts.join(' · ')}` : 'No classified replies yet.';
       }
-    } catch { repliedSet = new Set(); replyByEmail = new Map(); }
+      // Keep the hero Replies stat in sync — it folds in the Interested count
+      // from replyByEmail, which this refresh just rebuilt (U32).
+      void refreshStats();
+      // Slice D: repaint the Replies screen when it's the open view.
+      if (document.getElementById('replies')?.classList.contains('active')) renderRepliesScreen();
+    } catch { repliedSet = new Set(); replyByEmail = new Map(); repliesCache = []; }
   }
+
+  /** Slice D: the dedicated Replies screen — newest first, searchable, filterable
+   *  by AI label. Reads repliesCache (kept fresh by refreshReplies) and joins
+   *  recipient names client-side (a ReplyEntry carries only the address). */
+  function renderRepliesScreen() {
+    const tbody = document.getElementById('replies-table-body');
+    const empty = document.getElementById('replies-empty-state') as HTMLElement | null;
+    if (!tbody || !empty) return;
+    const q = ((document.getElementById('replies-search') as HTMLInputElement | null)?.value || '').trim().toLowerCase();
+    const label = (document.getElementById('replies-class-filter') as HTMLSelectElement | null)?.value || '';
+
+    const recByEmail = new Map<string, any>();
+    for (const rec of recipientsData) {
+      const key = String(rec.email || rec.Email || '').toLowerCase();
+      if (key && !recByEmail.has(key)) recByEmail.set(key, rec);
+    }
+
+    const rows = [...repliesCache]
+      .sort((a, b) => (a.repliedAt < b.repliedAt ? 1 : -1))
+      .filter(r => {
+        if (label === '__none' ? r.classification : (label && r.classification !== label)) return false;
+        if (!q) return true;
+        const rec = recByEmail.get(String(r.email || '').toLowerCase());
+        const name = rec ? String(rec.name || rec.company || '') : '';
+        return `${r.email} ${name} ${r.subject || ''}`.toLowerCase().includes(q);
+      });
+
+    tbody.innerHTML = '';
+    for (const r of rows.slice(0, 300)) {
+      const tr = document.createElement('tr');
+
+      const tdTime = document.createElement('td');
+      tdTime.style.whiteSpace = 'nowrap';
+      const d = new Date(r.repliedAt);
+      tdTime.textContent = isNaN(d.getTime()) ? r.repliedAt : d.toLocaleString();
+
+      const tdFrom = document.createElement('td');
+      const rec = recByEmail.get(String(r.email || '').toLowerCase());
+      const name = rec ? String(rec.name || rec.company || '') : '';
+      if (name) {
+        const nameLine = document.createElement('div');
+        nameLine.textContent = name;
+        nameLine.style.fontWeight = '600';
+        const emailLine = document.createElement('div');
+        emailLine.textContent = r.email;
+        emailLine.style.cssText = 'font-size:0.8em;color:var(--muted-foreground);';
+        tdFrom.appendChild(nameLine);
+        tdFrom.appendChild(emailLine);
+      } else {
+        tdFrom.textContent = r.email;
+      }
+
+      const tdSubject = document.createElement('td');
+      tdSubject.textContent = r.subject || '(no subject)';
+      tdSubject.style.cssText = 'max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      tdSubject.title = r.subject || '';
+
+      const tdLabel = document.createElement('td');
+      if (r.classification) {
+        const badge = document.createElement('span');
+        badge.textContent = AI_BADGE_LABELS[r.classification] || r.classification;
+        badge.title = `AI: ${r.classification}`;
+        badge.style.cssText = `display:inline-block;padding:2px 10px;border-radius:999px;font-size:0.75rem;font-weight:600;color:#fff;white-space:nowrap;background:${AI_BADGE_COLORS[r.classification] || '#9ca3af'};`;
+        tdLabel.appendChild(badge);
+      } else {
+        tdLabel.textContent = '—';
+        tdLabel.style.color = 'var(--muted-foreground)';
+        tdLabel.title = 'Not classified. Turn on Local AI → Reply automation → Classify incoming replies.';
+      }
+
+      const tdAccount = document.createElement('td');
+      tdAccount.textContent = accountLabelFor(r.accountId || 'default');
+      // E5: one click to read the actual reply in the mailbox it landed in.
+      const webmail = webmailUrlFor(r.accountId, r.email);
+      if (webmail) {
+        const openBtn = document.createElement('button');
+        openBtn.className = 'btn outline';
+        openBtn.style.cssText = 'display:block;margin-top:4px;height:24px;padding:0 8px;font-size:0.72rem;';
+        openBtn.textContent = 'Open in webmail';
+        openBtn.title = 'Open this inbox in your browser (Gmail lands on a search for this sender).';
+        openBtn.addEventListener('click', () => { window.open(webmail); });
+        tdAccount.appendChild(openBtn);
+      }
+
+      tr.appendChild(tdTime); tr.appendChild(tdFrom); tr.appendChild(tdSubject);
+      tr.appendChild(tdLabel); tr.appendChild(tdAccount);
+      tbody.appendChild(tr);
+    }
+
+    empty.style.display = rows.length === 0 ? '' : 'none';
+  }
+
+  /** E5: best-effort webmail URL for the RECEIVING account. Reply bodies are
+   *  not stored in-app (envelope-first poller), so this is the one-click path
+   *  to read the actual mail. Unknown providers ⇒ null (no button). */
+  function webmailUrlFor(accountId: string | undefined, replyEmail: string): string | null {
+    const acct = accountsCache.find(a => a.id === (accountId || 'default'));
+    if (!acct) return null;
+    if (detectProviderFromEmail(acct.user) === 'gmail' || /gmail|googlemail/i.test(acct.host)) {
+      return `https://mail.google.com/mail/u/0/#search/from:${encodeURIComponent(replyEmail)}`;
+    }
+    if (acct.transport === 'oauth-smtp' || /office365|outlook|hotmail|live/i.test(acct.host)) {
+      // Search deep-links are unreliable across MSA/M365 — open the mailbox root.
+      return /@(outlook|hotmail|live|msn)\./i.test(acct.user)
+        ? 'https://outlook.live.com/mail/'
+        : 'https://outlook.office.com/mail/';
+    }
+    return null;
+  }
+
+  document.getElementById('replies-search')?.addEventListener('input', renderRepliesScreen);
+  document.getElementById('replies-class-filter')?.addEventListener('change', renderRepliesScreen);
+  document.getElementById('replies-poll-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('replies-poll-btn') as HTMLButtonElement;
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Checking…';
+    try {
+      const res = await window.electronAPI.pollNow();
+      await refreshReplies();
+      renderRecipients();
+      if (res.ok) toast('Inbox checked — the list is up to date.', 'success', 'Replies');
+      else toast(res.error || 'Could not check the inbox.', 'error', 'Reply check failed');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  });
 
   /** Refresh the dashboard counters: total sent + reply rate (replies / sent). */
   async function refreshStats() {
     try {
       const stats = await window.electronAPI.getStats();
       animateCount(document.getElementById('total-sent-display'), stats.totalEmailsSent);
+      // U12: "Welcome back" only once they've actually used the thing.
+      if (currentUserName && (stats.totalEmailsSent || 0) > 0) {
+        const t = document.getElementById('welcome-title');
+        const formatted = currentUserName.charAt(0).toUpperCase() + currentUserName.slice(1);
+        if (t) t.textContent = `Welcome back, ${formatted}`;
+      }
       const rateEl = document.getElementById('reply-rate-display');
       if (rateEl) {
         const sent = stats.totalEmailsSent || 0;
         const replies = stats.totalReplies || 0;
-        rateEl.textContent = sent > 0 ? `${Math.round((replies / sent) * 100)}%` : '—';
+        // U32: replies are the outcome users come back for — lead with the
+        // count (and the Interested count, the jackpot event), not a bare
+        // percentage that hides the actual events two clicks deep.
+        if (replies > 0) {
+          const interested = [...replyByEmail.values()].filter(v => v === 'Interested').length;
+          const rate = sent > 0 ? ` (${Math.round((replies / sent) * 100)}%)` : '';
+          rateEl.textContent = `${replies}${rate}${interested ? ` · ${interested} interested` : ''}`;
+        } else {
+          rateEl.textContent = sent > 0 ? '0 so far' : '—';
+        }
       }
     } catch (e) {
       console.error('Failed to load stats', e);
@@ -2236,8 +3188,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         sel.value = cur;
         sel.addEventListener('change', () => {
-          if (sel.value === 'default') delete recipientsData[index].accountId;
-          else recipientsData[index].accountId = sel.value;
+          const target = sel.value || 'default';
+          const key = String(rec.email || rec.Email || '').trim().toLowerCase();
+          // This path bypasses the form's duplicate guard, so re-check here: moving
+          // the row onto an account that already holds this address would create a
+          // true (email+account) duplicate the drip layer can't tell apart.
+          const clash = recipientsData.some((r, i) =>
+            i !== index
+            && String(r.email || r.Email || '').trim().toLowerCase() === key
+            && (r.accountId || 'default') === target);
+          if (clash) {
+            toast('That account already has this recipient. Duplicate onto a different account instead.', 'error', 'Already there');
+            sel.value = rec.accountId || 'default'; // revert
+            return;
+          }
+          if (target === 'default') delete recipientsData[index].accountId;
+          else recipientsData[index].accountId = target;
           saveRecipientsData();
         });
         tdEmail.appendChild(sel);
@@ -2245,6 +3211,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const tdSchedule = document.createElement('td');
       tdSchedule.style.fontSize = '0.8rem';
+      if (rec.sequenceId) {
+        // E3: sequence-owned recipients are EXCLUDED from the cron scheduler
+        // (both Scheduler and the batch path filter on !sequenceId), so showing
+        // days/times here was actively misleading. Show the drip position instead.
+        const seq = sequencesCache.find(sq => sq.id === rec.sequenceId);
+        const total = seq?.steps.length || 0;
+        const st = dripStateLabel(rec, total);
+        tdSchedule.innerHTML = `<strong>Drip:</strong> ${escapeHTML(seq?.name || 'sequence')}<br>`;
+        const stateSpan = document.createElement('span');
+        stateSpan.textContent = st.text;
+        stateSpan.title = st.title;
+        stateSpan.style.color = st.color;
+        tdSchedule.appendChild(stateSpan);
+      } else {
       const hasSchedule = (rec.scheduledDays || []).length > 0 && (rec.scheduledTimes || []).length > 0;
       const days = (rec.scheduledDays || []).join(', ') || 'No days';
       const times = (rec.scheduledTimes || []).join(', ') || 'No times';
@@ -2268,6 +3248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           toast('Weekdays at 09:00 (±15 min). Edit any time.', 'success', 'Schedule set');
         });
         tdSchedule.appendChild(fixBtn);
+      }
       }
 
       const tdActions = document.createElement('td');
@@ -2325,8 +3306,59 @@ document.addEventListener('DOMContentLoaded', async () => {
       genBtn.style.display = aiReady ? '' : 'none';
       genBtn.addEventListener('click', () => { openRecipientModal(index); focusPersonalizerGoal(); });
 
+      // E6: the person drawer — this contact's sends, reply, drip position and
+      // block status in one place.
+      const histBtn = document.createElement('button');
+      histBtn.className = 'btn outline';
+      histBtn.innerHTML = '<span class="material-symbols-outlined">history</span>';
+      histBtn.style.height = '32px'; histBtn.style.padding = '0 8px'; histBtn.title = 'History';
+      histBtn.addEventListener('click', () => openPersonDrawer(index));
+
+      // Duplicate onto another account: same person, a second sending identity.
+      // Recipients are keyed by (email, accountId), so the copy drips/sends fully
+      // independently. Reset the runner-owned seq* runtime so the copy starts its
+      // sequence fresh, point it at the first ready account that isn't this row's,
+      // then open the editor to confirm/adjust the account before it persists. Shown
+      // only with more than one account (same gate as the inline "send from" select).
+      const dupBtn = document.createElement('button');
+      dupBtn.className = 'btn outline';
+      dupBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
+      dupBtn.style.height = '32px'; dupBtn.style.padding = '0 8px';
+      dupBtn.title = 'Duplicate for another account';
+      dupBtn.style.display = accountsCache.length > 1 ? '' : 'none';
+      dupBtn.addEventListener('click', () => {
+        const email = String(recipientsData[index].email || recipientsData[index].Email || '').trim().toLowerCase();
+        // Accounts that ALREADY hold this address (including the source's own).
+        // Duplicating onto one of them would mint two rows with an identical
+        // (email, accountId) — a true duplicate the drip layer can't tell apart:
+        // both would advance and send in the same tick (double send from one
+        // mailbox) and their persist() writes would clobber each other (the exact
+        // A16/CSA-4 cross-contamination this change exists to prevent). Pick the
+        // first ready account that does NOT already have this recipient; if every
+        // ready account has them, there is nothing to duplicate onto.
+        const taken = new Set(recipientsData
+          .filter(r => String(r.email || r.Email || '').trim().toLowerCase() === email)
+          .map(r => r.accountId || 'default'));
+        const sendable = accountsCache.filter(a => accountHasCredentials(a) && a.enabled !== false);
+        const other = sendable.find(a => !taken.has(a.id));
+        if (!other) {
+          toast('This recipient is already on every ready account.', 'info', 'Nothing to duplicate to');
+          return;
+        }
+        const clone: any = JSON.parse(JSON.stringify(recipientsData[index]));
+        ['seqStep', 'seqLastSentAt', 'seqNextDueAt', 'seqDone', 'seqNextStepId'].forEach(k => delete clone[k]);
+        if (other.id === 'default') delete clone.accountId; else clone.accountId = other.id;
+        const newIdx = recipientsData.push(clone) - 1;
+        saveRecipientsData();
+        renderRecipients();
+        openRecipientModal(newIdx);
+        toast('Duplicated — confirm which account sends this copy.', 'info', 'Duplicate');
+      });
+
       tdActions.appendChild(editBtn);
       tdActions.appendChild(previewBtn);
+      tdActions.appendChild(histBtn);
+      tdActions.appendChild(dupBtn);
       tdActions.appendChild(genBtn);
       tdActions.appendChild(delBtn);
 
@@ -2351,6 +3383,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         badge.title = `AI: ${aiCls}`;
         badge.style.cssText = `display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:0.7rem;font-weight:600;color:#fff;vertical-align:middle;white-space:nowrap;background:${AI_BADGE_COLORS[aiCls] || '#9ca3af'};`;
         tdReplied.appendChild(badge);
+      }
+      // E2: a suppressed recipient looks active but silently skips every send —
+      // say so, colored by reason (red bounce, amber unsubscribe/other).
+      const supReason = suppressedByEmail.get(String(rec.email || rec.Email || '').toLowerCase());
+      if (supReason) {
+        const supChip = document.createElement('span');
+        supChip.textContent = supReason === 'bounce' ? 'Bounced'
+          : supReason === 'unsubscribe' ? 'Unsubscribed'
+          : supReason === 'complaint' ? 'Complained' : 'Blocked';
+        supChip.title = `On the blocked list (${supReason}) — sends to this address are skipped. Manage under Recipients → Blocked addresses.`;
+        supChip.style.cssText = `display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:0.7rem;font-weight:600;color:#fff;vertical-align:middle;white-space:nowrap;background:${supReason === 'bounce' ? '#dc2626' : '#d97706'};`;
+        tdReplied.appendChild(supChip);
+      }
+      // Last send attempt for this address (from the Sent screen's data): answers
+      // "did X get mailed, and when?" without leaving the recipients list.
+      const lastSent = sentLatestByEmail.get(String(rec.email || rec.Email || '').toLowerCase());
+      if (lastSent) {
+        const d = new Date(lastSent.at);
+        const when = isNaN(d.getTime())
+          ? lastSent.at
+          : `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+        const line = document.createElement('div');
+        line.textContent = `${SENT_STATUS_LABELS[lastSent.status] || lastSent.status} ${when}`;
+        line.title = [
+          lastSent.subject || '',
+          lastSent.smtpResponse ? `Server: ${lastSent.smtpResponse}` : '',
+          lastSent.error || '',
+        ].filter(Boolean).join('\n');
+        line.style.cssText = `margin-top:4px;font-size:0.7rem;white-space:nowrap;color:${SENT_STATUS_COLORS[lastSent.status] || 'var(--muted-foreground)'};`;
+        tdReplied.appendChild(line);
       }
 
       tr.appendChild(tdSelect);
@@ -2529,6 +3591,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         right.appendChild(toggle);
       }
 
+      // Sent-folder copy toggle (browser accounts excluded — no IMAP creds).
+      // Shows the RESOLVED policy (provider default until the user chooses):
+      // Microsoft/generic default On, Gmail default Off (it auto-saves).
+      if (acc.transport !== 'browser') {
+        const effective = !!acc.copyToSentEffective;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn outline';
+        copyBtn.style.cssText = 'height:32px;padding:0 10px;font-size:0.8em;';
+        copyBtn.textContent = `Sent copy: ${effective ? 'On' : 'Off'}`;
+        copyBtn.title = (effective
+          ? 'Each real send is filed into this mailbox\'s Sent folder over IMAP. Click to turn off.'
+          : 'Real sends are not copied into this mailbox\'s Sent folder. Click to turn on.')
+          + (acc.copyToSent === undefined && /gmail|googlemail/i.test(acc.host) ? ' Gmail already saves sent mail by itself.' : '');
+        copyBtn.addEventListener('click', async () => {
+          copyBtn.disabled = true;
+          const next = !effective;
+          let ok = false; let err: string | undefined;
+          if (acc.isDefault) {
+            // The primary account lives in .env — saveAccount refuses it.
+            ok = await window.electronAPI.saveConfig({ copyToSent: next });
+          } else {
+            const res = await window.electronAPI.saveAccount({
+              id: acc.id, label: acc.label, host: acc.host, port: acc.port,
+              user: acc.user, enabled: acc.enabled, copyToSent: next,
+            });
+            ok = res.ok; err = res.error;
+          }
+          if (!ok) toast(err || 'Couldn\'t change the Sent-copy setting.', 'error');
+          await refreshAccounts();
+        });
+        right.appendChild(copyBtn);
+      }
+
       const testBtn = document.createElement('button');
       testBtn.className = 'btn outline';
       testBtn.style.cssText = 'height:32px;padding:0 10px;font-size:0.8em;';
@@ -2612,10 +3707,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     enable('bulk-remove-btn', n > 0);
   }
 
-  /** Fleet summary strip: aggregate sent/capacity + health counts. */
+  /** Fleet summary strip: aggregate sent/capacity + health counts. Renders the
+   *  same rollup into the Accounts view and (audit follow-up) the dashboard —
+   *  multi-inbox users shouldn't have to visit Accounts to see fleet health. */
   async function renderFleetStrip() {
-    const strip = document.getElementById('fleet-strip');
-    if (!strip) return;
+    const strips = ['fleet-strip', 'fleet-strip-dash']
+      .map(id => document.getElementById(id))
+      .filter((el): el is HTMLElement => !!el);
+    if (strips.length === 0) return;
     // CSA-14: pin the cache for the whole render. refreshAccounts() replaces
     // accountsCache wholesale and this is called un-awaited, so reading it again
     // after the await below built one strip out of two different generations —
@@ -2623,12 +3722,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const snapshot = accountsCache;
     const sendable = snapshot.filter(a => accountHasCredentials(a) && a.enabled !== false);
     // Only worth showing once a 2nd inbox is in play.
-    if (snapshot.length <= 1) { strip.style.display = 'none'; return; }
+    if (snapshot.length <= 1) { strips.forEach(s => { s.style.display = 'none'; }); return; }
 
     const usages = await Promise.all(
       sendable.map(a => window.electronAPI.getUsage(a.id).catch(() => null))
     );
-    // A newer refresh landed while we were reading usage. It owns this node now —
+    // A newer refresh landed while we were reading usage. It owns these nodes now —
     // bail rather than let a slower earlier call overwrite fresher numbers.
     if (accountsCache !== snapshot) return;
     let sent = 0, cap = 0;
@@ -2642,13 +3741,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       `<span style="font-size:0.72em;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted-foreground);">${label}</span>` +
       `<span style="font-weight:600;${color ? `color:${color};` : ''}">${value}</span></div>`;
 
-    strip.style.display = 'flex';
-    strip.innerHTML =
+    const html =
       item('Sent today', `${sent} / ${cap}`) +
       item('Remaining', String(remaining)) +
       item('Active inboxes', String(sendable.length)) +
       item('Disabled', String(disabled), disabled ? '#9ca3af' : undefined) +
       item('Need attention', String(attention), attention ? 'var(--destructive)' : undefined);
+    strips.forEach(s => { s.style.display = 'flex'; s.innerHTML = html; });
   }
 
   /** Populate the per-recipient "send from" <select> from the account cache. */
@@ -3060,6 +4159,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const template = (document.getElementById('campaign-template') as HTMLTextAreaElement).value;
     const errEl = document.getElementById('campaign-error');
     if (!name) { if (errEl) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; } return; }
+    // U26: two campaigns with the same name save fine (ids differ) but render
+    // as indistinguishable cards and picker options. Report inline instead of
+    // silently accepting; editing a campaign keeps its own name.
+    const dup = campaignsCache.find(c => c.id !== id && c.name.trim().toLowerCase() === name.toLowerCase());
+    if (dup) {
+      if (errEl) { errEl.textContent = `You already have a campaign called "${dup.name}" — pick a different name.`; errEl.style.display = 'block'; }
+      return;
+    }
     const res = await window.electronAPI.saveCampaign({ id: id || undefined, name, subject, template });
     if (!res.ok) { if (errEl) { errEl.textContent = res.error || 'Save failed.'; errEl.style.display = 'block'; } return; }
     resetCampaignForm();
@@ -3116,7 +4223,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('sequence-cancel-edit-btn')?.addEventListener('click', resetSequenceForm);
   document.querySelector('.nav-links li[data-view="sequences"]')?.addEventListener('click', () => {
     renderSequencesList();
+    maybeSeedSequenceDemo();
   });
+
+  /** Guided demo, half 2: an explorer's first visit to an empty Sequences view
+   *  prefills the create FORM with a 3-step sample plan — the product's actual
+   *  magic moment is seeing follow-ups laid out on a timeline. Form state only:
+   *  sequences.json is untouched unless they press Create themselves. One-shot,
+   *  and never over a form they've started typing into. */
+  function maybeSeedSequenceDemo() {
+    if (!isExploring()) return;
+    if (sequencesCache.length > 0) return;
+    const nameInput = document.getElementById('sequence-name') as HTMLInputElement | null;
+    if (!nameInput || nameInput.value.trim() !== '') return;
+    try { if (localStorage.getItem(DEMO_SEQ_SEEN_KEY) === '1') return; } catch { /* private mode */ }
+    try { localStorage.setItem(DEMO_SEQ_SEEN_KEY, '1'); } catch { /* private mode */ }
+    nameInput.value = DEMO_SEQUENCE_NAME;
+    const container = document.getElementById('sequence-steps');
+    if (container) container.innerHTML = '';
+    DEMO_SEQUENCE_STEPS.forEach(st => addStepRow(st));
+  }
   // Seed the create form with one empty step on first load.
   if ((document.getElementById('sequence-steps')?.children.length || 0) === 0) addStepRow();
 
@@ -3154,6 +4280,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pass = normalizeAppPassword((document.getElementById('acct-pass') as HTMLInputElement).value);
     if (!user || !pass) { showErr('Add the email address and app password.'); return; }
 
+    // Microsoft's SMTP hosts reject every password now (basic auth retired
+    // 2024/2026): the verifyConnection below would burn the attempt into a
+    // misleading EAUTH before save-account's guard could answer, so steer to
+    // "Sign in with Microsoft" above instead. Two nets: host membership covers
+    // the Outlook preset, a hand-typed Microsoft host, and custom-domain M365
+    // mailboxes the address table can't see; the address check catches a
+    // Microsoft address aimed at the wrong preset (hotmail on the Gmail tab).
+    // 'Other' + a non-Microsoft host stays the self-hosted-relay escape hatch.
+    if (isMsBasicAuthDeadHost(host)
+        || (provider !== 'other' && detectProviderFromEmail(user) === 'outlook')) {
+      showErr('Microsoft retired app passwords — use "Sign in with Microsoft" above. No password needed.');
+      return;
+    }
+
     submitBtn.disabled = true;
     const original = submitBtn.innerHTML;
     submitBtn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Verifying…';
@@ -3182,14 +4322,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // ===== LOW-FRICTION TRANSPORTS (Accounts view) — gated behind SHOW_NO_PASSWORD_TRANSPORTS.
-  //        Hidden by default; the whole if-block is safe to delete to remove the feature. =====
-  if (SHOW_NO_PASSWORD_TRANSPORTS) {
-  const acctNoPwBlock = document.getElementById('acct-nopw-block');
-  if (acctNoPwBlock) acctNoPwBlock.style.display = 'block';
+  // "Sign in with Microsoft" — password-less OAuth-SMTP account, available in
+  // every GUI (Microsoft mailboxes are OAuth-only; see the
+  // SHOW_NO_PASSWORD_TRANSPORTS note). Opens the system browser (main process);
+  // we just reflect status and refresh the list.
+  /** Identity-alignment warning from oauth-login-microsoft (a Microsoft account
+   *  whose alias lives on a foreign domain — e.g. @protonmail.com — sends mail
+   *  that fails SPF/DMARC at receivers). Surfaced loudly at every connect
+   *  surface; the main process already put the same line in System Logs. */
+  function showIdentityWarningIfAny(res: { identityWarning?: string }): void {
+    if (res.identityWarning) toast(res.identityWarning, 'error', 'Delivery warning');
+  }
 
-  // "Sign in with Microsoft" — password-less OAuth-SMTP account. Opens the
-  // system browser (main process); we just reflect status and refresh the list.
   document.getElementById('ms-oauth-btn')?.addEventListener('click', async () => {
     const btn = document.getElementById('ms-oauth-btn') as HTMLButtonElement;
     const statusEl = document.getElementById('ms-oauth-status') as HTMLElement;
@@ -3202,9 +4346,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     setStatus('A browser window opened — finish signing in with Microsoft there.');
     try {
       const res = await window.electronAPI.oauthLoginMicrosoft();
-      if (!res.ok) { setStatus(res.error || 'Microsoft sign-in failed.', 'var(--destructive)'); return; }
+      if (!res.ok) {
+        setStatus(res.error || 'Microsoft sign-in failed.', 'var(--destructive)');
+        toast(res.error || 'Microsoft sign-in failed.', 'error', 'Sign-in failed');
+        return;
+      }
       setStatus(`${res.email} connected.`, '#16a34a');
       toast(`${res.email} connected.`, 'success', 'Account added');
+      showIdentityWarningIfAny(res);
       fireConfetti();
       await refreshAccounts();
     } catch {
@@ -3214,6 +4363,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.innerHTML = original;
     }
   });
+
+  // ===== LOW-FRICTION TRANSPORTS (Accounts view) — browser-session connect only,
+  //        gated behind SHOW_NO_PASSWORD_TRANSPORTS. Safe to delete. =====
+  if (SHOW_NO_PASSWORD_TRANSPORTS) {
+  const acctNoPwBlock = document.getElementById('acct-nopw-block');
+  if (acctNoPwBlock) acctNoPwBlock.style.display = 'block';
 
   // "Connect Gmail/Outlook (browser)" — credential-less webmail session. Opens a
   // sign-in window (main process); reflect status and refresh the list.
@@ -3259,8 +4414,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const welcomeTitle = document.getElementById('welcome-title');
     if (currentUserName) {
         const formattedName = currentUserName.charAt(0).toUpperCase() + currentUserName.slice(1);
-        if (welcomeTitle) welcomeTitle.textContent = `Welcome back, ${formattedName}`;
-    } else {
+        // U12: "back" is earned — refreshStats() upgrades the greeting once
+        // totalSent > 0. A brand-new user isn't "back" 30 seconds in.
+        if (welcomeTitle) welcomeTitle.textContent = `Welcome, ${formattedName}`;
+    } else if (!isExploring()) {
+        // The name modal (z2000) was designed to wait *behind* the login gate
+        // (z3000). Explore mode hides the gate, so for an exploring user this
+        // boot-time show would land frontmost and block every view with an
+        // undismissable form on each relaunch (U8). Explorers get asked after
+        // they actually connect (login-success / enterAppAfterConnect re-show).
         document.getElementById('onboarding-modal')!.style.display = 'flex';
     }
     
@@ -3281,10 +4443,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         await window.electronAPI.saveConfig(newConfig);
         const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-        if (welcomeTitle) welcomeTitle.textContent = `Welcome back, ${formattedName}`;
+        if (welcomeTitle) welcomeTitle.textContent = `Welcome, ${formattedName}`;
         document.getElementById('onboarding-modal')!.style.display = 'none';
         refreshSetupState();
         // Queue the AI offer behind this one rather than stacking two dialogs.
+        void maybeOfferLocalAi();
+    });
+
+    // U9: the name is a greeting/sender-name nicety, not a wall — skipping is
+    // fine. No save; the AI offer still gets its turn (it self-gates on a
+    // connected inbox and the once-key).
+    document.getElementById('onboard-skip-btn')?.addEventListener('click', () => {
+        document.getElementById('onboarding-modal')!.style.display = 'none';
         void maybeOfferLocalAi();
     });
 
@@ -3334,6 +4504,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!aiOnboardModal || !aiOnboardDownloadBtn) return;
       if (!force) {
         try { if (localStorage.getItem(AI_ONBOARD_KEY)) return; } catch { /* private mode → offer */ }
+        // U10: the offer's contract is "once, after the first sign-in". The
+        // name modal also reaches here for explorers with no inbox — bail
+        // WITHOUT consuming the once-key, so the first real connect still
+        // offers, and nobody sees a multi-GB ask before any value exists.
+        try {
+          const cfg = await window.electronAPI.getConfig();
+          if (!inboxConnected(cfg, accountsCache)) return;
+        } catch { return; }
       }
 
       let catalog: any[] = [];
@@ -3443,9 +4621,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    // Setup banner → jump to Settings
+    // Dashboard fleet rollup → jump to the Accounts view for the detail.
+    document.getElementById('fleet-strip-dash')?.addEventListener('click', () => {
+        (document.querySelector('.nav-links li[data-view="accounts"]') as HTMLElement)?.click();
+    });
+
+    // U35: dismiss the away-digest for this session (baseline already advanced,
+    // so it won't reappear until something new actually happens).
+    document.getElementById('away-digest-dismiss')?.addEventListener('click', () => {
+        const c = document.getElementById('away-digest');
+        if (c) c.style.display = 'none';
+    });
+
+    // Setup banner → reopen the connect flow (gate + wizard + detect + OAuth).
+    // It used to jump to Settings, landing credential-less users on the raw
+    // host/port/password form — the scariest path in the app (U15).
     document.getElementById('setup-banner-btn')?.addEventListener('click', () => {
-        (document.querySelector('.nav-links li[data-view="settings"]') as HTMLElement)?.click();
+        const gate = document.getElementById('login-screen');
+        if (gate) gate.style.display = 'flex';
+    });
+
+    // K3 banner → reveal the damaged file. Settings can't fix a corrupt file; the file
+    // manager can. Re-pull afterwards so repairing it in place clears the banner.
+    document.getElementById('state-file-banner-btn')?.addEventListener('click', async () => {
+        const target = stateFileErrors[0];
+        if (!target) return;
+        const res = await window.electronAPI.revealStateFile(target.filePath);
+        if (!res?.ok) toast(res?.error || 'Could not open that folder.', 'error');
     });
 
     // Refresh suppressed list whenever the Recipients view is opened
@@ -3522,7 +4724,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    if (inputHost.value === 'smtp.gmail.com') {
+    if (!inputUser.value) {
+      // U28: no saved account → don't mirror the config's office365 fallback
+      // host into the UI. Microsoft password-SMTP is dead (OAuth only), so
+      // defaulting the form to Outlook + app password preselects the one
+      // combination that can never authenticate. Gmail is the working default.
+      providerSelect.value = 'gmail';
+      customFieldsContainer.style.display = 'none';
+    } else if (inputHost.value === 'smtp.gmail.com') {
       providerSelect.value = 'gmail';
       customFieldsContainer.style.display = 'none';
     } else if (inputHost.value === 'smtp.office365.com') {
@@ -3561,7 +4770,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const loginPort = document.getElementById('login-port') as HTMLInputElement;
     const loginCustom = document.getElementById('login-custom-fields') as HTMLElement;
     const loginError = document.getElementById('login-error') as HTMLElement;
-    const loginHelp = document.getElementById('login-help') as HTMLAnchorElement;
+    // U5: the inline "Get an app password ↗" anchor was removed from the gate
+    // (it duplicated the richer "How do I get an app password?" modal, whose
+    // footer carries the same external link). Null-tolerant for safety.
+    const loginHelp = document.getElementById('login-help') as HTMLAnchorElement | null;
     const loginSubmitBtn = document.getElementById('login-submit-btn') as HTMLButtonElement;
 
     const PROVIDER_PRESETS: Record<string, { host: string; port: number; help: string; placeholder: string; steps: string[] }> = {
@@ -3574,13 +4786,19 @@ document.addEventListener('DOMContentLoaded', async () => {
           'Copy the 16-character code — paste it next. Spaces are fine.',
         ],
       },
+      // Microsoft retired app passwords with the rest of basic-auth SMTP
+      // (personal accounts Sept 2024, M365 April 2026), so this preset can no
+      // longer collect a password: selecting it swaps the form for the
+      // "Sign in with Microsoft" OAuth panel (see setLoginProvider). host/port
+      // are kept for the submit path's reads but are unreachable from the UI;
+      // help is empty so no surface ever links to the dead app-password page.
       outlook: {
         host: 'smtp.office365.com', port: 587,
-        help: 'https://account.microsoft.com/security', placeholder: 'you@outlook.com',
+        help: '', placeholder: 'you@outlook.com',
         steps: [
-          'Turn on two-step verification (Microsoft account → Security).',
-          'In "Advanced security options", pick "Create a new app password".',
-          'Copy the generated password — paste it next.',
+          'Microsoft retired app passwords — no password exists to type.',
+          'Click "Sign in with Microsoft" below; your browser opens Microsoft’s own sign-in.',
+          'Approve the mail permission and you’re connected.',
         ],
       },
       other: {
@@ -3615,15 +4833,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         b.setAttribute('aria-selected', sel ? 'true' : 'false');
         (b as HTMLElement).tabIndex = sel ? 0 : -1;
       });
+      // Microsoft is OAuth-only — there is no password to collect — so the
+      // Outlook tab swaps the whole password form for the "Sign in with
+      // Microsoft" panel below it. Every other tab restores the form. This is
+      // the "never show a Microsoft user a password form" invariant, applied at
+      // the tab, not just at submit.
+      const msOnly = p === 'outlook';
+      loginForm.style.display = msOnly ? 'none' : '';
+      const msNote = document.getElementById('login-ms-note');
+      if (msNote) msNote.style.display = msOnly ? 'block' : 'none';
+      // U4: when detect flips to Outlook the whole form (with the address the
+      // user was typing) disappears — echo it back so their input visibly
+      // carries into the OAuth path instead of just vanishing.
+      const msEcho = document.getElementById('login-ms-echo');
+      if (msEcho) {
+        const typed = msOnly ? loginEmail.value.trim() : '';
+        msEcho.textContent = typed ? `Connecting ${typed}. ` : '';
+        (msEcho as HTMLElement).style.display = typed ? 'inline' : 'none';
+      }
       loginCustom.style.display = p === 'other' ? 'grid' : 'none';
       const preset = PROVIDER_PRESETS[p];
       loginEmail.placeholder = preset.placeholder;
       if (p === 'other' || !preset.help) {
-        loginHelp.style.display = 'none';
+        if (loginHelp) loginHelp.style.display = 'none';
         document.getElementById('app-pw-help-link')!.style.display = 'none';
       } else {
-        loginHelp.style.display = 'inline';
-        loginHelp.href = preset.help;
+        if (loginHelp) {
+          loginHelp.style.display = 'inline';
+          loginHelp.href = preset.help;
+        }
         document.getElementById('app-pw-help-link')!.style.display = 'inline-block';
       }
       const stepsList = document.getElementById('login-steps');
@@ -3773,38 +5011,82 @@ document.addEventListener('DOMContentLoaded', async () => {
       showPwSlide(1);
       if (appPwModal) appPwModal.style.display = 'flex';
     });
-    document.getElementById('app-pw-close')?.addEventListener('click', () => {
-      if (appPwModal) appPwModal.style.display = 'none';
-    });
+    // U2: never show three layers (gate → wizard → guide). When the guide is
+    // opened FROM the wizard, the wizard hides and every close path restores
+    // it — the user only ever sees one modal above the gate. All three close
+    // routes (button, backdrop, Esc — via data-close-modal on the button)
+    // funnel through here, which also resets the legacy z-index bump.
+    let pwOpenedFromWizard = false;
+    const closePwModal = () => {
+      if (!appPwModal) return;
+      appPwModal.style.display = 'none';
+      appPwModal.style.zIndex = '';
+      if (pwOpenedFromWizard) {
+        pwOpenedFromWizard = false;
+        const wiz = document.getElementById('setup-wizard-modal');
+        if (wiz) wiz.style.display = 'flex';
+      }
+    };
+    document.getElementById('app-pw-close')?.addEventListener('click', closePwModal);
     appPwModal?.addEventListener('click', (e) => {
-      if (e.target === appPwModal) appPwModal.style.display = 'none';
+      if (e.target === appPwModal) closePwModal();
     });
 
     // "Connected" = the .env primary has a password OR any extra account is
     // usable. OAuth/browser accounts have no password, so hasPass alone would
-    // wrongly bounce a password-less setup back to this gate.
-    // Default (and flag-off) behaviour: only the .env primary password unlocks the
-    // app — exactly as before. With the low-friction transports enabled, also
-    // treat a usable OAuth/browser account as "connected" so those flows can boot
-    // the app without an .env password.
-    // The gate runs long before refreshAccounts() populates accountsCache, so it
-    // fetches its own copy. Skipped entirely when no transport can use it, which
-    // keeps the flag-off path free of an extra IPC round-trip on boot.
+    // wrongly bounce a password-less setup back to this gate. A Microsoft OAuth
+    // account lives ONLY in accounts.json, and it unlocks the gate in every GUI
+    // (allowOauth is unconditionally true), so the gate must always fetch its
+    // own copy — it runs long before refreshAccounts() populates accountsCache.
+    // One IPC round-trip on boot; browser-session accounts still only count in
+    // GUI2 via allowBrowser.
     let gateAccounts: ConnectedAccount[] = [];
-    if (SHOW_NO_PASSWORD_TRANSPORTS) {
-      try { gateAccounts = await window.electronAPI.getAccounts(); } catch { /* ignore */ }
-    }
+    try { gateAccounts = await window.electronAPI.getAccounts(); } catch { /* ignore */ }
     const hasAccount = inboxConnected(config, gateAccounts);
-    loginScreen.style.display = hasAccount ? 'none' : 'flex';
+    // Explore-first (freemium #3): a stranger may look around before connecting.
+    // Sending is gated separately on credentials (F4: testRun/scheduler disabled,
+    // setup banner shown), so the wall's only remaining job was first impressions —
+    // and asking for an email password before showing a single pixel of product is
+    // exactly the phishing shape the onboarding work exists to break.
+    const exploring = isExploring();
+    loginScreen.style.display = hasAccount || exploring ? 'none' : 'flex';
 
-    // ===== LOW-FRICTION TRANSPORTS (login gate) — gated behind SHOW_NO_PASSWORD_TRANSPORTS.
-    //        Hidden by default; the whole if-block is safe to delete to remove the feature. =====
-    if (SHOW_NO_PASSWORD_TRANSPORTS) {
-    const loginNoPwBlock = document.getElementById('login-nopw-block');
-    if (loginNoPwBlock) loginNoPwBlock.style.display = 'block';
+    /** Guided demo, half 1: first explore entry opens the Add-Recipient modal
+     *  prefilled with the sample contact, so Preview shows a real personalized
+     *  render inside a minute. Values live only in the form (see DEMO_CONTACT);
+     *  closing the modal leaves zero state. Saving it is the user's own act and
+     *  harmless — the address is RFC 2606-reserved. Skipped when real recipients
+     *  already exist: don't play-act at someone who has data. */
+    function maybeStartGuidedDemo() {
+      try { if (localStorage.getItem(DEMO_CONTACT_SEEN_KEY) === '1') return; } catch { /* private mode */ }
+      try { localStorage.setItem(DEMO_CONTACT_SEEN_KEY, '1'); } catch { /* private mode */ }
+      if (recipientsData.length > 0) return;
+      openRecipientModal(-1);
+      const title = document.getElementById('recipient-modal-title');
+      if (title) title.textContent = 'Sample contact — hit Preview to see it rendered';
+      (document.getElementById('rec-name') as HTMLInputElement).value = DEMO_CONTACT.name;
+      (document.getElementById('rec-email') as HTMLInputElement).value = DEMO_CONTACT.email;
+      (document.getElementById('rec-subject') as HTMLInputElement).value = DEMO_CONTACT.subject;
+      (document.getElementById('rec-msg-text') as HTMLTextAreaElement).value = DEMO_CONTACT.message;
+    }
+
+    // The explore door itself. Not inside the SHOW_NO_PASSWORD_TRANSPORTS block —
+    // exploring is for every GUI, not a low-friction-transport feature.
+    document.getElementById('login-explore-btn')?.addEventListener('click', () => {
+      try { localStorage.setItem(EXPLORE_KEY, '1'); } catch { /* private mode */ }
+      loginScreen.style.display = 'none';
+      // Choosing to explore is also waving the setup wizard off (it layers over
+      // the gate; leaving it up would wall the app right back off).
+      const wiz = document.getElementById('setup-wizard');
+      if (wiz) wiz.style.display = 'none';
+      toast('Sending stays locked until you connect an inbox — everything else is yours to try.', 'success', 'Welcome aboard');
+      maybeStartGuidedDemo();
+    });
 
     // No-password entry points on the login gate itself (mirrors the in-app
     // Accounts view buttons). On success, drop the gate and boot the app.
+    // The plumbing is shared by the always-on "Sign in with Microsoft" button
+    // and, in GUI2 only, the browser-session buttons further down.
     const loginNoPwStatus = document.getElementById('login-nopw-status') as HTMLElement;
     const setNoPwStatus = (m: string, color = 'var(--muted-foreground)') => {
       if (loginNoPwStatus) { loginNoPwStatus.textContent = m; loginNoPwStatus.style.color = color; loginNoPwStatus.style.display = 'block'; }
@@ -3828,7 +5110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const wireNoPwLogin = (
       btnId: string,
       waiting: string,
-      run: () => Promise<{ ok: boolean; error?: string; email?: string }>,
+      run: () => Promise<{ ok: boolean; error?: string; email?: string; identityWarning?: string }>,
       fallbackName: string,
     ) => {
       const btn = document.getElementById(btnId) as HTMLButtonElement | null;
@@ -3839,12 +5121,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         setNoPwStatus(waiting);
         try {
           const res = await run();
-          if (!res.ok) { setNoPwStatus(res.error || 'Could not connect.', 'var(--destructive)'); return; }
+          // Toast too: the status line is small and easy to miss, and the
+          // AADSTS text in res.error is the only diagnostic the flow produces.
+          if (!res.ok) {
+            setNoPwStatus(res.error || 'Could not connect.', 'var(--destructive)');
+            toast(res.error || 'Could not connect.', 'error', 'Sign-in failed');
+            return;
+          }
           // Awaited: enterAppAfterConnect is async (it must load accounts before
           // the banner/checklist read them). Un-awaited, a rejection would escape
           // this try/catch as an unhandled rejection, and the finally below would
           // re-enable the button before the boot finished.
           await enterAppAfterConnect(res.email || fallbackName);
+          showIdentityWarningIfAny(res);
         } catch {
           setNoPwStatus('Hit some turbulence — give it another go.', 'var(--destructive)');
         } finally {
@@ -3853,8 +5142,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
     };
+    // Microsoft OAuth — always wired, every GUI. It is the only connect route
+    // that works for a Microsoft mailbox (see the SHOW_NO_PASSWORD_TRANSPORTS
+    // note), so it cannot live behind an experimental-UI flag.
     wireNoPwLogin('login-ms-btn', 'A browser window opened — finish signing in with Microsoft there.',
       () => window.electronAPI.oauthLoginMicrosoft(), 'Microsoft account');
+
+    // ===== LOW-FRICTION TRANSPORTS (login gate) — browser-session connect only,
+    //        gated behind SHOW_NO_PASSWORD_TRANSPORTS. Safe to delete. =====
+    if (SHOW_NO_PASSWORD_TRANSPORTS) {
+    const loginNoPwBlock = document.getElementById('login-nopw-block');
+    if (loginNoPwBlock) loginNoPwBlock.style.display = 'block';
     wireNoPwLogin('login-gmail-btn', 'A window opened — sign in to Gmail there.',
       () => window.electronAPI.connectBrowserAccount('gmail'), 'Gmail account');
     wireNoPwLogin('login-outlook-btn', 'A window opened — sign in to Outlook there.',
@@ -3867,6 +5165,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       const email = loginEmail.value.trim();
       const pass = normalizeAppPassword(loginPassword.value);
       if (!email || !pass) { showLoginError('Pop in your email and app password to board.'); return; }
+
+      // Microsoft mailboxes are OAuth-only (basic auth retired: personal Sept
+      // 2024, M365 April 2026) — a password can never authenticate, so refuse
+      // before burning a doomed verifyConnection round-trip into a confusing
+      // EAUTH. Catches a Microsoft address typed on the Gmail tab; 'other' stays
+      // an escape hatch for self-hosted relays. Toast too: the wizard reaches
+      // this handler via requestSubmit with the form (and its error div) hidden.
+      if (loginProvider !== 'other' && detectProviderFromEmail(email) === 'outlook') {
+        const steer = 'Microsoft retired app passwords — use "Sign in with Microsoft" instead. No password needed.';
+        showLoginError(steer);
+        toast(steer, 'error', 'Microsoft sign-in changed');
+        return;
+      }
 
       loginSubmitBtn.disabled = true;
       const originalLabel = loginSubmitBtn.innerHTML;
@@ -3885,12 +5196,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         // probe's ~2.5s worst case is covered by "Running pre-flight checks…".
         await runFullDetect();
 
+        // Detection may have just flipped the tab to Outlook (an MX-detected
+        // Microsoft 365 custom domain — the table-only pre-flight guard above
+        // can't see those). The flip hides the form, so surface the steer as a
+        // toast; letting the attempt continue could only end in a misleading
+        // EAUTH against a server that no longer takes passwords at all.
+        if (loginProvider === 'outlook') {
+          toast('This inbox is on Microsoft 365 — Microsoft retired password sign-in. Use "Sign in with Microsoft" instead. No password needed.',
+            'error', 'Microsoft sign-in changed');
+          return;
+        }
+
         let host = PROVIDER_PRESETS[loginProvider].host;
         let port = PROVIDER_PRESETS[loginProvider].port;
         if (loginProvider === 'other') {
           host = loginHost.value.trim();
           port = parseInt(loginPort.value, 10) || 587;
           if (!host) { showLoginError('Almost there — which runway? Add your SMTP host.'); return; }
+        }
+
+        // Host-membership backstop, now that the host is resolved ('other' tab
+        // included): these hosts reject every password, so verifying against
+        // one can only produce a misleading EAUTH. The steers above catch
+        // Microsoft ADDRESSES; this catches a Microsoft HOST typed by hand.
+        if (isMsBasicAuthDeadHost(host)) {
+          showLoginError('Microsoft retired app passwords — use "Sign in with Microsoft" below. No password needed.');
+          return;
         }
 
         // Authenticate BEFORE persisting. If we save first and auth fails, the
@@ -3968,7 +5299,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const panel = document.getElementById(`sw-panel-${swStep}`);
         if (panel) panel.style.display = 'block';
         if (swBackBtn) swBackBtn.style.display = swStep > 1 ? 'inline-flex' : 'none';
-        if (swNextBtn) swNextBtn.style.display = swStep === 2 ? 'inline-flex' : 'none';
+        // Outlook's flow ends at step 2 — the OAuth panel signs you in right
+        // there, so there is no Next and step 3 is unreachable.
+        if (swNextBtn) swNextBtn.style.display = swStep === 2 && swProvider !== 'outlook' ? 'inline-flex' : 'none';
         if (swFinishBtn) swFinishBtn.style.display = swStep === 3 ? 'inline-flex' : 'none';
       };
       const swGoTo = (n: number) => { swStep = Math.max(1, Math.min(3, n)); swRender(); };
@@ -3978,6 +5311,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const swApplyProvider = (p: string) => {
         swProvider = p;
         setLoginProvider(p);
+        // Outlook swaps the app-password education for the OAuth panel and
+        // collapses the flow to two steps: Microsoft retired app passwords, so
+        // there is nothing to teach and nothing to paste — sign-in happens
+        // inside step 2. Labels restored for every other provider.
+        const msOnly = p === 'outlook';
+        const pwEdu = document.getElementById('sw-pw-edu');
+        if (pwEdu) pwEdu.style.display = msOnly ? 'none' : '';
+        const msPanel = document.getElementById('sw-ms-panel');
+        if (msPanel) msPanel.style.display = msOnly ? 'block' : 'none';
+        if (swSteps[1]) swSteps[1].textContent = msOnly ? '2. Sign in with Microsoft' : '2. App password';
+        if (swSteps[2]) swSteps[2].style.display = msOnly ? 'none' : '';
         const preset = PROVIDER_PRESETS[p];
         const stepsOl = document.getElementById('sw-steps');
         if (stepsOl) stepsOl.innerHTML = preset.steps.map(s => `<li>${s}</li>`).join('');
@@ -3987,7 +5331,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           else openHelp.style.display = 'none';
         }
         const showGuide = document.getElementById('sw-show-guide') as HTMLElement | null;
-        if (showGuide) showGuide.style.display = p === 'other' ? 'none' : 'inline-flex';
+        // No animated guide for 'other' (nothing to show) or 'outlook' (the
+        // app-password walkthrough it replays documents a flow Microsoft
+        // retired — showing it would teach a dead end).
+        if (showGuide) showGuide.style.display = p === 'other' || p === 'outlook' ? 'none' : 'inline-flex';
         const customNote = document.getElementById('sw-custom-note');
         if (customNote) customNote.style.display = p === 'other' ? 'block' : 'none';
         const customFields = document.getElementById('sw-custom-fields');
@@ -4013,14 +5360,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       swNextBtn?.addEventListener('click', () => swGoTo(swStep + 1));
       swBackBtn?.addEventListener('click', () => swGoTo(swStep - 1));
 
-      // "Show me (animated)" reuses the existing app-pw modal. Raise it ABOVE the
-      // wizard (z 3200) so it stacks on top rather than being hidden behind it —
-      // closing it by ANY means (button, backdrop, or Esc) simply reveals the wizard
-      // underneath, with no hide/restore bookkeeping that could strand the wizard.
+      // "Show me first (animated)" reuses the existing app-pw modal. The wizard
+      // hides while the guide is up (U2: never three stacked layers) and
+      // closePwModal() re-shows it on ANY close route — button, backdrop, or
+      // Esc, which reaches the button via its data-close-modal attribute.
       document.getElementById('sw-show-guide')?.addEventListener('click', () => {
         if (!appPwModal) return;
         showPwSlide(1);
-        appPwModal.style.zIndex = '3300';
+        // U2: hide the wizard while the guide is up (instead of z-stacking a
+        // third layer above it); closePwModal() restores it on any close.
+        pwOpenedFromWizard = true;
+        setupWizard.style.display = 'none';
         appPwModal.style.display = 'flex';
       });
 
@@ -4030,6 +5380,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       swFinishBtn?.addEventListener('click', () => {
         const email = (document.getElementById('sw-email') as HTMLInputElement).value.trim();
         const pass = (document.getElementById('sw-password') as HTMLInputElement).value;
+        // Microsoft is OAuth-only — hand off to the gate's "Sign in with
+        // Microsoft" button instead of requestSubmit'ing a password that can
+        // never authenticate. Close without SW_SKIP_KEY: if they bail on the
+        // OAuth flow the wizard may return next launch; steering isn't skipping.
+        if (swProvider === 'outlook' || detectProviderFromEmail(email) === 'outlook') {
+          setupWizard.style.display = 'none';
+          toast('Microsoft retired app passwords — use the blue "Sign in with Microsoft" button on the sign-in screen. No password needed.', 'error', 'Microsoft sign-in changed');
+          return;
+        }
         if (!email || !pass) { toast('Enter your email and app password to connect.', 'error', 'Almost there'); return; }
         setLoginProvider(swProvider);
         loginEmail.value = email;
@@ -4040,6 +5399,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         setupWizard.style.display = 'none';
         loginForm.requestSubmit();
+      });
+
+      // Wizard "Sign in with Microsoft" — the same OAuth flow as the gate
+      // button. Success means the wizard finished its job (finishing, not
+      // skipping — no SW_SKIP_KEY), and the app boots via the shared connect
+      // path so the banner/checklist see the new account.
+      const swMsBtn = document.getElementById('sw-ms-btn') as HTMLButtonElement | null;
+      const swMsStatus = document.getElementById('sw-ms-status') as HTMLElement | null;
+      swMsBtn?.addEventListener('click', async () => {
+        const setStatus = (m: string, color = 'var(--muted-foreground)') => {
+          if (swMsStatus) { swMsStatus.textContent = m; swMsStatus.style.color = color; swMsStatus.style.display = 'block'; }
+        };
+        swMsBtn.disabled = true;
+        const original = swMsBtn.innerHTML;
+        swMsBtn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Waiting for sign-in…';
+        setStatus('A browser window opened — finish signing in with Microsoft there.');
+        try {
+          const res = await window.electronAPI.oauthLoginMicrosoft();
+          if (!res.ok) {
+            setStatus(res.error || 'Microsoft sign-in failed.', 'var(--destructive)');
+            toast(res.error || 'Microsoft sign-in failed.', 'error', 'Sign-in failed');
+            return;
+          }
+          setupWizard.style.display = 'none';
+          await enterAppAfterConnect(res.email || 'Microsoft account');
+          showIdentityWarningIfAny(res);
+        } catch {
+          setStatus('Hit some turbulence — give it another go.', 'var(--destructive)');
+        } finally {
+          swMsBtn.disabled = false;
+          swMsBtn.innerHTML = original;
+        }
       });
 
       // Skip / close (and Esc, via setupModalA11y) → reveal the untouched login form.
@@ -4073,11 +5464,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupWizard.style.display = 'flex';
       };
       // First run only, and only until the user waves it off: layer the wizard over
-      // the (still-present) login screen.
+      // the (still-present) login screen. An explorer has no login screen under it —
+      // they already chose "look around first", and the wizard popping over the app
+      // would re-erect the wall they just declined.
       const swSkipped = (() => {
         try { return localStorage.getItem(SW_SKIP_KEY) === '1'; } catch { return false; }
       })();
-      if (!hasAccount && !swSkipped) showSetupWizard();
+      if (!hasAccount && !swSkipped && !exploring) showSetupWizard();
     }
 
     const isRunning = await window.electronAPI.getSchedulerStatus();
@@ -4100,6 +5493,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initial usage counter load
     updateUsage();
 
+    // U35: "While you were away" — all caches this needs (recipients, replies,
+    // stats) are populated by now. Baseline is (re)written every boot; the card
+    // shows only when lifetime totals moved since the previous boot.
+    void maybeShowAwayDigest();
+
     // Gate sending until credentials exist (F4)
     refreshSetupState();
 
@@ -4115,6 +5513,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateUsage();
         await refreshStats();
         await refreshReplies();
+        await refreshSentLog(); // backstop; the 'sent-log-updated' push is the live path
         renderRecipients();
     }, 60000);
     
@@ -4302,7 +5701,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       const result = await window.electronAPI.previewUnsavedEmail(record);
       if (result.error) {
-          alert('Preview Error: ' + result.error);
+          toast(result.error, 'error', 'Preview failed');
       } else {
           const previewModal = document.getElementById('preview-modal') as HTMLElement;
           const previewSubject = document.getElementById('preview-subject') as HTMLElement;
@@ -4330,6 +5729,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const name = (document.getElementById('rec-name') as HTMLInputElement).value;
       const email = (document.getElementById('rec-email') as HTMLInputElement).value.trim();
 
+      // U19: the guided demo prefills maya@example.com (RFC-2606, deliberately
+      // undeliverable) — its own Save then failed the MX check with a native
+      // alert blaming the user for app-authored data. Steer reserved domains
+      // with a friendly toast before the verify spinner ever starts; real
+      // addresses are unaffected.
+      const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+      if (/(^|\.)example\.(com|net|org)$/.test(emailDomain) || /\.(test|example|invalid|localhost)$/.test(emailDomain)) {
+          toast('This is a practice contact — use Preview to see the result, then add a real person when you\'re ready to send.', 'info', 'Sample contact');
+          return;
+      }
+
       const submitBtn = document.querySelector('#recipient-form button[type="submit"]') as HTMLButtonElement;
       const originalText = submitBtn.innerHTML;
       if (submitBtn) {
@@ -4340,7 +5750,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
           const verification = await window.electronAPI.verifyEmail(email);
           if (!verification.valid) {
-              alert(`Email verification failed: ${verification.reason}\n\nPlease enter a valid email address that can receive mail.`);
+              toast(`${verification.reason} — double-check the address; it needs to be able to receive mail.`, 'error', 'Can\'t verify that address');
               if (submitBtn) {
                   submitBtn.disabled = false;
                   submitBtn.innerHTML = originalText;
@@ -4383,30 +5793,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       const entropyMinutes = parseInt((document.getElementById('rec-entropy') as HTMLInputElement).value) || 0;
       
-      // A16 fix: reject a manual Add whose email already exists. Appending a second
-      // row for the same address makes the email-keyed persist/merge cross-contaminate
-      // the two rows' seq* state (CSV import already dedupes). We must NOT silently
-      // upsert here — the Add modal holds blank/default form values (no sequence, no
-      // attachments, Smart-Default schedule), so merging them into the existing row
-      // would wipe its enrollment/attachments/schedule. Instead, open the existing
-      // recipient in the Edit modal (which populates the form from the real row).
-      //
-      // CSA-4 fix: the same guard must cover EDIT. Retyping one row's address to match
-      // another's reaches the identical two-rows-one-address state A16 exists to
-      // prevent — SequenceRunner.persist() assigns its update to EVERY disk row whose
-      // email matches, so the two rows clobber each other's seqStep and re-send a step
-      // that was already delivered. Edit can't reuse Add's "open the existing one"
-      // recovery (that would silently discard the edits in the form), so it reports
-      // inline and lets the user correct the address.
+      // A16/CSA-4 fix, now account-aware. Recipient identity is (email, accountId)
+      // — see recipientKey / recordBelongsToAccount — so the same address may live
+      // once PER account, sent from each. A second row is rejected only when it
+      // collides with an existing row on the SAME account: that true duplicate would
+      // make the email+account-keyed persist/merge cross-contaminate the two rows'
+      // seq* state (the corruption A16/CSA-4 fixed). A duplicate for a DIFFERENT
+      // account is allowed — that is exactly what the Duplicate action creates.
+      // Add opens the colliding row to edit (its form values are the real ones);
+      // Edit reports inline, since opening the other row would discard the edits.
+      // intendedAccount is resolved here (reused for record.accountId below).
+      const selAccountRaw = (document.getElementById('rec-account') as HTMLSelectElement | null)?.value;
+      const intendedAccount = (selAccountRaw && selAccountRaw !== 'default') ? selAccountRaw : 'default';
       if (email) {
           const dupIdx = recipientsData.findIndex((r: any, i: number) =>
-              i !== idx && String(r.email || r.Email || '').trim().toLowerCase() === email.toLowerCase());
+              i !== idx
+              && String(r.email || r.Email || '').trim().toLowerCase() === email.toLowerCase()
+              && (r.accountId || 'default') === intendedAccount);
           if (dupIdx >= 0) {
               if (idx < 0) {
-                  toast('That email is already on your list — opening it to edit.', 'info', 'Already added');
+                  toast('That email is already on your list for this account — opening it to edit.', 'info', 'Already added');
                   openRecipientModal(dupIdx);
               } else {
-                  toast(`${email} is already on another row. Use a different address, or delete the other row first.`,
+                  toast(`${email} is already on another row for this account. Use a different address or account, or delete the other row first.`,
                       'error', 'Duplicate email');
               }
               return;
@@ -4433,8 +5842,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Only persist accountId when assigned to a non-default account, so
       // single-account recipients.json stays free of the new field. Delete on
       // reassignment to default (the spread above may carry a stale id).
-      const selAccount = (document.getElementById('rec-account') as HTMLSelectElement | null)?.value;
-      if (selAccount && selAccount !== 'default') record.accountId = selAccount;
+      // Reuses intendedAccount resolved for the duplicate guard above.
+      if (intendedAccount !== 'default') record.accountId = intendedAccount;
       else delete record.accountId;
 
       // Campaign: store only when assigned, so Unassigned recipients stay free of
@@ -4517,6 +5926,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const res = await window.electronAPI.signOut();
         if (res?.ok) {
+          // Sign out is the explicit "back to the gate" action, so the explore
+          // choice is cleared too — reload lands on the login screen, not in an
+          // empty explore session that looks like a broken sign-out.
+          try { localStorage.removeItem(EXPLORE_KEY); } catch { /* private mode */ }
           window.location.reload();
         } else {
           toast(res?.error || 'Failed to clear credentials.', 'error');
@@ -4562,6 +5975,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       inputPass.focus();
       return;
     }
+    // Microsoft's SMTP hosts reject every password now (basic auth retired
+    // 2024/2026): a newly typed password aimed at one can never authenticate,
+    // and this form persists WITHOUT a verify step, so a bad save would look
+    // successful. Host membership alone — no address table — so custom-domain
+    // Microsoft 365 mailboxes are covered (the send-path review's HIGH finding:
+    // the table-only check missed exactly those, on this handler's own
+    // office365 fallback host). The save-config backstop rejects the same
+    // combination with a bare `false`; this catch gives the real reason and the
+    // working route. Blank password (keep stored / non-credential edits) and
+    // any non-Microsoft relay host pass untouched.
+    if (normalizeAppPassword(inputPass.value)
+        && isMsBasicAuthDeadHost(inputHost.value)) {
+      toast('Microsoft retired app passwords — connect this inbox with "Sign in with Microsoft" on the Accounts page instead. No password needed.',
+        'error', 'Microsoft sign-in changed');
+      return;
+    }
     const btn = settingsForm.querySelector('button[type="submit"]') as HTMLButtonElement;
     btn.disabled = true;
     const originalContent = btn.innerHTML;
@@ -4572,7 +6001,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentUserName = inputUserName.value.trim();
       const welcomeTitle = document.getElementById('welcome-title');
       const formattedName = currentUserName.charAt(0).toUpperCase() + currentUserName.slice(1);
-      if (welcomeTitle) welcomeTitle.textContent = `Welcome back, ${formattedName}`;
+      if (welcomeTitle) welcomeTitle.textContent = `Welcome, ${formattedName}`;
     }
 
     const newConfig = {

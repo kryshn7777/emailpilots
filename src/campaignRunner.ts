@@ -3,6 +3,8 @@ import { accountHasCredentials } from './onboarding';
 import { EmailService } from './emailService';
 import type { StrategyDeps } from './transport/sendStrategy';
 import { MailProcessor } from './mailProcessor';
+import type { SentLogEntry } from './sentLog';
+import { SentFolderCopier } from './sentCopy';
 
 export interface RunSummary {
   total: number;
@@ -40,9 +42,15 @@ export function buildProcessors(
   config: Config,
   onSuccess?: (accountId?: string) => void,
   strategyDeps?: StrategyDeps,
-  onFailure?: (accountId: string | undefined, error: any) => void
+  onFailure?: (accountId: string | undefined, error: any) => void,
+  onSent?: (entry: SentLogEntry) => void
 ): Map<string, MailProcessor> {
   const map = new Map<string, MailProcessor>();
+  // One copier per processor set: its Sent-folder discovery cache lives exactly
+  // as long as the processors, so account changes rebuild both together. The
+  // OAuth token seam comes from the same strategyDeps as sending; without it
+  // (CLI) oauth copies are skipped inside the copier, password copies still work.
+  const copier = new SentFolderCopier(strategyDeps?.getAccessToken);
   for (const account of sendableAccounts(config)) {
     const perAccountConfig: Config = {
       ...config,
@@ -50,7 +58,7 @@ export function buildProcessors(
       account, // carries transport + OAuth/browser fields so EmailService picks the strategy
     };
     const emailService = new EmailService(perAccountConfig, strategyDeps);
-    const processor = new MailProcessor(perAccountConfig, emailService, onSuccess, account.id, onFailure);
+    const processor = new MailProcessor(perAccountConfig, emailService, onSuccess, account.id, onFailure, onSent, copier);
     map.set(account.id, processor);
   }
   return map;
@@ -66,10 +74,11 @@ export async function runAllAccounts(
   config: Config,
   onSuccess?: (accountId?: string) => void,
   strategyDeps?: StrategyDeps,
-  onFailure?: (accountId: string | undefined, error: any) => void
+  onFailure?: (accountId: string | undefined, error: any) => void,
+  onSent?: (entry: SentLogEntry) => void
 ): Promise<RunSummary> {
   const agg: RunSummary = { total: 0, sent: 0, skipped: 0, failed: 0 };
-  const processors = buildProcessors(config, onSuccess, strategyDeps, onFailure);
+  const processors = buildProcessors(config, onSuccess, strategyDeps, onFailure, onSent);
   if (processors.size === 0) return agg;
 
   const results = await Promise.all(

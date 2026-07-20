@@ -25,6 +25,7 @@ export class LocalLlamaProvider implements AiProvider {
   private llama: any = null;
   private model: any = null;
   private context: any = null;
+  private sequence: any = null;          // ONE context sequence, held for the provider's lifetime
   private jsonGrammar: any = null;
   private loadPromise: Promise<void> | null = null;
   private queue: Promise<unknown> = Promise.resolve(); // generation mutex
@@ -188,9 +189,20 @@ export class LocalLlamaProvider implements AiProvider {
     await this.ensureLoaded();
     const { LlamaChatSession } = this.nlc;
     const started = Date.now();
-    const sequence = this.context.getSequence();
+    // ONE sequence, acquired once and held for the provider's lifetime. The
+    // obvious getSequence()/dispose() per generation is WRONG: dispose()
+    // reclaims the slot ASYNCHRONOUSLY (a `void withLock(...)` inside
+    // LlamaContext), and the context has exactly one sequence — so the very
+    // next generation races the reclaim and throws "No sequences left". A
+    // reply-classifier sweep is precisely that back-to-back shape; the LFM2.5
+    // load test hit it deterministically (AUDIT-freemium F21). Holding the
+    // slot and wiping its KV state per generation also guarantees prompts
+    // never leak into each other — the old pattern only got that by accident.
+    // Serialisation is already guaranteed by the generation queue above.
+    if (!this.sequence) this.sequence = this.context.getSequence();
+    else await this.sequence.clearHistory();
     const session = new LlamaChatSession({
-      contextSequence: sequence,
+      contextSequence: this.sequence,
       ...(req.system ? { systemPrompt: req.system } : {}),
     });
     try {
@@ -210,8 +222,10 @@ export class LocalLlamaProvider implements AiProvider {
       if (req.json) { try { json = JSON.parse(text); } catch { json = undefined; } }
       return { text, json, ms: Date.now() - started };
     } finally {
-      // Return the sequence to the context pool for the next queued generation.
-      try { sequence.dispose?.(); } catch { /* best effort */ }
+      // Dispose the session only — NOT the sequence (dispose() defaults to
+      // leaving it alone). The held sequence's state is wiped by clearHistory()
+      // at the top of the next generation.
+      try { session.dispose(); } catch { /* best effort */ }
     }
   }
 
@@ -225,6 +239,8 @@ export class LocalLlamaProvider implements AiProvider {
   }
 
   async close(): Promise<void> {
+    try { this.sequence?.dispose?.(); } catch { /* best effort */ }
+    this.sequence = null;
     try { await this.context?.dispose?.(); } catch { /* best effort */ }
     try { await this.model?.dispose?.(); } catch { /* best effort */ }
     this.context = null;

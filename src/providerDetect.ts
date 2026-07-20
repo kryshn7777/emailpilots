@@ -28,6 +28,24 @@ export type ProviderKey = 'gmail' | 'outlook' | 'other';
 /** What detection can conclude. 'other' is a caller decision, never ours. */
 export type DetectedProvider = Extract<ProviderKey, 'gmail' | 'outlook'>;
 
+/**
+ * Microsoft SMTP hosts whose password (basic-auth) sign-in is retired outright —
+ * personal accounts Sept 2024, Microsoft 365 April 2026. These hosts reject
+ * EVERY password, so guards match on host membership alone: the address (and
+ * either domain table below) is irrelevant to whether the save can work, which
+ * is exactly what makes custom-domain Microsoft 365 mailboxes coverable at all.
+ * Shared by the electron save handlers and the renderer's connect-surface
+ * steers — one list, no desync.
+ */
+export const MS_BASIC_AUTH_DEAD_HOSTS: ReadonlySet<string> = new Set([
+  'smtp.office365.com', 'smtp-mail.outlook.com',
+]);
+
+/** True when `host` can no longer accept any password sign-in (see above). */
+export function isMsBasicAuthDeadHost(host: string): boolean {
+  return MS_BASIC_AUTH_DEAD_HOSTS.has((host || '').trim().toLowerCase());
+}
+
 const GMAIL_DOMAINS = new Set([
   'gmail.com', 'googlemail.com',
 ]);

@@ -41,6 +41,14 @@ export interface Account {
   imapHost?: string;
   imapPort?: number;
   /**
+   * Copy each accepted REAL send into this mailbox's Sent folder over IMAP
+   * (raw SMTP submission does not file anything there — Microsoft never
+   * auto-saves; Gmail does). Absent ⇒ provider default via shouldCopyToSent():
+   * on for oauth-smtp + generic hosts, off for Gmail (would duplicate) and
+   * browser accounts (no IMAP credentials).
+   */
+  copyToSent?: boolean;
+  /**
    * How this account puts mail on the wire. Absent ⇒ 'smtp' (classic password
    * SMTP — the only path before low-friction transports were added), so every
    * existing account keeps working untouched.
@@ -288,6 +296,7 @@ export function loadConfig(): Config {
     TEST_MODE,
     IMAP_HOST,
     IMAP_PORT,
+    COPY_TO_SENT,
     AI_ENABLED,
     AI_PROVIDER,
     AI_MODEL_PATH,
@@ -325,6 +334,9 @@ export function loadConfig(): Config {
     // imap.<domain>:993 from the SMTP host at scan time.
     ...(IMAP_HOST ? { imapHost: IMAP_HOST } : {}),
     ...(IMAP_PORT ? { imapPort: parseInt(IMAP_PORT, 10) || 993 } : {}),
+    // Tri-state: unset/'' keeps the provider default (shouldCopyToSent).
+    ...(COPY_TO_SENT === 'true' ? { copyToSent: true }
+      : COPY_TO_SENT === 'false' ? { copyToSent: false } : {}),
   };
   // Extra accounts (decrypt their stored passwords here, same scheme as smtp).
   const extras = readAccounts(basePath).map(a => ({ ...a, pass: decryptPassword(a.pass) }));

@@ -7,6 +7,8 @@ import { SuppressionManager } from './suppressionManager';
 import { renderEmail } from './renderer';
 import { checkSpam } from './spamCheck';
 import { SentLedger, contentHash } from './sentLedger';
+import { SentLog, SentLogEntry, SentLogStatus, SendSource } from './sentLog';
+import { SentFolderCopier, shouldCopyToSent } from './sentCopy';
 
 /**
  * Whether a recipient record belongs to a given account. The default account
@@ -26,6 +28,7 @@ export class MailProcessor {
   private limiter: RateLimiter;
   private suppression: SuppressionManager;
   private sentLedger: SentLedger;
+  private sentLog: SentLog;
 
   constructor(
     private config: Config,
@@ -34,7 +37,14 @@ export class MailProcessor {
     private accountId?: string,
     // A14: fired on any send failure so background (scheduler/sequence) failures can
     // reach the UI log + account health. Optional → existing constructions unchanged.
-    private onFailure?: (accountId: string | undefined, error: any) => void
+    private onFailure?: (accountId: string | undefined, error: any) => void,
+    // Fired with the full history entry after every send ATTEMPT (sent/practice/
+    // rejected/failed) so the host can narrate + live-refresh the Sent screen.
+    // Optional → existing constructions unchanged.
+    private onSent?: (entry: SentLogEntry) => void,
+    // Copies accepted REAL sends into the mailbox's Sent folder (IMAP APPEND).
+    // Optional → CLI and existing constructions unchanged (no copy).
+    private copier?: SentFolderCopier
   ) {
     // accountId routes this processor to its own limits.<id>.json (default/
     // omitted ⇒ legacy limits.json). Suppression stays a single shared list.
@@ -43,6 +53,45 @@ export class MailProcessor {
     // A3: per-account idempotency ledger (sent-ledger.<id>.json), same accountId
     // routing as the limiter so parallel account runs never race.
     this.sentLedger = new SentLedger(getBasePath(), accountId);
+    // Send history behind the "Sent" screen — advisory only, fail-open (see sentLog.ts).
+    this.sentLog = new SentLog(getBasePath(), accountId);
+  }
+
+  /** Record one send attempt in the per-account history and notify the host.
+   *  Fully contained: neither the file write nor the host callback can throw
+   *  into (or slow) the send path — history is advisory, sending is not. */
+  private logSend(
+    email: string, target: string, subject: string,
+    status: SentLogStatus, source: SendSource,
+    result?: SendResult, error?: any
+  ): void {
+    try {
+      const entry: SentLogEntry = {
+        at: new Date().toISOString(),
+        accountId: this.accountId || 'default',
+        email, target, subject, status, source,
+        ...(result?.messageId ? { messageId: result.messageId } : {}),
+        ...(result?.response ? { smtpResponse: result.response }
+          : error?.response ? { smtpResponse: String(error.response) } : {}),
+        ...(error ? { error: String(error?.message || error) } : {}),
+      };
+      this.sentLog.append(entry);
+      try { this.onSent?.(entry); } catch { /* host callback must not break sending */ }
+    } catch { /* advisory history only */ }
+  }
+
+  /** Fire-and-forget Sent-folder copy of the exact wire bytes. Post-acceptance
+   *  only; the copier catches everything internally, so this can neither fail
+   *  nor slow the send. Practice sends are excluded by the callers (they land
+   *  in the operator's own Inbox already — filing [TEST → …] artifacts into the
+   *  real Sent history would pollute it). */
+  private maybeCopyToSent(raw?: Buffer): void {
+    try {
+      const account = this.config.account;
+      if (!raw || !this.copier || !account) return;
+      if (!shouldCopyToSent(account)) return;
+      this.copier.copy(account, raw);
+    } catch { /* advisory only */ }
   }
 
   private ownsRecord(record: any): boolean {
@@ -284,6 +333,8 @@ export class MailProcessor {
           console.warn(`Not counting ${email} as sent: server did not accept it.`);
           failed++;
           this.onFailure?.(this.accountId, { code: 'ENOTACCEPTED', message: `${email}: server did not accept the recipient` });
+          this.logSend(email, target, subject, 'rejected', 'manual', result,
+            { message: 'server did not accept the recipient' });
         } else {
           sentThisRun++;
           // A3: record the genuine delivery so a re-run skips this recipient. Only
@@ -295,6 +346,8 @@ export class MailProcessor {
           // (!isTest false) are excluded, so a preview never suppresses a real send.
           if (!isTest) this.limiter.markDelivered(email);
           this.onSuccess?.(this.accountId);
+          this.logSend(email, target, subject, isTest ? 'practice' : 'sent', 'manual', result);
+          if (!isTest) this.maybeCopyToSent(result.raw);
         }
       } catch (error: any) {
         this.limiter.refund(email, res.windowRolled); // send failed — give the reserved slot back
@@ -305,6 +358,7 @@ export class MailProcessor {
         console.error(`Error sending to ${email}, continuing with next...`);
         failed++;
         this.onFailure?.(this.accountId, error);
+        this.logSend(email, target, subject, 'failed', 'manual', undefined, error);
       }
     }
 
@@ -316,9 +370,11 @@ export class MailProcessor {
    * Send to one recipient. Returns true only when the message was actually
    * accepted by the server (so the sequence runner can advance a drip step);
    * false on any skip — no email, suppressed, render failure, rate limit, or
-   * send rejection. Existing callers (Scheduler) ignore the return value.
+   * send rejection. `source` labels the attempt in the send history: the
+   * Scheduler uses the default, the SequenceRunner passes 'sequence'. (One
+   * MailProcessor instance serves both, so this must be a per-call value.)
    */
-  async processRecipient(record: any): Promise<boolean> {
+  async processRecipient(record: any, source: 'scheduled' | 'sequence' = 'scheduled'): Promise<boolean> {
     const email = record.email || record.Email;
     if (!email) {
       console.warn('Skipping record with no email:', record);
@@ -368,6 +424,8 @@ export class MailProcessor {
         this.limiter.refund(email, res.windowRolled);
         console.warn(`Not counting ${email} as sent: server did not accept it.`);
         this.onFailure?.(this.accountId, { code: 'ENOTACCEPTED', message: `${email}: server did not accept the recipient` });
+        this.logSend(email, target, subject, 'rejected', source, result,
+          { message: 'server did not accept the recipient' });
         return false;
       }
       console.log(`Successfully sent email to ${email}`);
@@ -375,6 +433,8 @@ export class MailProcessor {
       // Send-Now check) treats this recipient as sent today. Never in Practice Mode.
       if (!isTest) this.limiter.markDelivered(email);
       this.onSuccess?.(this.accountId);
+      this.logSend(email, target, subject, isTest ? 'practice' : 'sent', source, result);
+      if (!isTest) this.maybeCopyToSent(result.raw);
       return true;
     } catch (error: any) {
       this.limiter.refund(email, res.windowRolled); // send failed — give the reserved slot back
@@ -384,6 +444,7 @@ export class MailProcessor {
       }
       console.error(`Error sending to ${email}:`, error);
       this.onFailure?.(this.accountId, error);
+      this.logSend(email, target, subject, 'failed', source, undefined, error);
       return false;
     }
   }

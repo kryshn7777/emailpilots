@@ -1,6 +1,6 @@
 import path from 'path';
 import { atomicWriteFileSync } from './atomicWrite';
-import { readJsonState } from './jsonState';
+import { readJsonState, StateFileError, reportStateFileError, clearStateFileError } from './jsonState';
 
 export interface ReplyEntry {
   email: string;
@@ -55,14 +55,22 @@ export class ReplyStore {
    * Audit S2. An unreadable file read as "no replies" both keeps dripping at people
    * who already answered and — once any write lands — saves the empty map over the
    * file, destroying the whole reply history.
+   *
+   * Audit K3: also the announcement point — see SuppressionManager.assertReadable.
    */
   private assertReadable(action: string): void {
-    if (!this.loadError) return;
-    throw new Error(
+    if (!this.loadError) {
+      clearStateFileError(this.filePath);
+      return;
+    }
+    const err = new StateFileError(
       `Cannot ${action}: the reply history at ${this.filePath} exists but could not be read ` +
       `(${this.loadError}). Refusing to continue — proceeding would keep emailing people who ` +
-      `already replied, and would overwrite the file. Repair or delete it, then retry.`
+      `already replied, and would overwrite the file. Repair or delete it, then retry.`,
+      this.filePath, this.loadError, 'replies', action
     );
+    reportStateFileError(err); // never throws — see jsonState
+    throw err;
   }
 
   private save() {

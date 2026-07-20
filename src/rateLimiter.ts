@@ -53,6 +53,13 @@ function todayStr(): string {
 export class RateLimiter {
   private statePath: string;
   private state: LimitState;
+  /** Set when limits.<id>.json EXISTS but could not be parsed (SIM-1). While
+   *  true, every send is denied and save() is a no-op: answering "unreadable"
+   *  with a fresh zeroed state let a second full daily cap through (the exact
+   *  overrun this file exists to prevent) and the very next save clobbered the
+   *  evidence. Absent-file stays fine (a first run legitimately starts fresh) —
+   *  mirrors the S2 present-but-unreadable rule in suppression/replies. */
+  private loadFailed = false;
 
   /**
    * @param accountId  Optional. When omitted or 'default', uses the legacy
@@ -68,6 +75,7 @@ export class RateLimiter {
   }
 
   private load(): LimitState {
+    this.loadFailed = false;
     const today = todayStr();
     const fresh: LimitState = {
       date: today,
@@ -94,12 +102,22 @@ export class RateLimiter {
         warmupStartDate: data.warmupStartDate || '2000-01-01',
       };
     } catch (e) {
-      console.error('Failed to load limits.json, resetting:', e);
+      // SIM-1: present-but-unreadable must FAIL CLOSED, not restart the day at
+      // zero. check() denies every send while this flag is up, and save() below
+      // refuses to overwrite the file, so the operator can repair or delete it.
+      this.loadFailed = true;
+      console.error(
+        `Failed to load ${this.statePath} — it exists but is unreadable. ` +
+        'Refusing to send until it is repaired or deleted (a zeroed counter would overshoot the daily cap):', e);
       return fresh;
     }
   }
 
   private save() {
+    // Never save while the on-disk state is unreadable: this.state is a zeroed
+    // placeholder, and writing it would both destroy the evidence the user must
+    // repair and legitimize the reset counter (SIM-1).
+    if (this.loadFailed) return;
     try {
       atomicWriteFileSync(this.statePath, JSON.stringify(this.state, null, 2));
     } catch (e) {
@@ -157,6 +175,17 @@ export class RateLimiter {
   check(email: string, attachmentBytes: number): CheckResult {
     this.reloadState();
     const key = (email || '').toLowerCase();
+
+    // SIM-1 fail-closed: an unreadable limits file means today's real count is
+    // unknown — sending anyway risks a full second daily cap. `exhausted` stops
+    // the whole batch with one loud reason instead of 100 per-recipient lines.
+    if (this.loadFailed) {
+      return {
+        allowed: false,
+        exhausted: true,
+        reason: `daily limits state at ${this.statePath} is unreadable — repair or delete it to resume sending`,
+      };
+    }
 
     if (attachmentBytes > this.limits.maxAttachmentBytes) {
       const mb = (this.limits.maxAttachmentBytes / (1024 * 1024)).toFixed(0);
@@ -291,11 +320,21 @@ export class RateLimiter {
    * overshoot the cap. Preserving the counters means the worst a concurrent send
    * sees is a LOWER effective cap — it fails safe. Any stale emailsToday clears at
    * the next local-midnight rollover.
+   *
+   * Returns whether the reset actually PERSISTED. It cannot when limits.json is
+   * present-but-unreadable (SIM-1): save() no-ops to preserve the corrupt file, so
+   * the anchor is not written. The method used to be `void` and never threw, so a
+   * caller wrapping it in try/catch (electron sign-out) silently believed the
+   * reset succeeded — leaving the next mailbox able to inherit a stale warmup age
+   * if the file is later hand-repaired to old content. Sign-out checks this return
+   * and tells the user to delete the unreadable file instead.
    */
-  resetWarmupAnchor(): void {
+  resetWarmupAnchor(): boolean {
     this.reloadState();
+    if (this.loadFailed) return false; // unreadable file → nothing persisted (SIM-1)
     this.state.warmupStartDate = todayStr();
     this.save();
+    return true;
   }
 
   getState(): LimitState {

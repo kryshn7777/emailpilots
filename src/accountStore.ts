@@ -43,6 +43,9 @@ function normalize(a: any): Account | null {
   // stays free of transport/imap keys (and `transport` stays undefined ⇒ smtp).
   if (a.imapHost) acc.imapHost = String(a.imapHost);
   if (a.imapPort) acc.imapPort = parseInt(a.imapPort, 10) || 993;
+  // Boolean check (not truthy): an explicit false must survive the round-trip,
+  // or "don't copy to Sent" silently reverts to the provider default on reload.
+  if (typeof a.copyToSent === 'boolean') acc.copyToSent = a.copyToSent;
   if (a.transport === 'oauth-smtp' || a.transport === 'browser') acc.transport = a.transport;
   if (a.oauthProvider) acc.oauthProvider = a.oauthProvider;
   if (a.oauthToken) acc.oauthToken = String(a.oauthToken);

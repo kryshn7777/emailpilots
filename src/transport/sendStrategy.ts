@@ -16,6 +16,13 @@ export interface SendOptions {
 export interface SendResult {
   accepted: string[];
   rejected: string[];
+  /** Final SMTP response line ("250 2.0.0 OK …"). Absent on non-SMTP transports. */
+  response?: string;
+  /** RFC 5322 Message-ID as sent. Absent on non-SMTP transports. */
+  messageId?: string;
+  /** Exact RFC822 bytes that went on the wire (SMTP transports only). Consumed
+   *  in-process by the Sent-folder copy; never crosses IPC, never logged. */
+  raw?: Buffer;
 }
 
 /**

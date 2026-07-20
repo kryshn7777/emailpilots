@@ -27,34 +27,43 @@
             <span class="material-symbols-outlined" aria-hidden="true">group</span>
             Recipients
           </li>
-          <li data-view="settings">
-            <span class="material-symbols-outlined" aria-hidden="true">settings</span>
-            Settings
-          </li>
-          <li class="nav-section" role="presentation">Advanced · optional</li>
-          <li data-view="campaigns" title="Separate outreach efforts that each get their own subject line and template.">
-            <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
-            Campaigns
-          </li>
           <li data-view="sequences" title="Automatic timed follow-ups that stop once someone replies.">
             <span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>
             Sequences
           </li>
+          <li data-view="campaigns" title="Separate outreach efforts that each get their own subject line and template.">
+            <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
+            Campaigns
+          </li>
+          <li data-view="sent" title="Every email the app has sent or tried to send, the moment it happens.">
+            <span class="material-symbols-outlined" aria-hidden="true">send</span>
+            Sent
+          </li>
+          <li data-view="replies" title="Everyone who wrote back — and the AI's read on each reply.">
+            <span class="material-symbols-outlined" aria-hidden="true">mark_email_unread</span>
+            Replies
+          </li>
+          <li class="nav-section" role="presentation">Tools</li>
           <li data-view="accounts" title="Extra sending inboxes for higher daily limits — most people only need the primary.">
             <span class="material-symbols-outlined" aria-hidden="true">alternate_email</span>
             Accounts
           </li>
-          <li data-view="logs">
-            <span class="material-symbols-outlined" aria-hidden="true">list_alt</span>
-            System Logs
+          <li data-view="deliverability" title="See if your email is likely to be caught by spam filters, before you send it.">
+            <span class="material-symbols-outlined" aria-hidden="true">mark_email_read</span>
+            Deliverability
           </li>
           <li data-view="ai" title="Optional on-device AI. Runs a local model — your emails never leave your computer.">
             <span class="material-symbols-outlined" aria-hidden="true">smart_toy</span>
             Local AI
           </li>
-          <li data-view="deliverability" title="Check an email's spam risk before sending — advisory only.">
-            <span class="material-symbols-outlined" aria-hidden="true">mark_email_read</span>
-            Deliverability
+          <li class="nav-section" role="presentation">System</li>
+          <li data-view="settings">
+            <span class="material-symbols-outlined" aria-hidden="true">settings</span>
+            Settings
+          </li>
+          <li data-view="logs" title="Diagnostic flight log of everything the app has done.">
+            <span class="material-symbols-outlined" aria-hidden="true">list_alt</span>
+            System Logs
           </li>
         </ul>
       </nav>
@@ -87,6 +96,7 @@
                   <div class="stat-info">
                     <strong>Status</strong>
                     <span id="service-status-text">Checking…</span>
+                    <span id="status-preflight-chip" style="display: block; font-size: 0.72em; margin-top: 2px;"></span>
                   </div>
                 </div>
                 <div class="stat">
@@ -106,7 +116,7 @@
                 <div class="stat">
                   <span class="material-symbols-outlined">mark_email_read</span>
                   <div class="stat-info">
-                    <strong>Reply Rate</strong>
+                    <strong>Replies</strong>
                     <span id="reply-rate-display">—</span>
                   </div>
                 </div>
@@ -114,13 +124,41 @@
             </div>
           </div>
           
+          <!-- Fleet rollup mirror (audit follow-up): same content as the Accounts-view
+               #fleet-strip, rendered by renderFleetStrip(); hidden with ≤1 account.
+               Click-through to Accounts is wired in main.ts. -->
+          <div id="fleet-strip-dash" class="card" title="Open Accounts" style="margin-bottom: 24px; display: none; gap: 20px; flex-wrap: wrap; align-items: center; cursor: pointer;"></div>
+
+          <!-- U35: boot-time "While you were away" delta greeting; populated by
+               maybeShowAwayDigest(). Reward-first line, dismiss is session-only. -->
+          <div id="away-digest" style="display: none; align-items: center; gap: 12px; margin-bottom: 24px; padding: 14px 18px; border-radius: var(--radius); background: var(--success-subtle, #ecfdf5); border: 1px solid var(--success);">
+            <span class="material-symbols-outlined" style="color: var(--success);">flight_land</span>
+            <div style="flex: 1;">
+              <strong>While you were away</strong>
+              <div id="away-digest-line" style="font-size: 0.85em; color: var(--muted-foreground);"></div>
+            </div>
+            <button type="button" id="away-digest-dismiss" class="btn outline" style="padding: 4px 8px; height: auto;" aria-label="Dismiss">&times;</button>
+          </div>
+
+          <!-- K3: a state file exists but can't be read, so every send has correctly
+               stopped. Danger, not warning: this is a stop, not a nudge. Populated by
+               renderStateFileBanner() from both the pull and the push. -->
+          <div id="state-file-banner" style="display: none; align-items: center; gap: 12px; margin-bottom: 24px; padding: 14px 18px; border-radius: var(--radius); background: var(--destructive-subtle); border: 1px solid var(--destructive);">
+            <span class="material-symbols-outlined" style="color: var(--destructive);">error</span>
+            <div style="flex: 1;">
+              <strong id="state-file-banner-title">Sending is paused.</strong>
+              <div id="state-file-banner-detail" style="font-size: 0.85em; color: var(--muted-foreground);"></div>
+            </div>
+            <button type="button" id="state-file-banner-btn" class="btn">Show me the file</button>
+          </div>
+
           <div id="setup-banner" style="display: none; align-items: center; gap: 12px; margin-bottom: 24px; padding: 14px 18px; border-radius: var(--radius); background: var(--warning-subtle); border: 1px solid var(--warning);">
             <span class="material-symbols-outlined" style="color: var(--warning);">warning</span>
             <div style="flex: 1;">
-              <strong>Almost there — add your email login.</strong>
-              <div style="font-size: 0.85em; color: var(--muted-foreground);">No emails can be sent until you enter your SMTP credentials.</div>
+              <strong>Almost there — connect your inbox.</strong>
+              <div style="font-size: 0.85em; color: var(--muted-foreground);">Nothing can send until an inbox is connected.</div>
             </div>
-            <button type="button" id="setup-banner-btn" class="btn primary">Open Settings</button>
+            <button type="button" id="setup-banner-btn" class="btn primary">Connect inbox</button>
           </div>
 
           <div class="card getting-started" id="getting-started-card" style="display: none; margin-bottom: 24px;">
@@ -153,7 +191,7 @@
                 <button type="button" class="btn primary gs-cta" data-action="start-sending">Start sending</button>
               </li>
             </ol>
-            <p class="gs-foot help-text">Campaigns &amp; Sequences are optional — add them later for advanced follow-ups.</p>
+            <p class="gs-foot help-text">When you're ready to grow: a Sequence follows up automatically and stops the moment someone replies.</p>
           </div>
 
           <div class="card" id="how-it-works-card" style="display: none; margin-bottom: 24px;">
@@ -209,10 +247,6 @@
                   <span class="material-symbols-outlined">pause</span>
                   Pause Schedule
                 </button>
-                <button id="open-json-btn" class="btn outline full-width">
-                  <span class="material-symbols-outlined">data_object</span>
-                  Recipients File
-                </button>
               </div>
             </div>
           </div>
@@ -231,17 +265,17 @@
                   <div id="usage-emails-bar" style="height: 100%; width: 0%; background: var(--primary); transition: width .3s, background .3s;"></div>
                 </div>
               </div>
-              <div>
+              <div id="usage-windows-row" style="display: none;">
                 <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 6px;">
-                  <span title="A sending session delivers up to 10 emails; a few are spread across the day.">Sending sessions today</span><span id="usage-windows">0 / 5</span>
+                  <span id="usage-windows-label" title="Sends go out in short batches of up to 10, with pauses between them.">Batch</span><span id="usage-windows"></span>
                 </div>
                 <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
                   <div id="usage-windows-bar" style="height: 100%; width: 0%; background: var(--primary); transition: width .3s, background .3s;"></div>
                 </div>
               </div>
-              <div>
+              <div id="usage-window-row" style="display: none;">
                 <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 6px;">
-                  <span title="Emails sent in the current session before a longer pause.">This session</span><span id="usage-window">0 / 10</span>
+                  <span title="Emails sent in the current batch before a longer pause.">This batch</span><span id="usage-window"></span>
                 </div>
                 <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
                   <div id="usage-window-bar" style="height: 100%; width: 0%; background: var(--primary); transition: width .3s, background .3s;"></div>
@@ -269,6 +303,10 @@
             </div>
             <div id="today-schedule-list" style="display: flex; flex-direction: column; gap: 12px;">
               <!-- Dynamic schedule items will be injected here -->
+            </div>
+            <!-- E4: the rest of the week (cron schedules + follow-up dues), collapsed per day -->
+            <h3 style="margin-top: 20px;">Next 7 days</h3>
+            <div id="upcoming-week-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
             </div>
           </div>
         </div>
@@ -711,13 +749,20 @@
             <h3 style="margin-top: 0;">Add an account</h3>
             <p class="help-text" style="margin-bottom: 16px;">Use an app password, not your normal login password. We verify the connection before saving.</p>
             <p id="acct-cap-note" style="display: none; color: var(--muted-foreground); font-size: 0.85em; margin-bottom: 16px; padding: 10px 12px; background: var(--gray-50); border: 1px solid var(--border); border-radius: var(--radius);"></p>
-            <!-- ===== LOW-FRICTION TRANSPORTS (Accounts view) — hidden via SHOW_NO_PASSWORD_TRANSPORTS flag in src/main.ts.
-                     Safe to delete this whole block (and the matching handlers/flag) to remove the feature entirely. ===== -->
-            <div id="acct-nopw-block" style="display:none;">
+            <!-- Microsoft OAuth connect — always visible, every GUI (freemium #3):
+                 Microsoft mailboxes are OAuth-only (password SMTP retired 2024/2026),
+                 so this button is the only route they have. -->
+            <div id="acct-ms-block">
               <button type="button" class="btn" id="ms-oauth-btn" style="width: 100%; justify-content: center; margin-bottom: 8px;">
                 <span class="material-symbols-outlined">login</span>
                 Sign in with Microsoft &mdash; no password
               </button>
+              <p id="ms-oauth-status" style="display: none; font-size: 0.85em; margin-bottom: 12px;"></p>
+            </div>
+            <!-- ===== LOW-FRICTION TRANSPORTS (Accounts view) — browser-session connect, hidden via
+                     SHOW_NO_PASSWORD_TRANSPORTS flag in src/main.ts. Safe to delete this whole
+                     block (and the matching handlers/flag) to remove the feature entirely. ===== -->
+            <div id="acct-nopw-block" style="display:none;">
               <button type="button" class="btn" id="connect-gmail-btn" style="width: 100%; justify-content: center; margin-bottom: 8px;">
                 <span class="material-symbols-outlined">mail</span>
                 Connect Gmail &mdash; no password (browser)
@@ -726,10 +771,9 @@
                 <span class="material-symbols-outlined">mail</span>
                 Connect Outlook &mdash; no password (browser)
               </button>
-              <p id="ms-oauth-status" style="display: none; font-size: 0.85em; margin-bottom: 12px;"></p>
-              <div style="text-align: center; color: var(--muted-foreground); font-size: 0.8em; margin-bottom: 16px;">&mdash; or add manually with an app password &mdash;</div>
             </div>
             <!-- ===== END LOW-FRICTION TRANSPORTS (Accounts view) ===== -->
+            <div style="text-align: center; color: var(--muted-foreground); font-size: 0.8em; margin-bottom: 16px;">&mdash; or add manually with an app password &mdash;</div>
             <form id="add-account-form">
               <div class="form-group">
                 <label for="acct-provider">Provider</label>
@@ -813,7 +857,7 @@
               <div class="form-group">
                 <label for="outlook-pass">SMTP / App Password</label>
                 <input type="password" id="outlook-pass" placeholder="••••••••••••••••">
-                <p class="help-text">Use an App Password if 2FA is enabled (required for Gmail/Outlook).</p>
+                <p class="help-text">Gmail needs a 16-character app password (not your normal sign-in). Microsoft retired app passwords — use "Sign in with Microsoft" on the Accounts page instead.</p>
               </div>
 
               <div class="form-group">
@@ -825,6 +869,10 @@
                   <button type="button" id="signout-btn" class="btn outline" style="color: var(--destructive); border-color: rgba(196,43,28,0.35);">
                     <span class="material-symbols-outlined">logout</span>
                     Sign Out
+                  </button>
+                  <button type="button" id="open-json-btn" class="btn outline" title="Advanced: open recipients.json in your editor. Edits there skip the app's checks.">
+                    <span class="material-symbols-outlined">data_object</span>
+                    Recipients file
                   </button>
                 </div>
                 <p class="help-text">Save your settings first, then send a test to confirm they work. Sign out to clear your credentials from the environment.</p>
@@ -938,7 +986,7 @@
                 </button>
                 <span id="ai-model-path" class="help-text" style="margin:0; word-break:break-all;">No model selected</span>
               </div>
-              <p class="help-text">Download an open-weight GGUF model (e.g. Qwen2.5-Instruct) and point here. The file stays on your computer.</p>
+              <p class="help-text">Use "Download recommended" for a ready-to-go model, or point to any open-weight .gguf file you already have. Either way it stays on your computer.</p>
             </div>
             <div class="form-group">
               <label for="ai-context-size">Context size <span class="adv-tag">optional</span></label>
@@ -1028,8 +1076,8 @@
         <!-- Deliverability View (feature #4) -->
         <div id="deliverability" class="view">
           <header>
-            <h1>Deliverability <span class="adv-tag">advisory</span></h1>
-            <p>Check an email's spam risk and inbox-placement quality before you send. Advisory only — nothing is changed or blocked.</p>
+            <h1>Deliverability</h1>
+            <p>See how your email is likely to be treated by spam filters, before you send it. Nothing here changes or blocks your email.</p>
           </header>
 
           <div class="card settings-chunk" style="max-width: 760px;">
@@ -1038,18 +1086,113 @@
               <input type="text" id="deliv-subject" placeholder="Your subject line">
             </div>
             <div class="form-group">
-              <label for="deliv-body">Email body</label>
-              <textarea id="deliv-body" rows="8" placeholder="Paste or edit the email body to analyze."></textarea>
+              <label for="deliv-text">Email body</label>
+              <textarea id="deliv-text" rows="8" placeholder="Paste or type the email you want to check."></textarea>
               <p class="help-text">Pre-filled from your default subject + template. Edit freely — this never changes your saved content.</p>
+              <details class="adv-disclosure">
+                <summary>Show the HTML code <span class="adv-tag">advanced</span></summary>
+                <p class="help-text adv-why">Most people never need this. The check reads the HTML below — that's how it counts links and images — and the plain box above shows the same email as words. Edit here and the box above follows.</p>
+                <div class="form-group">
+                  <textarea id="deliv-body" aria-label="Email body (HTML)" rows="8" spellcheck="false" style="font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 0.85rem;"></textarea>
+                </div>
+              </details>
             </div>
             <div class="form-group">
               <button type="button" id="deliv-analyze" class="btn">
                 <span class="material-symbols-outlined">rule</span>
-                Analyze
+                Check this email
               </button>
-              <p id="deliv-score" class="help-text" style="margin-top:8px;">Not analyzed yet.</p>
+              <p id="deliv-score" class="help-text" style="margin-top:8px;">Fill in a subject and body, then press Check.</p>
             </div>
             <div id="deliv-result"></div>
+          </div>
+        </div>
+
+        <!-- Sent View: per-send history (sent-log.<id>.json, merged via get-sent-log).
+             Live-updated by the 'sent-log-updated' push — no waiting on the 60s poll. -->
+        <div id="sent" class="view">
+          <header>
+            <h1>Sent</h1>
+            <p>Every email the app has sent or tried to send — updated the moment it happens</p>
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;align-items:center;">
+              <input type="text" id="sent-search" class="form-control" placeholder="Search recipient or subject…" style="max-width:260px;height:36px;">
+              <select id="sent-status-filter" class="form-control" style="max-width:170px;height:36px;">
+                <option value="">All statuses</option>
+                <option value="sent">Sent</option>
+                <option value="practice">Practice</option>
+                <option value="rejected">Rejected</option>
+                <option value="failed">Failed</option>
+              </select>
+              <button id="sent-refresh-btn" class="btn outline" style="height:36px;">
+                <span class="material-symbols-outlined">refresh</span>
+                Refresh
+              </button>
+            </div>
+          </header>
+
+          <div class="table-container">
+            <table class="recipients-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>To</th>
+                  <th>Subject</th>
+                  <th>Account</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="sent-table-body"></tbody>
+            </table>
+            <div id="sent-empty-state" style="display:none;text-align:center;color:var(--muted-foreground);padding:32px;">
+              Nothing sent yet. When an email goes out — scheduled, manual, or a follow-up — it appears here instantly.
+            </div>
+          </div>
+        </div>
+
+        <!-- Replies View: everyone who wrote back (replies.json via list-replies).
+             Live-updated by the 'replies-updated' push from the reply poller. -->
+        <div id="replies" class="view">
+          <header>
+            <h1>Replies</h1>
+            <p>People who wrote back. Labels come from Local AI → Reply automation, when enabled.</p>
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;align-items:center;">
+              <input type="text" id="replies-search" class="form-control" placeholder="Search name, email or subject…" style="max-width:260px;height:36px;">
+              <select id="replies-class-filter" class="form-control" style="max-width:190px;height:36px;">
+                <option value="">All labels</option>
+                <option value="Interested">Interested</option>
+                <option value="MeetingBooked">Meeting booked</option>
+                <option value="Referral">Referral</option>
+                <option value="OutOfOffice">Out of office</option>
+                <option value="Negative">Negative</option>
+                <option value="Unsubscribe">Unsubscribe</option>
+                <option value="Bounce">Bounce</option>
+                <option value="Other">Other</option>
+                <option value="__none">Unclassified</option>
+              </select>
+              <button id="replies-poll-btn" class="btn outline" style="height:36px;">
+                <span class="material-symbols-outlined">refresh</span>
+                Check now
+              </button>
+            </div>
+          </header>
+
+          <div class="table-container">
+            <table class="recipients-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>From</th>
+                  <th>Subject</th>
+                  <th>Label</th>
+                  <th>Account</th>
+                </tr>
+              </thead>
+              <tbody id="replies-table-body"></tbody>
+            </table>
+            <div id="replies-empty-state" style="display:none;text-align:center;color:var(--muted-foreground);padding:32px;">
+              No replies yet. Replies are matched to people on your recipients list — the app checks every 15 minutes while the scheduler is running, or press Check now.
+            </div>
           </div>
         </div>
 
@@ -1140,7 +1283,6 @@
                 <span class="material-symbols-outlined">visibility</span>
               </button>
             </div>
-            <a href="#" id="login-help" class="login-help" target="_blank" rel="noopener">Get an app password ↗</a>
             <details class="login-steps-wrap" id="app-pw-help-link">
               <summary>How do I get an app password?</summary>
             </details>
@@ -1151,16 +1293,37 @@
           <button type="submit" class="login-submit" id="login-submit-btn">Sign in</button>
         </form>
 
-        <!-- ===== LOW-FRICTION TRANSPORTS (login gate) — hidden via SHOW_NO_PASSWORD_TRANSPORTS flag in src/main.ts.
-                 Safe to delete this whole block (and the matching handlers/flag) to remove the feature entirely. ===== -->
-        <div id="login-nopw-block" style="display:none;">
-          <div style="text-align:center; color:var(--muted-foreground); font-size:0.8em; margin:14px 0 10px;">— or connect without a password —</div>
+        <!-- Microsoft OAuth connect — always visible, every GUI (freemium #3):
+             Microsoft retired password SMTP (personal accounts 2024, Microsoft 365
+             April 2026), so "Sign in with Microsoft" is the only route a Microsoft
+             mailbox has. The note appears when the Outlook tab hides the password
+             form (setLoginProvider). -->
+        <div id="login-ms-block">
+          <div style="text-align:center; color:var(--muted-foreground); font-size:0.8em; margin:14px 0 10px;">— or —</div>
+          <p id="login-ms-note" style="display:none; font-size:0.85em; color:var(--muted-foreground); text-align:center; margin:0 0 10px;">
+            <span id="login-ms-echo" style="display:none; font-weight:600;"></span>
+            Microsoft retired app passwords, so there's nothing to type here. Signing in opens Microsoft's own page in your browser — Email Pilots never sees your password, and you can revoke access anytime from your Microsoft account.
+          </p>
           <button type="button" class="login-submit" id="login-ms-btn" style="background:#2563eb; border-color:#2563eb;">Sign in with Microsoft</button>
-          <button type="button" class="login-submit" id="login-gmail-btn" style="margin-top:8px;">Connect Gmail (browser)</button>
-          <button type="button" class="login-submit" id="login-outlook-btn" style="margin-top:8px;">Connect Outlook (browser)</button>
           <p id="login-nopw-status" style="display:none; font-size:0.85em; margin-top:10px; text-align:center;"></p>
         </div>
+        <!-- ===== LOW-FRICTION TRANSPORTS (login gate) — browser-session connect, hidden via
+                 SHOW_NO_PASSWORD_TRANSPORTS flag in src/main.ts. Safe to delete this whole
+                 block (and the matching handlers/flag) to remove the feature entirely. ===== -->
+        <div id="login-nopw-block" style="display:none;">
+          <div style="text-align:center; color:var(--muted-foreground); font-size:0.8em; margin:14px 0 10px;">— or use a browser session (no password) —</div>
+          <button type="button" class="login-submit" id="login-gmail-btn" style="margin-top:8px;">Connect Gmail (browser)</button>
+          <button type="button" class="login-submit" id="login-outlook-btn" style="margin-top:8px;">Connect Outlook (browser)</button>
+        </div>
         <!-- ===== END LOW-FRICTION TRANSPORTS (login gate) ===== -->
+
+        <!-- Explore-first (freemium #3): the gate is dismissible. Sending stays
+             separately locked on credentials (F4), so this only moves WHEN we ask
+             for the password — after the product has shown itself, not before. -->
+        <button type="button" id="login-explore-btn" class="btn outline"
+          style="display:flex; width:100%; margin-top:14px; justify-content:center; font-size:0.9em;">
+          Look around first — connect when you're ready to&nbsp;send&nbsp;→
+        </button>
 
         <p class="login-footnote">
           <span class="material-symbols-outlined" style="font-size:16px;">lock</span>
@@ -1179,9 +1342,10 @@
           <input type="text" id="onboard-name" required placeholder="Your Name" style="width: 100%; margin-bottom: 16px; padding: 12px; border-radius: var(--radius); border: 1px solid var(--border-strong);">
           <button type="submit" class="btn primary" style="width: 100%; justify-content: center;">Continue</button>
         </form>
+        <button type="button" id="onboard-skip-btn" class="btn ghost" style="width: 100%; justify-content: center; margin-top: 8px; color: var(--muted-foreground);">Skip for now</button>
       </div>
     </div>
-    
+
     <!-- Local AI offer — one-time, shown AFTER the first successful sign-in (so the
          account is proven before we ask anyone to wait for a multi-GB download).
          z-index clears the login gate (3000); the setup wizard (3200) only runs
@@ -1521,7 +1685,7 @@
       <div class="modal-content" style="max-width: 520px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 id="app-pw-title" style="margin: 0; font-size: 1.25rem;">How to get an app password</h2>
-          <button type="button" id="app-pw-close" class="btn outline" style="padding: 4px; height: auto; border: none; background: transparent;" aria-label="Close">
+          <button type="button" id="app-pw-close" data-close-modal class="btn outline" style="padding: 4px; height: auto; border: none; background: transparent;" aria-label="Close">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -1701,6 +1865,9 @@
 
         <!-- STEP 2: App password -->
         <div class="sw-panel" id="sw-panel-2" style="display: none;">
+          <!-- Password-provider education (Gmail/custom). Hidden for Outlook, whose
+               panel below replaces the whole app-password flow (OAuth-only). -->
+          <div id="sw-pw-edu">
           <p style="margin-top: 0;">Email providers need a one-time <strong>app password</strong> — not your normal login:</p>
           <details class="sw-why">
             <summary>Why an app password? <span class="sw-why-tag">it's safe</span></summary>
@@ -1741,12 +1908,30 @@
           <ol id="sw-steps" class="login-steps"></ol>
           <div id="sw-custom-note" style="display:none; margin: 8px 0; font-size: 0.85em; color: var(--muted-foreground);">For a custom provider, use your mailbox password (or an app password if they require one). You'll enter the SMTP host and port on the next step.</div>
           <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-            <button type="button" id="sw-show-guide" class="btn outline" style="font-size: 0.85rem;">
-              <span class="material-symbols-outlined" style="font-size:18px;">smart_display</span> Show me (animated)
-            </button>
-            <a id="sw-open-help" class="btn outline" href="#" target="_blank" rel="noopener" style="font-size: 0.85rem; text-decoration: none;">
+            <a id="sw-open-help" class="btn primary" href="#" target="_blank" rel="noopener" style="font-size: 0.85rem; text-decoration: none;">
               <span class="material-symbols-outlined" style="font-size:18px;">open_in_new</span> Open the app passwords page
             </a>
+            <button type="button" id="sw-show-guide" class="btn outline" style="font-size: 0.85rem;">
+              <span class="material-symbols-outlined" style="font-size:18px;">smart_display</span> Show me first (animated)
+            </button>
+          </div>
+          </div>
+          <!-- Microsoft OAuth panel — swApplyProvider('outlook') swaps this in for
+               the app-password education: Microsoft retired password sign-in
+               (personal accounts 2024, Microsoft 365 April 2026), so there is no
+               password to teach or collect. -->
+          <div id="sw-ms-panel" style="display:none;">
+            <p style="margin-top: 0;">Microsoft retired app passwords, so there's nothing to create or paste. One click signs you in on Microsoft's own page.</p>
+            <ol class="login-steps">
+              <li>Click <strong>Sign in with Microsoft</strong> — your browser opens Microsoft's sign-in.</li>
+              <li>Approve the mail permission. Email Pilots never sees your password.</li>
+              <li>You're connected — revoke access anytime from your Microsoft account.</li>
+            </ol>
+            <button type="button" id="sw-ms-btn" class="btn primary" style="width:100%; justify-content:center; margin-top:12px; background:#2563eb; border-color:#2563eb;">
+              <span class="material-symbols-outlined">login</span>
+              Sign in with Microsoft
+            </button>
+            <p id="sw-ms-status" style="display:none; font-size:0.85em; margin-top:10px;"></p>
           </div>
         </div>
 

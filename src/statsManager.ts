@@ -61,10 +61,19 @@ export class StatsManager {
   }
 
   public getStats(): AppStats {
+    // Reload so a reader (get-stats IPC) sees increments written by another live
+    // instance, not just this one's constructor-time snapshot.
+    this.currentStats = this.loadStats();
     return this.currentStats;
   }
 
   public incrementEmailsSent(accountId?: string) {
+    // SIM-2: reload-before-write, matching RateLimiter/SuppressionManager/ReplyStore.
+    // Without it, two live StatsManager instances each mutate their own cached
+    // snapshot and the last save clobbers the other's counts (lost updates). The
+    // read→mutate→write is synchronous (no await between), so no other code runs
+    // in the gap within one process.
+    this.currentStats = this.loadStats();
     this.currentStats.totalEmailsSent++;
     if (accountId) {
       if (!this.currentStats.perAccount) this.currentStats.perAccount = {};
@@ -76,6 +85,7 @@ export class StatsManager {
   /** Record one newly-detected reply. Called by the reply poller per unique
    *  replying address (dedupe happens upstream via replyStore). */
   public incrementReplies(accountId?: string) {
+    this.currentStats = this.loadStats(); // SIM-2: reload-before-write (see incrementEmailsSent)
     this.currentStats.totalReplies = (this.currentStats.totalReplies || 0) + 1;
     if (accountId) {
       if (!this.currentStats.perAccountReplies) this.currentStats.perAccountReplies = {};
