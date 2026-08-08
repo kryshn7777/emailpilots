@@ -6,7 +6,7 @@ Seven phases take an empty `New Website/` directory to a deployed award-tier scr
 
 ## Phases
 
-- [ ] **Phase 1: Scaffold + Toolchain** - Astro 5 + TS strict + three + glsl + postprocessing + Lenis/GSAP proven on a debug scene
+- [x] **Phase 1: Scaffold + Toolchain** - Astro 7 + TS strict + three + glsl + postprocessing + Lenis/GSAP proven on a debug scene (2026-08-08)
 - [ ] **Phase 2: Flight Core** - Fold-morph plane, full 10-zone flight path, camera rig, master scroll scrub over grey blockout
 - [ ] **Phase 3: World A (CH1–5)** - Desk, preflight panel, takeoff, volumetric cloud sea + formation, storm — art-complete
 - [ ] **Phase 4: World B (CH6–10)** - Beacon, no-fly map, city dive, copilot starfield, landing + reply — art-complete
@@ -93,7 +93,7 @@ Seven phases take an empty `New Website/` directory to a deployed award-tier scr
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffold + Toolchain | 0/TBD | Not started | - |
+| 1. Scaffold + Toolchain | 1/1 | Complete | 2026-08-08 |
 | 2. Flight Core | 0/TBD | Not started | - |
 | 3. World A (CH1–5) | 0/TBD | Not started | - |
 | 4. World B (CH6–10) | 0/TBD | Not started | - |

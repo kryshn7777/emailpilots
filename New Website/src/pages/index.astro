@@ -1,0 +1,35 @@
+---
+import Base from '../layouts/Base.astro';
+
+// Phase-1 placeholder sections: the ten story chapters as scroll runway.
+// Real copy (from FEATURES.md via story/copy.ts) lands in Phase 5.
+const chapters = [
+  { id: 'desk', kicker: 'CH 01 · The Desk', title: 'Some emails deserve a pilot.' },
+  { id: 'preflight', kicker: 'CH 02 · Preflight', title: 'Ready for takeoff.' },
+  { id: 'takeoff', kicker: 'CH 03 · Takeoff', title: 'Write once. It flies the follow-ups.' },
+  { id: 'formation', kicker: 'CH 04 · Formation', title: 'Your sequences, in formation.' },
+  { id: 'storm', kicker: 'CH 05 · The Storm', title: 'Filters ground the fakes.' },
+  { id: 'beacon', kicker: 'CH 06 · The Beacon', title: 'Cleared for delivery.' },
+  { id: 'no-fly', kicker: 'CH 07 · The No-Fly List', title: 'Never the wrong person twice.' },
+  { id: 'city', kicker: 'CH 08 · City of Inboxes', title: 'Delivered where it matters.' },
+  { id: 'copilot', kicker: 'CH 09 · The Copilot', title: 'An AI that never phones home.' },
+  { id: 'landing', kicker: 'CH 10 · The Landing', title: 'The reply is the landing.' },
+];
+---
+
+<Base
+  title="Email Pilots — personal outreach, delivered"
+  description="A Windows desktop app for personal outreach and follow-up. Your own mailbox, human pacing, replies read back — 100% on your PC."
+>
+  {
+    chapters.map((c, i) => (
+      <section class="chapter" id={c.id} data-chapter={i}>
+        <div class="chapter__copy">
+          <p class="chapter__kicker">{c.kicker}</p>
+          {i === 0 ? <h1>{c.title}</h1> : <h2>{c.title}</h2>}
+          <p>Placeholder runway — the flight beneath this text is the Phase‑1 debug scene.</p>
+        </div>
+      </section>
+    ))
+  }
+</Base>

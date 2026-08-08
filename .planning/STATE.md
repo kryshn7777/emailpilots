@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-08-08)
 
 ## Current Position
 
-Phase: 1 of 7 (Scaffold + Toolchain)
+Phase: 2 of 7 (Flight Core) — ready to plan
 Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-08-08 — Project initialized: direction spec approved ("The Overnight Flight", volumetric cinema), PROJECT/REQUIREMENTS/ROADMAP written
+Status: Phase 1 complete
+Last activity: 2026-08-08 — Phase 1 verified: Astro 7.2 (rolldown-vite) + React 19 island (hydration click-tested) + vite-plugin-glsl `#include` + postprocessing bloom debug scene at 61fps + Lenis/ScrollTrigger scrub + lazy Engine chunk + typecheck (`astro check`, 0 errors) + prod build green
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] ~14%
 
 ## Performance Metrics
 
@@ -46,9 +46,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- `New Website/FEATURES.md` must survive Astro scaffolding into the non-empty dir (move aside → scaffold → restore)
-- postprocessing↔three peer-version pair must be pinned at Phase 1
 - Volumetric perf on iGPU unproven until Phase 3 — billboard fallback is the safety net
+- Astro 7 ships rolldown-vite; vite-plugin-glsl 1.6.1 works today — re-verify after Astro upgrades
+- `@astrojs/check` forced TypeScript back to 5.9 (TS 7.0 peer-conflict) — revisit when checker supports TS7
+
+Resolved: FEATURES.md survived scaffold (stash/restore); version pair pinned = three 0.185.1 + postprocessing 6.39.4.
 
 ## Session Continuity
 

@@ -1,0 +1,92 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: auto; /* Lenis owns smoothing */
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: var(--step-0);
+  line-height: 1.5;
+  overflow-x: clip;
+}
+
+#webgl {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem clamp(1rem, 4vw, 3rem);
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+main#swup {
+  position: relative;
+  z-index: 1;
+}
+
+.chapter {
+  min-height: 120vh;
+  display: grid;
+  align-content: start;
+  padding: 0 clamp(1rem, 6vw, 5rem);
+}
+
+.chapter__copy {
+  position: sticky;
+  top: 20vh;
+  max-width: 34rem;
+}
+
+.chapter__kicker {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.chapter h1,
+.chapter h2 {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: var(--step-3);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0.5rem 0 1rem;
+  text-wrap: balance;
+}
+
+.chapter p {
+  color: var(--ink-dim);
+  max-width: 46ch;
+}

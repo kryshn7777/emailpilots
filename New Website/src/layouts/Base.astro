@@ -1,0 +1,42 @@
+---
+import '@fontsource-variable/bricolage-grotesque';
+import '@fontsource-variable/inter';
+import '../styles/global.css';
+import Nav from '../components/islands/Nav.tsx';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <!-- Persistent WebGL canvas: lives OUTSIDE #swup so page transitions never recreate it. -->
+    <canvas id="webgl" aria-hidden="true"></canvas>
+
+    <header class="site-header">
+      <a class="brand" href="/">Email Pilots</a>
+      <Nav client:load />
+    </header>
+
+    <main id="swup">
+      <slot />
+    </main>
+
+    <script>
+      import { boot } from '../webgl/index';
+      boot();
+    </script>
+  </body>
+</html>
