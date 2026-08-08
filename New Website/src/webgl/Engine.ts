@@ -1,37 +1,37 @@
-import {
-  Color,
-  IcosahedronGeometry,
-  Mesh,
-  PerspectiveCamera,
-  Scene,
-  ShaderMaterial,
-  WebGLRenderer,
-} from 'three';
+import { Color, Fog, HalfFloatType, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
 import { BloomEffect, EffectComposer, EffectPass, RenderPass, VignetteEffect } from 'postprocessing';
-import { HalfFloatType } from 'three';
+import { CONTRAIL_FROM, FOLD_WINDOW } from '../story/chapters';
+import { PaperPlane } from './actors/PaperPlane';
+import { Trail } from './actors/Trail';
+import { CameraRig } from './rig/CameraRig';
+import { FlightPath } from './rig/FlightPath';
 import { ScrollDirector } from './scroll/ScrollDirector';
-import debugVert from './shaders/debug.vert.glsl';
-import debugFrag from './shaders/debug.frag.glsl';
+import { World } from './World';
 
 interface EngineOptions {
   reducedMotion: boolean;
 }
 
 /**
- * Phase-1 engine: proves renderer, post chain, glsl pipeline, scroll scrub,
- * resize/DPR handling, and context-loss safety on a debug scene. The flight
- * world replaces the debug scene in Phase 2+.
+ * Phase-2 engine: the full flight, scrubbable end to end over the blockout
+ * world. Scroll owns t; the RAF loop owns time-based motion (turbulence,
+ * camera damping, contrail).
  */
 export class Engine {
   private renderer: WebGLRenderer;
   private scene = new Scene();
   private camera: PerspectiveCamera;
   private composer: EffectComposer;
-  private material: ShaderMaterial;
-  private mesh: Mesh;
+  private path = new FlightPath();
+  private world: World;
+  private plane = new PaperPlane();
+  private trail = new Trail();
+  private rig: CameraRig;
   private director: ScrollDirector | null = null;
+  private scrollT = 0;
   private rafId = 0;
   private startTime = performance.now();
+  private lastTime = this.startTime;
   private disposed = false;
 
   constructor(
@@ -45,19 +45,12 @@ export class Engine {
     });
     this.renderer.setClearColor(new Color('#05070f'));
 
-    this.camera = new PerspectiveCamera(45, 1, 0.1, 100);
-    this.camera.position.set(0, 0, 5);
+    this.scene.fog = new Fog('#05070f', 10, 90);
+    this.camera = new PerspectiveCamera(45, 1, 0.1, 300);
 
-    this.material = new ShaderMaterial({
-      vertexShader: debugVert,
-      fragmentShader: debugFrag,
-      uniforms: {
-        uTime: { value: 0 },
-        uProgress: { value: 0 },
-      },
-    });
-    this.mesh = new Mesh(new IcosahedronGeometry(1.4, 32), this.material);
-    this.scene.add(this.mesh);
+    this.world = new World(this.path);
+    this.scene.add(this.world.group, this.plane.group, this.trail.line);
+    this.rig = new CameraRig(this.path, this.camera, this.plane);
 
     this.composer = new EffectComposer(this.renderer, { frameBufferType: HalfFloatType });
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -78,23 +71,45 @@ export class Engine {
     this.director = new ScrollDirector({
       reducedMotion: this.options.reducedMotion,
       onProgress: (t) => {
-        this.material.uniforms.uProgress!.value = t;
-        this.mesh.rotation.y = t * Math.PI * 4;
-        this.mesh.rotation.x = t * Math.PI;
+        this.scrollT = t;
+        if (this.options.reducedMotion) this.renderFrame();
       },
     });
 
     if (this.options.reducedMotion) {
-      this.composer.render(); // static frame; scroll still updates via onProgress
+      this.renderFrame();
       return;
     }
     this.loop();
   }
 
+  private renderFrame(): void {
+    const now = performance.now();
+    const dt = Math.min((now - this.lastTime) / 1000, 0.1);
+    this.lastTime = now;
+    const time = (now - this.startTime) / 1000;
+    const t = this.scrollT;
+
+    // fold beat: flat letter on the desk becomes the dart inside CH1
+    const { start, end } = FOLD_WINDOW;
+    const foldU = Math.min(Math.max((t - start) / (end - start), 0), 1);
+    this.plane.setFold(foldU * foldU * (3 - 2 * foldU));
+
+    this.rig.update(t, time, dt);
+
+    if (t > CONTRAIL_FROM) {
+      this.trail.visible = true;
+      this.trail.push(this.plane.group.position);
+    } else {
+      this.trail.visible = false;
+    }
+
+    this.composer.render();
+  }
+
   private loop = (): void => {
     if (this.disposed) return;
-    this.material.uniforms.uTime!.value = (performance.now() - this.startTime) / 1000;
-    this.composer.render();
+    this.renderFrame();
     this.rafId = requestAnimationFrame(this.loop);
   };
 
@@ -122,8 +137,9 @@ export class Engine {
     this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
     this.director?.dispose();
     this.composer.dispose();
-    this.mesh.geometry.dispose();
-    this.material.dispose();
+    this.world.dispose();
+    this.plane.dispose();
+    this.trail.dispose();
     this.renderer.dispose();
   }
 }

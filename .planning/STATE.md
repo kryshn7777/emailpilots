@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-08-08)
 
 ## Current Position
 
-Phase: 2 of 7 (Flight Core) — ready to plan
+Phase: 3 of 7 (World A: CH1–5) — ready to plan
 Plan: 0 of TBD in current phase
-Status: Phase 1 complete
-Last activity: 2026-08-08 — Phase 1 verified: Astro 7.2 (rolldown-vite) + React 19 island (hydration click-tested) + vite-plugin-glsl `#include` + postprocessing bloom debug scene at 61fps + Lenis/ScrollTrigger scrub + lazy Engine chunk + typecheck (`astro check`, 0 errors) + prod build green
+Status: Phase 2 complete
+Last activity: 2026-08-08 — Phase 2 verified in-browser: full 10-zone scrub at 60–62fps (5 stops), reverse clean, staged fold morph at CH1, banking through storm-gate slalom, contrail ring buffer, chapters.ts SSOT driving rig blends. Screenshots delivered to user.
 
-Progress: [█░░░░░░░░░] ~14%
+Progress: [██░░░░░░░░] ~29%
 
 ## Performance Metrics
 
