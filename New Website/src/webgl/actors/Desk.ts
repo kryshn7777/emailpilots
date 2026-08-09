@@ -4,6 +4,7 @@ import {
   BoxGeometry,
   BufferGeometry,
   CylinderGeometry,
+  DoubleSide,
   Float32BufferAttribute,
   Group,
   Mesh,
@@ -13,6 +14,7 @@ import {
   PointLight,
   Points,
   PointsMaterial,
+  TorusGeometry,
   Vector3,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -127,12 +129,99 @@ export class Desk {
     };
     prop('/models/potted_plant_04.glb', 0.95, -2.3, -1.35, 0.6);
     prop('/models/book_encyclopedia_set_01.glb', 0.5, 3.1, 1.6, -0.5);
+    prop('/models/ceramic_vase_01.glb', 0.62, 2.0, -0.85, 0.2);
 
-    const ceramic = new MeshStandardMaterial({ color: '#c8b8a4', roughness: 0.4 });
-    const cup = new Mesh(new CylinderGeometry(0.14, 0.12, 0.24, 20), ceramic);
-    cup.position.set(-0.9, 0.02, 0.95);
-    this.group.add(cup);
-    this.disposables.push(cup.geometry, ceramic);
+    // flowers rising from the vase mouth — stems + heads + a leaf each
+    const flowers = new Group();
+    flowers.position.set(2.0, 0.38, -0.85);
+    const stemMaterial = new MeshStandardMaterial({ color: '#3e5a3a', roughness: 0.8 });
+    const stemGeometry = new CylinderGeometry(0.012, 0.016, 0.5, 6);
+    const headGeometry = new CylinderGeometry(0.02, 0.075, 0.11, 8);
+    const leafGeometry = new PlaneGeometry(0.07, 0.2);
+    this.disposables.push(stemMaterial, stemGeometry, headGeometry, leafGeometry);
+    const FLOWERS: { tilt: number; lean: number; h: number; color: string }[] = [
+      { tilt: 0.0, lean: -0.22, h: 0.52, color: '#d96a7b' },
+      { tilt: 2.1, lean: 0.28, h: 0.42, color: '#e8b13c' },
+      { tilt: 4.2, lean: 0.16, h: 0.6, color: '#c37ad9' },
+    ];
+    for (const f of FLOWERS) {
+      const one = new Group();
+      const stem = new Mesh(stemGeometry, stemMaterial);
+      stem.scale.y = f.h / 0.5;
+      stem.position.y = f.h / 2;
+      const headMaterial = new MeshStandardMaterial({
+        color: f.color,
+        emissive: f.color,
+        emissiveIntensity: 0.12, // reads in lamplight without glowing
+        roughness: 0.7,
+        side: DoubleSide,
+      });
+      this.disposables.push(headMaterial);
+      const head = new Mesh(headGeometry, headMaterial);
+      head.position.y = f.h + 0.04;
+      const leaf = new Mesh(leafGeometry, stemMaterial);
+      leaf.position.set(0.05, f.h * 0.45, 0);
+      leaf.rotation.set(0.4, 0, -0.7);
+      one.add(stem, head, leaf);
+      one.rotation.set(0, f.tilt, f.lean);
+      flowers.add(one);
+    }
+    this.group.add(flowers);
+
+    // two coffee mugs: one mid-desk by the letter work, one parked behind
+    // the laptop — body, handle, and a dark coffee surface
+    const makeMug = (bodyColor: string): Group => {
+      const mug = new Group();
+      const bodyMaterial = new MeshStandardMaterial({ color: bodyColor, roughness: 0.35 });
+      const body = new Mesh(new CylinderGeometry(0.105, 0.09, 0.17, 18), bodyMaterial);
+      body.position.y = 0.085;
+      const handle = new Mesh(new TorusGeometry(0.055, 0.015, 8, 18, Math.PI), bodyMaterial);
+      handle.position.set(0.1, 0.09, 0);
+      handle.rotation.z = -Math.PI / 2;
+      const coffeeMaterial = new MeshStandardMaterial({ color: '#241610', roughness: 0.25 });
+      const coffee = new Mesh(new CylinderGeometry(0.093, 0.093, 0.008, 18), coffeeMaterial);
+      coffee.position.y = 0.156;
+      mug.add(body, handle, coffee);
+      this.disposables.push(body.geometry, handle.geometry, coffee.geometry, bodyMaterial, coffeeMaterial);
+      return mug;
+    };
+    const mugA = makeMug('#b8434a');
+    mugA.position.set(1.35, -0.1, 1.05);
+    mugA.rotation.y = 0.7;
+    const mugB = makeMug('#3f4a63');
+    mugB.position.set(-1.75, -0.1, 1.1);
+    mugB.rotation.y = -1.9;
+    this.group.add(mugA, mugB);
+
+    // work clutter: sticky notes, a paper stack, a pen resting on it
+    const NOTE_COLORS = ['#ffd977', '#9fd6a8', '#f2a7a0'];
+    const noteGeometry = new PlaneGeometry(0.22, 0.22);
+    this.disposables.push(noteGeometry);
+    NOTE_COLORS.forEach((c, i) => {
+      const noteMaterial = new MeshStandardMaterial({ color: c, roughness: 0.9, side: DoubleSide });
+      this.disposables.push(noteMaterial);
+      const note = new Mesh(noteGeometry, noteMaterial);
+      note.rotation.x = -Math.PI / 2;
+      note.rotation.z = 0.4 + i * 1.9;
+      note.position.set(0.55 + i * 0.3, -0.096, 1.45 - i * 0.18);
+      this.group.add(note);
+    });
+    const stackMaterial = new MeshStandardMaterial({ color: '#e8e2d4', roughness: 0.9 });
+    this.disposables.push(stackMaterial);
+    for (let i = 0; i < 3; i++) {
+      const sheetGeometry = new BoxGeometry(0.78, 0.014, 1.05);
+      this.disposables.push(sheetGeometry);
+      const sheet = new Mesh(sheetGeometry, stackMaterial);
+      sheet.position.set(3.05, -0.095 + i * 0.015, -0.5);
+      sheet.rotation.y = 0.12 + i * 0.09;
+      this.group.add(sheet);
+    }
+    const penMaterial = new MeshStandardMaterial({ color: '#1d2a4a', roughness: 0.3, metalness: 0.4 });
+    const pen = new Mesh(new CylinderGeometry(0.016, 0.016, 0.42, 8), penMaterial);
+    pen.rotation.set(Math.PI / 2, 0, 0.5);
+    pen.position.set(3.0, -0.04, -0.42);
+    this.group.add(pen);
+    this.disposables.push(pen.geometry, penMaterial);
 
     const metal = new MeshStandardMaterial({ color: '#2a2e3c', roughness: 0.35, metalness: 0.6 });
     const stem = new Mesh(new CylinderGeometry(0.035, 0.05, 1.15, 10), metal);

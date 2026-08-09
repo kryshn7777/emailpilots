@@ -11,7 +11,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'models');
 const tmpRoot = join(root, '.tmp-models');
 
-const SLUGS = ['potted_plant_04', 'book_encyclopedia_set_01'];
+const SLUGS = ['potted_plant_04', 'book_encyclopedia_set_01', 'ceramic_vase_01'];
 
 function download(url, file, redirectsLeft = 3) {
   return new Promise((resolve, reject) => {
