@@ -1,5 +1,6 @@
 import {
   AdditiveBlending,
+  BoxGeometry,
   BufferGeometry,
   Camera,
   Color,
@@ -18,6 +19,8 @@ import {
   PointsMaterial,
   RingGeometry,
   ShaderMaterial,
+  Sprite,
+  SpriteMaterial,
   TorusGeometry,
   Vector2,
   Vector3,
@@ -55,6 +58,8 @@ export class Beacon {
   private ringMaterials: MeshStandardMaterial[] = [];
   private hovered = false;
   private towerTop = new Vector3();
+  private flareMaterial: SpriteMaterial;
+  private ship = new Group();
   private disposables: { dispose(): void }[] = [];
 
   constructor(anchor: Vector3, raycast: Raycast, private tooltip: Tooltip, quality: Quality) {
@@ -107,9 +112,10 @@ export class Beacon {
       this.disposables.push(g);
     }
 
-    // — the sea —
+    // — the sea — oversized so the camera never looks past its far edge
+    // into black void on the way out of the chapter
     const seg = quality.tier === 'high' ? 128 : 72;
-    const seaGeometry = new PlaneGeometry(240, 150, seg, Math.floor(seg / 2));
+    const seaGeometry = new PlaneGeometry(340, 220, seg, Math.floor(seg / 2));
     this.oceanMaterial = new ShaderMaterial({
       vertexShader: oceanVert,
       fragmentShader: oceanFrag,
@@ -211,7 +217,7 @@ export class Beacon {
       blending: AdditiveBlending,
       side: DoubleSide,
     });
-    const beamGeometry = new CylinderGeometry(0.12, 4, 26, 24, 1, true);
+    const beamGeometry = new CylinderGeometry(0.12, 3.2, 26, 24, 1, true);
     this.beam = new Mesh(beamGeometry, this.beamMaterial);
     this.beam.rotation.z = Math.PI / 2;
     this.beam.position.x = 13;
@@ -220,6 +226,24 @@ export class Beacon {
     this.beamPivot.add(this.beam);
     this.group.add(this.beamPivot);
     this.disposables.push(beamGeometry, this.beamMaterial);
+
+    // — lantern flare: blooms only when the sweep points at the camera —
+    this.flareMaterial = new SpriteMaterial({
+      map: glowTexture(),
+      color: '#bffbee',
+      transparent: true,
+      opacity: 0,
+      blending: AdditiveBlending,
+      depthWrite: false,
+      depthTest: false,
+    });
+    const flare = new Sprite(this.flareMaterial);
+    flare.position.set(0, 12.2, 0);
+    flare.scale.setScalar(5);
+    this.group.add(flare);
+    this.disposables.push(this.flareMaterial);
+
+    this.buildShip();
 
     // — radar rings riding just above the swell —
     for (let i = 0; i < 3; i++) {
@@ -253,9 +277,85 @@ export class Beacon {
     });
   }
 
-  update(time: number, camera: Camera, t: number): void {
-    if (!this.group.visible) return;
-    this.beamPivot.rotation.y = time * 0.45;
+  /** A small freighter riding the swell beyond the islet, nav lights on. */
+  private buildShip(): void {
+    const steel = new MeshStandardMaterial({ color: '#1a212e', roughness: 0.6, metalness: 0.3 });
+    const bridgeSteel = new MeshStandardMaterial({ color: '#242e40', roughness: 0.5 });
+    const hull = new Mesh(new BoxGeometry(5.6, 1.1, 1.7), steel);
+    hull.position.y = 0.35;
+    const bow = new Mesh(new BoxGeometry(1.4, 1.0, 1.2), steel);
+    bow.position.set(3.1, 0.3, 0);
+    bow.rotation.y = Math.PI / 4;
+    const bridge = new Mesh(new BoxGeometry(1.3, 1.3, 1.4), bridgeSteel);
+    bridge.position.set(-1.9, 1.4, 0);
+    const funnel = new Mesh(new CylinderGeometry(0.28, 0.34, 0.9, 10), steel);
+    funnel.position.set(-2.6, 2.2, 0);
+    const mast = new Mesh(new CylinderGeometry(0.04, 0.06, 2.2, 6), steel);
+    mast.position.set(1.6, 1.9, 0);
+    this.ship.add(hull, bridge, bow, funnel, mast);
+    this.disposables.push(
+      hull.geometry, bow.geometry, bridge.geometry, funnel.geometry, mast.geometry,
+      steel, bridgeSteel,
+    );
+
+    // warm portholes along the hull + red/green running lights + mast light
+    const lights: number[] = [];
+    for (let i = 0; i < 7; i++) {
+      lights.push(-2.2 + i * 0.75, 0.55, 0.88);
+      lights.push(-2.2 + i * 0.75, 0.55, -0.88);
+    }
+    const lightGeometry = new BufferGeometry();
+    lightGeometry.setAttribute('position', new Float32BufferAttribute(lights, 3));
+    const lightMaterial = new PointsMaterial({
+      map: glowTexture(),
+      color: '#ffd9a0',
+      size: 0.34,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+    const portholes = new Points(lightGeometry, lightMaterial);
+    portholes.frustumCulled = false;
+    const nav = (color: string, x: number, y: number, z: number): Points => {
+      const g = new BufferGeometry();
+      g.setAttribute('position', new Float32BufferAttribute([x, y, z], 3));
+      const m = new PointsMaterial({
+        map: glowTexture(),
+        color,
+        size: 0.5,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false,
+        blending: AdditiveBlending,
+      });
+      const point = new Points(g, m);
+      point.frustumCulled = false;
+      this.disposables.push(g, m);
+      return point;
+    };
+    this.ship.add(
+      portholes,
+      nav('#ff6f6f', 3.6, 0.9, -0.5),
+      nav('#7fff9f', 3.6, 0.9, 0.5),
+      nav('#eafcff', 1.6, 3.05, 0),
+    );
+    this.disposables.push(lightGeometry, lightMaterial);
+
+    // on the open water past the tower, left of the flight line — sits in
+    // the visible horizon band through the whole approach
+    this.ship.position.set(30, 0.5, -13);
+    this.ship.rotation.y = 0.55;
+    this.ship.scale.setScalar(2.4);
+    this.group.add(this.ship);
+  }
+
+  update(time: number, camera: Camera, t: number, planePos: Vector3): number {
+    if (!this.group.visible) return 0;
+    // free sweep + a scroll-driven phase: scrubbing the chapter always drags
+    // the beam through at least one full pass over the flight line
+    const yaw = time * 0.45 + t * 40;
+    this.beamPivot.rotation.y = yaw;
     this.beamMaterial.uniforms.uTime!.value = time;
     // the beam stands down entering CH7 — inside-the-cone frames wash teal
     this.beamMaterial.uniforms.uIntensity!.value =
@@ -265,14 +365,36 @@ export class Beacon {
 
     // weather intensity follows the chapter window
     const beaconness =
-      MathUtils.smoothstep(t, 0.45, 0.5) * (1 - MathUtils.smoothstep(t, 0.59, 0.63));
+      MathUtils.smoothstep(t, 0.45, 0.5) * (1 - MathUtils.smoothstep(t, 0.57, 0.605));
     this.rainMaterial.uniforms.uTime!.value = time;
     this.rainMaterial.uniforms.uOpacity!.value = beaconness * 0.85;
+    // the sea is gone before the no-fly map develops — overlapping them put
+    // red exclusion circles on the water
     const reveal =
-      MathUtils.smoothstep(t, 0.44, 0.49) * (1 - MathUtils.smoothstep(t, 0.6, 0.635));
+      MathUtils.smoothstep(t, 0.44, 0.49) * (1 - MathUtils.smoothstep(t, 0.575, 0.605));
     this.oceanMaterial.uniforms.uReveal!.value = reveal;
     // a fullscreen transparent plane at alpha≈0 still pays full fragment cost
     this.sea.visible = reveal > 0.003;
+
+    // — beam hits: the sweep catching the plane, then the lens —
+    const beamX = Math.cos(yaw);
+    const beamZ = -Math.sin(yaw);
+    const lampGlow = this.beamMaterial.uniforms.uIntensity!.value / 0.8;
+    let dx = planePos.x - this.towerTop.x;
+    let dz = planePos.z - this.towerTop.z;
+    let len = Math.hypot(dx, dz) || 1;
+    const planeHit = Math.pow(Math.max((beamX * dx + beamZ * dz) / len, 0), 40) * lampGlow;
+    dx = camera.position.x - this.towerTop.x;
+    dz = camera.position.z - this.towerTop.z;
+    len = Math.hypot(dx, dz) || 1;
+    const camHit = Math.pow(Math.max((beamX * dx + beamZ * dz) / len, 0), 30) * lampGlow;
+    this.flareMaterial.opacity = camHit * 0.95;
+
+    // — the freighter rides the swell —
+    this.ship.position.y = 0.5 + Math.sin(time * 0.7) * 0.3;
+    this.ship.rotation.z = Math.sin(time * 0.7 + 1.3) * 0.05;
+    this.ship.rotation.x = Math.sin(time * 0.55) * 0.035;
+    this.ship.position.x = 30 + Math.sin(time * 0.07) * 3;
 
     // splash bursts: parabolic arcs synced to the surge beat
     const attr = this.splashGeometry.attributes.position!;
@@ -296,6 +418,7 @@ export class Beacon {
     }
 
     if (this.hovered) this.tooltip.pin(this.towerTop, camera, 30);
+    return planeHit;
   }
 
   dispose(): void {

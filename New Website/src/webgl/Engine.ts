@@ -442,8 +442,9 @@ export class Engine {
     this.storm.group.visible = t > 0.3 && t < 0.58;
     this.biplane.group.visible = t > 0.32 && t < 0.49;
     this.birds.group.visible = t > 0.055 && t < 0.3;
-    this.beacon.group.visible = t > 0.44 && t < 0.64;
-    this.noFly.group.visible = t > 0.55 && t < 0.7;
+    this.beacon.group.visible = t > 0.44 && t < 0.615;
+    // waits for the sea to fade — overlapped, its red zones floated on water
+    this.noFly.group.visible = t > 0.6 && t < 0.7;
     // city waits until the camera reaches it — its westmost massing stands
     // on the no-fly map's ground and read as floating gray blocks at t≈0.6;
     // the city grade's near fog covers the entry
@@ -474,8 +475,8 @@ export class Engine {
     this.storm.update(time, dt, stormness, Math.random);
     this.biplane.update(t, time);
     this.birds.update(time);
-    this.beacon.update(time, this.camera, t);
-    this.noFly.update(time);
+    this.plane.setBeamHit(this.beacon.update(time, this.camera, t, this.rig.planeWorldPos));
+    this.noFly.update(time, t);
     this.city.update(t, time);
     this.copilot.update(
       this.rig.planeWorldPos,

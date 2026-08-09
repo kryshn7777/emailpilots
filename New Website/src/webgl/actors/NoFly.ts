@@ -18,17 +18,23 @@ import { PaperPlane } from './PaperPlane';
 export class NoFly {
   readonly group = new Group();
   private zoneMaterials: MeshStandardMaterial[] = [];
+  private fadeMaterials: MeshStandardMaterial[] = [];
   private ghost: PaperPlane;
   private disposables: { dispose(): void }[] = [];
 
   constructor(anchor: Vector3) {
     const groundY = anchor.y - 8;
 
-    const groundMaterial = new MeshStandardMaterial({ color: '#101318', roughness: 0.95 });
-    const ground = new Mesh(new PlaneGeometry(120, 90), groundMaterial);
+    const groundMaterial = new MeshStandardMaterial({
+      color: '#131824',
+      roughness: 0.95,
+      transparent: true,
+    });
+    const ground = new Mesh(new PlaneGeometry(160, 110), groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(anchor.x - 6, groundY, anchor.z);
     this.group.add(ground);
+    this.fadeMaterials.push(groundMaterial);
     this.disposables.push(ground.geometry, groundMaterial);
 
     // zones sit west of the city massing (its west edge starts ≈ anchor.x)
@@ -44,6 +50,7 @@ export class NoFly {
         emissive: '#e24b4b',
         emissiveIntensity: 0.35,
         roughness: 0.8,
+        transparent: true,
       });
       const fill = new Mesh(new CircleGeometry(r, 40), fillMaterial);
       fill.rotation.x = -Math.PI / 2;
@@ -53,12 +60,14 @@ export class NoFly {
         emissive: '#e24b4b',
         emissiveIntensity: 2.6,
         roughness: 0.5,
+        transparent: true,
       });
       const rim = new Mesh(new RingGeometry(r * 0.96, r * 1.04, 48), rimMaterial);
       rim.rotation.x = -Math.PI / 2;
       rim.position.set(x, groundY + 0.08, z);
       this.group.add(fill, rim);
       this.zoneMaterials.push(fillMaterial);
+      this.fadeMaterials.push(fillMaterial, rimMaterial);
       this.disposables.push(fill.geometry, fillMaterial, rim.geometry, rimMaterial);
     }
 
@@ -71,8 +80,9 @@ export class NoFly {
     this.ghost.group.traverse((o) => {
       const mesh = o as Mesh;
       if (mesh.isMesh) {
-        const m = new MeshStandardMaterial({ color: '#4a4f5c', roughness: 0.9 });
+        const m = new MeshStandardMaterial({ color: '#4a4f5c', roughness: 0.9, transparent: true });
         mesh.material = m;
+        this.fadeMaterials.push(m);
         this.disposables.push(m);
       }
     });
@@ -81,9 +91,13 @@ export class NoFly {
     this.disposables.push(this.ghost);
   }
 
-  update(time: number): void {
+  update(time: number, t: number): void {
     if (!this.group.visible) return;
-    const pulse = 0.35 + MathUtils.clamp(Math.sin(time * 1.4) * 0.5 + 0.5, 0, 1) * 0.5;
+    // the map develops only after the sea has faded — its red zones were
+    // reading as circles floating on the beacon water
+    const presence = MathUtils.smoothstep(t, 0.605, 0.64);
+    for (const m of this.fadeMaterials) m.opacity = presence;
+    const pulse = (0.35 + MathUtils.clamp(Math.sin(time * 1.4) * 0.5 + 0.5, 0, 1) * 0.5) * presence;
     for (const m of this.zoneMaterials) m.emissiveIntensity = pulse;
   }
 

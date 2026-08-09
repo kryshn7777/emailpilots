@@ -104,6 +104,11 @@ export class PaperPlane {
     this.mesh.morphTargetInfluences![0] = 1 - eased;
   }
 
+  /** The lighthouse sweep catching the paper: brief teal-white flash. */
+  setBeamHit(hit: number): void {
+    this.material.emissiveIntensity = 0.16 + hit * 1.9;
+  }
+
   /** Subtle in-flight wing flex; a no-op while the sheet is unfolded. */
   flex(time: number, amount: number): void {
     if (this.folded < 0.95 || amount <= 0) {

@@ -40,7 +40,7 @@ function envelopeGeometry(): BufferGeometry {
 
 const COUNT = 5;
 const SHOW_FROM = 0.2;
-const SHOW_TO = 0.52;
+const SHOW_TO = 0.46; // escort peels away before the beacon — CH6 is the plane alone
 
 /**
  * CH4: the escort — five envelopes flying V-formation off the plane's wing,
@@ -83,10 +83,9 @@ export class Envelopes {
   }
 
   update(planePos: Vector3, side: Vector3, tangent: Vector3, t: number, time: number, camera: Camera): void {
-    const fadeIn = MathUtils.smoothstep(t, SHOW_FROM, SHOW_FROM + 0.03);
+    const fadeIn = MathUtils.smoothstep(t, SHOW_FROM, SHOW_FROM + 0.06);
     const fadeOut = 1 - MathUtils.smoothstep(t, SHOW_TO - 0.03, SHOW_TO);
-    const presence = Math.min(fadeIn, fadeOut);
-    this.group.visible = presence > 0.01;
+    this.group.visible = Math.min(fadeIn, fadeOut) > 0.01;
     if (!this.group.visible) return;
 
     for (let i = 0; i < COUNT; i++) {
@@ -96,14 +95,18 @@ export class Envelopes {
       const back = Math.ceil(rank / 2) * 1.4;
       const bob = Math.sin(time * 1.3 + i * 1.9) * 0.12;
       const lift = this.hoveredIndex === i ? 0.35 : 0;
+      // staggered join: each one climbs into its slot from the cloud deck
+      // behind — no more slabs popping into existence beside the plane
+      const join = MathUtils.smoothstep(t, SHOW_FROM + i * 0.01, SHOW_FROM + i * 0.01 + 0.05);
 
       mesh.position
         .copy(planePos)
-        .addScaledVector(tangent, -back)
-        .addScaledVector(side, lateral);
-      mesh.position.y += -0.2 + bob + lift;
+        .addScaledVector(tangent, -back - (1 - join) * 7)
+        .addScaledVector(side, lateral * (0.4 + 0.6 * join));
+      mesh.position.y += -0.2 + bob + lift - (1 - join) * 3.4;
       mesh.quaternion.setFromUnitVectors(Envelopes.FORWARD, tangent);
-      mesh.scale.setScalar(presence);
+      mesh.rotateZ((1 - join) * (i % 2 === 0 ? 0.7 : -0.7)); // banking in
+      mesh.scale.setScalar(fadeOut * (0.35 + 0.65 * join));
 
       const target = this.hoveredIndex === i ? 1.6 : 0.55;
       const m = this.materials[i]!;

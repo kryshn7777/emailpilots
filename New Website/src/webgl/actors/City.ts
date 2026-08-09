@@ -4,6 +4,7 @@ import {
   BufferGeometry,
   Color,
   CylinderGeometry,
+  DoubleSide,
   DynamicDrawUsage,
   Float32BufferAttribute,
   Group,
@@ -23,7 +24,7 @@ import {
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CROSS_STREET_X, cityGeometry, cityLayout, type Building } from '../bake/cityGen.mjs';
-import { neonSignTexture, roadTexture } from '../bake/CanvasTextures';
+import { facadeTexture, neonSignTexture, roadTexture } from '../bake/CanvasTextures';
 import { glowTexture } from '../bake/CanvasTextures';
 import { requestCompile } from '../warm';
 import { mulberry32 } from '../util';
@@ -65,11 +66,16 @@ export class City {
     // pure albedo × the dim city sun rendered to black.
     // NO vertexColors: the COLOR_0 path black-frames the whole composer on
     // ANGLE/D3D here — height-AO is injected in the shader instead.
+    // every box face carries the full window grid via its 0..1 UVs — the
+    // whole massing reads as lit buildings, not one flat-shaded low-poly blob
+    const facade = facadeTexture();
+    this.disposables.push(facade);
     const massingMaterial = new MeshStandardMaterial({
       color: '#39415a',
       roughness: 0.85,
-      emissive: '#232c42',
-      emissiveIntensity: 0.55,
+      emissive: '#e8b878',
+      emissiveMap: facade,
+      emissiveIntensity: 0.85,
     });
     massingMaterial.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
@@ -83,6 +89,12 @@ export class City {
         .replace(
           '#include <color_fragment>',
           '#include <color_fragment>\n  diffuseColor.rgb *= 0.3 + 0.7 * clamp(vCityY / 9.0, 0.0, 1.0);',
+        )
+        // windows live on the walls — kill the emissive grid on roof faces,
+        // the city entry looks straight down at them
+        .replace(
+          '#include <emissivemap_fragment>',
+          '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= 1.0 - smoothstep(0.35, 0.6, normal.y);',
         );
     };
     this.disposables.push(massingMaterial);
@@ -117,6 +129,7 @@ export class City {
 
     this.buildWindows(buildings);
     this.buildRoofClutter(buildings);
+    this.buildRoofDetail(buildings);
     this.buildStreetDressing(buildings);
     this.buildDeliveries(buildings, path);
     this.buildTraffic();
@@ -272,6 +285,65 @@ export class City {
     tanks.forEach((m, i) => tankMesh.setMatrixAt(i, m));
     this.group.add(units, tankMesh);
     this.disposables.push(unitGeometry, units, tankGeometry, tankMesh);
+  }
+
+  /**
+   * Parapet lips ringing every roof edge + big lit billboards on the tallest
+   * towers — the silhouette detail that keeps the massing from reading as
+   * bare low-poly boxes. Two instanced draws.
+   */
+  private buildRoofDetail(buildings: Building[]): void {
+    const rand = mulberry32(3117);
+    const lipMaterial = new MeshStandardMaterial({ color: '#2e3548', roughness: 0.85 });
+    const lipGeometry = new BoxGeometry(1, 1, 1);
+    const lips: Matrix4[] = [];
+    const q = new Quaternion();
+    const p = new Vector3();
+    const s = new Vector3();
+    for (const b of buildings) {
+      if (b.h < 2.8) continue;
+      const y = b.h + 0.09;
+      p.set(b.x, y, b.z - b.d / 2);
+      s.set(b.w + 0.1, 0.18, 0.09);
+      lips.push(new Matrix4().compose(p, q, s));
+      p.set(b.x, y, b.z + b.d / 2);
+      lips.push(new Matrix4().compose(p, q, s));
+      p.set(b.x - b.w / 2, y, b.z);
+      s.set(0.09, 0.18, b.d + 0.1);
+      lips.push(new Matrix4().compose(p, q, s));
+      p.set(b.x + b.w / 2, y, b.z);
+      lips.push(new Matrix4().compose(p, q, s));
+    }
+    const lipMesh = new InstancedMesh(lipGeometry, lipMaterial, lips.length);
+    lips.forEach((m, i) => lipMesh.setMatrixAt(i, m));
+    this.group.add(lipMesh);
+    this.disposables.push(lipGeometry, lipMaterial, lipMesh);
+
+    // rooftop billboards, glowing over the skyline
+    const NEON = ['#ff5f8f', '#5fd0ff', '#ffd05f', '#8fff9f'];
+    const sign = neonSignTexture();
+    const boardMaterial = new MeshBasicMaterial({
+      map: sign,
+      transparent: true,
+      blending: AdditiveBlending,
+      depthWrite: false,
+      side: DoubleSide,
+    });
+    const boardGeometry = new PlaneGeometry(2.6, 1.3);
+    const tall = [...buildings].sort((a, b) => b.h - a.h).slice(2, 8);
+    const boards = new InstancedMesh(boardGeometry, boardMaterial, tall.length);
+    const Y = new Vector3(0, 1, 0);
+    const yaw = new Quaternion();
+    s.set(1, 1, 1);
+    tall.forEach((b, i) => {
+      p.set(b.x, b.h + 1.0, b.z);
+      yaw.setFromAxisAngle(Y, (rand() - 0.5) * 0.9 + (b.z > 0 ? Math.PI : 0));
+      boards.setMatrixAt(i, new Matrix4().compose(p, yaw, s));
+      boards.setColorAt(i, this.color.set(NEON[i % NEON.length]!));
+    });
+    if (boards.instanceColor) boards.instanceColor.needsUpdate = true;
+    this.group.add(boards);
+    this.disposables.push(boardGeometry, boardMaterial, sign, boards);
   }
 
   private trafficMaterial: ShaderMaterial | null = null;
