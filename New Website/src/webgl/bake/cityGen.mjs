@@ -48,6 +48,32 @@ export function cityLayout(canyonZ = 0) {
 }
 
 /**
+ * Lots resolved to kit-module recipes: same seeded walk as cityLayout, each
+ * lot picking a module (skyscrapers on the tallest lots), yaw, and a tint.
+ * `modules` = manifest.modules from public/models/city-kit/manifest.json —
+ * passed in so this file stays fs-free and browser-importable.
+ * Tints stay near-white: instanceColor MULTIPLIES the shared colormap.
+ */
+const TINTS = ['#ffffff', '#e8ecf6', '#d5dbec', '#f2ead9', '#c9d0e4'];
+export function cityRecipes(modules, canyonZ = 0) {
+  const lots = [];
+  const rand = mulberry32(CITY_SEED + 7);
+  for (const b of cityLayout(canyonZ)) {
+    const tall = b.h > 6.5;
+    const pool = modules.filter((m) => (tall ? /sky/i.test(m.id) : !/sky/i.test(m.id)));
+    const pick = (pool.length ? pool : modules);
+    const mod = pick[Math.floor(rand() * pick.length)];
+    lots.push({
+      x: b.x, z: b.z, w: b.w, d: b.d, h: b.h,
+      yaw: (Math.floor(rand() * 4) * Math.PI) / 2,
+      tint: TINTS[Math.floor(rand() * TINTS.length)],
+      moduleId: mod.id,
+    });
+  }
+  return { lots };
+}
+
+/**
  * Merged city massing with baked vertex colors: facade tint × height-based
  * AO (streets stay dark, tops catch sky light) — the "texture bake" without
  * a DCC tool.
