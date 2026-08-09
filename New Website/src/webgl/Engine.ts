@@ -40,6 +40,7 @@ import { PaperBurst } from './actors/PaperBurst';
 import { PaperPlane } from './actors/PaperPlane';
 import { Rooftops } from './actors/Rooftops';
 import { Storm } from './actors/Storm';
+import { Traffic } from './actors/Traffic';
 import { Trail } from './actors/Trail';
 import { WindowFrame } from './actors/WindowFrame';
 import { WingPlanes } from './actors/WingPlanes';
@@ -102,6 +103,7 @@ export class Engine {
   private beacon: Beacon;
   private noFly: NoFly;
   private wingPlanes = new WingPlanes();
+  private traffic!: Traffic;
   private zoomBlur = new ZoomBlurEffect();
   private blurLevel = 0;
   private city: City;
@@ -192,6 +194,7 @@ export class Engine {
     this.landing = new Landing(this.path.storyPoint(0.985));
     this.burst = new PaperBurst(rand);
     this.confetti = new PaperBurst(rand);
+    this.traffic = new Traffic(this.path);
 
     this.scene.add(
       this.plane.group,
@@ -213,6 +216,7 @@ export class Engine {
       this.beacon.group,
       this.noFly.group,
       this.wingPlanes.group,
+      this.traffic.group,
       this.city.group,
       this.copilot.group,
       this.landing.group,
@@ -506,6 +510,7 @@ export class Engine {
       t,
       time,
     );
+    this.traffic.update(t, time);
     this.plane.setBeamHit(this.beacon.update(time, this.camera, t, this.rig.planeWorldPos));
     this.noFly.update(time, t);
     this.city.update(t, time);
@@ -589,6 +594,7 @@ export class Engine {
     this.beacon.dispose();
     this.noFly.dispose();
     this.wingPlanes.dispose();
+    this.traffic.dispose();
     this.city.dispose();
     this.copilot.dispose();
     this.landing.dispose();
