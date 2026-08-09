@@ -11,20 +11,18 @@ import {
   BufferGeometry,
   Float32BufferAttribute,
   RingGeometry,
-  SphereGeometry,
-  TorusGeometry,
   Vector3,
 } from 'three';
 import type { FlightPath } from './rig/FlightPath';
 
 /**
- * Phase-2 blockout: one grey primitive cluster per chapter zone, anchored to
- * the flight path so world and scrub stay in lockstep. Art replaces these
- * clusters chapter by chapter in Phases 3–4.
+ * Remaining blockout: CH6–10 zones (beacon, no-fly, city, starfield,
+ * runway). CH1–5 are art-complete actors now; these clusters get replaced
+ * in Phase 4.
  */
 
 // deterministic layout so the blockout doesn't reshuffle every reload
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let a = seed;
   return () => {
     a |= 0;
@@ -44,50 +42,6 @@ export class World {
   constructor(path: FlightPath) {
     const rand = mulberry32(20260808);
     const anchor = (i: number): Vector3 => path.chapterAnchor(i);
-
-    // CH1 desk: the letter's tabletop
-    {
-      const a = anchor(0);
-      this.add(new BoxGeometry(6, 0.2, 4), this.grey, a.x, a.y - 0.8, a.z);
-      this.add(new PlaneGeometry(0.9, 1.3), this.grey, a.x, a.y - 0.68, a.z, -Math.PI / 2);
-    }
-
-    // CH2 preflight: instrument panel slabs
-    {
-      const a = anchor(1);
-      for (let i = 0; i < 4; i++) {
-        this.add(new BoxGeometry(0.8, 1.6, 0.15), this.grey, a.x - 3 + i * 2, a.y + 0.4, a.z - 2.5);
-      }
-    }
-
-    // CH3 takeoff: window frame to thread
-    {
-      const a = anchor(2);
-      this.add(new TorusGeometry(3, 0.15, 8, 4), this.grey, a.x, a.y, a.z, 0, Math.PI / 2);
-    }
-
-    // CH4 formation: cloud puff spheres
-    {
-      const a = anchor(3);
-      for (let i = 0; i < 40; i++) {
-        const r = 0.8 + rand() * 2.2;
-        this.add(
-          new SphereGeometry(r, 8, 6),
-          this.grey,
-          a.x - 14 + rand() * 28,
-          a.y - 6 + rand() * 8,
-          a.z - 12 + rand() * 24,
-        );
-      }
-    }
-
-    // CH5 storm: red warning gates on the slalom line
-    {
-      for (const zt of [0.385, 0.415, 0.445] as const) {
-        const p = path.curve.getPointAt(zt);
-        this.add(new TorusGeometry(2.6, 0.12, 8, 24), this.red, p.x, p.y, p.z, 0, Math.PI / 2);
-      }
-    }
 
     // CH6 beacon: tower cone + ground ring
     {
@@ -140,7 +94,7 @@ export class World {
 
     // CH10 landing: runway strip with edge lights
     {
-      const end = path.curve.getPointAt(0.985);
+      const end = path.storyPoint(0.985);
       this.add(new PlaneGeometry(3, 26), this.grey, end.x, 0.01, end.z, -Math.PI / 2);
       for (let i = 0; i < 8; i++) {
         this.add(new BoxGeometry(0.15, 0.15, 0.15), this.red, end.x - 1.6, 0.1, end.z - 12 + i * 3.4);
@@ -150,7 +104,7 @@ export class World {
   }
 
   private add(
-    geometry: BoxGeometry | PlaneGeometry | SphereGeometry | ConeGeometry | TorusGeometry | RingGeometry,
+    geometry: BoxGeometry | PlaneGeometry | ConeGeometry | RingGeometry,
     material: MeshBasicMaterial | MeshNormalMaterial,
     x: number,
     y: number,

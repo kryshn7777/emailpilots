@@ -23,17 +23,26 @@ export class Trail {
     this.line.visible = false;
   }
 
+  private ring = new Float32Array(POINTS * 3);
+
   push(p: Vector3): void {
-    this.positions[this.head * 3] = p.x;
-    this.positions[this.head * 3 + 1] = p.y;
-    this.positions[this.head * 3 + 2] = p.z;
+    this.ring[this.head * 3] = p.x;
+    this.ring[this.head * 3 + 1] = p.y;
+    this.ring[this.head * 3 + 2] = p.z;
     this.head = (this.head + 1) % POINTS;
     this.filled = Math.min(this.filled + 1, POINTS);
 
-    // rewrite colors so brightness fades with age from the head backwards
+    // write the line oldest→newest so the strip never draws the wrap-around
+    // segment (which renders as a straight slash across the scene)
     for (let i = 0; i < POINTS; i++) {
-      const age = (this.head - 1 - i + POINTS) % POINTS;
-      const fade = this.filled < POINTS && age >= this.filled ? 0 : 1 - age / POINTS;
+      const age = POINTS - 1 - i; // i=POINTS-1 is newest
+      const src = ((this.head - 1 - age) % POINTS + POINTS) % POINTS;
+      const inside = age < this.filled;
+      const j = inside ? src : ((this.head - this.filled + POINTS) % POINTS);
+      this.positions[i * 3] = this.ring[j * 3]!;
+      this.positions[i * 3 + 1] = this.ring[j * 3 + 1]!;
+      this.positions[i * 3 + 2] = this.ring[j * 3 + 2]!;
+      const fade = inside ? 1 - age / POINTS : 0;
       this.colors[i * 3] = fade;
       this.colors[i * 3 + 1] = fade;
       this.colors[i * 3 + 2] = fade;
@@ -50,6 +59,8 @@ export class Trail {
   reset(): void {
     this.filled = 0;
     this.head = 0;
+    this.positions.fill(0);
+    this.geometry.attributes.position!.needsUpdate = true;
   }
 
   dispose(): void {

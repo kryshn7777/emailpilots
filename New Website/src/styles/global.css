@@ -84,9 +84,34 @@ main#swup {
   letter-spacing: -0.02em;
   margin: 0.5rem 0 1rem;
   text-wrap: balance;
+  text-shadow: 0 1px 24px rgba(5, 7, 15, 0.55), 0 1px 3px rgba(5, 7, 15, 0.35);
 }
 
 .chapter p {
   color: var(--ink-dim);
   max-width: 46ch;
+}
+
+.hud-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--instrument) 45%, transparent);
+  border-radius: 0.5rem;
+  background: rgba(5, 7, 15, 0.82);
+  color: var(--instrument);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  translate: -50% -100%;
+  transition: opacity 160ms ease;
+}
+
+.hud-tooltip[data-visible='true'] {
+  opacity: 1;
 }

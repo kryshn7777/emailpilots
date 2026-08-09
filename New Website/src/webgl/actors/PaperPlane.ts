@@ -1,4 +1,5 @@
-import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshNormalMaterial, Object3D, Quaternion, Vector3 } from 'three';
+import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three';
+import { paperTexture } from '../bake/CanvasTextures';
 
 /**
  * Procedural paper dart built from four crease-hinged pieces. fold = 0 lays
@@ -32,7 +33,12 @@ function triangle(a: Vector3, b: Vector3, c: Vector3): BufferGeometry {
 export class PaperPlane {
   readonly group = new Group();
   private pieces: Piece[] = [];
-  private material = new MeshNormalMaterial({ side: DoubleSide });
+  private material = new MeshStandardMaterial({
+    map: paperTexture(),
+    color: '#ffffff',
+    roughness: 0.85,
+    side: DoubleSide,
+  });
   private quat = new Quaternion();
 
   constructor() {

@@ -1,38 +1,84 @@
-import { Color, Fog, HalfFloatType, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
+import {
+  Color,
+  DirectionalLight,
+  Fog,
+  HalfFloatType,
+  HemisphereLight,
+  MathUtils,
+  PMREMGenerator,
+  PerspectiveCamera,
+  Scene,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+} from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { BloomEffect, EffectComposer, EffectPass, RenderPass, VignetteEffect } from 'postprocessing';
-import { CONTRAIL_FROM, FOLD_WINDOW } from '../story/chapters';
+import { CONTRAIL_FROM, FOLD_WINDOW, gradeBlendAt, type GradeParams } from '../story/chapters';
+import { Clouds } from './actors/Clouds';
+import { Desk } from './actors/Desk';
+import { Envelopes } from './actors/Envelopes';
+import { Panel } from './actors/Panel';
+import { PaperBurst } from './actors/PaperBurst';
 import { PaperPlane } from './actors/PaperPlane';
+import { Storm } from './actors/Storm';
 import { Trail } from './actors/Trail';
+import { WindowFrame } from './actors/WindowFrame';
 import { CameraRig } from './rig/CameraRig';
 import { FlightPath } from './rig/FlightPath';
+import { Raycast } from './interact/Raycast';
+import { SkyDome } from './materials/SkyDome';
 import { ScrollDirector } from './scroll/ScrollDirector';
-import { World } from './World';
+import { detectQuality, gpuRendererString } from './quality';
+import { World, mulberry32 } from './World';
 
 interface EngineOptions {
   reducedMotion: boolean;
 }
 
 /**
- * Phase-2 engine: the full flight, scrubbable end to end over the blockout
- * world. Scroll owns t; the RAF loop owns time-based motion (turbulence,
- * camera damping, contrail).
+ * Phase-3 engine: CH1–5 art-complete (desk, panel, takeoff window, volumetric
+ * cloud sea, storm) over the chapter grade system; CH6–10 remain blockout.
  */
 export class Engine {
   private renderer: WebGLRenderer;
   private scene = new Scene();
   private camera: PerspectiveCamera;
   private composer: EffectComposer;
+  private quality!: ReturnType<typeof detectQuality>;
+
   private path = new FlightPath();
   private world: World;
   private plane = new PaperPlane();
   private trail = new Trail();
   private rig: CameraRig;
+  private sky = new SkyDome();
+  private sun = new DirectionalLight('#ffd9a0', 1);
+  private hemi = new HemisphereLight('#8fa8cc', '#1a1e2e', 0.35);
+  private desk: Desk;
+  private panel: Panel;
+  private windowFrame: WindowFrame;
+  private clouds: Clouds;
+  private envelopes: Envelopes;
+  private storm: Storm;
+  private burst: PaperBurst;
+  private raycast = new Raycast();
   private director: ScrollDirector | null = null;
+
+  private fog: Fog;
   private scrollT = 0;
+  private prevT = 0;
   private rafId = 0;
   private startTime = performance.now();
   private lastTime = this.startTime;
   private disposed = false;
+
+  // scratch for grade lerps
+  private colorA = new Color();
+  private colorB = new Color();
+  private sunDirWorld = new Vector3(0.6, 0.25, 0.1);
+  private sunScreenDir = new Vector2(0.7, 0.3);
+  private tmpV = new Vector3();
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -44,12 +90,45 @@ export class Engine {
       powerPreference: 'high-performance',
     });
     this.renderer.setClearColor(new Color('#05070f'));
+    this.quality = detectQuality(gpuRendererString(this.renderer.getContext()));
 
-    this.scene.fog = new Fog('#05070f', 10, 90);
-    this.camera = new PerspectiveCamera(45, 1, 0.1, 300);
+    this.fog = new Fog('#05070f', 10, 90);
+    this.scene.fog = this.fog;
+    this.camera = new PerspectiveCamera(45, 1, 0.1, 400);
 
+    const pmrem = new PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment()).texture;
+    this.scene.environmentIntensity = 0.3;
+    pmrem.dispose();
+
+    const rand = mulberry32(919);
     this.world = new World(this.path);
-    this.scene.add(this.world.group, this.plane.group, this.trail.line);
+    this.desk = new Desk(new Vector3(0.4, 1.29, 0), this.quality.dustCount, rand);
+    this.panel = new Panel(this.path.chapterAnchor(1));
+    this.windowFrame = new WindowFrame(this.path.chapterAnchor(2));
+    this.clouds = new Clouds(this.path.chapterAnchor(3), this.quality, rand);
+    this.envelopes = new Envelopes(this.raycast);
+    this.storm = new Storm(this.path, this.quality.rainCount, rand);
+    this.burst = new PaperBurst(rand);
+
+    this.scene.add(
+      this.world.group,
+      this.plane.group,
+      this.trail.line,
+      this.sky.mesh,
+      this.sun,
+      this.sun.target,
+      this.hemi,
+      this.desk.group,
+      this.panel.group,
+      this.windowFrame.group,
+      this.clouds.sprites,
+      this.envelopes.group,
+      this.storm.group,
+      this.burst.points,
+    );
+    if (this.clouds.volume) this.scene.add(this.clouds.volume);
+
     this.rig = new CameraRig(this.path, this.camera, this.plane);
 
     this.composer = new EffectComposer(this.renderer, { frameBufferType: HalfFloatType });
@@ -57,7 +136,7 @@ export class Engine {
     this.composer.addPass(
       new EffectPass(
         this.camera,
-        new BloomEffect({ luminanceThreshold: 0.7, intensity: 1.2, mipmapBlur: true }),
+        new BloomEffect({ luminanceThreshold: 0.85, intensity: 1.1, mipmapBlur: true }),
         new VignetteEffect({ darkness: 0.55 }),
       ),
     );
@@ -83,6 +162,51 @@ export class Engine {
     this.loop();
   }
 
+  private applyGrade(t: number): void {
+    const { from, to, u } = gradeBlendAt(t);
+    const num = (pick: (g: GradeParams) => number): number =>
+      MathUtils.lerp(pick(from), pick(to), u);
+
+    this.colorA.set(from.zenith).lerp(this.colorB.set(to.zenith), u);
+    this.sky.zenith.copy(this.colorA);
+    this.colorA.set(from.horizon).lerp(this.colorB.set(to.horizon), u);
+    this.sky.horizon.copy(this.colorA);
+
+    const sunLevel = num((g) => g.sunIntensity);
+    // clouds dim with the sun so the storm reads dark, not milky
+    const cloudBrightness = MathUtils.clamp(0.3 + (sunLevel / 1.6) * 0.7, 0.3, 1);
+
+    this.colorA.set(from.sunColor).lerp(this.colorB.set(to.sunColor), u);
+    this.sky.sunColor.copy(this.colorA);
+    this.sun.color.copy(this.colorA);
+    this.clouds.sunColor.copy(this.colorA).multiplyScalar(cloudBrightness);
+
+    this.colorA.set(from.fogColor).lerp(this.colorB.set(to.fogColor), u);
+    this.fog.color.copy(this.colorA);
+    this.clouds.fogColor.copy(this.colorA);
+    this.renderer.setClearColor(this.colorA);
+
+    // cloud shadow side follows the fog/ambient mood
+    this.clouds.shadowColor
+      .copy(this.colorA)
+      .lerp(this.colorB.set('#ffffff'), 0.3 * cloudBrightness)
+      .multiplyScalar(0.55 + 0.45 * cloudBrightness);
+
+    this.sunDirWorld
+      .set(
+        num((g) => g.sunDir[0]),
+        num((g) => g.sunDir[1]),
+        num((g) => g.sunDir[2]),
+      )
+      .normalize();
+    this.sky.sunDir.copy(this.sunDirWorld);
+    this.sky.sunIntensity = sunLevel;
+    this.sun.intensity = sunLevel * 2.2;
+    this.fog.near = num((g) => g.fogNear);
+    this.fog.far = num((g) => g.fogFar);
+    this.scene.environmentIntensity = num((g) => g.envIntensity);
+  }
+
   private renderFrame(): void {
     const now = performance.now();
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
@@ -90,12 +214,60 @@ export class Engine {
     const time = (now - this.startTime) / 1000;
     const t = this.scrollT;
 
+    this.applyGrade(t);
+
     // fold beat: flat letter on the desk becomes the dart inside CH1
     const { start, end } = FOLD_WINDOW;
     const foldU = Math.min(Math.max((t - start) / (end - start), 0), 1);
     this.plane.setFold(foldU * foldU * (3 - 2 * foldU));
+    if (this.prevT < end && t >= end) {
+      this.burst.trigger(this.rig.planeWorldPos, time);
+    }
+    this.prevT = t;
 
     this.rig.update(t, time, dt);
+
+    // sun follows the plane so the directional light never runs out of range
+    this.sun.position.copy(this.rig.planeWorldPos).addScaledVector(this.sunDirWorld, 60);
+    this.sun.target.position.copy(this.rig.planeWorldPos);
+
+    this.sky.followCamera(this.camera.position);
+    this.sky.flash = this.storm.flash;
+
+    // sun direction in view space for the sprite lighting gradient
+    this.tmpV.copy(this.sunDirWorld).transformDirection(this.camera.matrixWorldInverse);
+    if (Math.abs(this.tmpV.x) + Math.abs(this.tmpV.y) > 1e-4) {
+      this.sunScreenDir.set(this.tmpV.x, this.tmpV.y).normalize();
+    }
+
+    // Chapter actors only exist near their window. "Fully fogged" is NOT
+    // invisible — fog-colored silhouettes still read against the brighter
+    // sky gradient — so distant chapters are hidden outright.
+    if (this.clouds.volume) this.clouds.volume.visible = t > 0.14 && t < 0.56;
+    this.clouds.sprites.visible = t > 0.14 && t < 0.58;
+    this.world.group.visible = t > 0.54;
+    this.storm.group.visible = t > 0.3 && t < 0.58;
+    const nearDesk = t < 0.32;
+    this.desk.group.visible = nearDesk;
+    this.panel.group.visible = nearDesk;
+    this.windowFrame.group.visible = nearDesk;
+
+    this.desk.update(time);
+    this.panel.update(t);
+    this.clouds.update(time, this.sunScreenDir, this.fog.near, this.fog.far);
+    this.envelopes.update(
+      this.rig.planeWorldPos,
+      this.rig.currentSide,
+      this.rig.currentTangent,
+      t,
+      time,
+      this.camera,
+    );
+    const stormness =
+      MathUtils.smoothstep(t, 0.34, 0.38) * (1 - MathUtils.smoothstep(t, 0.46, 0.52));
+    this.storm.update(time, dt, stormness, Math.random);
+    this.burst.update(time);
+    this.raycast.update(this.camera);
 
     if (t > CONTRAIL_FROM) {
       this.trail.visible = true;
@@ -114,7 +286,7 @@ export class Engine {
   };
 
   private resize = (): void => {
-    const dpr = Math.min(window.devicePixelRatio, 2);
+    const dpr = Math.min(window.devicePixelRatio, this.quality.maxDpr);
     const { clientWidth, clientHeight } = this.canvas;
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(clientWidth, clientHeight, false);
@@ -136,10 +308,19 @@ export class Engine {
     window.removeEventListener('resize', this.resize);
     this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
     this.director?.dispose();
+    this.raycast.dispose();
     this.composer.dispose();
     this.world.dispose();
     this.plane.dispose();
     this.trail.dispose();
+    this.sky.dispose();
+    this.desk.dispose();
+    this.panel.dispose();
+    this.windowFrame.dispose();
+    this.clouds.dispose();
+    this.envelopes.dispose();
+    this.storm.dispose();
+    this.burst.dispose();
     this.renderer.dispose();
   }
 }

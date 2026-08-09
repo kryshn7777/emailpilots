@@ -12,6 +12,11 @@ const UP = new Vector3(0, 1, 0);
  * plane. All per-chapter tuning comes from story/chapters.ts.
  */
 export class CameraRig {
+  /** world-space state exposed for actors that fly relative to the plane */
+  readonly planeWorldPos = new Vector3();
+  readonly currentTangent = new Vector3(0, 0, 1);
+  readonly currentSide = new Vector3(1, 0, 0);
+
   private noise = new ImprovedNoise();
   private roll = 0;
   private lookTarget = new Vector3();
@@ -64,12 +69,17 @@ export class CameraRig {
     this.rollQuat.setFromAxisAngle(this.tangent, this.roll);
     this.plane.group.quaternion.copy(this.rollQuat).multiply(this.baseQuat);
 
+    this.planeWorldPos.copy(this.planePos);
+    this.currentTangent.copy(this.tangent);
+
     // --- camera ---
     const camT = Math.max(t - rig.camLag, 0);
     this.path.pointAt(camT, this.camPos);
     this.side.crossVectors(this.tangent, UP).normalize();
+    this.currentSide.copy(this.side);
     this.camPos.addScaledVector(UP, rig.offsetUp);
     this.camPos.addScaledVector(this.side, rig.offsetSide);
+    this.camPos.addScaledVector(this.tangent, -rig.offsetBack);
     // slice of the plane's gusts so the camera feels the same air
     if (a > 0) {
       this.camPos.x += this.noise.noise(time * 0.6, 5.1, 0) * a * 0.2;

@@ -76,3 +76,13 @@ float fbm(vec3 p) {
   }
   return value;
 }
+
+// cheaper 3-octave variant for per-fragment hot paths (clouds)
+float fbm3(vec3 p) {
+  float value = 0.5 * snoise(p);
+  p *= 2.02;
+  value += 0.25 * snoise(p);
+  p *= 2.02;
+  value += 0.125 * snoise(p);
+  return value;
+}
