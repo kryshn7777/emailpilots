@@ -15,6 +15,7 @@ import {
   MeshStandardMaterial,
   PlaneGeometry,
   Points,
+  PointsMaterial,
   Quaternion,
   ShaderMaterial,
   Vector3,
@@ -22,7 +23,8 @@ import {
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CROSS_STREET_X, cityGeometry, cityLayout, type Building } from '../bake/cityGen.mjs';
-import { roadTexture } from '../bake/CanvasTextures';
+import { neonSignTexture, roadTexture } from '../bake/CanvasTextures';
+import { glowTexture } from '../bake/CanvasTextures';
 import { requestCompile } from '../warm';
 import { mulberry32 } from '../util';
 import type { FlightPath } from '../rig/FlightPath';
@@ -115,8 +117,115 @@ export class City {
 
     this.buildWindows(buildings);
     this.buildRoofClutter(buildings);
+    this.buildStreetDressing(buildings);
     this.buildDeliveries(buildings, path);
     this.buildTraffic();
+  }
+
+  private blinkMaterial!: PointsMaterial;
+
+  /**
+   * Street level + skyline dressing: lamp posts lining the canyon with warm
+   * glow sprites, neon signs on the canyon-facing walls, and antennas with
+   * red aircraft-warning blinkers on the tallest towers. Five draws total.
+   */
+  private buildStreetDressing(buildings: Building[]): void {
+    const rand = mulberry32(880);
+
+    // lamp posts, both canyon curbs
+    const poleMaterial = new MeshStandardMaterial({ color: '#232936', roughness: 0.5, metalness: 0.5 });
+    const poleGeometry = new CylinderGeometry(0.03, 0.04, 1.5, 6);
+    const positions: number[] = [];
+    const poles: Matrix4[] = [];
+    const q = new Quaternion();
+    const s = new Vector3(1, 1, 1);
+    const p = new Vector3();
+    for (let x = -30; x <= 34; x += 6.4) {
+      for (const z of [-2.05, 2.05]) {
+        p.set(x + rand() * 0.6, 0.75, z);
+        poles.push(new Matrix4().compose(p, q, s));
+        positions.push(p.x, 1.55, z);
+      }
+    }
+    const poleMesh = new InstancedMesh(poleGeometry, poleMaterial, poles.length);
+    poles.forEach((m, i) => poleMesh.setMatrixAt(i, m));
+    this.group.add(poleMesh);
+    this.disposables.push(poleGeometry, poleMaterial, poleMesh);
+
+    const lampGeometry = new BufferGeometry();
+    lampGeometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+    const lampMaterial = new PointsMaterial({
+      map: glowTexture(),
+      color: '#ffd9a0',
+      size: 0.5,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+    const lamps = new Points(lampGeometry, lampMaterial);
+    lamps.frustumCulled = false;
+    this.group.add(lamps);
+    this.disposables.push(lampGeometry, lampMaterial);
+
+    // neon signs on walls facing the canyon
+    const NEON = ['#ff5f8f', '#5fd0ff', '#ffd05f', '#8fff9f', '#c88fff'];
+    const sign = neonSignTexture();
+    const signMaterial = new MeshBasicMaterial({
+      map: sign,
+      transparent: true,
+      blending: AdditiveBlending,
+      depthWrite: false,
+    });
+    const signGeometry = new PlaneGeometry(1.5, 0.75);
+    const candidates = buildings.filter((b) => Math.abs(b.z) < 5 && b.h > 3);
+    const signs = new InstancedMesh(signGeometry, signMaterial, Math.min(10, candidates.length));
+    const yaw = new Quaternion();
+    const Y = new Vector3(0, 1, 0);
+    for (let i = 0; i < signs.count; i++) {
+      const b = candidates[Math.floor(rand() * candidates.length)]!;
+      const north = b.z < 0;
+      p.set(
+        b.x + (rand() - 0.5) * (b.w * 0.4),
+        1.6 + rand() * Math.min(b.h - 2, 3.5),
+        b.z + (b.d / 2 + 0.06) * (north ? 1 : -1),
+      );
+      yaw.setFromAxisAngle(Y, north ? 0 : Math.PI);
+      signs.setMatrixAt(i, new Matrix4().compose(p, yaw, s));
+      signs.setColorAt(i, this.color.set(NEON[i % NEON.length]!));
+    }
+    if (signs.instanceColor) signs.instanceColor.needsUpdate = true;
+    this.group.add(signs);
+    this.disposables.push(signGeometry, signMaterial, sign, signs);
+
+    // antennas + red blinkers on the tallest towers
+    const tall = [...buildings].sort((a, b) => b.h - a.h).slice(0, 9);
+    const antennaGeometry = new CylinderGeometry(0.015, 0.025, 1.6, 5);
+    const antennas = new InstancedMesh(antennaGeometry, poleMaterial, tall.length);
+    const blinkPos: number[] = [];
+    tall.forEach((b, i) => {
+      p.set(b.x, b.h + 0.8, b.z);
+      antennas.setMatrixAt(i, new Matrix4().compose(p, q, s));
+      blinkPos.push(b.x, b.h + 1.62, b.z);
+    });
+    this.group.add(antennas);
+    this.disposables.push(antennaGeometry, antennas);
+
+    const blinkGeometry = new BufferGeometry();
+    blinkGeometry.setAttribute('position', new Float32BufferAttribute(blinkPos, 3));
+    this.blinkMaterial = new PointsMaterial({
+      map: glowTexture(),
+      color: '#ff3b30',
+      size: 0.45,
+      transparent: true,
+      opacity: 0.8,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+    const blinkers = new Points(blinkGeometry, this.blinkMaterial);
+    blinkers.frustumCulled = false;
+    this.group.add(blinkers);
+    this.disposables.push(blinkGeometry, this.blinkMaterial);
   }
 
   /**
@@ -475,6 +584,8 @@ export class City {
     // or without scroll (scroll-coupled surge removed by request)
     if (this.trafficMaterial) this.trafficMaterial.uniforms.uTime!.value = time;
     if (this.cars) this.updateCars(time);
+    // aircraft-warning strobes on the antenna tips
+    if (this.blinkMaterial) this.blinkMaterial.opacity = 0.25 + 0.65 * Math.abs(Math.sin(time * 2.1));
     let colorsDirty = false;
     for (let i = 0; i < this.deliveries.length; i++) {
       const d = this.deliveries[i]!;

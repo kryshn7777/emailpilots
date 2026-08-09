@@ -11,9 +11,10 @@ const POINTS: Vector3[] = [
   // CH1 desk — starts ON the laptop screen (mid-send), dips over the letter
   new Vector3(-0.62, 1.75, 0),
   new Vector3(1.2, 1.25, 0.2),
-  new Vector3(2.5, 1.35, -0.1),
+  // rises before the wall: at y≈1.47 the plane clipped the window sill (1.6)
+  new Vector3(2.5, 1.5, -0.1),
   // CH2 preflight taxi past the panel
-  new Vector3(8, 1.5, 1.0),
+  new Vector3(8, 1.7, 1.0),
   new Vector3(16, 2.0, -1.0),
   // CH3 takeoff climb through the window line
   new Vector3(24, 4, 2),
@@ -36,11 +37,12 @@ const POINTS: Vector3[] = [
   new Vector3(146, 17, 8),
   new Vector3(156, 15, 14),
   new Vector3(166, 14, 6),
-  // CH8 city dive
-  new Vector3(176, 10, 0),
-  new Vector3(184, 5, -4),
-  new Vector3(192, 2.2, 0),
-  new Vector3(200, 2.0, 2),
+  // CH8 city dive — the canyon runs world z 0..2 (group z offset 1); the old
+  // z −4 leg flew straight through the north building row
+  new Vector3(176, 10, 1),
+  new Vector3(184, 5, 0.4),
+  new Vector3(192, 2.2, 1.6),
+  new Vector3(200, 2.0, 1.0),
   // CH9 copilot climb into the starfield
   new Vector3(210, 10, -2),
   new Vector3(220, 20, 0),

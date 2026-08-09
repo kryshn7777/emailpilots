@@ -421,6 +421,40 @@ export function lighthouseTexture(): CanvasTexture {
   return texture;
 }
 
+/** Abstract neon storefront sign — bright bars/rings on black, no words. */
+export function neonSignTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.fillStyle = '#05060a';
+  ctx.fillRect(0, 0, 128, 64);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  // abstract glyphs: bars + a ring + a tick — reads as signage at distance
+  ctx.beginPath();
+  ctx.moveTo(14, 16);
+  ctx.lineTo(14, 48);
+  ctx.moveTo(30, 16);
+  ctx.lineTo(30, 48);
+  ctx.moveTo(22, 32);
+  ctx.lineTo(38, 32);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(62, 32, 14, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(88, 46);
+  ctx.lineTo(100, 18);
+  ctx.lineTo(112, 46);
+  ctx.stroke();
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 /** City road strip: asphalt, center dashes, edge lines. Dashes run along U. */
 export function roadTexture(): CanvasTexture {
   const canvas = document.createElement('canvas');

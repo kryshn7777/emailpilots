@@ -25,6 +25,7 @@ import {
 } from '../story/chapters';
 import { Beacon } from './actors/Beacon';
 import { Biplane } from './actors/Biplane';
+import { Birds } from './actors/Birds';
 import { City } from './actors/City';
 import { Clouds } from './actors/Clouds';
 import { Copilot } from './actors/Copilot';
@@ -93,6 +94,7 @@ export class Engine {
   private envelopes: Envelopes;
   private storm: Storm;
   private biplane: Biplane;
+  private birds: Birds;
   private beacon: Beacon;
   private noFly: NoFly;
   private city: City;
@@ -175,6 +177,7 @@ export class Engine {
     this.envelopes = new Envelopes(this.raycast, this.tooltip);
     this.storm = new Storm(this.path, this.quality.rainCount, rand);
     this.biplane = new Biplane(this.path);
+    this.birds = new Birds(rand);
     this.beacon = new Beacon(this.path.chapterAnchor(5), this.raycast, this.tooltip, this.quality);
     this.noFly = new NoFly(this.path.chapterAnchor(6));
     this.city = new City(this.path.chapterAnchor(7), this.path);
@@ -198,6 +201,7 @@ export class Engine {
       this.envelopes.group,
       this.storm.group,
       this.biplane.group,
+      this.birds.group,
       this.beacon.group,
       this.noFly.group,
       this.city.group,
@@ -291,6 +295,7 @@ export class Engine {
       this.envelopes.group,
       this.storm.group,
       this.biplane.group,
+      this.birds.group,
       this.beacon.group,
       this.noFly.group,
       this.city.group,
@@ -429,6 +434,7 @@ export class Engine {
     this.clouds.sprites.visible = t > 0.14 && t < 0.58;
     this.storm.group.visible = t > 0.3 && t < 0.58;
     this.biplane.group.visible = t > 0.32 && t < 0.49;
+    this.birds.group.visible = t > 0.055 && t < 0.3;
     this.beacon.group.visible = t > 0.44 && t < 0.64;
     this.noFly.group.visible = t > 0.55 && t < 0.7;
     // city waits until the camera reaches it — its westmost massing stands
@@ -460,6 +466,7 @@ export class Engine {
       MathUtils.smoothstep(t, 0.34, 0.38) * (1 - MathUtils.smoothstep(t, 0.46, 0.52));
     this.storm.update(time, dt, stormness, Math.random);
     this.biplane.update(t, time);
+    this.birds.update(time);
     this.beacon.update(time, this.camera, t);
     this.noFly.update(time);
     this.city.update(t, time);
@@ -537,6 +544,7 @@ export class Engine {
     this.envelopes.dispose();
     this.storm.dispose();
     this.biplane.dispose();
+    this.birds.dispose();
     this.beacon.dispose();
     this.noFly.dispose();
     this.city.dispose();

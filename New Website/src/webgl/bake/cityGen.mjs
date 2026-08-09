@@ -36,8 +36,9 @@ export function cityLayout(canyonZ = 0) {
       const x = col * 4.2 + rand() * 1.2 - 28;
       const z = canyonZ - 13 + row * 3.9 + rand() * 1.1;
       const near = Math.abs(z - canyonZ);
-      // keep the canyon the plane dives through open
-      if (near < 2.4) continue;
+      // keep the canyon the plane dives through open (deep buildings can
+      // protrude d/2 ≈ 1.4 toward the gap — 2.7 leaves real wingtip room)
+      if (near < 2.7) continue;
       // taller near the canyon walls for the dive drama
       const h = 2 + rand() * 4 + Math.max(0, 6 - near) * (0.5 + rand() * 0.6);
       buildings.push({ x, z, w: 1.8 + rand() * 1.4, h, d: 1.6 + rand() * 1.2 });

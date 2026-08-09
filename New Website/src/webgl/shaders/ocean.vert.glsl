@@ -8,12 +8,13 @@ varying float vCrest;
 
 float swell(vec2 p, float t) {
   float h = 0.0;
-  // wavelength ↓, amplitude ↓, three directions
-  h += 0.34 * sin(dot(p, vec2(0.14, 0.06)) + t * 0.9);
-  h += 0.22 * sin(dot(p, vec2(-0.09, 0.17)) + t * 1.25);
-  h += 0.12 * sin(dot(p, vec2(0.23, -0.19)) + t * 1.7);
+  // four directions: long storm swells + shorter wind chop
+  h += 0.46 * sin(dot(p, vec2(0.14, 0.06)) + t * 1.0);
+  h += 0.30 * sin(dot(p, vec2(-0.09, 0.17)) + t * 1.4);
+  h += 0.18 * sin(dot(p, vec2(0.23, -0.19)) + t * 1.9);
+  h += 0.09 * sin(dot(p, vec2(0.4, 0.33)) + t * 2.6);
   // sharpen crests, keep troughs broad
-  return h + 0.10 * pow(abs(sin(dot(p, vec2(0.11, 0.13)) + t)), 4.0);
+  return h + 0.16 * pow(abs(sin(dot(p, vec2(0.11, 0.13)) + t)), 4.0);
 }
 
 void main() {

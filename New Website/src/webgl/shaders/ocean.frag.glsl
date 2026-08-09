@@ -18,12 +18,12 @@ void main() {
   vec3 n = normalize(vNormal);
 
   // body color by crest height
-  float ch = smoothstep(-0.5, 0.65, vCrest);
+  float ch = smoothstep(-0.7, 0.85, vCrest);
   vec3 color = mix(uDeep, uCrest, ch);
 
   // whitecaps on the sharpest crests
-  float cap = smoothstep(0.42, 0.62, vCrest);
-  color = mix(color, uFoam, cap * 0.75);
+  float cap = smoothstep(0.55, 0.82, vCrest);
+  color = mix(color, uFoam, cap * 0.8);
 
   // crash ring around the lighthouse islet: a surge that breathes
   float d = distance(vWorldPos.xz, uTowerXZ);
