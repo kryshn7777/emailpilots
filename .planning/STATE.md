@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-08-08)
 
 ## Current Position
 
-Phase: 4 of 7 (World B: CH6–10) — ready to plan
+Phase: 5 of 7 (Story DOM + Pages + Transitions) — ready to plan
 Plan: 0 of TBD in current phase
-Status: Phase 3 complete
-Last activity: 2026-08-09 — Phase 3 art pass verified: grade system (per-chapter sky/fog/sun blends), sky dome, lamplit desk + letter + dust, pre-flight checklist board with staged gauges, raymarched cloud slab (HIGH) + billboard field, envelope V-formation with hover tooltip, storm (rain shader, time-based lightning, emissive gates), paper-burst seam beat, GPU-string quality tiers. Screenshots delivered.
+Status: Phase 4 complete
+Last activity: 2026-08-09 — Phase 4 verified: beacon (volumetric beam sweep, radar rings, SPF/DKIM/DMARC hover HUD), no-fly map (pulsing red zones, grounded ghost dart), city via baked GLB + GLTFLoader (bake-city.mjs, 94KB, procedural fallback) with instanced amber windows + scroll-driven envelope peel-off deliveries, copilot drone + starfield, sunrise runway landing with unfold + "Re:" reply slide + confetti. Screenshots delivered.
 
-Progress: [███░░░░░░░] ~43%
+Progress: [████░░░░░░] ~57%
 
 ## Performance Metrics
 
@@ -53,7 +53,7 @@ None yet.
 - Astro 7 ships rolldown-vite; vite-plugin-glsl 1.6.1 works today — re-verify after Astro upgrades
 - `@astrojs/check` forced TypeScript back to 5.9 (TS 7.0 peer-conflict) — revisit when checker supports TS7
 
-Resolved: FEATURES.md survived scaffold (stash/restore); version pair pinned = three 0.185.1 + postprocessing 6.39.4; story-t→arc-t zone remap fixed chapter/scenery drift; lightning decay made time-based (frame-based froze white under rAF throttling).
+Resolved: FEATURES.md survived scaffold (stash/restore); version pair pinned = three 0.185.1 + postprocessing 6.39.4; story-t→arc-t zone remap fixed chapter/scenery drift; lightning decay made time-based (frame-based froze white under rAF throttling); **vertexColors on MeshStandardMaterial black-frames the entire composer on this ANGLE/D3D driver** — city AO moved to an onBeforeCompile height fade, never use geometry color attributes here.
 
 ## Session Continuity
 

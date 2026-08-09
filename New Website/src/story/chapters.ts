@@ -82,7 +82,7 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'no-fly', t0: 0.58, t1: 0.66,
-    rig: { fov: 50, camLag: 0.020, lookAhead: 0.012, turbAmp: 0.08, offsetUp: 2.2, offsetSide: 0.4, offsetBack: 1.0 },
+    rig: { fov: 50, camLag: 0.020, lookAhead: 0.012, turbAmp: 0.08, offsetUp: 3.6, offsetSide: 0.4, offsetBack: 1.6 },
     grade: { zenith: '#0a0f1c', horizon: '#141c2e', sunColor: '#aab6d0', sunIntensity: 0.4, sunDir: [-0.3, 0.6, 0.2], fogColor: '#101318', fogNear: 12, fogFar: 120, envIntensity: 0.25 },
   },
   {
@@ -107,6 +107,12 @@ export const FOLD_WINDOW = { start: 0.03, end: 0.08 };
 
 /** Contrail becomes visible once airborne. */
 export const CONTRAIL_FROM = 0.17;
+
+/** Touchdown moment inside CH10 — confetti fires crossing it. */
+export const TOUCHDOWN_T = 0.952;
+
+/** The dart unfolds back into the letter after rollout. */
+export const UNFOLD_WINDOW = { start: 0.958, end: 0.985 };
 
 const BLEND_BAND = 0.025;
 

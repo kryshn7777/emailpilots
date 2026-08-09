@@ -14,10 +14,22 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { BloomEffect, EffectComposer, EffectPass, RenderPass, VignetteEffect } from 'postprocessing';
-import { CONTRAIL_FROM, FOLD_WINDOW, gradeBlendAt, type GradeParams } from '../story/chapters';
+import {
+  CONTRAIL_FROM,
+  FOLD_WINDOW,
+  TOUCHDOWN_T,
+  UNFOLD_WINDOW,
+  gradeBlendAt,
+  type GradeParams,
+} from '../story/chapters';
+import { Beacon } from './actors/Beacon';
+import { City } from './actors/City';
 import { Clouds } from './actors/Clouds';
+import { Copilot } from './actors/Copilot';
 import { Desk } from './actors/Desk';
 import { Envelopes } from './actors/Envelopes';
+import { Landing } from './actors/Landing';
+import { NoFly } from './actors/NoFly';
 import { Panel } from './actors/Panel';
 import { PaperBurst } from './actors/PaperBurst';
 import { PaperPlane } from './actors/PaperPlane';
@@ -27,10 +39,11 @@ import { WindowFrame } from './actors/WindowFrame';
 import { CameraRig } from './rig/CameraRig';
 import { FlightPath } from './rig/FlightPath';
 import { Raycast } from './interact/Raycast';
+import { Tooltip } from './interact/Tooltip';
 import { SkyDome } from './materials/SkyDome';
 import { ScrollDirector } from './scroll/ScrollDirector';
 import { detectQuality, gpuRendererString } from './quality';
-import { World, mulberry32 } from './World';
+import { mulberry32 } from './util';
 
 interface EngineOptions {
   reducedMotion: boolean;
@@ -48,7 +61,6 @@ export class Engine {
   private quality!: ReturnType<typeof detectQuality>;
 
   private path = new FlightPath();
-  private world: World;
   private plane = new PaperPlane();
   private trail = new Trail();
   private rig: CameraRig;
@@ -61,8 +73,15 @@ export class Engine {
   private clouds: Clouds;
   private envelopes: Envelopes;
   private storm: Storm;
+  private beacon: Beacon;
+  private noFly: NoFly;
+  private city: City;
+  private copilot: Copilot;
+  private landing: Landing;
   private burst: PaperBurst;
+  private confetti: PaperBurst;
   private raycast = new Raycast();
+  private tooltip = new Tooltip();
   private director: ScrollDirector | null = null;
 
   private fog: Fog;
@@ -102,17 +121,21 @@ export class Engine {
     pmrem.dispose();
 
     const rand = mulberry32(919);
-    this.world = new World(this.path);
     this.desk = new Desk(new Vector3(0.4, 1.29, 0), this.quality.dustCount, rand);
     this.panel = new Panel(this.path.chapterAnchor(1));
     this.windowFrame = new WindowFrame(this.path.chapterAnchor(2));
     this.clouds = new Clouds(this.path.chapterAnchor(3), this.quality, rand);
-    this.envelopes = new Envelopes(this.raycast);
+    this.envelopes = new Envelopes(this.raycast, this.tooltip);
     this.storm = new Storm(this.path, this.quality.rainCount, rand);
+    this.beacon = new Beacon(this.path.chapterAnchor(5), this.raycast, this.tooltip);
+    this.noFly = new NoFly(this.path.chapterAnchor(6));
+    this.city = new City(this.path.chapterAnchor(7), this.path);
+    this.copilot = new Copilot(this.path.chapterAnchor(8));
+    this.landing = new Landing(this.path.storyPoint(0.985));
     this.burst = new PaperBurst(rand);
+    this.confetti = new PaperBurst(rand);
 
     this.scene.add(
-      this.world.group,
       this.plane.group,
       this.trail.line,
       this.sky.mesh,
@@ -125,7 +148,13 @@ export class Engine {
       this.clouds.sprites,
       this.envelopes.group,
       this.storm.group,
+      this.beacon.group,
+      this.noFly.group,
+      this.city.group,
+      this.copilot.group,
+      this.landing.group,
       this.burst.points,
+      this.confetti.points,
     );
     if (this.clouds.volume) this.scene.add(this.clouds.volume);
 
@@ -144,6 +173,11 @@ export class Engine {
     this.resize();
     window.addEventListener('resize', this.resize);
     this.canvas.addEventListener('webglcontextlost', this.onContextLost);
+
+    if (new URLSearchParams(location.search).has('probe')) {
+      // dev-only scene handle for automated inspection
+      Object.assign(window as object, { __scene: this.scene, __camera: this.camera, __engine: this });
+    }
   }
 
   start(): void {
@@ -216,12 +250,15 @@ export class Engine {
 
     this.applyGrade(t);
 
-    // fold beat: flat letter on the desk becomes the dart inside CH1
-    const { start, end } = FOLD_WINDOW;
-    const foldU = Math.min(Math.max((t - start) / (end - start), 0), 1);
-    this.plane.setFold(foldU * foldU * (3 - 2 * foldU));
-    if (this.prevT < end && t >= end) {
+    // fold beat: letter → dart in CH1; dart → letter again after touchdown
+    const foldIn = MathUtils.smoothstep(t, FOLD_WINDOW.start, FOLD_WINDOW.end);
+    const unfold = MathUtils.smoothstep(t, UNFOLD_WINDOW.start, UNFOLD_WINDOW.end);
+    this.plane.setFold(foldIn * (1 - unfold));
+    if (this.prevT < FOLD_WINDOW.end && t >= FOLD_WINDOW.end) {
       this.burst.trigger(this.rig.planeWorldPos, time);
+    }
+    if (this.prevT < TOUCHDOWN_T && t >= TOUCHDOWN_T) {
+      this.confetti.trigger(this.rig.planeWorldPos, time);
     }
     this.prevT = t;
 
@@ -245,8 +282,12 @@ export class Engine {
     // sky gradient — so distant chapters are hidden outright.
     if (this.clouds.volume) this.clouds.volume.visible = t > 0.14 && t < 0.56;
     this.clouds.sprites.visible = t > 0.14 && t < 0.58;
-    this.world.group.visible = t > 0.54;
     this.storm.group.visible = t > 0.3 && t < 0.58;
+    this.beacon.group.visible = t > 0.44 && t < 0.63;
+    this.noFly.group.visible = t > 0.55 && t < 0.7;
+    this.city.group.visible = t > 0.6 && t < 0.83;
+    this.copilot.group.visible = t > 0.75 && t < 0.9;
+    this.landing.group.visible = t > 0.85;
     const nearDesk = t < 0.32;
     this.desk.group.visible = nearDesk;
     this.panel.group.visible = nearDesk;
@@ -266,7 +307,19 @@ export class Engine {
     const stormness =
       MathUtils.smoothstep(t, 0.34, 0.38) * (1 - MathUtils.smoothstep(t, 0.46, 0.52));
     this.storm.update(time, dt, stormness, Math.random);
+    this.beacon.update(time, this.camera);
+    this.noFly.update(time);
+    this.city.update(t);
+    this.copilot.update(
+      this.rig.planeWorldPos,
+      this.plane.group.quaternion,
+      this.rig.currentSide,
+      t,
+      time,
+    );
+    this.landing.update(t, time);
     this.burst.update(time);
+    this.confetti.update(time);
     this.raycast.update(this.camera);
 
     if (t > CONTRAIL_FROM) {
@@ -309,8 +362,8 @@ export class Engine {
     this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
     this.director?.dispose();
     this.raycast.dispose();
+    this.tooltip.dispose();
     this.composer.dispose();
-    this.world.dispose();
     this.plane.dispose();
     this.trail.dispose();
     this.sky.dispose();
@@ -320,7 +373,13 @@ export class Engine {
     this.clouds.dispose();
     this.envelopes.dispose();
     this.storm.dispose();
+    this.beacon.dispose();
+    this.noFly.dispose();
+    this.city.dispose();
+    this.copilot.dispose();
+    this.landing.dispose();
     this.burst.dispose();
+    this.confetti.dispose();
     this.renderer.dispose();
   }
 }

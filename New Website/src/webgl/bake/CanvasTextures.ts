@@ -86,6 +86,54 @@ export function panelTexture(): CanvasTexture {
   return texture;
 }
 
+/** Runway asphalt: centerline dashes + threshold marks + "27". */
+export function runwayTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  ctx.fillStyle = '#1c1f26';
+  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillStyle = 'rgba(240, 236, 226, 0.85)';
+  for (let y = 20; y < 512; y += 64) {
+    ctx.fillRect(248, y, 16, 36);
+  }
+  for (let i = 0; i < 6; i++) {
+    ctx.fillRect(60 + i * 40, 462, 22, 40);
+    ctx.fillRect(232 + 60 + i * 40 - 60, 462, 0, 0);
+  }
+  ctx.font = '700 84px monospace';
+  ctx.fillText('27', 200, 120);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** The payoff sheet: "Re:" reply sliding out from under the landed letter. */
+export function replyTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  ctx.fillStyle = '#fdfbf7';
+  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillStyle = 'rgba(30, 40, 66, 0.9)';
+  ctx.font = '700 64px monospace';
+  ctx.fillText('Re:', 56, 110);
+  ctx.strokeStyle = 'rgba(40, 48, 70, 0.5)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  for (const ly of [0.42, 0.52, 0.62]) {
+    const y = ly * 512;
+    ctx.beginPath();
+    let x = 56;
+    ctx.moveTo(x, y);
+    const width = (ly === 0.62 ? 0.35 : 0.68) * 512;
+    while (x < 56 + width) {
+      x += 9 + Math.random() * 13;
+      ctx.lineTo(x, y + (Math.random() - 0.5) * 5);
+    }
+    ctx.stroke();
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 /** Soft radial spot — dust motes, rain caps, glows. */
 export function glowTexture(): CanvasTexture {
   const [canvas, ctx] = makeCanvas(64);

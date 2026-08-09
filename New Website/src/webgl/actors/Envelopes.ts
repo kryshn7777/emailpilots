@@ -8,6 +8,7 @@ import {
   Vector3,
 } from 'three';
 import type { Raycast } from '../interact/Raycast';
+import type { Tooltip } from '../interact/Tooltip';
 
 const COUNT = 5;
 const SHOW_FROM = 0.2;
@@ -24,10 +25,9 @@ export class Envelopes {
   private materials: MeshStandardMaterial[] = [];
   private geometry = new BoxGeometry(0.55, 0.05, 0.38);
   private hoveredIndex = -1;
-  private tooltip: HTMLDivElement;
   private worldPos = new Vector3();
 
-  constructor(raycast: Raycast) {
+  constructor(raycast: Raycast, private tooltip: Tooltip) {
     for (let i = 0; i < COUNT; i++) {
       const material = new MeshStandardMaterial({
         color: '#ddd6c8',
@@ -43,20 +43,14 @@ export class Envelopes {
         object: mesh,
         onEnter: () => {
           this.hoveredIndex = i;
-          this.tooltip.textContent = `STEP ${i + 1} · WAITS ${i + 2} DAYS · CANCELS ON REPLY`;
-          this.tooltip.dataset.visible = 'true';
+          this.tooltip.show(`STEP ${i + 1} · WAITS ${i + 2} DAYS · CANCELS ON REPLY`);
         },
         onLeave: () => {
           if (this.hoveredIndex === i) this.hoveredIndex = -1;
-          this.tooltip.dataset.visible = 'false';
+          this.tooltip.hide();
         },
       });
     }
-
-    this.tooltip = document.createElement('div');
-    this.tooltip.className = 'hud-tooltip';
-    this.tooltip.dataset.visible = 'false';
-    document.body.appendChild(this.tooltip);
   }
 
   update(planePos: Vector3, side: Vector3, tangent: Vector3, t: number, time: number, camera: Camera): void {
@@ -90,16 +84,12 @@ export class Envelopes {
     // tooltip follows the hovered envelope in screen space
     if (this.hoveredIndex >= 0) {
       this.worldPos.setFromMatrixPosition(this.meshes[this.hoveredIndex]!.matrixWorld);
-      this.worldPos.project(camera);
-      const x = (this.worldPos.x * 0.5 + 0.5) * innerWidth;
-      const y = (-this.worldPos.y * 0.5 + 0.5) * innerHeight;
-      this.tooltip.style.transform = `translate(${Math.round(x)}px, ${Math.round(y - 42)}px)`;
+      this.tooltip.pin(this.worldPos, camera);
     }
   }
 
   dispose(): void {
     this.geometry.dispose();
     for (const m of this.materials) m.dispose();
-    this.tooltip.remove();
   }
 }
