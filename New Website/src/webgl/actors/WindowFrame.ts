@@ -6,15 +6,15 @@ import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Vector3 } from 'three';
  */
 export class WindowFrame {
   readonly group = new Group();
-  private material = new MeshStandardMaterial({ color: '#242a3a', roughness: 0.7 });
+  private material = new MeshStandardMaterial({ color: '#2c3348', roughness: 0.6 });
   private geometries: BoxGeometry[] = [];
 
-  constructor(anchor: Vector3) {
+  constructor(anchor: Vector3, size = 3.6) {
     this.group.position.copy(anchor);
-    this.group.rotation.y = Math.PI / 2 - 0.35; // face the incoming flight line
+    this.group.rotation.y = Math.PI / 2; // sits in the room's window wall
 
-    const SIZE = 7;
-    const BAR = 0.3;
+    const SIZE = size;
+    const BAR = 0.16;
     const bars: [number, number, number, number, number][] = [
       // [w, h, x, y, z]
       [SIZE, BAR, 0, SIZE / 2, 0],

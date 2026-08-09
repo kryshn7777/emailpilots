@@ -11,6 +11,7 @@ Seven phases take an empty `New Website/` directory to a deployed award-tier scr
 - [x] **Phase 3: World A (CH1–5)** - Desk, preflight panel, takeoff, volumetric cloud sea + formation, storm — art-complete (2026-08-09)
 - [x] **Phase 4: World B (CH6–10)** - Beacon, no-fly map, city dive, copilot starfield, landing + reply — art-complete (2026-08-09)
 - [x] **Phase 5: Story DOM + Pages + Transitions** - All FEATURES.md copy in DOM, /features /pricing /download, Swup choreography (2026-08-09)
+- [x] **Phase 5.1: Art fidelity + award chrome (INSERTED)** - User feedback pass: panel-dart plane, cloud shader v2 + perf, airport rebuild, city roads/traffic, rooftops/room, header/footer/HUD/preloader/cursor/product-mock/word-cascade (2026-08-09)
 - [ ] **Phase 6: Polish / Perf / A11y / SEO** - Grade, preloader, tiers, reduced-motion, audio SFX, meta, guardrail greps
 - [ ] **Phase 7: Deploy** - GitHub Pages workflow, manual trigger, old landing untouched
 

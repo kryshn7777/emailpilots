@@ -37,6 +37,36 @@ export class Desk {
     this.group.add(top);
     this.disposables.push(top.geometry, wood);
 
+    // the room: floor, two walls, and the window wall the flight exits through
+    const wall = new MeshStandardMaterial({ color: '#161b28', roughness: 0.9 });
+    const floorMat = new MeshStandardMaterial({ color: '#241c14', roughness: 0.95 });
+    this.disposables.push(wall, floorMat);
+    const floor = new Mesh(new PlaneGeometry(26, 18), floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(3, -1.28, 0);
+    const backWall = new Mesh(new PlaneGeometry(26, 6.5), wall);
+    backWall.position.set(3, 1.9, -3.7);
+    const sideWall = new Mesh(new PlaneGeometry(18, 6.5), wall);
+    sideWall.rotation.y = Math.PI / 2;
+    sideWall.position.set(-4.6, 1.9, 0.6);
+    this.group.add(floor, backWall, sideWall);
+    this.disposables.push(floor.geometry, backWall.geometry, sideWall.geometry);
+
+    // window wall at local x≈6.6 with the opening the path threads (world x≈7)
+    const wallX = 6.6;
+    const seg = (w: number, h: number, y: number, z: number): void => {
+      const g = new BoxGeometry(0.24, h, w);
+      const m = new Mesh(g, wall);
+      m.position.set(wallX, y, z);
+      this.group.add(m);
+      this.disposables.push(g);
+    };
+    // opening: local z -1.0..2.6, y 0.3..3.7 (window centered on the exit line)
+    seg(8.2, 1.6, -0.49 - 0.0, 0.6); // below sill (y -1.29..0.3)
+    seg(8.2, 2.0, 4.7 - 0.0, 0.6); // above lintel — hmm see next line
+    seg(2.7, 3.4, 2.0, -2.35); // left of opening
+    seg(1.9, 3.4, 2.0, 3.55); // right of opening
+
     const paper = new MeshStandardMaterial({ map: letterTexture(), roughness: 0.9 });
     const letter = new Mesh(new PlaneGeometry(0.92, 1.3), paper);
     letter.rotation.x = -Math.PI / 2;

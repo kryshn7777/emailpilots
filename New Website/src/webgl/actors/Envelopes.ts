@@ -1,14 +1,42 @@
 import {
   BoxGeometry,
+  BufferGeometry,
   Camera,
+  Float32BufferAttribute,
   Group,
   MathUtils,
   Mesh,
   MeshStandardMaterial,
   Vector3,
 } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Raycast } from '../interact/Raycast';
 import type { Tooltip } from '../interact/Tooltip';
+
+/** Envelope body + raised V-flap on top — reads as mail, not as a slab. */
+function envelopeGeometry(): BufferGeometry {
+  const body = new BoxGeometry(0.55, 0.05, 0.38).toNonIndexed();
+  const flap = new BufferGeometry();
+  // two triangles meeting at a slightly lifted center ridge
+  const y = 0.026;
+  const ridgeY = 0.085;
+  flap.setAttribute(
+    'position',
+    new Float32BufferAttribute(
+      [
+        -0.275, y, -0.19, 0.275, y, -0.19, 0, ridgeY, 0.02,
+        0.275, y, 0.19, -0.275, y, 0.19, 0, ridgeY, 0.02,
+      ],
+      3,
+    ),
+  );
+  flap.setAttribute('uv', new Float32BufferAttribute(new Float32Array(12), 2));
+  flap.computeVertexNormals();
+  const merged = mergeGeometries([body, flap], false);
+  body.dispose();
+  flap.dispose();
+  return merged ?? body;
+}
 
 const COUNT = 5;
 const SHOW_FROM = 0.2;
@@ -23,7 +51,7 @@ export class Envelopes {
   readonly group = new Group();
   private meshes: Mesh[] = [];
   private materials: MeshStandardMaterial[] = [];
-  private geometry = new BoxGeometry(0.55, 0.05, 0.38);
+  private geometry = envelopeGeometry();
   private hoveredIndex = -1;
   private worldPos = new Vector3();
 

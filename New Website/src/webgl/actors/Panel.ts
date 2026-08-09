@@ -28,6 +28,16 @@ export class Panel {
     this.group.add(board);
     this.disposables.push(board.geometry, face);
 
+    // rooftop billboard legs — the board stands over the taxi route
+    const legMaterial = new MeshStandardMaterial({ color: '#232a3a', roughness: 0.6, metalness: 0.4 });
+    const legGeometry = new BoxGeometry(0.14, 3, 0.14);
+    for (const lx of [-1.7, 1.7]) {
+      const leg = new Mesh(legGeometry, legMaterial);
+      leg.position.set(lx, -3.6, 0);
+      this.group.add(leg);
+    }
+    this.disposables.push(legGeometry, legMaterial);
+
     for (let i = 0; i < GAUGES; i++) {
       const m = new MeshStandardMaterial({
         color: '#0d2018',

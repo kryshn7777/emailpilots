@@ -7,6 +7,9 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 
 export const CITY_SEED = 20260809;
 
+/** Local-space X of each cross street (center of the skipped columns). */
+export const CROSS_STREET_X = [4 * 4.2 - 28 + 1.2, 9 * 4.2 - 28 + 1.2];
+
 // local PRNG copy (util.ts is TypeScript; this file must stay Node-loadable)
 function mulberry32(seed) {
   let a = seed;
@@ -25,6 +28,11 @@ export function cityLayout(canyonZ = 0) {
   const buildings = [];
   for (let row = 0; row < 7; row++) {
     for (let col = 0; col < 14; col++) {
+      // every 5th column is a cross street (traffic runs down these gaps)
+      if (col % 5 === 4) {
+        rand(); rand(); rand(); rand(); // keep the layout stable for other cells
+        continue;
+      }
       const x = col * 4.2 + rand() * 1.2 - 28;
       const z = canyonZ - 13 + row * 3.9 + rand() * 1.1;
       const near = Math.abs(z - canyonZ);

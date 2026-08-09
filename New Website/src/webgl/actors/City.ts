@@ -1,6 +1,9 @@
 import {
+  AdditiveBlending,
   BoxGeometry,
+  BufferGeometry,
   Color,
+  Float32BufferAttribute,
   Group,
   InstancedMesh,
   MathUtils,
@@ -9,13 +12,17 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
+  Points,
   Quaternion,
+  ShaderMaterial,
   Vector3,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { cityGeometry, cityLayout, type Building } from '../bake/cityGen.mjs';
+import { CROSS_STREET_X, cityGeometry, cityLayout, type Building } from '../bake/cityGen.mjs';
 import { mulberry32 } from '../util';
 import type { FlightPath } from '../rig/FlightPath';
+import carVert from '../shaders/carLights.vert.glsl';
+import carFrag from '../shaders/carLights.frag.glsl';
 
 const WINDOW_AMBER = new Color('#ffc96b');
 const DELIVERIES = 5;
@@ -101,6 +108,79 @@ export class City {
 
     this.buildWindows(buildings);
     this.buildDeliveries(buildings, path);
+    this.buildTraffic();
+  }
+
+  private trafficMaterial: ShaderMaterial | null = null;
+
+  /** Roads in the canyon + cross streets, with moving head/taillight streams. */
+  private buildTraffic(): void {
+    const roadMat = new MeshStandardMaterial({ color: '#14161c', roughness: 0.95 });
+    this.disposables.push(roadMat);
+    const canyonRoad = new Mesh(new PlaneGeometry(66, 4.6), roadMat);
+    canyonRoad.rotation.x = -Math.PI / 2;
+    canyonRoad.position.set(1, 0.005, 0);
+    this.group.add(canyonRoad);
+    this.disposables.push(canyonRoad.geometry);
+    for (const sx of CROSS_STREET_X) {
+      const cross = new Mesh(new PlaneGeometry(2.6, 27), roadMat);
+      cross.rotation.x = -Math.PI / 2;
+      cross.position.set(sx, 0.004, -1);
+      this.group.add(cross);
+      this.disposables.push(cross.geometry);
+    }
+
+    // light streams: one Points draw, every lane baked into attributes
+    interface Lane { origin: Vector3; dir: Vector3; len: number; hue: number; count: number }
+    const lanes: Lane[] = [
+      // canyon: oncoming headlights on one side, taillights on the other
+      { origin: new Vector3(-32, 0.12, 1.1), dir: new Vector3(1, 0, 0), len: 66, hue: 1, count: 12 },
+      { origin: new Vector3(-32, 0.12, -1.1), dir: new Vector3(1, 0, 0), len: 66, hue: 0, count: 12 },
+    ];
+    for (const sx of CROSS_STREET_X) {
+      lanes.push(
+        { origin: new Vector3(sx - 0.6, 0.12, -14), dir: new Vector3(0, 0, 1), len: 27, hue: 0, count: 6 },
+        { origin: new Vector3(sx + 0.6, 0.12, -14), dir: new Vector3(0, 0, 1), len: 27, hue: 1, count: 6 },
+      );
+    }
+
+    const rand = mulberry32(5150);
+    const pos: number[] = [];
+    const dir: number[] = [];
+    const lens: number[] = [];
+    const phases: number[] = [];
+    const hues: number[] = [];
+    for (const lane of lanes) {
+      for (let i = 0; i < lane.count; i++) {
+        pos.push(lane.origin.x, lane.origin.y, lane.origin.z);
+        dir.push(lane.dir.x, lane.dir.y, lane.dir.z);
+        lens.push(lane.len);
+        phases.push(rand());
+        hues.push(lane.hue);
+      }
+    }
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+    g.setAttribute('aLaneDir', new Float32BufferAttribute(dir, 3));
+    g.setAttribute('aLaneLen', new Float32BufferAttribute(lens, 1));
+    g.setAttribute('aPhase', new Float32BufferAttribute(phases, 1));
+    g.setAttribute('aHue', new Float32BufferAttribute(hues, 1));
+    this.trafficMaterial = new ShaderMaterial({
+      vertexShader: carVert,
+      fragmentShader: carFrag,
+      uniforms: {
+        uTime: { value: 0 },
+        uSpeed: { value: 3.2 },
+        uIntensity: { value: 2.2 },
+      },
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+    const traffic = new Points(g, this.trafficMaterial);
+    traffic.frustumCulled = false;
+    this.group.add(traffic);
+    this.disposables.push(g, this.trafficMaterial);
   }
 
   private buildWindows(buildings: Building[]): void {
@@ -222,8 +302,10 @@ export class City {
     }
   }
 
-  update(t: number): void {
+  update(t: number, time = 0): void {
     if (!this.group.visible) return;
+    // traffic flows with time AND surges with scroll — the city drives past
+    if (this.trafficMaterial) this.trafficMaterial.uniforms.uTime!.value = time + t * 30;
     let colorsDirty = false;
     for (let i = 0; i < this.deliveries.length; i++) {
       const d = this.deliveries[i]!;

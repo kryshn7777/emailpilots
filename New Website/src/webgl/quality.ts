@@ -15,8 +15,8 @@ const HIGH: Quality = {
   tier: 'high',
   maxDpr: 2,
   volumetricClouds: true,
-  cloudSteps: 40,
-  cloudSprites: 140,
+  cloudSteps: 32,
+  cloudSprites: 110,
   rainCount: 1500,
   dustCount: 250,
 };
@@ -26,7 +26,7 @@ const LOW: Quality = {
   maxDpr: 1.5,
   volumetricClouds: false,
   cloudSteps: 0,
-  cloudSprites: 90,
+  cloudSprites: 70,
   rainCount: 500,
   dustCount: 90,
 };

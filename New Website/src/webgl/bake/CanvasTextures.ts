@@ -86,21 +86,61 @@ export function panelTexture(): CanvasTexture {
   return texture;
 }
 
-/** Runway asphalt: centerline dashes + threshold marks + "27". */
+/**
+ * Runway asphalt, full markings: threshold piano keys both ends, "27"
+ * designator, touchdown-zone bars, centerline dashes, edge stripes, tire
+ * scuff near the touchdown zone, asphalt noise. Long axis = V (texture Y).
+ */
 export function runwayTexture(): CanvasTexture {
-  const [canvas, ctx] = makeCanvas(512);
-  ctx.fillStyle = '#1c1f26';
-  ctx.fillRect(0, 0, 512, 512);
-  ctx.fillStyle = 'rgba(240, 236, 226, 0.85)';
-  for (let y = 20; y < 512; y += 64) {
-    ctx.fillRect(248, y, 16, 36);
+  const S = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+
+  ctx.fillStyle = '#23262e';
+  ctx.fillRect(0, 0, S, S);
+  // asphalt noise
+  for (let i = 0; i < 9000; i++) {
+    const v = 26 + Math.random() * 24;
+    ctx.fillStyle = `rgba(${v}, ${v + 2}, ${v + 8}, 0.35)`;
+    ctx.fillRect(Math.random() * S, Math.random() * S, 2, 2);
   }
-  for (let i = 0; i < 6; i++) {
-    ctx.fillRect(60 + i * 40, 462, 22, 40);
-    ctx.fillRect(232 + 60 + i * 40 - 60, 462, 0, 0);
+  // tire scuff bands near the near-end touchdown zone
+  for (let i = 0; i < 260; i++) {
+    ctx.fillStyle = `rgba(12, 12, 14, ${0.05 + Math.random() * 0.1})`;
+    const y = S * 0.6 + Math.random() * S * 0.25;
+    ctx.fillRect(S * 0.3 + Math.random() * S * 0.4, y, 3 + Math.random() * 5, 26 + Math.random() * 60);
   }
-  ctx.font = '700 84px monospace';
-  ctx.fillText('27', 200, 120);
+
+  const paint = 'rgba(240, 236, 226, 0.92)';
+  ctx.fillStyle = paint;
+  // edge stripes
+  ctx.fillRect(S * 0.045, 0, 10, S);
+  ctx.fillRect(S * 0.955 - 10, 0, 10, S);
+  // threshold piano keys, both ends
+  const KEYS = 8;
+  for (let i = 0; i < KEYS; i++) {
+    const x = S * 0.09 + i * ((S * 0.82) / KEYS) + 8;
+    const w = (S * 0.82) / KEYS - 16;
+    ctx.fillRect(x, S - 78, w, 62);
+    ctx.fillRect(x, 16, w, 62);
+  }
+  // touchdown-zone bars (two groups per side)
+  for (const ty of [S * 0.78, S * 0.7]) {
+    for (const tx of [S * 0.16, S * 0.72]) {
+      ctx.fillRect(tx, ty, S * 0.12, 20);
+    }
+  }
+  // centerline dashes
+  for (let y = S * 0.12; y < S * 0.66; y += 84) {
+    ctx.fillRect(S / 2 - 9, y, 18, 52);
+  }
+  // designator
+  ctx.font = `700 ${S * 0.11}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText('27', S / 2, S * 0.905);
+
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   return texture;

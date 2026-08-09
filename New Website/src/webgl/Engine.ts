@@ -33,6 +33,7 @@ import { NoFly } from './actors/NoFly';
 import { Panel } from './actors/Panel';
 import { PaperBurst } from './actors/PaperBurst';
 import { PaperPlane } from './actors/PaperPlane';
+import { Rooftops } from './actors/Rooftops';
 import { Storm } from './actors/Storm';
 import { Trail } from './actors/Trail';
 import { WindowFrame } from './actors/WindowFrame';
@@ -84,6 +85,7 @@ export class Engine {
   private desk: Desk;
   private panel: Panel;
   private windowFrame: WindowFrame;
+  private rooftops!: Rooftops;
   private clouds: Clouds;
   private envelopes: Envelopes;
   private storm: Storm;
@@ -139,7 +141,8 @@ export class Engine {
     const rand = mulberry32(919);
     this.desk = new Desk(new Vector3(0.4, 1.29, 0), this.quality.dustCount, rand);
     this.panel = new Panel(this.path.chapterAnchor(1));
-    this.windowFrame = new WindowFrame(this.path.chapterAnchor(2));
+    this.windowFrame = new WindowFrame(new Vector3(7, 2, 0.8));
+    this.rooftops = new Rooftops(rand);
     this.clouds = new Clouds(this.path.chapterAnchor(3), this.quality, rand);
     this.envelopes = new Envelopes(this.raycast, this.tooltip);
     this.storm = new Storm(this.path, this.quality.rainCount, rand);
@@ -161,6 +164,7 @@ export class Engine {
       this.desk.group,
       this.panel.group,
       this.windowFrame.group,
+      this.rooftops.group,
       this.clouds.sprites,
       this.envelopes.group,
       this.storm.group,
@@ -303,6 +307,7 @@ export class Engine {
     this.prevT = t;
 
     this.rig.update(t, time, dt);
+    this.plane.flex(time, t > CONTRAIL_FROM || this.idlePreset ? 1 : 0);
 
     // idle orbit for sub-pages: slow crane shot around the parked plane
     if (this.idlePreset) {
@@ -355,6 +360,7 @@ export class Engine {
     this.desk.group.visible = nearDesk;
     this.panel.group.visible = nearDesk;
     this.windowFrame.group.visible = nearDesk;
+    this.rooftops.group.visible = t > 0.06 && t < 0.3;
 
     this.desk.update(time);
     this.panel.update(t);
@@ -372,7 +378,7 @@ export class Engine {
     this.storm.update(time, dt, stormness, Math.random);
     this.beacon.update(time, this.camera);
     this.noFly.update(time);
-    this.city.update(t);
+    this.city.update(t, time);
     this.copilot.update(
       this.rig.planeWorldPos,
       this.plane.group.quaternion,
@@ -393,7 +399,15 @@ export class Engine {
     }
 
     this.composer.render();
+
+    if (!this.firstFrameDone) {
+      this.firstFrameDone = true;
+      window.dispatchEvent(new CustomEvent('flight:ready'));
+    }
+    window.dispatchEvent(new CustomEvent('flight:t', { detail: t }));
   }
+
+  private firstFrameDone = false;
 
   private loop = (): void => {
     if (this.disposed) return;
@@ -433,6 +447,7 @@ export class Engine {
     this.desk.dispose();
     this.panel.dispose();
     this.windowFrame.dispose();
+    this.rooftops.dispose();
     this.clouds.dispose();
     this.envelopes.dispose();
     this.storm.dispose();

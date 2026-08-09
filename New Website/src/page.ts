@@ -6,10 +6,59 @@
 
 let observer: IntersectionObserver | null = null;
 const magnetCleanups: (() => void)[] = [];
+let chromeBound = false;
+
+const CHAPTER_NAMES = ['THE DESK', 'PREFLIGHT', 'TAKEOFF', 'FORMATION', 'THE STORM', 'THE BEACON', 'THE NO-FLY LIST', 'CITY OF INBOXES', 'THE COPILOT', 'THE LANDING'];
+const CHAPTER_T = [0, 0.09, 0.17, 0.26, 0.36, 0.48, 0.58, 0.66, 0.78, 0.88, 1];
 
 export function bindPage(): void {
+  document.body.dataset.route = location.pathname.replace(/\/+$/, '') || '/';
   bindReveals();
   bindMagnets();
+  bindChromeOnce();
+}
+
+/** One-time chrome: HUD/progress feed, preloader dismissal, custom cursor. */
+function bindChromeOnce(): void {
+  if (chromeBound) return;
+  chromeBound = true;
+
+  const hudChapter = document.getElementById('hud-chapter');
+  const hudAlt = document.getElementById('hud-alt');
+  const bar = document.querySelector<HTMLElement>('#scroll-progress i');
+  window.addEventListener('flight:t', (e) => {
+    const t = (e as CustomEvent<number>).detail;
+    if (bar) bar.style.width = `${(t * 100).toFixed(1)}%`;
+    if (hudChapter && hudAlt) {
+      let i = 0;
+      while (i < 9 && t >= CHAPTER_T[i + 1]!) i++;
+      hudChapter.textContent = `CH ${String(i + 1).padStart(2, '0')} / 10 · ${CHAPTER_NAMES[i]}`;
+      const alt = Math.round(120 + Math.sin(t * Math.PI) * 2280);
+      hudAlt.textContent = `ALT ${String(alt).padStart(4, '0')}`;
+    }
+  });
+
+  const preloader = document.getElementById('preloader');
+  const dismiss = (): void => preloader?.classList.add('is-done');
+  window.addEventListener('flight:ready', dismiss, { once: true });
+  setTimeout(dismiss, 4000); // never trap the user if WebGL is unavailable
+
+  // custom cursor, fine pointers only
+  if (matchMedia('(pointer: fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const cursor = document.getElementById('cursor');
+    if (cursor) {
+      document.body.classList.add('has-cursor');
+      window.addEventListener(
+        'pointermove',
+        (e) => {
+          cursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+          const interactive = (e.target as Element | null)?.closest('a, button, summary, [data-magnetic]');
+          cursor.classList.toggle('is-active', !!interactive);
+        },
+        { passive: true },
+      );
+    }
+  }
 }
 
 function bindReveals(): void {
@@ -26,8 +75,31 @@ function bindReveals(): void {
     { threshold: 0.25 },
   );
   for (const el of document.querySelectorAll('[data-reveal]')) {
+    splitWords(el);
     if (!el.classList.contains('is-in')) observer.observe(el);
   }
+}
+
+/** Headlines cascade in word by word; chips stagger after them. */
+function splitWords(container: Element): void {
+  for (const heading of container.querySelectorAll('h1, h2')) {
+    if ((heading as HTMLElement).dataset.split) continue;
+    (heading as HTMLElement).dataset.split = '1';
+    const words = (heading.textContent ?? '').trim().split(/\s+/);
+    heading.textContent = '';
+    words.forEach((word, i) => {
+      const span = document.createElement('span');
+      span.className = 'w';
+      span.style.setProperty('--wi', String(i));
+      span.textContent = word;
+      heading.appendChild(span);
+      if (i < words.length - 1) heading.appendChild(document.createTextNode(' '));
+    });
+  }
+  const staggered = container.querySelectorAll('.chips li, .manual-item');
+  staggered.forEach((el, i) => {
+    (el as HTMLElement).style.transitionDelay = `${240 + i * 70}ms`;
+  });
 }
 
 function bindMagnets(): void {

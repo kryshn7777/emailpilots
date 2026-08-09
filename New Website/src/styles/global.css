@@ -138,6 +138,50 @@ main#swup {
   translate: 0 0;
 }
 
+/* word-cascade titles */
+[data-reveal] .w {
+  display: inline-block;
+  opacity: 0;
+  translate: 0 0.55em;
+  transition: opacity 500ms ease, translate 650ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: calc(120ms + var(--wi, 0) * 60ms);
+}
+
+[data-reveal].is-in .w {
+  opacity: 1;
+  translate: 0 0;
+}
+
+[data-reveal] .chapter__body,
+[data-reveal] .chips li,
+[data-reveal] .manual-item {
+  opacity: 0;
+  translate: 0 16px;
+  transition: opacity 600ms ease, translate 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+[data-reveal] .chapter__body {
+  transition-delay: 200ms;
+}
+
+[data-reveal].is-in .chapter__body,
+[data-reveal].is-in .chips li,
+[data-reveal].is-in .manual-item {
+  opacity: 1;
+  translate: 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] .w,
+  [data-reveal] .chapter__body,
+  [data-reveal] .chips li,
+  [data-reveal] .manual-item {
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-reveal] {
     opacity: 1;
@@ -352,6 +396,353 @@ main#swup {
   color: var(--ink-dim);
   max-width: 55ch;
   font-size: 0.9rem;
+}
+
+/* ---------- site chrome ---------- */
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  font-size: 0.92rem;
+}
+
+.nav__links a {
+  color: var(--ink-dim);
+  text-decoration: none;
+  transition: color 200ms ease;
+}
+
+.nav__links a:hover {
+  color: var(--ink);
+}
+
+.nav__links .nav__cta {
+  color: #10141f;
+  background: var(--paper);
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.nav__burger {
+  display: none;
+  background: none;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 999px;
+  color: inherit;
+  font: inherit;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+}
+
+.nav__sheet {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 1.2rem;
+  position: absolute;
+  top: 100%;
+  right: clamp(1rem, 4vw, 3rem);
+  background: rgba(5, 7, 15, 0.92);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(8px);
+}
+
+.nav__sheet a {
+  color: var(--ink);
+  text-decoration: none;
+  display: block;
+  padding: 0.4rem 0;
+}
+
+.site-header {
+  transition: background 300ms ease, backdrop-filter 300ms ease;
+}
+
+.site-header:has(.nav--solid) {
+  background: color-mix(in srgb, var(--void) 72%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+@media (max-width: 720px) {
+  .nav__links { display: none; }
+  .nav__burger { display: inline-block; }
+}
+
+/* flight-data HUD + scroll progress (home only, page.ts toggles) */
+#hud {
+  position: fixed;
+  left: clamp(1rem, 4vw, 3rem);
+  bottom: 1.1rem;
+  z-index: 9;
+  display: flex;
+  gap: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+
+#scroll-progress {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  z-index: 9;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  pointer-events: none;
+}
+
+#scroll-progress i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--beacon-beam);
+  transition: width 80ms linear;
+}
+
+body[data-route]:not([data-route='/']) #hud,
+body[data-route]:not([data-route='/']) #scroll-progress {
+  opacity: 0;
+}
+
+/* preloader */
+#preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-content: center;
+  gap: 1rem;
+  justify-items: center;
+  background: var(--void);
+  transition: opacity 600ms ease;
+}
+
+#preloader.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.preloader__mark {
+  display: grid;
+  justify-items: center;
+  gap: 0.9rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.preloader__mark svg {
+  animation: taxi 2.2s ease-in-out infinite;
+}
+
+.preloader__hint {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+@keyframes taxi {
+  0%, 100% { transform: translateX(-14px) rotate(-4deg); }
+  50% { transform: translateX(14px) rotate(4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader__mark svg { animation: none; }
+}
+
+/* custom cursor (fine pointers only) */
+#cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 1.5px solid color-mix(in srgb, var(--ink) 55%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 120ms ease-out, opacity 300ms ease, scale 200ms ease;
+}
+
+body.has-cursor #cursor { opacity: 1; }
+body.has-cursor #cursor.is-active { scale: 1.6; border-color: var(--beacon-beam); }
+@media (pointer: coarse) { #cursor { display: none; } }
+
+/* chapter layout: alternate sides + giant index watermark */
+.chapter { position: relative; }
+
+.chapter[data-side='right'] {
+  display: grid;
+  justify-content: end;
+}
+
+.chapter__index {
+  position: absolute;
+  top: 8vh;
+  right: clamp(0.5rem, 4vw, 4rem);
+  z-index: -1;
+  font-family: var(--font-display);
+  font-weight: 200;
+  font-size: clamp(8rem, 24vw, 20rem);
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--ink) 14%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+
+.chapter[data-side='right'] .chapter__index {
+  right: auto;
+  left: clamp(0.5rem, 4vw, 4rem);
+}
+
+/* stylized product window (CSS-only mock, deliberately illustrative) */
+.app-mock {
+  margin-top: 1.75rem;
+  width: min(30rem, 88vw);
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  background: color-mix(in srgb, #0d1120 88%, transparent);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  font-size: 0.78rem;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+}
+
+.app-mock__bar {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.app-mock__bar i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+.app-mock__body {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+}
+
+.app-mock__side {
+  border-right: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  padding: 0.8rem 0.7rem;
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+}
+
+.app-mock__side b { color: var(--instrument); font-weight: 500; }
+
+.app-mock__main { padding: 0.9rem; display: grid; gap: 0.8rem; }
+
+.app-mock__verdict {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--beacon-beam) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--beacon-beam) 35%, transparent);
+  color: var(--beacon-beam);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+}
+
+.app-mock__meter { display: grid; gap: 0.45rem; }
+
+.app-mock__meter label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.app-mock__meter i {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-mock__meter i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: var(--fill, 40%);
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--window-glow), var(--sunrise-a));
+}
+
+/* footer */
+.site-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 4rem;
+  padding: 3rem clamp(1rem, 6vw, 5rem) 2.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  background: color-mix(in srgb, var(--void) 82%, transparent);
+  backdrop-filter: blur(8px);
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  font-size: 0.88rem;
+}
+
+.site-footer nav { display: grid; gap: 0.45rem; align-content: start; }
+.site-footer a { color: var(--ink-dim); text-decoration: none; }
+.site-footer a:hover { color: var(--ink); }
+
+.site-footer__tag {
+  color: var(--ink-dim);
+  max-width: 34ch;
+}
+
+.site-footer__fine {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  color: color-mix(in srgb, var(--ink-dim) 75%, transparent);
 }
 
 .hud-tooltip {

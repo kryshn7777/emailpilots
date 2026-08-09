@@ -88,7 +88,7 @@ export const CHAPTERS: Chapter[] = [
   {
     id: 'city', t0: 0.66, t1: 0.78,
     rig: { fov: 62, camLag: 0.014, lookAhead: 0.008, turbAmp: 0.12, offsetUp: 0.9, offsetSide: 0.3, offsetBack: 0.6 },
-    grade: { zenith: '#0b1024', horizon: '#2a2138', sunColor: '#ffc96b', sunIntensity: 0.3, sunDir: [-0.4, 0.5, 0.1], fogColor: '#0e1226', fogNear: 10, fogFar: 100, envIntensity: 0.3 },
+    grade: { zenith: '#0b1024', horizon: '#2a2138', sunColor: '#ffc96b', sunIntensity: 0.3, sunDir: [-0.4, 0.5, 0.1], fogColor: '#151a33', fogNear: 6, fogFar: 68, envIntensity: 0.3 },
   },
   {
     id: 'copilot', t0: 0.78, t1: 0.88,
