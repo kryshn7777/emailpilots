@@ -770,3 +770,12 @@ body.has-cursor #cursor.is-active { scale: 1.6; border-color: var(--beacon-beam)
 .hud-tooltip[data-visible='true'] {
   opacity: 1;
 }
+
+/* ?clean — art-review mode: canvas only, no wordings */
+body.is-clean .site-header,
+body.is-clean #hud,
+body.is-clean #scroll-progress,
+body.is-clean main,
+body.is-clean footer {
+  visibility: hidden !important;
+}

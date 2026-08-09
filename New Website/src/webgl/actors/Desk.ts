@@ -25,6 +25,7 @@ import {
   laptopKeysTexture,
   laptopScreenTexture,
   letterTexture,
+  rugTexture,
   wallPanelTexture,
 } from '../bake/CanvasTextures';
 import { requestCompile } from '../warm';
@@ -47,25 +48,9 @@ export class Desk {
   constructor(origin: Vector3, dustCount: number, rand: () => number) {
     this.group.position.copy(origin);
 
-    const wood = new MeshStandardMaterial({ color: '#6b563e', roughness: 0.8 });
-    const top = new Mesh(new BoxGeometry(7, 0.12, 4.4), wood);
-    top.position.y = -0.16;
-    this.group.add(top);
-    this.disposables.push(top.geometry, wood);
-
-    // desk legs down to the floor — without them the top read as sunk into
-    // the ground
-    const legGeometry = new BoxGeometry(0.16, 1.06, 0.16);
-    this.disposables.push(legGeometry);
-    for (const [lx, lz] of [[-3.25, -2.0], [3.25, -2.0], [-3.25, 2.0], [3.25, 2.0]] as const) {
-      const leg = new Mesh(legGeometry, wood);
-      leg.position.set(lx, -0.75, lz);
-      this.group.add(leg);
-    }
-    const stretcher = new Mesh(new BoxGeometry(6.5, 0.1, 0.12), wood);
-    stretcher.position.set(0, -1.05, -1.95);
-    this.group.add(stretcher);
-    this.disposables.push(stretcher.geometry);
+    // the desk is a real table model now (WoodenTable_02, streamed in below);
+    // an interim invisible-thin top is unnecessary — props already float at
+    // the exact height the table's top surface lands on (y −0.10)
 
     // the room: plank floor, paneled walls, and the window wall the flight
     // exits through
@@ -95,6 +80,81 @@ export class Desk {
     sideBoard.position.set(-4.57, -1.15, 0.6);
     this.group.add(backBoard, sideBoard);
     this.disposables.push(backBoard.geometry, sideBoard.geometry, boardMaterial);
+
+    // — real wall relief: crown, chair rail, and raised wainscot frames —
+    // (the walls carried only a painted texture before; luxury needs geometry)
+    const trimMaterial = new MeshStandardMaterial({ color: '#c9bda6', roughness: 0.65 });
+    this.disposables.push(trimMaterial);
+    const crownBack = new Mesh(new BoxGeometry(26, 0.22, 0.12), trimMaterial);
+    crownBack.position.set(3, 5.05, -3.66);
+    const crownSide = new Mesh(new BoxGeometry(0.12, 0.22, 18), trimMaterial);
+    crownSide.position.set(-4.56, 5.05, 0.6);
+    const railBack = new Mesh(new BoxGeometry(26, 0.09, 0.09), trimMaterial);
+    railBack.position.set(3, 1.05, -3.67);
+    const railSide = new Mesh(new BoxGeometry(0.09, 0.09, 18), trimMaterial);
+    railSide.position.set(-4.58, 1.05, 0.6);
+    this.group.add(crownBack, crownSide, railBack, railSide);
+    this.disposables.push(crownBack.geometry, crownSide.geometry, railBack.geometry, railSide.geometry);
+    const stileH = new BoxGeometry(1.9, 0.07, 0.06); // panel top/bottom
+    const stileV = new BoxGeometry(0.07, 1.5, 0.06); // panel sides
+    this.disposables.push(stileH, stileV);
+    const panelAt = (px: number, pz: number, side: boolean): void => {
+      const y = -0.1;
+      const make = (g: BoxGeometry, ox: number, oy: number, oz: number): void => {
+        const m = new Mesh(g, trimMaterial);
+        if (side) {
+          m.rotation.y = Math.PI / 2;
+          m.position.set(pz, y + oy, px + ox);
+        } else {
+          m.position.set(px + ox, y + oy, pz + oz);
+        }
+        this.group.add(m);
+      };
+      make(stileH, 0, 0.75, 0);
+      make(stileH, 0, -0.75, 0);
+      make(stileV, -0.95, 0, 0);
+      make(stileV, 0.95, 0, 0);
+    };
+    for (const px of [-3.4, -0.9, 1.6, 4.1, 6.6]) panelAt(px, -3.64, false);
+    for (const pz of [-2.6, -0.1, 2.4]) panelAt(pz, -4.54, true);
+
+    // rug under the desk pulls the furniture into one composition
+    const rugMap = rugTexture();
+    const rugMaterial = new MeshStandardMaterial({ map: rugMap, roughness: 0.95 });
+    const rug = new Mesh(new PlaneGeometry(9.6, 6.4), rugMaterial);
+    rug.rotation.x = -Math.PI / 2;
+    rug.rotation.z = 0.02;
+    rug.position.set(0.4, -1.272, 0.3);
+    this.group.add(rug);
+    this.disposables.push(rug.geometry, rugMaterial, rugMap);
+
+    // curtains flanking the window opening, folded cloth
+    const curtainMaterial = new MeshStandardMaterial({
+      color: '#5a2333',
+      roughness: 0.85,
+      side: DoubleSide,
+    });
+    this.disposables.push(curtainMaterial);
+    for (const cz of [-1.55, 3.2] as const) {
+      const g = new PlaneGeometry(1.45, 4.35, 18, 1);
+      const pos = g.attributes.position!;
+      for (let i = 0; i < pos.count; i++) {
+        pos.setZ(i, Math.sin(pos.getX(i) * 9) * 0.1);
+      }
+      g.computeVertexNormals();
+      const curtain = new Mesh(g, curtainMaterial);
+      curtain.rotation.y = -Math.PI / 2;
+      curtain.position.set(6.42, 1.85, cz);
+      this.group.add(curtain);
+      this.disposables.push(g);
+    }
+    // curtain rod across the opening
+    const rodMaterial = new MeshStandardMaterial({ color: '#6a5433', roughness: 0.4, metalness: 0.5 });
+    const rod = new Mesh(new CylinderGeometry(0.035, 0.035, 6.2, 8), rodMaterial);
+    rod.rotation.x = Math.PI / 2;
+    rod.position.set(6.42, 4.05, 0.8);
+    this.group.add(rod);
+    this.disposables.push(rod.geometry, rodMaterial);
 
     // framed art + a wall clock so the walls aren't bare planes
     const frameMaterial = new MeshStandardMaterial({ color: '#2b2118', roughness: 0.6 });
@@ -195,6 +255,55 @@ export class Desk {
     // book row parked neatly along the back edge beside the plant
     prop('/models/book_encyclopedia_set_01.glb', 0.5, -1.15, -1.72, 0.06);
     prop('/models/ceramic_vase_01.glb', 0.62, 2.0, -0.85, 0.2);
+
+    // — the study set: real furniture, floor-standing —
+    const floorProp = (url: string, targetH: number, x: number, z: number, rotY: number): void => {
+      loader.load(url, (gltf) => {
+        const s = gltf.scene;
+        const box = new Box3().setFromObject(s);
+        const size = box.getSize(new Vector3());
+        s.scale.setScalar(targetH / Math.max(size.y, 1e-3));
+        box.setFromObject(s);
+        s.position.set(x, -1.28 - box.min.y, z);
+        s.rotation.y = rotY;
+        this.group.add(s);
+        requestCompile(s);
+      });
+    };
+    // the desk itself: plain wooden table stretched to the set's scale —
+    // its top must land exactly at y −0.10 where the laptop + props sit
+    loader.load('/models/WoodenTable_02.glb', (gltf) => {
+      const s = gltf.scene;
+      const box = new Box3().setFromObject(s);
+      const size = box.getSize(new Vector3());
+      s.scale.set(6.8 / size.x, 1.18 / size.y, 4.2 / size.z);
+      box.setFromObject(s);
+      s.position.set(0, -1.28 - box.min.y, 0);
+      this.group.add(s);
+      requestCompile(s);
+    });
+    floorProp('/models/ClassicConsole_01.glb', 1.15, 4.9, -3.05, 0);
+    floorProp('/models/ArmChair_01.glb', 1.7, -2.3, 2.6, -2.45);
+    floorProp('/models/Shelf_01.glb', 2.7, -3.7, -3.2, 0);
+    // chandelier hangs over the desk; cord runs up into the dark
+    loader.load('/models/Chandelier_03.glb', (gltf) => {
+      const s = gltf.scene;
+      const box = new Box3().setFromObject(s);
+      const size = box.getSize(new Vector3());
+      s.scale.setScalar(1.7 / Math.max(size.y, 1e-3));
+      box.setFromObject(s);
+      s.position.set(1.4, 4.55 - box.max.y, -0.4);
+      this.group.add(s);
+      requestCompile(s);
+    });
+    const cordMaterial = new MeshStandardMaterial({ color: '#191d28', roughness: 0.6 });
+    const cord = new Mesh(new CylinderGeometry(0.02, 0.02, 1.4, 6), cordMaterial);
+    cord.position.set(1.4, 5.2, -0.4);
+    this.group.add(cord);
+    this.disposables.push(cord.geometry, cordMaterial);
+    const candleLight = new PointLight('#ffd9a0', 6, 10, 1.8);
+    candleLight.position.set(1.4, 3.6, -0.4);
+    this.group.add(candleLight);
 
     // flowers rising from the vase mouth — stems + heads + a leaf each
     const flowers = new Group();

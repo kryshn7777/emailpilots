@@ -123,6 +123,43 @@ export function bannerTexture(): CanvasTexture {
   return texture;
 }
 
+/** Bordered study rug: deep field, double border, faint medallion. */
+export function rugTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  ctx.fillStyle = '#1d2436';
+  ctx.fillRect(0, 0, 512, 512);
+  ctx.strokeStyle = '#5a2e38';
+  ctx.lineWidth = 26;
+  ctx.strokeRect(28, 28, 456, 456);
+  ctx.strokeStyle = '#8a6a3f';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(56, 56, 400, 400);
+  ctx.strokeRect(13, 13, 486, 486);
+  // medallion rings
+  ctx.strokeStyle = 'rgba(138, 106, 63, 0.5)';
+  for (const r of [70, 110, 150]) {
+    ctx.beginPath();
+    ctx.arc(256, 256, r, 0, Math.PI * 2);
+    ctx.lineWidth = r === 110 ? 10 : 4;
+    ctx.stroke();
+  }
+  // corner ornaments
+  ctx.fillStyle = 'rgba(90, 46, 56, 0.7)';
+  for (const [cx, cy] of [[90, 90], [422, 90], [90, 422], [422, 422]] as const) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // pile noise
+  for (let i = 0; i < 2600; i++) {
+    ctx.fillStyle = `rgba(255, 245, 225, ${0.015 + Math.random() * 0.02})`;
+    ctx.fillRect(Math.random() * 512, Math.random() * 512, 1.5, 1.5);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 /** Subtle paper fiber grain — used by the plane and the letter. */
 export function paperTexture(): CanvasTexture {
   const [canvas, ctx] = makeCanvas(256);

@@ -13,6 +13,11 @@ const CHAPTER_T = [0, 0.09, 0.17, 0.26, 0.36, 0.48, 0.58, 0.66, 0.78, 0.88, 1];
 
 export function bindPage(): void {
   document.body.dataset.route = location.pathname.replace(/\/+$/, '') || '/';
+  // art-review mode: ?clean hides every DOM overlay (copy, HUD, nav) so the
+  // canvas can be judged unobstructed
+  if (new URLSearchParams(location.search).has('clean')) {
+    document.body.classList.add('is-clean');
+  }
   bindReveals();
   bindMagnets();
   bindChromeOnce();

@@ -41,6 +41,7 @@ import { Rooftops } from './actors/Rooftops';
 import { Storm } from './actors/Storm';
 import { Trail } from './actors/Trail';
 import { WindowFrame } from './actors/WindowFrame';
+import { WingPlanes } from './actors/WingPlanes';
 import { CameraRig } from './rig/CameraRig';
 import { FlightPath } from './rig/FlightPath';
 import { setCompiler } from './warm';
@@ -99,6 +100,7 @@ export class Engine {
   private birds: Birds;
   private beacon: Beacon;
   private noFly: NoFly;
+  private wingPlanes = new WingPlanes();
   private city: City;
   private copilot: Copilot;
   private landing: Landing;
@@ -207,6 +209,7 @@ export class Engine {
       this.birds.group,
       this.beacon.group,
       this.noFly.group,
+      this.wingPlanes.group,
       this.city.group,
       this.copilot.group,
       this.landing.group,
@@ -478,7 +481,15 @@ export class Engine {
       MathUtils.smoothstep(t, 0.34, 0.38) * (1 - MathUtils.smoothstep(t, 0.46, 0.52));
     this.storm.update(time, dt, stormness, Math.random);
     this.biplane.update(t, time);
-    this.birds.update(time);
+    this.birds.update(time, t);
+    this.wingPlanes.update(
+      this.rig.planeWorldPos,
+      this.rig.currentSide,
+      this.rig.currentTangent,
+      this.plane.group.quaternion,
+      t,
+      time,
+    );
     this.plane.setBeamHit(this.beacon.update(time, this.camera, t, this.rig.planeWorldPos));
     this.noFly.update(time, t);
     this.city.update(t, time);
@@ -561,6 +572,7 @@ export class Engine {
     this.birds.dispose();
     this.beacon.dispose();
     this.noFly.dispose();
+    this.wingPlanes.dispose();
     this.city.dispose();
     this.copilot.dispose();
     this.landing.dispose();

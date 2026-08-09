@@ -112,6 +112,44 @@ export class Beacon {
       this.disposables.push(g);
     }
 
+    // — keeper's cottage beside the tower: walls, pitched roof, chimney,
+    // door, and two lit windows — the islet reads inhabited, not a prop —
+    const cottageWall = new MeshStandardMaterial({ color: '#8e8578', roughness: 0.85 });
+    const cottageRoof = new MeshStandardMaterial({ color: '#2e2a33', roughness: 0.7 });
+    const cottage = new Group();
+    const walls = new Mesh(new BoxGeometry(2.3, 1.35, 1.7), cottageWall);
+    walls.position.y = 0.62;
+    const roofPrism = new Mesh(new BoxGeometry(1.62, 1.62, 1.9), cottageRoof);
+    roofPrism.rotation.z = Math.PI / 4;
+    roofPrism.scale.y = 0.62;
+    roofPrism.position.y = 1.38;
+    const chimney = new Mesh(new BoxGeometry(0.28, 0.7, 0.28), cottageWall);
+    chimney.position.set(0.7, 1.75, -0.4);
+    const door = new Mesh(
+      new PlaneGeometry(0.42, 0.78),
+      new MeshStandardMaterial({ color: '#20303c', roughness: 0.6 }),
+    );
+    door.position.set(-0.6, 0.42, 0.86);
+    const windowGlow = new MeshStandardMaterial({
+      color: '#241c10',
+      emissive: '#ffc06a',
+      emissiveIntensity: 1.6,
+    });
+    for (const wx of [0.25, 0.85]) {
+      const win = new Mesh(new PlaneGeometry(0.3, 0.34), windowGlow);
+      win.position.set(wx, 0.72, 0.86);
+      cottage.add(win);
+      this.disposables.push(win.geometry);
+    }
+    cottage.add(walls, roofPrism, chimney, door);
+    cottage.position.set(2.4, 0, 0.4);
+    cottage.rotation.y = -0.25;
+    this.group.add(cottage);
+    this.disposables.push(
+      walls.geometry, roofPrism.geometry, chimney.geometry, door.geometry,
+      cottageWall, cottageRoof, door.material as MeshStandardMaterial, windowGlow,
+    );
+
     // — the sea — oversized so the camera never looks past its far edge
     // into black void on the way out of the chapter
     const seg = quality.tier === 'high' ? 128 : 72;
@@ -342,11 +380,11 @@ export class Beacon {
     );
     this.disposables.push(lightGeometry, lightMaterial);
 
-    // on the open water past the tower, left of the flight line — sits in
-    // the visible horizon band through the whole approach
-    this.ship.position.set(30, 0.5, -13);
-    this.ship.rotation.y = 0.55;
-    this.ship.scale.setScalar(2.4);
+    // dead ahead on the approach line: the camera flies straight over the
+    // freighter's deck just before reaching the tower
+    this.ship.position.set(-16.2, 0.5, 2.4);
+    this.ship.rotation.y = 0.25;
+    this.ship.scale.setScalar(2.6);
     this.group.add(this.ship);
   }
 
@@ -354,7 +392,18 @@ export class Beacon {
     if (!this.group.visible) return 0;
     // free sweep + a scroll-driven phase: scrubbing the chapter always drags
     // the beam through at least one full pass over the flight line
-    const yaw = time * 0.45 + t * 40;
+    const freeYaw = time * 0.45 + t * 40;
+    // keyframed beat at t≈0.515: the beam deliberately sweeps across the
+    // lens — guaranteed on every scroll-through, not left to sweep luck
+    let camYaw = 0;
+    {
+      const dx = camera.position.x - this.towerTop.x;
+      const dz = camera.position.z - this.towerTop.z;
+      camYaw = Math.atan2(-dz, dx);
+    }
+    const beat = MathUtils.smoothstep(t, 0.495, 0.505) * (1 - MathUtils.smoothstep(t, 0.53, 0.54));
+    const sweep = camYaw + (t - 0.5175) * 60; // crosses the lens mid-window
+    const yaw = MathUtils.lerp(freeYaw, sweep, beat);
     this.beamPivot.rotation.y = yaw;
     this.beamMaterial.uniforms.uTime!.value = time;
     // the beam stands down entering CH7 — inside-the-cone frames wash teal
@@ -394,7 +443,7 @@ export class Beacon {
     this.ship.position.y = 0.5 + Math.sin(time * 0.7) * 0.3;
     this.ship.rotation.z = Math.sin(time * 0.7 + 1.3) * 0.05;
     this.ship.rotation.x = Math.sin(time * 0.55) * 0.035;
-    this.ship.position.x = 30 + Math.sin(time * 0.07) * 3;
+    this.ship.position.x = -16.2 + Math.sin(time * 0.07) * 2;
 
     // splash bursts: parabolic arcs synced to the surge beat
     const attr = this.splashGeometry.attributes.position!;

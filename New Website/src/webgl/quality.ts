@@ -37,11 +37,12 @@ const LOW: Quality = {
 };
 
 /**
- * v1 heuristic: known integrated/mobile GPUs and touch-first small screens go
- * LOW, everything else HIGH. `?q=low` / `?q=high` overrides for testing.
- * Auto-drop on measured fps arrives with the Phase 6 perf pass.
+ * Max-fidelity by default (user call, 2026-08-09): every desktop gets HIGH —
+ * volumetric clouds, full DPR. Only touch-first small screens drop to LOW,
+ * plus the `?q=low` escape hatch for testing / weak machines.
  */
 export function detectQuality(gpuString: string): Quality {
+  void gpuString;
   const forced = new URLSearchParams(location.search).get('q');
   if (forced === 'low') return LOW;
   if (forced === 'high') return HIGH;
@@ -49,9 +50,6 @@ export function detectQuality(gpuString: string): Quality {
   const smallScreen = Math.min(screen.width, screen.height) < 820;
   const coarse = matchMedia('(pointer: coarse)').matches;
   if (coarse && smallScreen) return LOW;
-
-  // integrated GPUs can't hold the raymarched slab at 60
-  if (/\b(intel|uhd|iris|hd graphics|mali|adreno|powervr)\b/i.test(gpuString)) return LOW;
   return HIGH;
 }
 
