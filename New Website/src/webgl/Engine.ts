@@ -49,6 +49,20 @@ interface EngineOptions {
   reducedMotion: boolean;
 }
 
+interface IdlePreset {
+  t: number;
+  orbitRadius: number;
+  orbitHeight: number;
+  orbitSpeed: number;
+}
+
+/** Non-home routes park the world at a story moment and orbit it slowly. */
+const ROUTE_PRESETS: Record<string, IdlePreset> = {
+  '/features': { t: 0.3, orbitRadius: 7, orbitHeight: 1.6, orbitSpeed: 0.12 },
+  '/pricing': { t: 0.53, orbitRadius: 9, orbitHeight: 2.6, orbitSpeed: 0.08 },
+  '/download': { t: 0.985, orbitRadius: 4.5, orbitHeight: 1.3, orbitSpeed: 0.05 },
+};
+
 /**
  * Phase-3 engine: CH1–5 art-complete (desk, panel, takeoff window, volumetric
  * cloud sea, storm) over the chapter grade system; CH6–10 remain blockout.
@@ -87,6 +101,8 @@ export class Engine {
   private fog: Fog;
   private scrollT = 0;
   private prevT = 0;
+  private idlePreset: IdlePreset | null = null;
+  private maneuverPulse = 0;
   private rafId = 0;
   private startTime = performance.now();
   private lastTime = this.startTime;
@@ -180,6 +196,30 @@ export class Engine {
     }
   }
 
+  /** Route change: home scrubs; other pages park at a preset and orbit. */
+  setRoute(path: string): void {
+    const clean = path.replace(/\/+$/, '') || '/';
+    this.idlePreset = ROUTE_PRESETS[clean] ?? null;
+    const t = this.idlePreset ? this.idlePreset.t : this.scrollT;
+    // jumping t across chapters must not fire seam beats or drag the trail
+    this.prevT = t;
+    this.trail.reset();
+    if (this.options.reducedMotion) this.renderFrame();
+  }
+
+  /** Page-transition flourish: the plane banks hard while the DOM swaps. */
+  maneuver(): void {
+    this.maneuverPulse = 1;
+  }
+
+  scrollTopForSwap(): void {
+    this.director?.scrollTop();
+  }
+
+  refreshAfterSwap(): void {
+    this.director?.refresh();
+  }
+
   start(): void {
     this.director = new ScrollDirector({
       reducedMotion: this.options.reducedMotion,
@@ -246,7 +286,7 @@ export class Engine {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
     const time = (now - this.startTime) / 1000;
-    const t = this.scrollT;
+    const t = this.idlePreset ? this.idlePreset.t : this.scrollT;
 
     this.applyGrade(t);
 
@@ -263,6 +303,29 @@ export class Engine {
     this.prevT = t;
 
     this.rig.update(t, time, dt);
+
+    // idle orbit for sub-pages: slow crane shot around the parked plane
+    if (this.idlePreset) {
+      const { orbitRadius, orbitHeight, orbitSpeed } = this.idlePreset;
+      const angle = time * orbitSpeed;
+      this.plane.group.position.y += Math.sin(time * 0.9) * 0.15;
+      this.camera.position.set(
+        this.rig.planeWorldPos.x + Math.cos(angle) * orbitRadius,
+        this.rig.planeWorldPos.y + orbitHeight,
+        this.rig.planeWorldPos.z + Math.sin(angle) * orbitRadius,
+      );
+      this.camera.lookAt(this.plane.group.position);
+    }
+
+    // maneuver flourish: hard bank + camera slide while the DOM swaps
+    if (this.maneuverPulse > 0.01) {
+      const pulse = this.maneuverPulse;
+      this.plane.group.rotateZ(Math.sin((1 - pulse) * Math.PI) * 1.1 * pulse);
+      this.camera.position.addScaledVector(this.rig.currentSide, Math.sin((1 - pulse) * Math.PI) * 1.6);
+      this.maneuverPulse *= Math.exp(-3.5 * dt);
+    } else {
+      this.maneuverPulse = 0;
+    }
 
     // sun follows the plane so the directional light never runs out of range
     this.sun.position.copy(this.rig.planeWorldPos).addScaledVector(this.sunDirWorld, 60);

@@ -21,9 +21,13 @@ export function boot(): void {
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  void import('./Engine').then(({ Engine }) => {
+  void import('./Engine').then(async ({ Engine }) => {
     const engine = new Engine(canvas, { reducedMotion });
     engine.start();
+    engine.setRoute(location.pathname);
+
+    const { initSwupChoreo } = await import('./transitions/SwupChoreo');
+    initSwupChoreo(engine);
 
     if (import.meta.hot) {
       // Windows ANGLE kills the oldest GL context after ~16 live ones —

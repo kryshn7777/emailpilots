@@ -39,6 +39,17 @@ export class ScrollDirector {
     });
   }
 
+  /** Instant scroll-to-top for page swaps (Lenis-aware). */
+  scrollTop(): void {
+    if (this.lenis) this.lenis.scrollTo(0, { immediate: true });
+    else window.scrollTo(0, 0);
+  }
+
+  /** Re-measure after a Swup container swap changed the page height. */
+  refresh(): void {
+    ScrollTrigger.refresh();
+  }
+
   dispose(): void {
     this.trigger.kill();
     if (this.tick) gsap.ticker.remove(this.tick);

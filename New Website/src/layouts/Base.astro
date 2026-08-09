@@ -36,7 +36,9 @@ const { title, description } = Astro.props;
 
     <script>
       import { boot } from '../webgl/index';
+      import { bindPage } from '../page';
       boot();
+      bindPage();
     </script>
   </body>
 </html>

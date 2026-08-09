@@ -10,7 +10,7 @@ Seven phases take an empty `New Website/` directory to a deployed award-tier scr
 - [x] **Phase 2: Flight Core** - Fold-morph plane, full 10-zone flight path, camera rig, master scroll scrub over grey blockout (2026-08-08)
 - [x] **Phase 3: World A (CH1–5)** - Desk, preflight panel, takeoff, volumetric cloud sea + formation, storm — art-complete (2026-08-09)
 - [x] **Phase 4: World B (CH6–10)** - Beacon, no-fly map, city dive, copilot starfield, landing + reply — art-complete (2026-08-09)
-- [ ] **Phase 5: Story DOM + Pages + Transitions** - All FEATURES.md copy in DOM, /features /pricing /download, Swup choreography
+- [x] **Phase 5: Story DOM + Pages + Transitions** - All FEATURES.md copy in DOM, /features /pricing /download, Swup choreography (2026-08-09)
 - [ ] **Phase 6: Polish / Perf / A11y / SEO** - Grade, preloader, tiers, reduced-motion, audio SFX, meta, guardrail greps
 - [ ] **Phase 7: Deploy** - GitHub Pages workflow, manual trigger, old landing untouched
 
@@ -97,6 +97,6 @@ Seven phases take an empty `New Website/` directory to a deployed award-tier scr
 | 2. Flight Core | 1/1 | Complete | 2026-08-08 |
 | 3. World A (CH1–5) | 1/1 | Complete | 2026-08-09 |
 | 4. World B (CH6–10) | 1/1 | Complete | 2026-08-09 |
-| 5. Story DOM + Pages | 0/TBD | Not started | - |
+| 5. Story DOM + Pages | 1/1 | Complete | 2026-08-09 |
 | 6. Polish | 0/TBD | Not started | - |
 | 7. Deploy | 0/TBD | Not started | - |
