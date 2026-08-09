@@ -24,7 +24,9 @@ export class ScrollDirector {
     history.scrollRestoration = 'manual';
 
     if (!options.reducedMotion) {
-      this.lenis = new Lenis({ autoRaf: false });
+      // lerp above the 0.1 default: Lenis smoothing stacks under the engine's
+      // renderT damp, and the two together read as input lag
+      this.lenis = new Lenis({ autoRaf: false, lerp: 0.14 });
       this.lenis.on('scroll', ScrollTrigger.update);
       this.tick = (time: number) => this.lenis?.raf(time * 1000);
       gsap.ticker.add(this.tick);

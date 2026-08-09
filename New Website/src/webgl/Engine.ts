@@ -371,9 +371,13 @@ export class Engine {
     this.lastTime = now;
     const time = (now - this.startTime) / 1000;
     const target = this.idlePreset ? this.idlePreset.t : this.scrollT;
+    // adaptive scrub: chase hard while the world trails the scrollbar (a slow
+    // constant damp read as input lag), relax to the cinematic settle near rest
+    const err = Math.abs(target - this.renderT);
+    const lambda = MathUtils.lerp(6, 16, MathUtils.clamp(err / 0.01, 0, 1));
     this.renderT = this.options.reducedMotion
       ? target
-      : MathUtils.damp(this.renderT, target, 6, dt);
+      : MathUtils.damp(this.renderT, target, lambda, dt);
     if (Math.abs(target - this.renderT) < 0.0004) this.renderT = target;
     const t = this.renderT;
 
@@ -516,7 +520,8 @@ export class Engine {
   };
 
   private resize = (): void => {
-    const dpr = Math.min(window.devicePixelRatio, this.quality.maxDpr);
+    const dpr =
+      Math.min(window.devicePixelRatio, this.quality.maxDpr) * this.quality.renderScale;
     const { clientWidth, clientHeight } = this.canvas;
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(clientWidth, clientHeight, false);

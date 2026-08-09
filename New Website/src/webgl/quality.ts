@@ -3,6 +3,9 @@ export type Tier = 'high' | 'low';
 export interface Quality {
   tier: Tier;
   maxDpr: number;
+  /** extra resolution multiplier under maxDpr — iGPUs are fill-bound, so
+   * rendering fewer pixels and letting CSS upscale is the biggest lever */
+  renderScale: number;
   /** raymarched cloud slab on/off (billboards always render) */
   volumetricClouds: boolean;
   cloudSteps: number;
@@ -14,6 +17,7 @@ export interface Quality {
 const HIGH: Quality = {
   tier: 'high',
   maxDpr: 2,
+  renderScale: 1,
   volumetricClouds: true,
   cloudSteps: 32,
   cloudSprites: 110,
@@ -23,7 +27,8 @@ const HIGH: Quality = {
 
 const LOW: Quality = {
   tier: 'low',
-  maxDpr: 1.5,
+  maxDpr: 1,
+  renderScale: 0.75,
   volumetricClouds: false,
   cloudSteps: 0,
   cloudSprites: 70,
