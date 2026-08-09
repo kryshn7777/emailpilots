@@ -15,6 +15,7 @@ import {
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { BloomEffect, EffectComposer, EffectPass, RenderPass, VignetteEffect } from 'postprocessing';
+import { ZoomBlurEffect } from './post/ZoomBlur';
 import {
   CONTRAIL_FROM,
   FOLD_WINDOW,
@@ -101,6 +102,8 @@ export class Engine {
   private beacon: Beacon;
   private noFly: NoFly;
   private wingPlanes = new WingPlanes();
+  private zoomBlur = new ZoomBlurEffect();
+  private blurLevel = 0;
   private city: City;
   private copilot: Copilot;
   private landing: Landing;
@@ -226,6 +229,7 @@ export class Engine {
       new EffectPass(
         this.camera,
         new BloomEffect({ luminanceThreshold: 0.85, intensity: 1.1, mipmapBlur: true }),
+        this.zoomBlur,
         new VignetteEffect({ darkness: 0.55 }),
       ),
     );
@@ -382,6 +386,14 @@ export class Engine {
       ? target
       : MathUtils.damp(this.renderT, target, lambda, dt);
     if (Math.abs(target - this.renderT) < 0.0004) this.renderT = target;
+
+    // speed blur: fast scrubbing streaks the frame along the flight line,
+    // easing off as the world catches up (never under reduced motion)
+    const blurTarget = this.options.reducedMotion
+      ? 0
+      : MathUtils.smoothstep(err, 0.006, 0.05) * 0.17;
+    this.blurLevel = MathUtils.damp(this.blurLevel, blurTarget, 9, dt);
+    this.zoomBlur.strength = this.blurLevel < 0.004 ? 0 : this.blurLevel;
     const t = this.renderT;
 
     this.applyGrade(t);
