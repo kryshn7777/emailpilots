@@ -1,197 +1,121 @@
-import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three';
+import { BufferAttribute, BufferGeometry, DoubleSide, Group, Mesh, MeshStandardMaterial } from 'three';
 import { paperSheetTexture } from '../bake/CanvasTextures';
 
 /**
- * Procedural paper dart, one mirrored half per side, crease-hinged pieces:
- * keel panel, main wing, tip fin that folds UP into the classic winglet, a
- * nose lock flap, and the visible layered nose fold on top. fold = 0 lays
- * every piece flat (the unfolded letter — the dart's crease pattern);
- * fold = 1 assembles the dart. Flat normals per facet give the hard paper-
- * crease shading; UVs map the flat sheet so the written email and the fold
- * diagonals travel with the panels.
+ * The paper dart, authored directly in its FOLDED shape — both wings share
+ * the exact spine vertices, so the silhouette is watertight (the old hinge
+ * rig left a visible gap along the middle). The FLAT letter is a morph
+ * target mapped to the crease pattern; fold = 0 shows the sheet, fold = 1
+ * the dart. A second morph target bends the wingtips for in-flight flex.
+ * UVs come from the flat layout so the written email travels with the fold.
  */
 
 const L = 1.6;
-const HALF = L / 2;
-const KEEL_W = 0.16;
-const WING_W = 0.52;
-const FLAP_W = 0.14;
-const SHEET_W = (KEEL_W + WING_W + FLAP_W) * 2; // full flat sheet width
+const HZ = L / 2; // half length
+const SHEET_W = 1.64;
 
-interface Piece {
-  pivot: Object3D;
-  axis: Vector3;
-  folded: number; // radians at fold = 1
-  stage: [number, number]; // fold sub-range driving this piece
+interface Tri {
+  folded: [number, number, number][];
+  flat: [number, number, number][];
 }
 
-function tris(points: Vector3[][]): BufferGeometry {
-  const flat: number[] = [];
-  const uv: number[] = [];
-  for (const [a, b, c] of points as [Vector3, Vector3, Vector3][]) {
-    flat.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
-    // panels are authored flat: planar-project the crease pattern
-    for (const p of [a, b, c]) uv.push(p.x / SHEET_W + 0.5, p.z / L + 0.5);
-  }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(flat, 3));
-  geometry.setAttribute('uv', new Float32BufferAttribute(uv, 2));
-  geometry.computeVertexNormals();
-  return geometry;
+/** Right-side panels; x is mirrored for the left. Spine verts sit at x=0. */
+function rightSide(): Tri[] {
+  return [
+    // main wing: nose → tip → spine tail (spine edge shared with the left wing)
+    {
+      folded: [[0, 0.02, HZ], [0.58, 0.12, -0.78], [0, 0.02, -HZ]],
+      flat: [[0, 0, HZ], [0.7, 0, -HZ], [0, 0, -HZ]],
+    },
+    // keel face, a hair off center so the two sides read as layered paper
+    {
+      folded: [[0.006, 0.015, HZ], [0.006, 0.015, -HZ], [0.006, -0.36, -HZ]],
+      flat: [[0.02, 0, HZ], [0.06, 0, -HZ], [0.16, 0, -HZ]],
+    },
+    // tip fin folded up — the classic dart winglet
+    {
+      folded: [[0.58, 0.12, -0.78], [0.5, 0.105, -0.3], [0.63, 0.34, -0.72]],
+      flat: [[0.7, 0, -HZ], [0.52, 0, -0.3], [0.82, 0, -0.72]],
+    },
+    // layered nose fold resting on top
+    {
+      folded: [[0.004, 0.035, 0.72], [0.12, 0.05, 0.18], [0.004, 0.04, -0.02]],
+      flat: [[0.05, 0, 0.72], [0.3, 0, 0.18], [0.1, 0, -0.02]],
+    },
+  ];
 }
 
 export class PaperPlane {
   readonly group = new Group();
-  private pieces: Piece[] = [];
-  private wingPivots: Object3D[] = [];
-  private wingBase: Quaternion[] = [];
-  private wingAxes: Vector3[] = [];
+  private mesh: Mesh;
+  private geometry = new BufferGeometry();
   private material = new MeshStandardMaterial({
     map: paperSheetTexture(),
     color: '#ddd8ce', // slightly under the bloom threshold so lamp-lit paper keeps its creases
     roughness: 0.85,
     side: DoubleSide,
-    // faint sky bounce so the shadow side never collapses to black at cruise
     emissive: '#585c6a',
-    emissiveIntensity: 0.16,
+    emissiveIntensity: 0.16, // sky bounce; the shadow side never collapses to black
   });
-  private quat = new Quaternion();
-  private flexQuat = new Quaternion();
   private folded = 1;
 
   constructor() {
-    this.buildSide(1);
-    this.buildSide(-1);
-    this.setFold(1);
-  }
+    const folded: number[] = [];
+    const flat: number[] = [];
+    const flex: number[] = [];
+    const uv: number[] = [];
 
-  private buildSide(sign: 1 | -1): void {
-    const nose = new Vector3(0, 0, HALF);
-    const tailCenter = new Vector3(0, 0, -HALF);
-    const tailKeel = new Vector3(sign * KEEL_W, 0, -HALF);
-    const midKeel = new Vector3(sign * KEEL_W * 0.55, 0, 0.1);
-    const tailWing = new Vector3(sign * (KEEL_W + WING_W), 0, -HALF);
-    const midWing = new Vector3(sign * (KEEL_W + WING_W * 0.55), 0, -0.05);
-    const tailFlap = new Vector3(sign * (KEEL_W + WING_W + FLAP_W), 0, -HALF);
-    const midFlap = new Vector3(sign * (KEEL_W + WING_W + FLAP_W * 0.4), 0, -0.12);
+    const push = (tri: Tri, sign: 1 | -1): void => {
+      // mirrored triangles need reversed winding so faces stay outward
+      const order = sign === 1 ? [0, 1, 2] : [0, 2, 1];
+      for (const i of order) {
+        const f = tri.folded[i]!;
+        const fl = tri.flat[i]!;
+        folded.push(f[0] * sign, f[1], f[2]);
+        flat.push(fl[0] * sign, fl[1], fl[2]);
+        // flex: wingtips (|x| beyond 0.3) breathe upward
+        const tip = Math.max(0, Math.abs(f[0]) - 0.3) / 0.33;
+        flex.push(f[0] * sign, f[1] + tip * 0.09, f[2]);
+        uv.push((fl[0] * sign) / SHEET_W + 0.5, fl[2] / L + 0.5);
+      }
+    };
+    for (const tri of rightSide()) {
+      push(tri, 1);
+      push(tri, -1);
+    }
 
-    // keel: two facets so the body silhouette isn't one flat tri
-    const keelPivot = new Object3D();
-    const keel = new Mesh(
-      tris([
-        [nose, tailCenter, midKeel],
-        [tailCenter, tailKeel, midKeel],
-      ]),
-      this.material,
-    );
-    keelPivot.add(keel);
-    this.group.add(keelPivot);
-    this.pieces.push({
-      pivot: keelPivot,
-      axis: new Vector3(0, 0, 1),
-      folded: sign * -1.42, // halves rise into the V keel
-      stage: [0, 0.55],
-    });
+    this.geometry.setAttribute('position', new BufferAttribute(new Float32Array(folded), 3));
+    this.geometry.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
+    this.geometry.morphAttributes.position = [
+      new BufferAttribute(new Float32Array(flat), 3),
+      new BufferAttribute(new Float32Array(flex), 3),
+    ];
+    this.geometry.morphTargetsRelative = false;
+    this.geometry.computeVertexNormals();
 
-    // main wing, hinged on the keel's outer crease
-    const wingPivot = new Object3D();
-    const wing = new Mesh(
-      tris([
-        [nose, midKeel, midWing],
-        [midKeel, tailKeel, midWing],
-        [tailKeel, tailWing, midWing],
-      ]),
-      this.material,
-    );
-    wingPivot.add(wing);
-    keelPivot.add(wingPivot);
-    const wingCrease = tailKeel.clone().sub(nose).normalize();
-    this.pieces.push({
-      pivot: wingPivot,
-      axis: wingCrease,
-      folded: sign * 1.62, // wings drop back toward level
-      stage: [0.35, 0.8],
-    });
-    this.wingPivots.push(wingPivot);
-    this.wingBase.push(new Quaternion());
-    this.wingAxes.push(wingCrease);
-
-    // tip fin: the outer strip folds UP into the classic dart winglet
-    const finPivot = new Object3D();
-    const fin = new Mesh(
-      tris([
-        [midWing, tailWing, midFlap],
-        [tailWing, tailFlap, midFlap],
-      ]),
-      this.material,
-    );
-    finPivot.add(fin);
-    wingPivot.add(finPivot);
-    const finCrease = tailWing.clone().sub(midWing).normalize();
-    this.pieces.push({
-      pivot: finPivot,
-      axis: finCrease,
-      folded: -sign * 1.5, // stands up ~86°
-      stage: [0.75, 1],
-    });
-
-    // nose lock: the small top flap that pins a real dart's layers
-    const lockPivot = new Object3D();
-    const lockTip = new Vector3(0, 0, HALF - 0.34);
-    const lockSide = new Vector3(sign * 0.1, 0, HALF - 0.02);
-    const lock = new Mesh(tris([[nose, lockSide, lockTip]]), this.material);
-    lockPivot.add(lock);
-    keelPivot.add(lockPivot);
-    this.pieces.push({
-      pivot: lockPivot,
-      axis: new Vector3(0, 0, 1),
-      folded: sign * -0.5, // lies against the keel with a visible seam
-      stage: [0.5, 0.9],
-    });
-
-    // layered nose: the first diagonal fold, a visible seam on the keel face
-    const layer = new Mesh(
-      tris([
-        [
-          new Vector3(0, 0.006, HALF - 0.06),
-          new Vector3(sign * 0.14, 0.006, -0.1),
-          new Vector3(0, 0.006, -0.34),
-        ],
-      ]),
-      this.material,
-    );
-    keelPivot.add(layer);
+    this.mesh = new Mesh(this.geometry, this.material);
+    this.mesh.morphTargetInfluences = [0, 0];
+    this.group.add(this.mesh);
   }
 
   /** fold in [0,1]: 0 = flat letter, 1 = dart. */
   setFold(fold: number): void {
     this.folded = fold;
-    for (const piece of this.pieces) {
-      const [s0, s1] = piece.stage;
-      const local = Math.min(Math.max((fold - s0) / (s1 - s0), 0), 1);
-      const eased = local * local * (3 - 2 * local);
-      this.quat.setFromAxisAngle(piece.axis, piece.folded * eased);
-      piece.pivot.quaternion.copy(this.quat);
-    }
-    for (let i = 0; i < this.wingPivots.length; i++) {
-      this.wingBase[i]!.copy(this.wingPivots[i]!.quaternion);
-    }
+    const eased = fold * fold * (3 - 2 * fold);
+    this.mesh.morphTargetInfluences![0] = 1 - eased;
   }
 
   /** Subtle in-flight wing flex; a no-op while the sheet is unfolded. */
   flex(time: number, amount: number): void {
-    if (this.folded < 0.95 || amount <= 0) return;
-    for (let i = 0; i < this.wingPivots.length; i++) {
-      const bend = Math.sin(time * 2.1 + i * 1.7) * 0.035 * amount;
-      this.flexQuat.setFromAxisAngle(this.wingAxes[i]!, bend);
-      this.wingPivots[i]!.quaternion.copy(this.wingBase[i]!).multiply(this.flexQuat);
+    if (this.folded < 0.95 || amount <= 0) {
+      this.mesh.morphTargetInfluences![1] = 0;
+      return;
     }
+    this.mesh.morphTargetInfluences![1] = (Math.sin(time * 2.1) * 0.5 + 0.5) * 0.5 * amount;
   }
 
   dispose(): void {
-    this.group.traverse((obj) => {
-      if (obj instanceof Mesh) obj.geometry.dispose();
-    });
+    this.geometry.dispose();
     this.material.dispose();
   }
 }
