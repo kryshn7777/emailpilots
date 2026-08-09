@@ -74,6 +74,37 @@ export function cityRecipes(modules, canyonZ = 0) {
 }
 
 /**
+ * The window city's lots (Rooftops actor): near field outside the CH1
+ * window plus the far skyline row, exit corridor kept clear. Same recipe
+ * shape as cityRecipes so both cities share the KitCity runtime.
+ */
+export function rooftopLots(modules) {
+  const rand = mulberry32(CITY_SEED + 31);
+  const lots = [];
+  const place = (x, z, w, d, h) => {
+    if (Math.abs(z - 1) < 3.2 && x < 22) return; // exit corridor stays clear
+    const tall = h > 5;
+    const pool = modules.filter((m) => (tall ? /sky/i.test(m.id) : !/sky/i.test(m.id)));
+    const pick = (pool.length ? pool : modules);
+    const mod = pick[Math.floor(rand() * pick.length)];
+    lots.push({
+      x, z, w, d, h,
+      yaw: (Math.floor(rand() * 4) * Math.PI) / 2,
+      tint: TINTS[Math.floor(rand() * TINTS.length)],
+      moduleId: mod.id,
+    });
+  };
+  for (let i = 0; i < 150; i++) {
+    place(9 + rand() * 46, -22 + rand() * 44, 2 + rand() * 3.4, 1.8 + rand() * 3, 0.7 + rand() * 2.6);
+  }
+  // far skyline: taller, wider silhouettes closing the horizon
+  for (let i = 0; i < 70; i++) {
+    place(52 + rand() * 70, -38 + rand() * 76, 3.5 + rand() * 4.5, 3 + rand() * 4, 2.2 + rand() * 5.5);
+  }
+  return { lots };
+}
+
+/**
  * Merged city massing with baked vertex colors: facade tint × height-based
  * AO (streets stay dark, tops catch sky light) — the "texture bake" without
  * a DCC tool.
