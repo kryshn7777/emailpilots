@@ -511,9 +511,11 @@ main#swup {
 #scroll-progress i {
   display: block;
   height: 100%;
-  width: 0;
+  width: 100%;
   background: var(--beacon-beam);
-  transition: width 80ms linear;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 80ms linear;
 }
 
 body[data-route]:not([data-route='/']) #hud,

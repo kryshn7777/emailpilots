@@ -28,7 +28,7 @@ function bindChromeOnce(): void {
   const bar = document.querySelector<HTMLElement>('#scroll-progress i');
   window.addEventListener('flight:t', (e) => {
     const t = (e as CustomEvent<number>).detail;
-    if (bar) bar.style.width = `${(t * 100).toFixed(1)}%`;
+    if (bar) bar.style.transform = `scaleX(${t.toFixed(4)})`;
     if (hudChapter && hudAlt) {
       let i = 0;
       while (i < 9 && t >= CHAPTER_T[i + 1]!) i++;
