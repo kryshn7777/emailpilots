@@ -1,0 +1,76 @@
+{
+  "modules": [
+    {
+      "id": "building-a",
+      "file": "src/building-a.glb"
+    },
+    {
+      "id": "building-b",
+      "file": "src/building-b.glb"
+    },
+    {
+      "id": "building-c",
+      "file": "src/building-c.glb"
+    },
+    {
+      "id": "building-d",
+      "file": "src/building-d.glb"
+    },
+    {
+      "id": "building-e",
+      "file": "src/building-e.glb"
+    },
+    {
+      "id": "building-f",
+      "file": "src/building-f.glb"
+    },
+    {
+      "id": "building-g",
+      "file": "src/building-g.glb"
+    },
+    {
+      "id": "building-h",
+      "file": "src/building-h.glb"
+    },
+    {
+      "id": "building-i",
+      "file": "src/building-i.glb"
+    },
+    {
+      "id": "building-j",
+      "file": "src/building-j.glb"
+    },
+    {
+      "id": "building-k",
+      "file": "src/building-k.glb"
+    },
+    {
+      "id": "building-l",
+      "file": "src/building-l.glb"
+    },
+    {
+      "id": "building-m",
+      "file": "src/building-m.glb"
+    },
+    {
+      "id": "building-n",
+      "file": "src/building-n.glb"
+    },
+    {
+      "id": "building-skyscraper-a",
+      "file": "src/building-skyscraper-a.glb"
+    },
+    {
+      "id": "building-skyscraper-b",
+      "file": "src/building-skyscraper-b.glb"
+    },
+    {
+      "id": "building-skyscraper-c",
+      "file": "src/building-skyscraper-c.glb"
+    },
+    {
+      "id": "building-skyscraper-d",
+      "file": "src/building-skyscraper-d.glb"
+    }
+  ]
+}
