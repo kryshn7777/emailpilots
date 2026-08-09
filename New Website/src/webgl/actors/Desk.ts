@@ -124,7 +124,7 @@ export class Desk {
       });
     };
     prop('/models/potted_plant_04.glb', 0.95, -2.3, -1.35, 0.6);
-    prop('/models/book_encyclopedia_set_01.glb', 0.5, 2.95, 0.4, -0.35);
+    prop('/models/book_encyclopedia_set_01.glb', 0.5, 3.1, 1.6, -0.5);
 
     const ceramic = new MeshStandardMaterial({ color: '#c8b8a4', roughness: 0.4 });
     const cup = new Mesh(new CylinderGeometry(0.14, 0.12, 0.24, 20), ceramic);

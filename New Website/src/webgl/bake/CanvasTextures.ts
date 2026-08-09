@@ -13,6 +13,116 @@ function makeCanvas(size: number): [HTMLCanvasElement, CanvasRenderingContext2D]
   return [canvas, ctx];
 }
 
+/**
+ * The dart's sheet, UV-mapped to the flat crease pattern: paper grain, the
+ * email's ruled handwriting, and the fold diagonals radiating from the nose
+ * (u 0.5, v 1). Creases must match PaperPlane's panel layout: keel crease at
+ * u 0.5±0.098, wing crease at u 0.5±0.415.
+ */
+export function paperSheetTexture(): CanvasTexture {
+  const S = 512;
+  const [canvas, ctx] = makeCanvas(S);
+  ctx.fillStyle = '#f7f3ec';
+  ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 2600; i++) {
+    const shade = 236 + Math.floor(Math.random() * 16);
+    ctx.fillStyle = `rgba(${shade}, ${shade - 3}, ${shade - 8}, 0.5)`;
+    ctx.fillRect(Math.random() * S, Math.random() * S, 1 + Math.random() * 2, 1);
+  }
+
+  // the email itself, written across the sheet
+  ctx.strokeStyle = 'rgba(40, 48, 70, 0.34)';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  for (const ly of [0.2, 0.28, 0.36, 0.44, 0.52, 0.6, 0.72]) {
+    const y = ly * S;
+    const width = (ly === 0.72 ? 0.3 : 0.5 + Math.random() * 0.26) * S;
+    ctx.beginPath();
+    let x = S * 0.14;
+    ctx.moveTo(x, y);
+    while (x < S * 0.14 + width) {
+      x += 7 + Math.random() * 12;
+      ctx.lineTo(x, y + (Math.random() - 0.5) * 4);
+    }
+    ctx.stroke();
+  }
+
+  // fold creases: shadow + highlight pairs radiating from the nose
+  const nose: [number, number] = [S * 0.5, S];
+  const crease = (uTail: number): void => {
+    ctx.strokeStyle = 'rgba(70, 66, 58, 0.28)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(...nose);
+    ctx.lineTo(uTail * S, 0);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(nose[0] + 2, nose[1]);
+    ctx.lineTo(uTail * S + 2, 0);
+    ctx.stroke();
+  };
+  crease(0.5 - 0.098);
+  crease(0.5 + 0.098);
+  crease(0.5 - 0.415);
+  crease(0.5 + 0.415);
+  // center spine
+  ctx.strokeStyle = 'rgba(70, 66, 58, 0.35)';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(S * 0.5, 0);
+  ctx.lineTo(S * 0.5, S);
+  ctx.stroke();
+
+  // worn sheet edge
+  ctx.strokeStyle = 'rgba(120, 112, 96, 0.35)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(1, 1, S - 2, S - 2);
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** The tow banner: EMAIL PILOTS on weathered cloth, edge stripes, stitching. */
+export function bannerTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.fillStyle = '#efe5cf';
+  ctx.fillRect(0, 0, 1024, 256);
+  // cloth weave
+  for (let i = 0; i < 2400; i++) {
+    const v = 214 + Math.floor(Math.random() * 24);
+    ctx.fillStyle = `rgba(${v}, ${v - 6}, ${v - 22}, 0.4)`;
+    ctx.fillRect(Math.random() * 1024, Math.random() * 256, 2, 1);
+  }
+  // stripes + stitching at the tow edge
+  ctx.fillStyle = '#a5352f';
+  ctx.fillRect(0, 10, 1024, 12);
+  ctx.fillRect(0, 234, 1024, 12);
+  ctx.strokeStyle = 'rgba(90, 60, 40, 0.6)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  ctx.moveTo(14, 24);
+  ctx.lineTo(14, 232);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#8c2f28';
+  ctx.font = '900 128px Georgia, "Times New Roman", serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('EMAIL PILOTS', 512, 136, 940);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 /** Subtle paper fiber grain — used by the plane and the letter. */
 export function paperTexture(): CanvasTexture {
   const [canvas, ctx] = makeCanvas(256);
