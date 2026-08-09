@@ -27,14 +27,16 @@ export class NoFly {
     const groundMaterial = new MeshStandardMaterial({ color: '#101318', roughness: 0.95 });
     const ground = new Mesh(new PlaneGeometry(120, 90), groundMaterial);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.set(anchor.x, groundY, anchor.z);
+    ground.position.set(anchor.x - 6, groundY, anchor.z);
     this.group.add(ground);
     this.disposables.push(ground.geometry, groundMaterial);
 
+    // zones sit west of the city massing (its west edge starts ≈ anchor.x)
+    // so the map never shares its frame with unlit building blocks
     const zones: [number, number, number][] = [
-      [anchor.x - 12, anchor.z - 10, 9],
-      [anchor.x + 4, anchor.z + 3, 11],
-      [anchor.x + 22, anchor.z - 5, 8],
+      [anchor.x - 18, anchor.z - 10, 9],
+      [anchor.x - 4, anchor.z + 3, 11],
+      [anchor.x + 10, anchor.z - 5, 8],
     ];
     for (const [x, z, r] of zones) {
       const fillMaterial = new MeshStandardMaterial({
@@ -63,7 +65,7 @@ export class NoFly {
     // the grounded ghost — retired, grey, tipped on a wing
     this.ghost = new PaperPlane();
     this.ghost.setFold(1);
-    this.ghost.group.position.set(anchor.x + 20, groundY + 0.35, anchor.z - 6);
+    this.ghost.group.position.set(anchor.x + 8, groundY + 0.35, anchor.z - 7);
     this.ghost.group.rotation.set(0.35, 2.3, 0.5);
     this.ghost.group.scale.setScalar(1.4);
     this.ghost.group.traverse((o) => {

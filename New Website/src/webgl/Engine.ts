@@ -431,14 +431,19 @@ export class Engine {
     this.biplane.group.visible = t > 0.32 && t < 0.49;
     this.beacon.group.visible = t > 0.44 && t < 0.64;
     this.noFly.group.visible = t > 0.55 && t < 0.7;
-    this.city.group.visible = t > 0.6 && t < 0.83;
+    // city waits until the camera reaches it — its westmost massing stands
+    // on the no-fly map's ground and read as floating gray blocks at t≈0.6;
+    // the city grade's near fog covers the entry
+    this.city.group.visible = t > 0.655 && t < 0.83;
     this.copilot.group.visible = t > 0.75 && t < 0.9;
     this.landing.group.visible = t > 0.85;
     const nearDesk = t < 0.32;
     this.desk.group.visible = nearDesk;
     this.panel.group.visible = nearDesk;
     this.windowFrame.group.visible = nearDesk;
-    this.rooftops.group.visible = t > 0.06 && t < 0.3;
+    // gone before the cloud sea: at t≈0.2+ the tallest roofs poked through
+    // the cloud floor as floating slabs
+    this.rooftops.group.visible = t > 0.06 && t < 0.24;
 
     if (nearDesk) this.desk.update(time); // 250-mote dust loop, pointless offscreen
     this.panel.update(t);

@@ -3,6 +3,7 @@ import {
   BoxGeometry,
   BufferGeometry,
   Color,
+  CylinderGeometry,
   DynamicDrawUsage,
   Float32BufferAttribute,
   Group,
@@ -113,8 +114,55 @@ export class City {
     this.disposables.push(ground.geometry, groundMaterial);
 
     this.buildWindows(buildings);
+    this.buildRoofClutter(buildings);
     this.buildDeliveries(buildings, path);
     this.buildTraffic();
+  }
+
+  /**
+   * AC units + water tanks on the roofs. The city entry looks DOWN at the
+   * massing — bare flat roofs read as gray slabs no matter how lit the walls
+   * are. Two instanced draws total.
+   */
+  private buildRoofClutter(buildings: Building[]): void {
+    const rand = mulberry32(60309);
+    const clutterMaterial = new MeshStandardMaterial({ color: '#2a3145', roughness: 0.8 });
+    const tankMaterial = new MeshStandardMaterial({ color: '#1f2634', roughness: 0.6, metalness: 0.3 });
+    this.disposables.push(clutterMaterial, tankMaterial);
+
+    const boxes: Matrix4[] = [];
+    const tanks: Matrix4[] = [];
+    const q = new Quaternion();
+    const p = new Vector3();
+    const s = new Vector3();
+    const yaw = new Quaternion();
+    const Y = new Vector3(0, 1, 0);
+    for (const b of buildings) {
+      if (b.h < 3.5) continue;
+      const units = 1 + Math.floor(rand() * 2);
+      for (let i = 0; i < units; i++) {
+        const w = 0.5 + rand() * 0.9;
+        const h = 0.25 + rand() * 0.45;
+        p.set(b.x + (rand() - 0.5) * (b.w - w), b.h + h / 2, b.z + (rand() - 0.5) * (b.d - w));
+        s.set(w, h, 0.4 + rand() * 0.8);
+        yaw.setFromAxisAngle(Y, rand() * Math.PI);
+        const m = new Matrix4().compose(p, yaw, s);
+        boxes.push(m);
+      }
+      if (b.h > 6.5 && rand() < 0.45) {
+        p.set(b.x + (rand() - 0.5) * (b.w - 1.2), b.h + 0.55, b.z + (rand() - 0.5) * (b.d - 1.2));
+        s.set(1, 1.1, 1);
+        tanks.push(new Matrix4().compose(p, q, s));
+      }
+    }
+    const unitGeometry = new BoxGeometry(1, 1, 1);
+    const units = new InstancedMesh(unitGeometry, clutterMaterial, boxes.length);
+    boxes.forEach((m, i) => units.setMatrixAt(i, m));
+    const tankGeometry = new CylinderGeometry(0.55, 0.55, 1, 10);
+    const tankMesh = new InstancedMesh(tankGeometry, tankMaterial, tanks.length);
+    tanks.forEach((m, i) => tankMesh.setMatrixAt(i, m));
+    this.group.add(units, tankMesh);
+    this.disposables.push(unitGeometry, units, tankGeometry, tankMesh);
   }
 
   private trafficMaterial: ShaderMaterial | null = null;
@@ -312,9 +360,11 @@ export class City {
       const floors = Math.max(1, Math.floor(b.h / 1.1) - 1);
       for (let f = 0; f < floors; f++) {
         const y = 0.8 + f * 1.1;
-        const litRoll = (): number => (rand() < 0.55 ? 0.35 + rand() * 0.75 : 0.04);
+        // dense + bright: sparse dim windows lost to the massing at the city
+        // entry and whole blocks read as gray boxes
+        const litRoll = (): number => (rand() < 0.72 ? 0.5 + rand() * 0.85 : 0.06);
         // canyon-facing wall (seen while banking through the dive)
-        if (rand() >= 0.35) {
+        if (rand() >= 0.2) {
           const facingCanyon = b.z > 0 ? -1 : 1; // canyon sits at z≈0 local
           slots.push({
             pos: new Vector3(
@@ -328,7 +378,7 @@ export class City {
         }
         // -X wall: faces the camera flying up the canyon — without these the
         // whole city reads black (canyon windows are edge-on to the flight)
-        if (rand() >= 0.3) {
+        if (rand() >= 0.18) {
           slots.push({
             pos: new Vector3(
               b.x - b.w / 2 - 0.03,

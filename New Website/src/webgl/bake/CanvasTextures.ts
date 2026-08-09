@@ -353,6 +353,48 @@ export function laptopScreenTexture(): CanvasTexture {
   return texture;
 }
 
+/**
+ * Pre-dawn apartment facade: floor rows of windows — a few warm-lit, some
+ * dim, most dark — with mullions, a parapet band, and grime streaks. Shared
+ * by every instanced rooftop building (stretch across heights reads fine in
+ * fog at night).
+ */
+export function facadeTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.fillStyle = '#151b29';
+  ctx.fillRect(0, 0, 256, 512);
+  // parapet band
+  ctx.fillStyle = '#0e1420';
+  ctx.fillRect(0, 0, 256, 26);
+  // window grid: 8 floors × 6 bays
+  const COLS = 6;
+  const ROWS = 8;
+  const cw = 256 / COLS;
+  const rh = (512 - 40) / ROWS;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const roll = Math.random();
+      let fill = '#0a0e18'; // dark glass
+      if (roll < 0.22) fill = `rgba(255, 201, 138, ${0.55 + Math.random() * 0.4})`; // lamp on
+      else if (roll < 0.38) fill = 'rgba(148, 168, 204, 0.16)'; // tv glow
+      ctx.fillStyle = fill;
+      ctx.fillRect(c * cw + 7, 40 + r * rh + 9, cw - 14, rh - 18);
+    }
+  }
+  // grime streaks
+  for (let i = 0; i < 60; i++) {
+    ctx.fillStyle = `rgba(6, 8, 14, ${0.05 + Math.random() * 0.1})`;
+    ctx.fillRect(Math.random() * 256, 26, 1 + Math.random() * 3, 60 + Math.random() * 300);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 /** Lighthouse hull: classic red/white bands with weather streaks. */
 export function lighthouseTexture(): CanvasTexture {
   const canvas = document.createElement('canvas');

@@ -12,7 +12,7 @@ import {
   Quaternion,
   Vector3,
 } from 'three';
-import { glowTexture } from '../bake/CanvasTextures';
+import { facadeTexture, glowTexture } from '../bake/CanvasTextures';
 
 /**
  * CH2–3: the pre-dawn rooftop field the plane taxis over after the window —
@@ -24,27 +24,41 @@ export class Rooftops {
   private disposables: { dispose(): void }[] = [];
 
   constructor(rand: () => number) {
-    const roofMaterial = new MeshStandardMaterial({ color: '#1a2030', roughness: 0.9 });
-    roofMaterial.onBeforeCompile = (shader) => {
-      shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying float vRoofY;')
-        .replace(
-          '#include <begin_vertex>',
-          '#include <begin_vertex>\nvRoofY = (modelMatrix * instanceMatrix * vec4(position, 1.0)).y;',
-        );
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying float vRoofY;')
-        .replace(
-          '#include <color_fragment>',
-          '#include <color_fragment>\n  diffuseColor.rgb *= 0.45 + 0.55 * clamp(vRoofY / 3.5, 0.0, 1.0);',
-        );
+    const heightFade = (material: MeshStandardMaterial): MeshStandardMaterial => {
+      material.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nvarying float vRoofY;')
+          .replace(
+            '#include <begin_vertex>',
+            '#include <begin_vertex>\nvRoofY = (modelMatrix * instanceMatrix * vec4(position, 1.0)).y;',
+          );
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vRoofY;')
+          .replace(
+            '#include <color_fragment>',
+            '#include <color_fragment>\n  diffuseColor.rgb *= 0.45 + 0.55 * clamp(vRoofY / 3.5, 0.0, 1.0);',
+          );
+      };
+      this.disposables.push(material);
+      return material;
     };
-    this.disposables.push(roofMaterial);
+    // windowed facades on the walls, plain tar on the roof face — the boxes
+    // read as buildings instead of gray slabs when the flight skims them
+    const facade = facadeTexture();
+    this.disposables.push(facade);
+    const wallMaterial = heightFade(
+      new MeshStandardMaterial({ map: facade, roughness: 0.9 }),
+    );
+    const roofMaterial = heightFade(
+      new MeshStandardMaterial({ color: '#141a26', roughness: 0.95 }),
+    );
+    // BoxGeometry face order: +x, -x, +y (top), -y, +z, -z
+    const boxMaterials = [wallMaterial, wallMaterial, roofMaterial, roofMaterial, wallMaterial, wallMaterial];
 
     const box = new BoxGeometry(1, 1, 1);
     this.disposables.push(box);
     const COUNT = 110;
-    const roofs = new InstancedMesh(box, roofMaterial, COUNT);
+    const roofs = new InstancedMesh(box, boxMaterials, COUNT);
     const m = new Matrix4();
     const q = new Quaternion();
     const p = new Vector3();
@@ -52,7 +66,7 @@ export class Rooftops {
     for (let i = 0; i < COUNT; i++) {
       const x = 9 + rand() * 42;
       const z = -16 + rand() * 32;
-      if (Math.abs(z - 1) < 2 && x < 20) {
+      if (Math.abs(z - 1) < 3.2 && x < 22) {
         // keep the exit corridor clear right after the window
         p.set(x, -3, z);
         s.set(0.1, 0.1, 0.1);
