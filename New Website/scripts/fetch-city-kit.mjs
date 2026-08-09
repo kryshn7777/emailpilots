@@ -43,9 +43,16 @@ const findGlbDir = (dir) => {
 const glbDir = findGlbDir(join(tmp, 'kit'));
 if (!glbDir) throw new Error('GLB format dir not found in kit zip');
 
-// curate: building segments + towers only, no roads/props/vehicles
+// curate: 10 modules keeps the committed LOD set under the 2.5MB budget —
+// yaw + tint + non-uniform lot scale carry the variety
 const all = readdirSync(glbDir).filter((f) => f.endsWith('.glb'));
-const picks = all.filter((f) => /^(building|skyscraper)/i.test(f)).slice(0, 18);
+const WANTED = [
+  'building-a.glb', 'building-c.glb', 'building-e.glb',
+  'building-g.glb', 'building-i.glb', 'building-k.glb',
+  'building-skyscraper-a.glb', 'building-skyscraper-b.glb',
+  'building-skyscraper-c.glb', 'building-skyscraper-d.glb',
+];
+const picks = WANTED.filter((f) => all.includes(f));
 if (picks.length < 8) {
   console.log('available files:', all.join(', '));
   throw new Error(`too few building modules found: ${picks.length}`);
@@ -56,6 +63,12 @@ const modules = [];
 for (const f of picks) {
   copyFileSync(join(glbDir, f), join(srcDir, f));
   modules.push({ id: f.replace(/\.glb$/, ''), file: `src/${f}` });
+}
+// Kenney GLBs reference an external Textures/colormap.png — ship it beside them
+const texDir = join(glbDir, 'Textures');
+if (existsSync(texDir)) {
+  mkdirSync(join(srcDir, 'Textures'), { recursive: true });
+  for (const t of readdirSync(texDir)) copyFileSync(join(texDir, t), join(srcDir, 'Textures', t));
 }
 writeFileSync(join(outDir, 'manifest.json'), JSON.stringify({ modules }, null, 2));
 const total = picks.reduce((s, f) => s + statSync(join(srcDir, f)).size, 0);
