@@ -303,50 +303,41 @@ export function laptopScreenTexture(): CanvasTexture {
     ctx.fill();
   }
 
-  // compose fields
-  ctx.font = '400 22px monospace';
-  ctx.fillStyle = 'rgba(200, 214, 240, 0.85)';
-  ctx.fillText('To:      priya@northline.co', 24, 102);
-  ctx.fillText('Subject: Quick follow-up', 24, 142);
-  ctx.strokeStyle = 'rgba(155, 232, 255, 0.18)';
+  // clean face: just the brand centered above the firing strip — every other
+  // text hidden by request
+  ctx.fillStyle = '#9be8ff';
+  ctx.font = '900 52px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('EMAIL PILOTS', 256, 220);
+  ctx.strokeStyle = 'rgba(155, 232, 255, 0.35)';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(24, 162);
-  ctx.lineTo(488, 162);
+  ctx.moveTo(96, 250);
+  ctx.lineTo(416, 250);
   ctx.stroke();
+  // paper-dart emblem under the wordmark
+  ctx.fillStyle = 'rgba(155, 232, 255, 0.9)';
+  ctx.beginPath();
+  ctx.moveTo(216, 330);
+  ctx.lineTo(296, 296);
+  ctx.lineTo(232, 352);
+  ctx.lineTo(240, 322);
+  ctx.closePath();
+  ctx.fill();
+  ctx.textAlign = 'left';
 
-  // body lines
-  ctx.strokeStyle = 'rgba(200, 214, 240, 0.35)';
-  ctx.lineWidth = 6;
-  ctx.lineCap = 'round';
-  const widths = [0.82, 0.9, 0.66, 0.0, 0.74, 0.38];
-  widths.forEach((w, i) => {
-    if (w === 0) return;
-    const y = 200 + i * 34;
-    ctx.beginPath();
-    ctx.moveTo(24, y);
-    ctx.lineTo(24 + w * 440, y);
-    ctx.stroke();
-  });
-
-  // sending strip
+  // firing strip
   ctx.fillStyle = '#101a2e';
   ctx.fillRect(0, 408, 512, 104);
   ctx.fillStyle = '#7fe8d8';
-  ctx.font = '700 30px monospace';
-  ctx.fillText('SENDING EMAIL…', 24, 452);
+  ctx.font = '700 34px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FIRING EMAIL…', 256, 450);
+  ctx.textAlign = 'left';
   ctx.strokeStyle = 'rgba(127, 232, 216, 0.35)';
   ctx.lineWidth = 2;
-  ctx.strokeRect(24, 468, 400, 18);
-  ctx.fillRect(26, 470, 396 * 0.82, 14);
-  // paper-dart glyph at the progress tip
-  ctx.beginPath();
-  ctx.moveTo(444, 462);
-  ctx.lineTo(482, 477);
-  ctx.lineTo(444, 492);
-  ctx.lineTo(452, 477);
-  ctx.closePath();
-  ctx.fill();
+  ctx.strokeRect(56, 468, 400, 18);
+  ctx.fillRect(58, 470, 396 * 0.82, 14);
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -477,6 +468,90 @@ export function roadTexture(): CanvasTexture {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.wrapS = texture.wrapT = RepeatWrapping;
+  return texture;
+}
+
+/** Home wall: paneled wainscot grooves, plaster tone, subtle shading. */
+export function wallPanelTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, '#232c42');
+  g.addColorStop(0.65, '#1c2436');
+  g.addColorStop(1, '#161d2c');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 512, 512);
+  // plaster noise
+  for (let i = 0; i < 2600; i++) {
+    const v = 26 + Math.random() * 22;
+    ctx.fillStyle = `rgba(${v}, ${v + 4}, ${v + 14}, 0.25)`;
+    ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+  }
+  // panel grooves
+  for (let x = 0; x <= 512; x += 128) {
+    ctx.fillStyle = 'rgba(8, 10, 18, 0.5)';
+    ctx.fillRect(x - 2, 0, 3, 512);
+    ctx.fillStyle = 'rgba(120, 140, 190, 0.10)';
+    ctx.fillRect(x + 1, 0, 2, 512);
+  }
+  // picture rail line
+  ctx.fillStyle = 'rgba(8, 10, 18, 0.55)';
+  ctx.fillRect(0, 96, 512, 4);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  return texture;
+}
+
+/** Wooden plank floor: warm boards, grain streaks, board gaps. */
+export function floorPlankTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  const PLANK = 64;
+  for (let row = 0; row < 512 / PLANK; row++) {
+    const warm = 0.85 + Math.random() * 0.3;
+    ctx.fillStyle = `rgb(${Math.floor(74 * warm)}, ${Math.floor(56 * warm)}, ${Math.floor(38 * warm)})`;
+    ctx.fillRect(0, row * PLANK, 512, PLANK);
+    // grain
+    for (let i = 0; i < 46; i++) {
+      ctx.fillStyle = `rgba(30, 20, 12, ${0.08 + Math.random() * 0.12})`;
+      ctx.fillRect(Math.random() * 512, row * PLANK + Math.random() * PLANK, 30 + Math.random() * 90, 1.5);
+    }
+    // board gap + end joints
+    ctx.fillStyle = 'rgba(10, 7, 4, 0.8)';
+    ctx.fillRect(0, row * PLANK, 512, 3);
+    ctx.fillRect(((row * 197) % 512), row * PLANK, 3, PLANK);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  return texture;
+}
+
+/** Small abstract wall art: dusk gradient + a tiny dart silhouette. */
+export function frameArtTexture(variant: number): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(128);
+  const g = ctx.createLinearGradient(0, 0, 0, 128);
+  if (variant === 0) {
+    g.addColorStop(0, '#3a4a78');
+    g.addColorStop(1, '#c98f68');
+  } else {
+    g.addColorStop(0, '#22304f');
+    g.addColorStop(1, '#7fe8d8');
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillStyle = 'rgba(250, 246, 238, 0.9)';
+  ctx.beginPath();
+  if (variant === 0) {
+    ctx.moveTo(34, 78);
+    ctx.lineTo(96, 58);
+    ctx.lineTo(50, 92);
+    ctx.closePath();
+  } else {
+    ctx.arc(64, 52, 18, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
   return texture;
 }
 

@@ -18,7 +18,15 @@ import {
   Vector3,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { glowTexture, laptopKeysTexture, laptopScreenTexture, letterTexture } from '../bake/CanvasTextures';
+import {
+  floorPlankTexture,
+  frameArtTexture,
+  glowTexture,
+  laptopKeysTexture,
+  laptopScreenTexture,
+  letterTexture,
+  wallPanelTexture,
+} from '../bake/CanvasTextures';
 import { requestCompile } from '../warm';
 
 /**
@@ -45,13 +53,32 @@ export class Desk {
     this.group.add(top);
     this.disposables.push(top.geometry, wood);
 
-    // the room: floor, two walls, and the window wall the flight exits through
-    const wall = new MeshStandardMaterial({ color: '#161b28', roughness: 0.9 });
-    const floorMat = new MeshStandardMaterial({ color: '#241c14', roughness: 0.95 });
-    this.disposables.push(wall, floorMat);
+    // desk legs down to the floor — without them the top read as sunk into
+    // the ground
+    const legGeometry = new BoxGeometry(0.16, 1.06, 0.16);
+    this.disposables.push(legGeometry);
+    for (const [lx, lz] of [[-3.25, -2.0], [3.25, -2.0], [-3.25, 2.0], [3.25, 2.0]] as const) {
+      const leg = new Mesh(legGeometry, wood);
+      leg.position.set(lx, -0.75, lz);
+      this.group.add(leg);
+    }
+    const stretcher = new Mesh(new BoxGeometry(6.5, 0.1, 0.12), wood);
+    stretcher.position.set(0, -1.05, -1.95);
+    this.group.add(stretcher);
+    this.disposables.push(stretcher.geometry);
+
+    // the room: plank floor, paneled walls, and the window wall the flight
+    // exits through
+    const wallMap = wallPanelTexture();
+    const wall = new MeshStandardMaterial({ map: wallMap, roughness: 0.9 });
+    const floorMap = floorPlankTexture();
+    const floorMat = new MeshStandardMaterial({ map: floorMap, roughness: 0.85 });
+    this.disposables.push(wall, floorMat, wallMap, floorMap);
+    floorMap.repeat.set(5, 3.5);
     const floor = new Mesh(new PlaneGeometry(26, 18), floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(3, -1.28, 0);
+    wallMap.repeat.set(5, 1.3);
     const backWall = new Mesh(new PlaneGeometry(26, 6.5), wall);
     backWall.position.set(3, 1.9, -3.7);
     const sideWall = new Mesh(new PlaneGeometry(18, 6.5), wall);
@@ -59,6 +86,43 @@ export class Desk {
     sideWall.position.set(-4.6, 1.9, 0.6);
     this.group.add(floor, backWall, sideWall);
     this.disposables.push(floor.geometry, backWall.geometry, sideWall.geometry);
+
+    // baseboards ground the walls
+    const boardMaterial = new MeshStandardMaterial({ color: '#0e1420', roughness: 0.7 });
+    const backBoard = new Mesh(new BoxGeometry(26, 0.28, 0.07), boardMaterial);
+    backBoard.position.set(3, -1.15, -3.67);
+    const sideBoard = new Mesh(new BoxGeometry(0.07, 0.28, 18), boardMaterial);
+    sideBoard.position.set(-4.57, -1.15, 0.6);
+    this.group.add(backBoard, sideBoard);
+    this.disposables.push(backBoard.geometry, sideBoard.geometry, boardMaterial);
+
+    // framed art + a wall clock so the walls aren't bare planes
+    const frameMaterial = new MeshStandardMaterial({ color: '#2b2118', roughness: 0.6 });
+    this.disposables.push(frameMaterial);
+    ([[-0.6, 2.6, 0], [1.9, 2.35, 1]] as const).forEach(([fx, fy, variant]) => {
+      const art = frameArtTexture(variant);
+      const artMaterial = new MeshStandardMaterial({ map: art, roughness: 0.8 });
+      this.disposables.push(art, artMaterial);
+      const frame = new Mesh(new BoxGeometry(1.06, 1.36, 0.06), frameMaterial);
+      frame.position.set(fx, fy, -3.66);
+      const canvasArt = new Mesh(new PlaneGeometry(0.9, 1.2), artMaterial);
+      canvasArt.position.set(fx, fy, -3.62);
+      this.group.add(frame, canvasArt);
+      this.disposables.push(frame.geometry, canvasArt.geometry);
+    });
+    const clockFace = new Mesh(
+      new CylinderGeometry(0.42, 0.42, 0.06, 24),
+      new MeshStandardMaterial({ color: '#e8e2d4', roughness: 0.5 }),
+    );
+    clockFace.rotation.z = Math.PI / 2;
+    clockFace.position.set(-4.55, 3.1, -1.2);
+    const hourHand = new Mesh(new BoxGeometry(0.02, 0.05, 0.2), boardMaterial);
+    hourHand.position.set(-4.51, 3.1, -1.26);
+    const minuteHand = new Mesh(new BoxGeometry(0.02, 0.05, 0.3), boardMaterial);
+    minuteHand.rotation.x = 2.1;
+    minuteHand.position.set(-4.51, 3.12, -1.16);
+    this.group.add(clockFace, hourHand, minuteHand);
+    this.disposables.push(clockFace.geometry, clockFace.material as MeshStandardMaterial, hourHand.geometry, minuteHand.geometry);
 
     // window wall at local x≈6.6 with the opening the path threads (world x≈7)
     const wallX = 6.6;
@@ -128,7 +192,8 @@ export class Desk {
       });
     };
     prop('/models/potted_plant_04.glb', 0.95, -2.3, -1.35, 0.6);
-    prop('/models/book_encyclopedia_set_01.glb', 0.5, 3.1, 1.6, -0.5);
+    // book row parked neatly along the back edge beside the plant
+    prop('/models/book_encyclopedia_set_01.glb', 0.5, -1.15, -1.72, 0.06);
     prop('/models/ceramic_vase_01.glb', 0.62, 2.0, -0.85, 0.2);
 
     // flowers rising from the vase mouth — stems + heads + a leaf each

@@ -19,28 +19,27 @@ interface Tri {
   flat: [number, number, number][];
 }
 
-/** Right-side panels; x is mirrored for the left. Spine verts sit at x=0. */
+/**
+ * Right-side panels; x is mirrored for the left. Spine verts sit at x=0.
+ * Deliberately minimal: one wide delta wing per side + a keel — the iconic
+ * homemade dart, a clean triangle from above.
+ */
 function rightSide(): Tri[] {
   return [
     // main wing: nose → tip → spine tail (spine edge shared with the left wing)
     {
-      folded: [[0, 0.02, HZ], [0.58, 0.12, -0.78], [0, 0.02, -HZ]],
-      flat: [[0, 0, HZ], [0.7, 0, -HZ], [0, 0, -HZ]],
+      folded: [[0, 0.02, HZ], [0.74, 0.14, -HZ], [0, 0.02, -HZ]],
+      flat: [[0, 0, HZ], [0.78, 0, -HZ], [0, 0, -HZ]],
     },
     // keel face, a hair off center so the two sides read as layered paper
     {
-      folded: [[0.006, 0.015, HZ], [0.006, 0.015, -HZ], [0.006, -0.36, -HZ]],
+      folded: [[0.006, 0.015, HZ], [0.006, 0.015, -HZ], [0.006, -0.3, -HZ]],
       flat: [[0.02, 0, HZ], [0.06, 0, -HZ], [0.16, 0, -HZ]],
     },
-    // tip fin folded up — the classic dart winglet
+    // layered nose fold resting on top — the visible first crease
     {
-      folded: [[0.58, 0.12, -0.78], [0.5, 0.105, -0.3], [0.63, 0.34, -0.72]],
-      flat: [[0.7, 0, -HZ], [0.52, 0, -0.3], [0.82, 0, -0.72]],
-    },
-    // layered nose fold resting on top
-    {
-      folded: [[0.004, 0.035, 0.72], [0.12, 0.05, 0.18], [0.004, 0.04, -0.02]],
-      flat: [[0.05, 0, 0.72], [0.3, 0, 0.18], [0.1, 0, -0.02]],
+      folded: [[0.004, 0.03, 0.72], [0.1, 0.042, 0.2], [0.004, 0.035, -0.05]],
+      flat: [[0.05, 0, 0.72], [0.3, 0, 0.2], [0.1, 0, -0.05]],
     },
   ];
 }

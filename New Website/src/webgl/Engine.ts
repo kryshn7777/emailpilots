@@ -32,6 +32,7 @@ import { Copilot } from './actors/Copilot';
 import { Desk } from './actors/Desk';
 import { Envelopes } from './actors/Envelopes';
 import { Landing } from './actors/Landing';
+import { LaunchString } from './actors/LaunchString';
 import { NoFly } from './actors/NoFly';
 import { Panel } from './actors/Panel';
 import { PaperBurst } from './actors/PaperBurst';
@@ -82,6 +83,7 @@ export class Engine {
   private path = new FlightPath();
   private plane = new PaperPlane();
   private trail = new Trail();
+  private launchString = new LaunchString();
   private rig: CameraRig;
   private sky = new SkyDome();
   private sun = new DirectionalLight('#ffd9a0', 1);
@@ -189,6 +191,7 @@ export class Engine {
     this.scene.add(
       this.plane.group,
       this.trail.line,
+      this.launchString.line,
       this.sky.mesh,
       this.sun,
       this.sun.target,
@@ -389,6 +392,10 @@ export class Engine {
     this.prevT = t;
 
     this.rig.update(t, time, dt);
+    // the plane "comes out of the screen": hidden until the launch thread
+    // has drawn a little way out of the laptop (sub-pages always show it)
+    this.plane.group.visible = this.idlePreset !== null || t > 0.012;
+    this.launchString.update(this.idlePreset ? 1 : t, this.path);
     this.plane.flex(time, t > CONTRAIL_FROM || this.idlePreset ? 1 : 0);
 
     // idle orbit for sub-pages: slow crane shot around the parked plane
@@ -535,6 +542,7 @@ export class Engine {
     this.composer.dispose();
     this.plane.dispose();
     this.trail.dispose();
+    this.launchString.dispose();
     this.sky.dispose();
     this.desk.dispose();
     this.panel.dispose();
