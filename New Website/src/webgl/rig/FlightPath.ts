@@ -8,8 +8,8 @@ import { CHAPTERS } from '../../story/chapters';
  */
 
 const POINTS: Vector3[] = [
-  // CH1 desk — near-static hover over the letter
-  new Vector3(0, 1.2, 0),
+  // CH1 desk — starts ON the laptop screen (mid-send), dips over the letter
+  new Vector3(-0.62, 1.75, 0),
   new Vector3(1.2, 1.25, 0.2),
   new Vector3(2.5, 1.35, -0.1),
   // CH2 preflight taxi past the panel

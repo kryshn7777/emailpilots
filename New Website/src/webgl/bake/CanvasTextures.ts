@@ -174,6 +174,95 @@ export function replyTexture(): CanvasTexture {
   return texture;
 }
 
+/** Laptop display: compose window mid-send — the shot the flight launches from. */
+export function laptopScreenTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  ctx.fillStyle = '#0b101d';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // title bar
+  ctx.fillStyle = '#141c30';
+  ctx.fillRect(0, 0, 512, 54);
+  ctx.fillStyle = '#9be8ff';
+  ctx.font = '700 24px monospace';
+  ctx.fillText('EMAIL PILOTS', 24, 36);
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = 'rgba(155, 232, 255, 0.4)';
+    ctx.beginPath();
+    ctx.arc(452 + i * 20, 27, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // compose fields
+  ctx.font = '400 22px monospace';
+  ctx.fillStyle = 'rgba(200, 214, 240, 0.85)';
+  ctx.fillText('To:      priya@northline.co', 24, 102);
+  ctx.fillText('Subject: Quick follow-up', 24, 142);
+  ctx.strokeStyle = 'rgba(155, 232, 255, 0.18)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(24, 162);
+  ctx.lineTo(488, 162);
+  ctx.stroke();
+
+  // body lines
+  ctx.strokeStyle = 'rgba(200, 214, 240, 0.35)';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  const widths = [0.82, 0.9, 0.66, 0.0, 0.74, 0.38];
+  widths.forEach((w, i) => {
+    if (w === 0) return;
+    const y = 200 + i * 34;
+    ctx.beginPath();
+    ctx.moveTo(24, y);
+    ctx.lineTo(24 + w * 440, y);
+    ctx.stroke();
+  });
+
+  // sending strip
+  ctx.fillStyle = '#101a2e';
+  ctx.fillRect(0, 408, 512, 104);
+  ctx.fillStyle = '#7fe8d8';
+  ctx.font = '700 30px monospace';
+  ctx.fillText('SENDING EMAIL…', 24, 452);
+  ctx.strokeStyle = 'rgba(127, 232, 216, 0.35)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(24, 468, 400, 18);
+  ctx.fillRect(26, 470, 396 * 0.82, 14);
+  // paper-dart glyph at the progress tip
+  ctx.beginPath();
+  ctx.moveTo(444, 462);
+  ctx.lineTo(482, 477);
+  ctx.lineTo(444, 492);
+  ctx.lineTo(452, 477);
+  ctx.closePath();
+  ctx.fill();
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** Laptop deck: key grid + trackpad. */
+export function laptopKeysTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(256);
+  ctx.fillStyle = '#1a2030';
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = '#232b40';
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col < 13; col++) {
+      ctx.fillRect(10 + col * 18.2, 14 + row * 21, 15, 16);
+    }
+  }
+  // spacebar + trackpad
+  ctx.fillRect(70, 119, 116, 16);
+  ctx.fillStyle = '#151b2a';
+  ctx.fillRect(78, 152, 100, 84);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 /** Soft radial spot — dust motes, rain caps, glows. */
 export function glowTexture(): CanvasTexture {
   const [canvas, ctx] = makeCanvas(64);

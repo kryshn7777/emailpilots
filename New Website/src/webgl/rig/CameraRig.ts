@@ -80,6 +80,19 @@ export class CameraRig {
     this.camPos.addScaledVector(UP, rig.offsetUp);
     this.camPos.addScaledVector(this.side, rig.offsetSide);
     this.camPos.addScaledVector(this.tangent, -rig.offsetBack);
+    // distance floor: when a chapter blend swings offsetBack through zero
+    // (CH1's reverse angle → CH2's chase), the raw lerp would drag the camera
+    // through the plane — clamp to an orbit around it instead
+    const dist = this.camPos.distanceTo(this.planePos);
+    // 3.4 through the CH1→CH2 swing (the 1.6-long dart fills the frame under
+    // that); a small 1.2 safety net everywhere else
+    const MIN_CAM_DIST = t < 0.105 ? 3.4 : 1.2;
+    if (dist < MIN_CAM_DIST) {
+      this.camPos
+        .sub(this.planePos)
+        .multiplyScalar(MIN_CAM_DIST / Math.max(dist, 1e-4))
+        .add(this.planePos);
+    }
     // slice of the plane's gusts so the camera feels the same air
     if (a > 0) {
       this.camPos.x += this.noise.noise(time * 0.6, 5.1, 0) * a * 0.2;

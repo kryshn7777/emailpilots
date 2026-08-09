@@ -41,7 +41,7 @@ export class PaperPlane {
   private wingAxes: Vector3[] = [];
   private material = new MeshStandardMaterial({
     map: paperTexture(),
-    color: '#ffffff',
+    color: '#ddd8ce', // slightly under the bloom threshold so lamp-lit paper keeps its creases
     roughness: 0.85,
     side: DoubleSide,
   });

@@ -51,8 +51,11 @@ export interface Chapter {
 
 export const CHAPTERS: Chapter[] = [
   {
+    // Reverse angle: camera sits AHEAD looking back, so the laptop screen
+    // ("SENDING EMAIL…") faces the viewer as the plane comes out of it; the
+    // CH1→CH2 blend swings the camera around behind for the rest of the flight.
     id: 'desk', t0: 0.0, t1: 0.09,
-    rig: { fov: 38, camLag: 0.012, lookAhead: 0.003, turbAmp: 0.0, offsetUp: 1.5, offsetSide: 0.25, offsetBack: 3.2 },
+    rig: { fov: 38, camLag: 0.012, lookAhead: -0.002, turbAmp: 0.0, offsetUp: 1.45, offsetSide: 1.0, offsetBack: -4.4 },
     grade: { zenith: '#0a0d18', horizon: '#1a1e2e', sunColor: '#ffb65c', sunIntensity: 0.35, sunDir: [0.3, 0.9, 0.3], fogColor: '#0a0d18', fogNear: 4, fogFar: 40, envIntensity: 0.25 },
   },
   {

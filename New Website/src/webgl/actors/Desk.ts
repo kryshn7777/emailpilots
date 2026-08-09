@@ -6,6 +6,7 @@ import {
   Float32BufferAttribute,
   Group,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
   PointLight,
@@ -13,16 +14,18 @@ import {
   PointsMaterial,
   Vector3,
 } from 'three';
-import { glowTexture, letterTexture } from '../bake/CanvasTextures';
+import { glowTexture, laptopKeysTexture, laptopScreenTexture, letterTexture } from '../bake/CanvasTextures';
 
 /**
- * CH1: the night desk. Warm lamp pool, the letter (a second sheet — the
- * "real preview"), coffee, dust motes drifting in the lamp cone.
+ * CH1: the night desk. The laptop mid-send is the story's launchpad — the
+ * flight path starts at its screen and the paper plane flies out of it.
+ * Warm lamp pool, the letter (the "real preview" sheet), coffee, dust motes.
  */
 export class Desk {
   readonly group = new Group();
   readonly lamp: PointLight;
 
+  private screenLight: PointLight;
   private dust: Points;
   private dustBase: Float32Array;
   private dustGeometry = new BufferGeometry();
@@ -67,11 +70,39 @@ export class Desk {
     seg(2.7, 3.4, 2.0, -2.35); // left of opening
     seg(1.9, 3.4, 2.0, 3.55); // right of opening
 
+    // the laptop mid-send — screen faces +X, into the flight line, so the
+    // reverse-angle CH1 camera reads "SENDING EMAIL…" as the plane exits it
+    const shell = new MeshStandardMaterial({ color: '#242a3a', roughness: 0.5, metalness: 0.55 });
+    const deck = new Mesh(new BoxGeometry(1.0, 0.06, 1.5), shell);
+    deck.position.set(-0.45, -0.07, 0);
+    const keysMat = new MeshStandardMaterial({ map: laptopKeysTexture(), roughness: 0.7 });
+    const keys = new Mesh(new PlaneGeometry(0.9, 1.4), keysMat);
+    keys.rotation.x = -Math.PI / 2;
+    keys.rotation.z = -Math.PI / 2;
+    keys.position.set(-0.45, -0.038, 0);
+    const screen = new Group();
+    screen.position.set(-0.93, -0.06, 0); // hinge at the deck's back edge
+    screen.rotation.z = 0.24; // leans back, opening toward the flight line
+    const lid = new Mesh(new BoxGeometry(0.04, 1.05, 1.5), shell);
+    lid.position.y = 0.52;
+    const displayMat = new MeshBasicMaterial({ map: laptopScreenTexture() });
+    const display = new Mesh(new PlaneGeometry(1.38, 0.93), displayMat);
+    display.rotation.y = Math.PI / 2;
+    display.position.set(0.021, 0.52, 0);
+    screen.add(lid, display);
+    this.group.add(deck, keys, screen);
+    this.disposables.push(deck.geometry, keys.geometry, keysMat, lid.geometry, display.geometry, displayMat, shell);
+
+    // cool screen spill onto the desk and the emerging sheet
+    this.screenLight = new PointLight('#9fc4ff', 2.5, 5, 2);
+    this.screenLight.position.set(0.5, 0.5, 0);
+    this.group.add(this.screenLight);
+
     const paper = new MeshStandardMaterial({ map: letterTexture(), roughness: 0.9 });
     const letter = new Mesh(new PlaneGeometry(0.92, 1.3), paper);
     letter.rotation.x = -Math.PI / 2;
-    letter.rotation.z = 0.16;
-    letter.position.set(0.45, -0.09, 0.42);
+    letter.rotation.z = 0.5;
+    letter.position.set(2.6, -0.09, -1.55); // set dressing in the lamp pool, out of the hero frame
     this.group.add(letter);
     this.disposables.push(letter.geometry, paper);
 
@@ -83,17 +114,17 @@ export class Desk {
 
     const metal = new MeshStandardMaterial({ color: '#2a2e3c', roughness: 0.35, metalness: 0.6 });
     const stem = new Mesh(new CylinderGeometry(0.035, 0.05, 1.15, 10), metal);
-    stem.position.set(1.75, 0.42, -1.15);
+    stem.position.set(1.75, 0.42, -1.85);
     stem.rotation.z = -0.28;
     const shade = new Mesh(new CylinderGeometry(0.32, 0.14, 0.32, 16, 1, true), metal);
-    shade.position.set(1.38, 0.98, -1.15);
+    shade.position.set(1.38, 0.98, -1.85);
     shade.rotation.z = -0.9;
     this.group.add(stem, shade);
     this.disposables.push(stem.geometry, shade.geometry, metal);
 
     // lamp hangs ahead-left of the flight start so its pool frames the letter
     this.lamp = new PointLight('#ffb65c', 22, 16, 1.8);
-    this.lamp.position.set(1.1, 1.0, -1.0);
+    this.lamp.position.set(1.1, 1.0, -1.7);
     this.group.add(this.lamp);
 
     // visible bulb so the lamp itself blooms
@@ -103,7 +134,7 @@ export class Desk {
       emissiveIntensity: 3.2,
     });
     const bulb = new Mesh(new CylinderGeometry(0.07, 0.07, 0.06, 10), bulbMaterial);
-    bulb.position.set(1.18, 0.92, -1.0);
+    bulb.position.set(1.18, 0.92, -1.7);
     this.group.add(bulb);
     this.disposables.push(bulb.geometry, bulbMaterial);
 
@@ -117,7 +148,7 @@ export class Desk {
     for (let i = 0; i < dustCount; i++) {
       positions[i * 3] = -1.5 + rand() * 2.6;
       positions[i * 3 + 1] = -0.1 + rand() * 1.2;
-      positions[i * 3 + 2] = -1.4 + rand() * 2.4;
+      positions[i * 3 + 2] = -2.1 + rand() * 2.4;
     }
     this.dustBase = positions.slice();
     this.dustGeometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
@@ -136,6 +167,8 @@ export class Desk {
   }
 
   update(time: number): void {
+    // live-screen flicker: the send is happening right now
+    this.screenLight.intensity = 2.5 + Math.sin(time * 2.6) * 0.6;
     const attr = this.dustGeometry.attributes.position!;
     const arr = attr.array as Float32Array;
     for (let i = 0; i < arr.length; i += 3) {
