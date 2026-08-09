@@ -456,9 +456,13 @@ export class Engine {
     // Chapter actors only exist near their window. "Fully fogged" is NOT
     // invisible — fog-colored silhouettes still read against the brighter
     // sky gradient — so distant chapters are hidden outright.
-    if (this.clouds.volume) this.clouds.volume.visible = t > 0.14 && t < 0.56;
+    // the raymarched slab hands weather over to the beacon's own sea/rain at
+    // CH6 — overlapping them stacked two fullscreen shaders on iGPUs
+    if (this.clouds.volume) this.clouds.volume.visible = t > 0.14 && t < 0.44;
     this.clouds.sprites.visible = t > 0.14 && t < 0.58;
-    this.storm.group.visible = t > 0.3 && t < 0.58;
+    // storm rain is fully faded by 0.52 (stormness ends there) — the group
+    // lingering to 0.58 double-paid rain over the beacon's local shower
+    this.storm.group.visible = t > 0.3 && t < 0.52;
     this.biplane.group.visible = t > 0.32 && t < 0.49;
     this.birds.group.visible = t > 0.055 && t < 0.3;
     this.beacon.group.visible = t > 0.44 && t < 0.615;
