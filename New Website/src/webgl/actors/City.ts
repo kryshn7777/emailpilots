@@ -22,6 +22,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CROSS_STREET_X, cityGeometry, cityLayout, type Building } from '../bake/cityGen.mjs';
 import { roadTexture } from '../bake/CanvasTextures';
+import { requestCompile } from '../warm';
 import { mulberry32 } from '../util';
 import type { FlightPath } from '../rig/FlightPath';
 import carVert from '../shaders/carLights.vert.glsl';
@@ -92,6 +93,7 @@ export class City {
           if (mesh.isMesh) mesh.material = massingMaterial;
         });
         this.group.add(gltf.scene);
+        requestCompile(gltf.scene);
       },
       undefined,
       () => {

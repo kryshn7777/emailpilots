@@ -49,7 +49,8 @@ None yet.
 
 - Volume slab on iGPU measured 180ms worst-case → HIGH must stay dGPU-only; consider half-res volume pass for mid GPUs in Phase 6
 - HIGH tier not yet verified on an actual dGPU (dev machine is Intel UHD → LOW)
-- Playwright fps numbers lie when the browser window is occluded (Chromium clamps rAF to 1fps) — measure with in-engine `gl.finish()` probe instead
+- Playwright fps numbers lie when the browser window is occluded (Chromium clamps rAF to 1fps) — measure with in-engine `gl.finish()` probe instead. Also: tight-loop renderFrame() probes WITHOUT per-frame gl.finish produce phantom multi-second "hitches" at random t (driver command-queue backpressure, not real frame cost) — only per-frame-finished numbers are truthful
+- 2026-08-09 perf pass: chapter-entry stalls were shader-compile links (0.6–2.2s per chapter on iGPU/ANGLE, first scroll only). Fixed: first frame compiles CH1 sync behind the preloader, then a story-ordered background compileAsync wave links the rest (compile() traverses invisible objects — no visibility toggling needed); late GLB arrivals compile via src/webgl/warm.ts requestCompile. Preloader failsafe is now WebGL-aware (15s with WebGL — dismissing early revealed a black canvas on slow-compile machines; 1.2s without). Steady-state after warm: 1.8–5.8ms/frame LOW tier, first-entries 5–193ms
 - Formation chapter still hazy-bright; per-chapter contrast grade queued for Phase 6
 - Astro 7 ships rolldown-vite; vite-plugin-glsl 1.6.1 works today — re-verify after Astro upgrades
 - `@astrojs/check` forced TypeScript back to 5.9 (TS 7.0 peer-conflict) — revisit when checker supports TS7

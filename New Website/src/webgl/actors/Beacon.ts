@@ -45,6 +45,7 @@ export class Beacon {
   private beamPivot = new Group();
   private beamMaterial: ShaderMaterial;
   private oceanMaterial: ShaderMaterial;
+  private sea: Mesh;
   private rainMaterial: ShaderMaterial;
   private splash: Points;
   private splashGeometry = new BufferGeometry();
@@ -127,10 +128,10 @@ export class Beacon {
       },
       transparent: true,
     });
-    const sea = new Mesh(seaGeometry, this.oceanMaterial);
-    sea.rotation.x = -Math.PI / 2;
-    sea.position.y = 0.15;
-    this.group.add(sea);
+    this.sea = new Mesh(seaGeometry, this.oceanMaterial);
+    this.sea.rotation.x = -Math.PI / 2;
+    this.sea.position.y = 0.15;
+    this.group.add(this.sea);
     this.disposables.push(seaGeometry, this.oceanMaterial);
 
     // — splash bursts where the surge meets the rocks —
@@ -267,8 +268,11 @@ export class Beacon {
       MathUtils.smoothstep(t, 0.45, 0.5) * (1 - MathUtils.smoothstep(t, 0.59, 0.63));
     this.rainMaterial.uniforms.uTime!.value = time;
     this.rainMaterial.uniforms.uOpacity!.value = beaconness * 0.85;
-    this.oceanMaterial.uniforms.uReveal!.value =
+    const reveal =
       MathUtils.smoothstep(t, 0.44, 0.49) * (1 - MathUtils.smoothstep(t, 0.6, 0.635));
+    this.oceanMaterial.uniforms.uReveal!.value = reveal;
+    // a fullscreen transparent plane at alpha≈0 still pays full fragment cost
+    this.sea.visible = reveal > 0.003;
 
     // splash bursts: parabolic arcs synced to the surge beat
     const attr = this.splashGeometry.attributes.position!;

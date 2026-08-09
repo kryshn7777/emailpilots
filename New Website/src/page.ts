@@ -26,22 +26,41 @@ function bindChromeOnce(): void {
   const hudChapter = document.getElementById('hud-chapter');
   const hudAlt = document.getElementById('hud-alt');
   const bar = document.querySelector<HTMLElement>('#scroll-progress i');
+  let lastChapter = -1;
+  let lastAlt = -1;
   window.addEventListener('flight:t', (e) => {
     const t = (e as CustomEvent<number>).detail;
     if (bar) bar.style.transform = `scaleX(${t.toFixed(4)})`;
     if (hudChapter && hudAlt) {
       let i = 0;
       while (i < 9 && t >= CHAPTER_T[i + 1]!) i++;
-      hudChapter.textContent = `CH ${String(i + 1).padStart(2, '0')} / 10 · ${CHAPTER_NAMES[i]}`;
+      // textContent writes force style/layout work — only touch on change
+      if (i !== lastChapter) {
+        lastChapter = i;
+        hudChapter.textContent = `CH ${String(i + 1).padStart(2, '0')} / 10 · ${CHAPTER_NAMES[i]}`;
+      }
       const alt = Math.round(120 + Math.sin(t * Math.PI) * 2280);
-      hudAlt.textContent = `ALT ${String(alt).padStart(4, '0')}`;
+      if (alt !== lastAlt) {
+        lastAlt = alt;
+        hudAlt.textContent = `ALT ${String(alt).padStart(4, '0')}`;
+      }
     }
   });
 
   const preloader = document.getElementById('preloader');
   const dismiss = (): void => preloader?.classList.add('is-done');
   window.addEventListener('flight:ready', dismiss, { once: true });
-  setTimeout(dismiss, 4000); // never trap the user if WebGL is unavailable
+  // Failsafe so nobody is ever trapped. With WebGL present the engine WILL
+  // fire flight:ready — slow iGPUs take seconds to compile the opening frame,
+  // and dismissing early would reveal a black canvas — so give it long rope.
+  // Without WebGL there is nothing to wait for: drop the curtain fast.
+  let hasWebgl = false;
+  try {
+    hasWebgl = !!document.createElement('canvas').getContext('webgl2');
+  } catch {
+    hasWebgl = false;
+  }
+  setTimeout(dismiss, hasWebgl ? 15000 : 1200);
 
   // custom cursor, fine pointers only
   if (matchMedia('(pointer: fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches) {

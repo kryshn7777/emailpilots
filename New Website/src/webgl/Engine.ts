@@ -41,6 +41,7 @@ import { Trail } from './actors/Trail';
 import { WindowFrame } from './actors/WindowFrame';
 import { CameraRig } from './rig/CameraRig';
 import { FlightPath } from './rig/FlightPath';
+import { setCompiler } from './warm';
 import { Raycast } from './interact/Raycast';
 import { Tooltip } from './interact/Tooltip';
 import { SkyDome } from './materials/SkyDome';
@@ -212,6 +213,11 @@ export class Engine {
     window.addEventListener('resize', this.resize);
     this.canvas.addEventListener('webglcontextlost', this.onContextLost);
 
+    // streamed-in content (city GLB, desk props) compiles off the scroll path
+    setCompiler((subtree) => {
+      void this.renderer.compileAsync(subtree, this.camera, this.scene).catch(() => {});
+    });
+
     if (new URLSearchParams(location.search).has('probe')) {
       // dev-only scene handle for automated inspection
       Object.assign(window as object, { __scene: this.scene, __camera: this.camera, __engine: this });
@@ -251,12 +257,49 @@ export class Engine {
       },
     });
 
+    // first paint compiles the opening chapter synchronously and gives the
+    // preloader a real frame to reveal
+    this.renderFrame();
+    this.warming = false;
+
     if (this.options.reducedMotion) {
       this.renderFrame();
-      return;
+    } else {
+      this.loop();
     }
-    this.loop();
+
+    // link every other chapter's programs in the background, in STORY ORDER,
+    // so a user scrolling the flight stays behind the compile wave. compile()
+    // gathers materials with a plain traverse (visibility ignored), and
+    // KHR_parallel_shader_compile keeps links off the render thread. Without
+    // this, the first frame entering each chapter stalls 0.6–2.2s.
+    const wave = [
+      this.rooftops.group,
+      this.clouds.sprites,
+      ...(this.clouds.volume ? [this.clouds.volume] : []),
+      this.envelopes.group,
+      this.storm.group,
+      this.biplane.group,
+      this.beacon.group,
+      this.noFly.group,
+      this.city.group,
+      this.copilot.group,
+      this.landing.group,
+      this.burst.points,
+      this.confetti.points,
+    ];
+    void (async () => {
+      for (const subtree of wave) {
+        try {
+          await this.renderer.compileAsync(subtree, this.camera, this.scene);
+        } catch {
+          // a failed link must never break the wave
+        }
+      }
+    })();
   }
+
+  private warming = true;
 
   private applyGrade(t: number): void {
     const { from, to, u } = gradeBlendAt(t);
@@ -381,7 +424,7 @@ export class Engine {
     this.windowFrame.group.visible = nearDesk;
     this.rooftops.group.visible = t > 0.06 && t < 0.3;
 
-    this.desk.update(time);
+    if (nearDesk) this.desk.update(time); // 250-mote dust loop, pointless offscreen
     this.panel.update(t);
     this.clouds.update(time, this.sunScreenDir, this.fog.near, this.fog.far);
     this.envelopes.update(
@@ -420,6 +463,7 @@ export class Engine {
 
     this.composer.render();
 
+    if (this.warming) return; // silent warm-up frames: no chrome events
     if (!this.firstFrameDone) {
       this.firstFrameDone = true;
       window.dispatchEvent(new CustomEvent('flight:ready'));

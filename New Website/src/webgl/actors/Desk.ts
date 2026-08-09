@@ -17,6 +17,7 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { glowTexture, laptopKeysTexture, laptopScreenTexture, letterTexture } from '../bake/CanvasTextures';
+import { requestCompile } from '../warm';
 
 /**
  * CH1: the night desk. The laptop mid-send is the story's launchpad — the
@@ -121,6 +122,7 @@ export class Desk {
         s.position.set(x, -0.1 - box.min.y, z); // rest on the desk top
         s.rotation.y = rotY;
         this.group.add(s);
+        requestCompile(s);
       });
     };
     prop('/models/potted_plant_04.glb', 0.95, -2.3, -1.35, 0.6);
