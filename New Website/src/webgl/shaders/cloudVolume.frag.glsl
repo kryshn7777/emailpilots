@@ -62,8 +62,9 @@ void main() {
     vec3 p = cameraPosition + rayDir * t;
     float d = density(p);
     if (d > 0.0) {
-      // one-tap sun gradient: cheap self-shadowing
-      float toSun = density(p + sunDir * 3.2) * 1.5;
+      // one-tap sun gradient: cheap self-shadowing — skipped for wisps too
+      // thin to shadow anything (saves the second fbm on ~half the samples)
+      float toSun = d > 0.05 ? density(p + sunDir * 3.2) * 1.5 : 0.0;
       float shadow = exp(-toSun * 1.6);
       // powder: brighten thin edges facing the sun
       float powder = 1.0 - exp(-d * 4.0);

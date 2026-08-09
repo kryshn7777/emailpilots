@@ -19,7 +19,9 @@ const HIGH: Quality = {
   maxDpr: 2,
   renderScale: 1,
   volumetricClouds: true,
-  cloudSteps: 32,
+  // 16 jittered steps read within a hair of 32 (the march is dithered) at
+  // half the fbm cost — 32 was the single biggest fragment bill in the site
+  cloudSteps: 16,
   cloudSprites: 110,
   rainCount: 1500,
   dustCount: 250,
