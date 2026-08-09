@@ -7,17 +7,60 @@ import {
   Matrix4,
   Mesh,
   BoxGeometry,
+  OrthographicCamera,
   PlaneGeometry,
   Quaternion,
+  Scene,
   ShaderMaterial,
   Vector2,
   Vector3,
+  WebGLRenderTarget,
+  type WebGLRenderer,
 } from 'three';
 import type { Quality } from '../quality';
 import spriteVert from '../shaders/cloudSprite.vert.glsl';
 import spriteFrag from '../shaders/cloudSprite.frag.glsl';
+import atlasVert from '../shaders/cloudAtlas.vert.glsl';
+import atlasFrag from '../shaders/cloudAtlas.frag.glsl';
 import volumeVert from '../shaders/cloudVolume.vert.glsl';
 import volumeFrag from '../shaders/cloudVolume.frag.glsl';
+
+/**
+ * One-time GPU bake: 8 sprite density variants (the domain-warped fbm) into
+ * a 4×2 atlas. Costs a few ms at boot; saves ~6 simplex calls per fragment
+ * on the single most overdraw-heavy element in the scene, with no visual
+ * change (the live shader keeps rotation, lighting, rim, and fog).
+ */
+function bakeDensityAtlas(renderer: WebGLRenderer): WebGLRenderTarget {
+  const rt = new WebGLRenderTarget(1024, 512, { depthBuffer: false });
+  const scene = new Scene();
+  const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const material = new ShaderMaterial({
+    vertexShader: atlasVert,
+    fragmentShader: atlasFrag,
+    uniforms: { uSeed: { value: 0 } },
+    depthTest: false,
+    depthWrite: false,
+  });
+  const quad = new Mesh(new PlaneGeometry(2, 2), material);
+  scene.add(quad);
+
+  const prevAutoClear = renderer.autoClear;
+  renderer.setRenderTarget(rt);
+  renderer.clear();
+  renderer.autoClear = false;
+  for (let v = 0; v < 8; v++) {
+    material.uniforms.uSeed!.value = v * 0.137 + 0.05;
+    renderer.setViewport((v % 4) * 256, Math.floor(v / 4) * 256, 256, 256);
+    renderer.render(scene, camera);
+  }
+  renderer.autoClear = prevAutoClear;
+  renderer.setRenderTarget(null);
+  // Engine.resize() runs right after construction and restores the viewport
+  quad.geometry.dispose();
+  material.dispose();
+  return rt;
+}
 
 /**
  * The cloud sea. Two layers:
@@ -40,12 +83,16 @@ export class Clouds {
   readonly fogColor = new Color('#b8c7e0');
   readonly sunDir = new Vector3(0.6, 0.25, 0.1);
 
-  constructor(center: Vector3, quality: Quality, rand: () => number) {
+  private atlas: WebGLRenderTarget;
+
+  constructor(center: Vector3, quality: Quality, rand: () => number, renderer: WebGLRenderer) {
+    this.atlas = bakeDensityAtlas(renderer);
     this.spriteMaterial = new ShaderMaterial({
       vertexShader: spriteVert,
       fragmentShader: spriteFrag,
       uniforms: {
         uTime: { value: 0 },
+        uAtlas: { value: this.atlas.texture },
         uSunColor: { value: this.sunColor },
         uShadowColor: { value: this.shadowColor },
         uSunScreenDir: { value: new Vector2(0.7, 0.3) },
@@ -135,6 +182,7 @@ export class Clouds {
   }
 
   dispose(): void {
+    this.atlas.dispose();
     this.spriteGeometry.dispose();
     this.spriteMaterial.dispose();
     this.volumeGeometry?.dispose();

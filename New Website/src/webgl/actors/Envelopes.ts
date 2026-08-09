@@ -48,6 +48,7 @@ const SHOW_TO = 0.52;
  * ("Step N · waits · cancels on reply").
  */
 export class Envelopes {
+  private static readonly FORWARD = new Vector3(0, 0, 1);
   readonly group = new Group();
   private meshes: Mesh[] = [];
   private materials: MeshStandardMaterial[] = [];
@@ -58,9 +59,9 @@ export class Envelopes {
   constructor(raycast: Raycast, private tooltip: Tooltip) {
     for (let i = 0; i < COUNT; i++) {
       const material = new MeshStandardMaterial({
-        color: '#ddd6c8',
+        color: '#f2ecdc',
         emissive: '#ffd9a0',
-        emissiveIntensity: 0,
+        emissiveIntensity: 0.55, // lit paper — at 0 they flew as backlit gray slabs
         roughness: 0.7,
       });
       const mesh = new Mesh(this.geometry, material);
@@ -99,12 +100,12 @@ export class Envelopes {
       mesh.position
         .copy(planePos)
         .addScaledVector(tangent, -back)
-        .addScaledVector(side, lateral)
-        .add(new Vector3(0, -0.2 + bob + lift, 0));
-      mesh.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), tangent);
+        .addScaledVector(side, lateral);
+      mesh.position.y += -0.2 + bob + lift;
+      mesh.quaternion.setFromUnitVectors(Envelopes.FORWARD, tangent);
       mesh.scale.setScalar(presence);
 
-      const target = this.hoveredIndex === i ? 1.6 : 0;
+      const target = this.hoveredIndex === i ? 1.6 : 0.55;
       const m = this.materials[i]!;
       m.emissiveIntensity += (target - m.emissiveIntensity) * 0.2;
     }

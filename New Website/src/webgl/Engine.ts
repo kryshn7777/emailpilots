@@ -171,7 +171,7 @@ export class Engine {
     this.panel = new Panel(this.path.chapterAnchor(1));
     this.windowFrame = new WindowFrame(new Vector3(7, 2, 0.8));
     this.rooftops = new Rooftops(rand);
-    this.clouds = new Clouds(this.path.chapterAnchor(3), this.quality, rand);
+    this.clouds = new Clouds(this.path.chapterAnchor(3), this.quality, rand, this.renderer);
     this.envelopes = new Envelopes(this.raycast, this.tooltip);
     this.storm = new Storm(this.path, this.quality.rainCount, rand);
     this.biplane = new Biplane(this.path);
@@ -477,7 +477,7 @@ export class Engine {
 
     if (t > CONTRAIL_FROM) {
       this.trail.visible = true;
-      this.trail.push(this.plane.group.position);
+      this.trail.update(t, this.path, this.plane.group.position);
     } else {
       this.trail.visible = false;
     }
