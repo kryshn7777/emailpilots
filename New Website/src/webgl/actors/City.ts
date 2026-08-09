@@ -421,10 +421,10 @@ export class City {
 
   update(t: number, time = 0): void {
     if (!this.group.visible) return;
-    // traffic flows with time AND surges with scroll — the city drives past
-    const surgedTime = time + t * 30;
-    if (this.trafficMaterial) this.trafficMaterial.uniforms.uTime!.value = surgedTime;
-    if (this.cars) this.updateCars(surgedTime);
+    // traffic loops on absolute time only — the scene lives on its own, with
+    // or without scroll (scroll-coupled surge removed by request)
+    if (this.trafficMaterial) this.trafficMaterial.uniforms.uTime!.value = time;
+    if (this.cars) this.updateCars(time);
     let colorsDirty = false;
     for (let i = 0; i < this.deliveries.length; i++) {
       const d = this.deliveries[i]!;

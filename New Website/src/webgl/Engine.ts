@@ -106,6 +106,14 @@ export class Engine {
 
   private fog: Fog;
   private scrollT = 0;
+  /**
+   * What the frame actually renders: scrollT chased with a frame-rate-
+   * independent damp. Wheel detents, scrollbar drags, PageDown, and anchor
+   * jumps all arrive as steps — the camera glides through them instead of
+   * snapping, and seam beats still fire because renderT passes through
+   * every value on the way.
+   */
+  private renderT = 0;
   private prevT = 0;
   private idlePreset: IdlePreset | null = null;
   private maneuverPulse = 0;
@@ -131,6 +139,9 @@ export class Engine {
       powerPreference: 'high-performance',
     });
     this.renderer.setClearColor(new Color('#05070f'));
+    // shader-error introspection synchronously stalls every program link;
+    // keep it for dev, drop it in production builds
+    if (import.meta.env.PROD) this.renderer.debug.checkShaderErrors = false;
     this.quality = detectQuality(gpuRendererString(this.renderer.getContext()));
 
     this.fog = new Fog('#05070f', 10, 90);
@@ -351,7 +362,12 @@ export class Engine {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
     const time = (now - this.startTime) / 1000;
-    const t = this.idlePreset ? this.idlePreset.t : this.scrollT;
+    const target = this.idlePreset ? this.idlePreset.t : this.scrollT;
+    this.renderT = this.options.reducedMotion
+      ? target
+      : MathUtils.damp(this.renderT, target, 6, dt);
+    if (Math.abs(target - this.renderT) < 0.0004) this.renderT = target;
+    const t = this.renderT;
 
     this.applyGrade(t);
 
