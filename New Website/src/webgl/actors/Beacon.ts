@@ -29,6 +29,9 @@ import type { Quality } from '../quality';
 import type { Raycast } from '../interact/Raycast';
 import type { Tooltip } from '../interact/Tooltip';
 import { glowTexture, lighthouseTexture } from '../bake/CanvasTextures';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { Box3 } from 'three';
+import { requestCompile } from '../warm';
 import beamVert from '../shaders/beam.vert.glsl';
 import beamFrag from '../shaders/beam.frag.glsl';
 import oceanVert from '../shaders/ocean.vert.glsl';
@@ -315,26 +318,22 @@ export class Beacon {
     });
   }
 
-  /** A small freighter riding the swell beyond the islet, nav lights on. */
+  /** A tall ship riding the swell off the islet (Kenney CC0 model), nav lights on. */
   private buildShip(): void {
-    const steel = new MeshStandardMaterial({ color: '#1a212e', roughness: 0.6, metalness: 0.3 });
-    const bridgeSteel = new MeshStandardMaterial({ color: '#242e40', roughness: 0.5 });
-    const hull = new Mesh(new BoxGeometry(5.6, 1.1, 1.7), steel);
-    hull.position.y = 0.35;
-    const bow = new Mesh(new BoxGeometry(1.4, 1.0, 1.2), steel);
-    bow.position.set(3.1, 0.3, 0);
-    bow.rotation.y = Math.PI / 4;
-    const bridge = new Mesh(new BoxGeometry(1.3, 1.3, 1.4), bridgeSteel);
-    bridge.position.set(-1.9, 1.4, 0);
-    const funnel = new Mesh(new CylinderGeometry(0.28, 0.34, 0.9, 10), steel);
-    funnel.position.set(-2.6, 2.2, 0);
-    const mast = new Mesh(new CylinderGeometry(0.04, 0.06, 2.2, 6), steel);
-    mast.position.set(1.6, 1.9, 0);
-    this.ship.add(hull, bridge, bow, funnel, mast);
-    this.disposables.push(
-      hull.geometry, bow.geometry, bridge.geometry, funnel.geometry, mast.geometry,
-      steel, bridgeSteel,
-    );
+    new GLTFLoader().load('/models/ship_large.glb', (gltf) => {
+      const s = gltf.scene;
+      const box = new Box3().setFromObject(s);
+      const size = box.getSize(new Vector3());
+      // bow along +x, deck resting on the local water line; sized like the
+      // old box hull so the group's 2.6× scale and light rows still fit
+      const scale = 5.6 / Math.max(size.x, size.z, 1e-3);
+      s.scale.setScalar(scale);
+      s.rotation.y = size.z > size.x ? Math.PI / 2 : 0;
+      box.setFromObject(s);
+      s.position.y = -box.min.y - 0.35; // hull sits slightly into the swell
+      this.ship.add(s);
+      requestCompile(s);
+    });
 
     // warm portholes along the hull + red/green running lights + mast light
     const lights: number[] = [];
