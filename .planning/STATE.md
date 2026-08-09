@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-08-08)
 Phase: 6 of 7 (Polish / Perf / A11y / SEO) — ready to plan
 Plan: 0 of TBD in current phase
 Status: Phase 5 + 5.1 (inserted art/chrome pass) complete
-Phase 6 carry-ins from user feedback: CC0 model props for the desk (Poly Haven fetch script — deferred), beacon/no-fly art second look, plane silhouette check at cruise, "27" runway designator mirroring, volume slab half-res pass for mid GPUs
+Phase 6 carry-ins from user feedback: plane silhouette check at cruise, "27" runway designator mirroring, volume slab half-res pass for mid GPUs. DONE 2026-08-09 (pre-Phase-6 user pass): CC0 props fetched (Poly Haven plant+books via scripts/fetch-models.mjs + gltf-transform quantize), night-sky HDRI env (scripts/fetch-hdri.mjs, async HDRLoader swap), beacon rebuilt as lighthouse-in-weather (Gerstner sea + foam surge + splash bursts + local rain + beam stand-down before CH7), city traffic now real instanced car bodies + paired lights on textured roads, CH1 opens on a laptop mid-send (reverse-angle camera, plane exits the screen)
 Last activity: 2026-08-09 — Phase 5 verified: copy.ts carries every FEATURES.md claim (banned-phrase grep clean incl. comments), 10 home chapters with glass copy panels + chips + CTA row, /features Flight Manual (12 systems, 68 items — with /pricing = all 69 content reqs), /pricing boarding pass (no Buy button, no tier names) + native-details FAQ, /download (pending CTA + SmartScreen note), @swup/astro with ONE persistent canvas (identity-verified across home→features→pricing→download→back), engine idle presets per route (clouds/beacon/runway) + maneuver bank on swap, reveal/magnet re-binding, ScrollTrigger refresh. 0 console errors.
 
 Progress: [█████░░░░░] ~71%

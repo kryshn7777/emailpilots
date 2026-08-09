@@ -13,6 +13,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { BloomEffect, EffectComposer, EffectPass, RenderPass, VignetteEffect } from 'postprocessing';
 import {
   CONTRAIL_FROM,
@@ -133,10 +134,23 @@ export class Engine {
     this.scene.fog = this.fog;
     this.camera = new PerspectiveCamera(45, 1, 0.1, 400);
 
+    // instant fallback env, upgraded to the real night-sky HDRI when it
+    // streams in — first frame never waits on the network
     const pmrem = new PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment()).texture;
+    const roomEnv = pmrem.fromScene(new RoomEnvironment());
+    this.scene.environment = roomEnv.texture;
     this.scene.environmentIntensity = 0.3;
-    pmrem.dispose();
+    new HDRLoader().load(
+      '/hdri/sky_1k.hdr',
+      (hdr) => {
+        this.scene.environment = pmrem.fromEquirectangular(hdr).texture;
+        hdr.dispose();
+        roomEnv.dispose();
+        pmrem.dispose();
+      },
+      undefined,
+      () => pmrem.dispose(), // offline: keep the RoomEnvironment look
+    );
 
     const rand = mulberry32(919);
     this.desk = new Desk(new Vector3(0.4, 1.29, 0), this.quality.dustCount, rand);
@@ -146,7 +160,7 @@ export class Engine {
     this.clouds = new Clouds(this.path.chapterAnchor(3), this.quality, rand);
     this.envelopes = new Envelopes(this.raycast, this.tooltip);
     this.storm = new Storm(this.path, this.quality.rainCount, rand);
-    this.beacon = new Beacon(this.path.chapterAnchor(5), this.raycast, this.tooltip);
+    this.beacon = new Beacon(this.path.chapterAnchor(5), this.raycast, this.tooltip, this.quality);
     this.noFly = new NoFly(this.path.chapterAnchor(6));
     this.city = new City(this.path.chapterAnchor(7), this.path);
     this.copilot = new Copilot(this.path.chapterAnchor(8));
@@ -351,7 +365,7 @@ export class Engine {
     if (this.clouds.volume) this.clouds.volume.visible = t > 0.14 && t < 0.56;
     this.clouds.sprites.visible = t > 0.14 && t < 0.58;
     this.storm.group.visible = t > 0.3 && t < 0.58;
-    this.beacon.group.visible = t > 0.44 && t < 0.63;
+    this.beacon.group.visible = t > 0.44 && t < 0.64;
     this.noFly.group.visible = t > 0.55 && t < 0.7;
     this.city.group.visible = t > 0.6 && t < 0.83;
     this.copilot.group.visible = t > 0.75 && t < 0.9;
@@ -376,7 +390,7 @@ export class Engine {
     const stormness =
       MathUtils.smoothstep(t, 0.34, 0.38) * (1 - MathUtils.smoothstep(t, 0.46, 0.52));
     this.storm.update(time, dt, stormness, Math.random);
-    this.beacon.update(time, this.camera);
+    this.beacon.update(time, this.camera, t);
     this.noFly.update(time);
     this.city.update(t, time);
     this.copilot.update(

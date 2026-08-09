@@ -3,6 +3,7 @@ import {
   BoxGeometry,
   BufferGeometry,
   Color,
+  DynamicDrawUsage,
   Float32BufferAttribute,
   Group,
   InstancedMesh,
@@ -18,11 +19,14 @@ import {
   Vector3,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CROSS_STREET_X, cityGeometry, cityLayout, type Building } from '../bake/cityGen.mjs';
+import { roadTexture } from '../bake/CanvasTextures';
 import { mulberry32 } from '../util';
 import type { FlightPath } from '../rig/FlightPath';
 import carVert from '../shaders/carLights.vert.glsl';
 import carFrag from '../shaders/carLights.frag.glsl';
+import carGlowVert from '../shaders/carGlow.vert.glsl';
 
 const WINDOW_AMBER = new Color('#ffc96b');
 const DELIVERIES = 5;
@@ -112,31 +116,42 @@ export class City {
   }
 
   private trafficMaterial: ShaderMaterial | null = null;
+  private cars!: InstancedMesh;
+  private carLanes: { origin: number; z: number; dir: 1 | -1; phase: number; speed: number }[] = [];
+  private carLightGeometry = new BufferGeometry();
+  private carMatrix = new Matrix4();
+  private carQuatFwd = new Quaternion();
+  private carQuatBack = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
+  private carPos = new Vector3();
+  private carScale = new Vector3(1, 1, 1);
 
-  /** Roads in the canyon + cross streets, with moving head/taillight streams. */
+  private static readonly CANYON_LEN = 66;
+  private static readonly CANYON_X0 = -32;
+
+  /** Roads in the canyon + cross streets, real cars on the canyon lanes. */
   private buildTraffic(): void {
-    const roadMat = new MeshStandardMaterial({ color: '#14161c', roughness: 0.95 });
-    this.disposables.push(roadMat);
+    const road = roadTexture();
+    const roadMat = new MeshStandardMaterial({ map: road, roughness: 0.95 });
+    this.disposables.push(roadMat, road);
     const canyonRoad = new Mesh(new PlaneGeometry(66, 4.6), roadMat);
     canyonRoad.rotation.x = -Math.PI / 2;
     canyonRoad.position.set(1, 0.005, 0);
+    if (canyonRoad.material.map) canyonRoad.material.map.repeat.set(9, 1);
     this.group.add(canyonRoad);
     this.disposables.push(canyonRoad.geometry);
     for (const sx of CROSS_STREET_X) {
-      const cross = new Mesh(new PlaneGeometry(2.6, 27), roadMat);
+      // 27-long axis carries the dashes (texture U), then swings onto world z
+      const cross = new Mesh(new PlaneGeometry(27, 2.6), roadMat);
       cross.rotation.x = -Math.PI / 2;
+      cross.rotation.z = Math.PI / 2;
       cross.position.set(sx, 0.004, -1);
       this.group.add(cross);
       this.disposables.push(cross.geometry);
     }
 
-    // light streams: one Points draw, every lane baked into attributes
+    // cross-street ambience stays a cheap shader-driven dot stream
     interface Lane { origin: Vector3; dir: Vector3; len: number; hue: number; count: number }
-    const lanes: Lane[] = [
-      // canyon: oncoming headlights on one side, taillights on the other
-      { origin: new Vector3(-32, 0.12, 1.1), dir: new Vector3(1, 0, 0), len: 66, hue: 1, count: 12 },
-      { origin: new Vector3(-32, 0.12, -1.1), dir: new Vector3(1, 0, 0), len: 66, hue: 0, count: 12 },
-    ];
+    const lanes: Lane[] = [];
     for (const sx of CROSS_STREET_X) {
       lanes.push(
         { origin: new Vector3(sx - 0.6, 0.12, -14), dir: new Vector3(0, 0, 1), len: 27, hue: 0, count: 6 },
@@ -181,6 +196,106 @@ export class City {
     traffic.frustumCulled = false;
     this.group.add(traffic);
     this.disposables.push(g, this.trafficMaterial);
+
+    this.buildCars(rand);
+  }
+
+  /**
+   * Visible vehicles: instanced body+cabin boxes driving both canyon lanes,
+   * with paired head/taillight glow sprites. Simulated in JS each frame so the
+   * bodies, lights, and scroll surge all share one travel formula.
+   */
+  private buildCars(rand: () => number): void {
+    const body = new BoxGeometry(0.5, 0.14, 0.24);
+    body.translate(0, 0.1, 0);
+    const cabin = new BoxGeometry(0.26, 0.11, 0.2);
+    cabin.translate(-0.04, 0.22, 0);
+    const carGeometry = mergeGeometries([body, cabin]);
+    body.dispose();
+    cabin.dispose();
+
+    const paint = new MeshStandardMaterial({
+      color: '#ffffff',
+      roughness: 0.4,
+      metalness: 0.5,
+      emissive: '#10141f',
+      emissiveIntensity: 0.7,
+    });
+    const PAINTS = ['#3a4356', '#565d6e', '#2c3242', '#5d3a3a', '#38504c', '#454a58'];
+
+    const CARS = 22;
+    this.cars = new InstancedMesh(carGeometry, paint, CARS);
+    this.cars.instanceMatrix.setUsage(DynamicDrawUsage);
+    for (let i = 0; i < CARS; i++) {
+      // z −1.1 lane drives −x (oncoming, headlights at the camera);
+      // z +1.1 lane drives +x with the flight (taillights)
+      const oncoming = i % 2 === 0;
+      this.carLanes.push({
+        origin: City.CANYON_X0,
+        z: oncoming ? -1.1 : 1.1,
+        dir: oncoming ? -1 : 1,
+        phase: rand(),
+        speed: 2.6 + rand() * 1.4,
+      });
+      this.cars.setColorAt(i, this.color.set(PAINTS[Math.floor(rand() * PAINTS.length)]!));
+    }
+    if (this.cars.instanceColor) this.cars.instanceColor.needsUpdate = true;
+    this.group.add(this.cars);
+    this.disposables.push(carGeometry, paint, this.cars);
+
+    // 4 glow sprites per car, positions rewritten from the simulation
+    const lightPos = new Float32Array(CARS * 4 * 3);
+    const lightHue = new Float32Array(CARS * 4);
+    for (let i = 0; i < CARS; i++) {
+      lightHue[i * 4] = 0;
+      lightHue[i * 4 + 1] = 0;
+      lightHue[i * 4 + 2] = 1;
+      lightHue[i * 4 + 3] = 1;
+    }
+    const lightAttr = new Float32BufferAttribute(lightPos, 3);
+    lightAttr.setUsage(DynamicDrawUsage);
+    this.carLightGeometry.setAttribute('position', lightAttr);
+    this.carLightGeometry.setAttribute('aHue', new Float32BufferAttribute(lightHue, 1));
+    const glowMaterial = new ShaderMaterial({
+      vertexShader: carGlowVert,
+      fragmentShader: carFrag,
+      uniforms: { uIntensity: { value: 2.6 } },
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+    const glows = new Points(this.carLightGeometry, glowMaterial);
+    glows.frustumCulled = false;
+    this.group.add(glows);
+    this.disposables.push(this.carLightGeometry, glowMaterial);
+  }
+
+  private updateCars(surgedTime: number): void {
+    const posAttr = this.carLightGeometry.attributes.position!;
+    const arr = posAttr.array as Float32Array;
+    for (let i = 0; i < this.carLanes.length; i++) {
+      const lane = this.carLanes[i]!;
+      const travel =
+        (lane.phase * City.CANYON_LEN + surgedTime * lane.speed) % City.CANYON_LEN;
+      const x = lane.origin + (lane.dir === 1 ? travel : City.CANYON_LEN - travel);
+      this.carPos.set(x, 0.02, lane.z);
+      this.carMatrix.compose(
+        this.carPos,
+        lane.dir === 1 ? this.carQuatFwd : this.carQuatBack,
+        this.carScale,
+      );
+      this.cars.setMatrixAt(i, this.carMatrix);
+      // lights: white pair at the nose (travel direction), red pair at the tail
+      const nose = x + lane.dir * 0.26;
+      const tail = x - lane.dir * 0.26;
+      const o = i * 12;
+      arr[o] = nose; arr[o + 1] = 0.12; arr[o + 2] = lane.z - 0.08;
+      arr[o + 3] = nose; arr[o + 4] = 0.12; arr[o + 5] = lane.z + 0.08;
+      arr[o + 6] = tail; arr[o + 7] = 0.14; arr[o + 8] = lane.z - 0.08;
+      arr[o + 9] = tail; arr[o + 10] = 0.14; arr[o + 11] = lane.z + 0.08;
+    }
+    this.cars.instanceMatrix.needsUpdate = true;
+    posAttr.needsUpdate = true;
   }
 
   private buildWindows(buildings: Building[]): void {
@@ -305,7 +420,9 @@ export class City {
   update(t: number, time = 0): void {
     if (!this.group.visible) return;
     // traffic flows with time AND surges with scroll — the city drives past
-    if (this.trafficMaterial) this.trafficMaterial.uniforms.uTime!.value = time + t * 30;
+    const surgedTime = time + t * 30;
+    if (this.trafficMaterial) this.trafficMaterial.uniforms.uTime!.value = surgedTime;
+    if (this.cars) this.updateCars(surgedTime);
     let colorsDirty = false;
     for (let i = 0; i < this.deliveries.length; i++) {
       const d = this.deliveries[i]!;

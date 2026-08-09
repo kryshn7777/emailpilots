@@ -1,5 +1,6 @@
 import {
   AdditiveBlending,
+  Box3,
   BoxGeometry,
   BufferGeometry,
   CylinderGeometry,
@@ -14,6 +15,7 @@ import {
   PointsMaterial,
   Vector3,
 } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { glowTexture, laptopKeysTexture, laptopScreenTexture, letterTexture } from '../bake/CanvasTextures';
 
 /**
@@ -105,6 +107,24 @@ export class Desk {
     letter.position.set(2.6, -0.09, -1.55); // set dressing in the lamp pool, out of the hero frame
     this.group.add(letter);
     this.disposables.push(letter.geometry, paper);
+
+    // CC0 prop models (Poly Haven, fetched by scripts/fetch-models.mjs) —
+    // streamed in after first paint; the desk reads complete without them
+    const loader = new GLTFLoader();
+    const prop = (url: string, targetH: number, x: number, z: number, rotY: number): void => {
+      loader.load(url, (gltf) => {
+        const s = gltf.scene;
+        const box = new Box3().setFromObject(s);
+        const size = box.getSize(new Vector3());
+        s.scale.setScalar(targetH / Math.max(size.y, 1e-3));
+        box.setFromObject(s);
+        s.position.set(x, -0.1 - box.min.y, z); // rest on the desk top
+        s.rotation.y = rotY;
+        this.group.add(s);
+      });
+    };
+    prop('/models/potted_plant_04.glb', 0.95, -2.3, -1.35, 0.6);
+    prop('/models/book_encyclopedia_set_01.glb', 0.5, 2.95, 0.4, -0.35);
 
     const ceramic = new MeshStandardMaterial({ color: '#c8b8a4', roughness: 0.4 });
     const cup = new Mesh(new CylinderGeometry(0.14, 0.12, 0.24, 20), ceramic);

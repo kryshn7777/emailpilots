@@ -243,6 +243,57 @@ export function laptopScreenTexture(): CanvasTexture {
   return texture;
 }
 
+/** Lighthouse hull: classic red/white bands with weather streaks. */
+export function lighthouseTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.fillStyle = '#e8e2d6';
+  ctx.fillRect(0, 0, 256, 512);
+  ctx.fillStyle = '#a5352f';
+  const BANDS = 4;
+  for (let i = 0; i < BANDS; i++) {
+    ctx.fillRect(0, (i * 2 + 0.5) * (512 / (BANDS * 2 + 1)), 256, 512 / (BANDS * 2 + 1));
+  }
+  // weather streaks running down
+  for (let i = 0; i < 90; i++) {
+    ctx.fillStyle = `rgba(40, 44, 52, ${0.04 + Math.random() * 0.08})`;
+    const x = Math.random() * 256;
+    ctx.fillRect(x, Math.random() * 380, 1 + Math.random() * 2, 40 + Math.random() * 120);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  return texture;
+}
+
+/** City road strip: asphalt, center dashes, edge lines. Dashes run along U. */
+export function roadTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.fillStyle = '#191c24';
+  ctx.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 1600; i++) {
+    const v = 20 + Math.random() * 18;
+    ctx.fillStyle = `rgba(${v}, ${v + 2}, ${v + 7}, 0.4)`;
+    ctx.fillRect(Math.random() * 512, Math.random() * 256, 2, 2);
+  }
+  ctx.fillStyle = 'rgba(214, 208, 190, 0.5)';
+  ctx.fillRect(0, 10, 512, 5);
+  ctx.fillRect(0, 241, 512, 5);
+  ctx.fillStyle = 'rgba(226, 220, 200, 0.55)';
+  for (let x = 0; x < 512; x += 86) ctx.fillRect(x, 125, 40, 6);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  return texture;
+}
+
 /** Laptop deck: key grid + trackpad. */
 export function laptopKeysTexture(): CanvasTexture {
   const [canvas, ctx] = makeCanvas(256);

@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'hdri');
 const outFile = join(outDir, 'sky_1k.hdr');
-const url =
-  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloofendal_48d_partly_cloudy_puresky_1k.hdr';
+// night sky matches the overnight arc (CC0, Poly Haven)
+const url = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/dikhololo_night_1k.hdr';
 
 if (existsSync(outFile)) {
   console.log('HDRI already present:', outFile);

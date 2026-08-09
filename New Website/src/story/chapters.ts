@@ -80,8 +80,8 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'beacon', t0: 0.48, t1: 0.58,
-    rig: { fov: 46, camLag: 0.024, lookAhead: 0.014, turbAmp: 0.04, offsetUp: 1.8, offsetSide: 1.0, offsetBack: 1.5 },
-    grade: { zenith: '#071219', horizon: '#0e2a33', sunColor: '#7fe8d8', sunIntensity: 0.5, sunDir: [-0.2, 0.7, 0.4], fogColor: '#0a1d24', fogNear: 15, fogFar: 140, envIntensity: 0.3 },
+    rig: { fov: 46, camLag: 0.024, lookAhead: 0.014, turbAmp: 0.09, offsetUp: 1.8, offsetSide: 1.0, offsetBack: 1.5 },
+    grade: { zenith: '#060b12', horizon: '#0e2530', sunColor: '#7fe8d8', sunIntensity: 0.38, sunDir: [-0.2, 0.7, 0.4], fogColor: '#0a1a21', fogNear: 11, fogFar: 115, envIntensity: 0.26 },
   },
   {
     id: 'no-fly', t0: 0.58, t1: 0.66,
