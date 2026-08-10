@@ -8,13 +8,6 @@ import skyFrag from '../shaders/sky.frag.glsl';
  */
 export class SkyDome {
   readonly mesh: Mesh;
-  /**
-   * Second dome on the SAME material, for the lighting probe: the engine
-   * PMREM-bakes this one into scene.environment so ambient light and
-   * reflections are the sky the chapter is actually showing, not a fixed
-   * HDRI. Sharing the material means it can never drift out of sync.
-   */
-  readonly probeMesh: Mesh;
   private material: ShaderMaterial;
   private geometry = new SphereGeometry(1, 32, 16);
 
@@ -41,9 +34,6 @@ export class SkyDome {
     this.mesh = new Mesh(this.geometry, this.material);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = -1;
-    this.probeMesh = new Mesh(this.geometry, this.material);
-    this.probeMesh.scale.setScalar(10);
-    this.probeMesh.frustumCulled = false;
   }
 
   set sunIntensity(v: number) {

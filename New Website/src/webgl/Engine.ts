@@ -12,6 +12,8 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import {
   BlendFunction,
   BloomEffect,
@@ -97,10 +99,6 @@ export class Engine {
   private launchString = new LaunchString();
   private rig: CameraRig;
   private sky = new SkyDome();
-  private pmrem!: PMREMGenerator;
-  private envScene = new Scene();
-  private envProbeGrade = new Vector3(-1, -1, -1);
-  private envProbeAge = 0;
   private sun = new DirectionalLight('#ffd9a0', 1);
   private hemi = new HemisphereLight('#8fa8cc', '#1a1e2e', 0.35);
   private desk: Desk;
@@ -172,18 +170,25 @@ export class Engine {
     this.scene.fog = this.fog;
     this.camera = new PerspectiveCamera(45, 1, 0.1, 400);
 
-    // Lighting probe: instead of one fixed HDRI for the whole flight, the
-    // chapter's own sky is PMREM-baked into scene.environment and rebuilt
-    // whenever the grade has drifted enough to matter. Every rough metal,
-    // every glossy floor and every lit facade then reflects and picks up
-    // ambient from the sky it is ACTUALLY standing under — storm violet in
-    // the storm, dawn gold on the approach — which is the bounce light a
-    // static environment map can never give you.
-    this.pmrem = new PMREMGenerator(this.renderer);
-    this.pmrem.compileEquirectangularShader();
-    this.envScene.add(this.sky.probeMesh);
-    this.scene.environment = this.pmrem.fromScene(this.envScene).texture;
+    // instant fallback env, upgraded to the real night-sky HDRI when it
+    // streams in — first frame never waits on the network.
+    // (A live probe baked from the chapter's own sky was tried here: it made
+    // the night chapters self-lit by near-black, so the HDRI stays.)
+    const pmrem = new PMREMGenerator(this.renderer);
+    const roomEnv = pmrem.fromScene(new RoomEnvironment());
+    this.scene.environment = roomEnv.texture;
     this.scene.environmentIntensity = 0.3;
+    new HDRLoader().load(
+      '/hdri/sky_1k.hdr',
+      (hdr) => {
+        this.scene.environment = pmrem.fromEquirectangular(hdr).texture;
+        hdr.dispose();
+        roomEnv.dispose();
+        pmrem.dispose();
+      },
+      undefined,
+      () => pmrem.dispose(), // offline: keep the RoomEnvironment look
+    );
 
     const rand = mulberry32(919);
     this.desk = new Desk(new Vector3(0.4, 1.29, 0), this.quality.dustCount, rand);
@@ -410,29 +415,6 @@ export class Engine {
     this.fog.near = num((g) => g.fogNear);
     this.fog.far = num((g) => g.fogFar);
     this.scene.environmentIntensity = num((g) => g.envIntensity);
-    this.refreshEnvProbe(sunLevel);
-  }
-
-  /**
-   * Re-bakes the sky probe when the grade has moved far enough to be worth
-   * it. Rebuilding every frame is a needless few ms; never rebuilding leaves
-   * the storm lit by dawn. The age counter forces a refresh during long slow
-   * drifts that never trip the delta on any single frame.
-   */
-  private refreshEnvProbe(sunLevel: number): void {
-    const now = new Vector3(
-      this.sky.zenith.r + this.sky.horizon.g * 2,
-      this.sky.horizon.b + this.sky.sunColor.r,
-      sunLevel,
-    );
-    this.envProbeAge++;
-    const stale = this.envProbeAge > (this.quality.tier === 'high' ? 90 : 220);
-    if (!stale && now.distanceToSquared(this.envProbeGrade) < 0.0009) return;
-    this.envProbeGrade.copy(now);
-    this.envProbeAge = 0;
-    const next = this.pmrem.fromScene(this.envScene);
-    this.scene.environment?.dispose();
-    this.scene.environment = next.texture;
   }
 
   private renderFrame(): void {
