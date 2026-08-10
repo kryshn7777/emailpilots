@@ -106,6 +106,7 @@ export class Engine {
   private traffic!: Traffic;
   private zoomBlur = new ZoomBlurEffect();
   private blurLevel = 0;
+  private scrubVel = 0;
   private city: City;
   private copilot: Copilot;
   private landing: Landing;
@@ -382,14 +383,24 @@ export class Engine {
     this.lastTime = now;
     const time = (now - this.startTime) / 1000;
     const target = this.idlePreset ? this.idlePreset.t : this.scrollT;
-    // adaptive scrub: chase hard while the world trails the scrollbar (a slow
-    // constant damp read as input lag), relax to the cinematic settle near rest
+    // mass-spring scrub: the world has WEIGHT — it leans into motion,
+    // carries momentum, and settles with a breath of overshoot (ζ≈0.85).
+    // A plain exponential chase tracked fine but felt weightless.
     const err = Math.abs(target - this.renderT);
-    const lambda = MathUtils.lerp(6, 16, MathUtils.clamp(err / 0.01, 0, 1));
-    this.renderT = this.options.reducedMotion
-      ? target
-      : MathUtils.damp(this.renderT, target, lambda, dt);
-    if (Math.abs(target - this.renderT) < 0.0004) this.renderT = target;
+    if (this.options.reducedMotion) {
+      this.renderT = target;
+      this.scrubVel = 0;
+    } else {
+      const K = 170; // stiffness: response ≈ fifth of a second
+      const C = 25; // damping: ζ≈0.96 — weight without jelly
+      this.scrubVel += (target - this.renderT) * K * dt;
+      this.scrubVel *= Math.exp(-C * dt);
+      this.renderT = MathUtils.clamp(this.renderT + this.scrubVel * dt, 0, 1);
+    }
+    if (err < 0.0004 && Math.abs(this.scrubVel) < 0.004) {
+      this.renderT = target;
+      this.scrubVel = 0;
+    }
 
     // speed blur: fast scrubbing streaks the frame along the flight line,
     // easing off as the world catches up (never under reduced motion)

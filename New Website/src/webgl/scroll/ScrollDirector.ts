@@ -25,8 +25,9 @@ export class ScrollDirector {
 
     if (!options.reducedMotion) {
       // lerp above the 0.1 default: Lenis smoothing stacks under the engine's
-      // renderT damp, and the two together read as input lag
-      this.lenis = new Lenis({ autoRaf: false, lerp: 0.14 });
+      // renderT spring, and the two together read as input lag. The lower
+      // wheelMultiplier is the "weight" — each notch moves less world.
+      this.lenis = new Lenis({ autoRaf: false, lerp: 0.14, wheelMultiplier: 0.85 });
       this.lenis.on('scroll', ScrollTrigger.update);
       this.tick = (time: number) => this.lenis?.raf(time * 1000);
       gsap.ticker.add(this.tick);

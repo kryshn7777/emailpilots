@@ -26,6 +26,7 @@ import { CROSS_STREET_X, cityLayout, cityRecipes, type Building } from '../bake/
 import { neonSignTexture, roadTexture } from '../bake/CanvasTextures';
 import { glowTexture } from '../bake/CanvasTextures';
 import { KitCity, type KitLot, type KitRingSet } from './KitCity';
+import { PaperPlane } from './PaperPlane';
 import { mulberry32 } from '../util';
 import type { FlightPath } from '../rig/FlightPath';
 import type { Quality } from '../quality';
@@ -56,6 +57,13 @@ export class City {
   private windowBase: number[] = [];
   private deliveries: Delivery[] = [];
   private envelopeMeshes: Mesh[] = [];
+  private planeLandings: {
+    tStart: number; tEnd: number;
+    from: Vector3; ctrl: Vector3; to: Vector3;
+    windowIndex: number; plane: PaperPlane; wobble: number;
+  }[] = [];
+  private landingPos = new Vector3();
+  private landingAhead = new Vector3();
   private kitCity: KitCity | null = null;
   private color = new Color();
   private disposables: { dispose(): void }[] = [];
@@ -119,6 +127,7 @@ export class City {
     this.buildRoofDetail(buildings.filter((_, i) => nearSet.has(i)));
     this.buildStreetDressing(keep(nearSet));
     this.buildDeliveries(buildings, path);
+    this.buildPlaneLandings(path);
   }
 
   private blinkMaterial!: PointsMaterial;
@@ -621,6 +630,56 @@ export class City {
     }
   }
 
+  /**
+   * Other pilots' mail arriving: five paper darts dive out of the night and
+   * disappear INTO windows spread across the city — each landing lights its
+   * window through the same mechanism the envelope deliveries use.
+   */
+  private buildPlaneLandings(path: FlightPath): void {
+    const rand = mulberry32(1201);
+    if (!this.windowBase.length) return;
+    const wm = new Matrix4();
+    const slot = new Vector3();
+    // canyon-adjacent windows only, sorted along the dive so each landing
+    // happens AHEAD of the camera where its window is actually in frame
+    const candidates: { index: number; x: number }[] = [];
+    for (let w = 0; w < this.windowBase.length; w++) {
+      this.windows.getMatrixAt(w, wm);
+      slot.setFromMatrixPosition(wm);
+      if (Math.abs(slot.z) < 7 && slot.x > -24 && slot.x < 30 && slot.y > 1.5) {
+        candidates.push({ index: w, x: slot.x });
+      }
+    }
+    if (!candidates.length) return;
+    candidates.sort((a, b) => a.x - b.x);
+    for (let i = 0; i < 5; i++) {
+      const tStart = 0.698 + i * 0.021;
+      const tEnd = tStart + 0.03;
+      const pick = candidates[Math.min(
+        Math.floor(((i + rand() * 0.6) / 5) * candidates.length),
+        candidates.length - 1,
+      )]!;
+      this.windows.getMatrixAt(pick.index, wm);
+      const to = slot.setFromMatrixPosition(wm).clone();
+      // enter high over the canyon, slightly ahead of the flight line
+      const from = path.storyPoint(Math.min(tStart + 0.012, 0.82)).clone();
+      from.x -= this.group.position.x;
+      from.z -= this.group.position.z;
+      from.y += 5 + rand() * 3;
+      from.z += (rand() < 0.5 ? -1 : 1) * (3 + rand() * 3);
+      const ctrl = from.clone().lerp(to, 0.45);
+      ctrl.y = Math.max(from.y, to.y) + 2;
+      const plane = new PaperPlane();
+      plane.setFold(1);
+      plane.group.scale.setScalar(0.55);
+      plane.group.visible = false;
+      this.group.add(plane.group);
+      this.planeLandings.push({
+        tStart, tEnd, from, ctrl, to, windowIndex: pick.index, plane, wobble: rand() * 6.28,
+      });
+    }
+  }
+
   update(t: number, time = 0): void {
     if (!this.group.visible) return;
     // traffic loops on absolute time only — the scene lives on its own, with
@@ -658,11 +717,52 @@ export class City {
         colorsDirty = true;
       }
     }
+    // — dart landings: dive in, shrink into the window, light it —
+    for (const landing of this.planeLandings) {
+      const u = MathUtils.clamp((t - landing.tStart) / (landing.tEnd - landing.tStart), 0, 1);
+      const inFlight = u > 0 && u < 1;
+      landing.plane.group.visible = inFlight;
+      if (inFlight) {
+        const eased = u * u * (3 - 2 * u);
+        const a = 1 - eased;
+        this.landingPos
+          .copy(landing.from).multiplyScalar(a * a)
+          .addScaledVector(landing.ctrl, 2 * a * eased)
+          .addScaledVector(landing.to, eased * eased);
+        landing.plane.group.position.copy(this.landingPos);
+        const u2 = Math.min(eased + 0.04, 1);
+        const a2 = 1 - u2;
+        this.landingAhead
+          .copy(landing.from).multiplyScalar(a2 * a2)
+          .addScaledVector(landing.ctrl, 2 * a2 * u2)
+          .addScaledVector(landing.to, u2 * u2);
+        // lookAt wants WORLD space; the group only translates, never rotates
+        this.landingAhead.add(this.group.position);
+        landing.plane.group.lookAt(this.landingAhead);
+        landing.plane.flex(time + landing.wobble, 1);
+        // shrink into the window over the last stretch — "lands inside"
+        const swallow = MathUtils.smoothstep(u, 0.82, 1);
+        landing.plane.group.scale.setScalar(0.55 * (1 - swallow));
+      }
+      const arrived = u >= 1;
+      const base = this.windowBase[landing.windowIndex]!;
+      const target = arrived ? 2.2 : base;
+      this.windows.getColorAt(landing.windowIndex, this.color);
+      const current = this.color.r / Math.max(WINDOW_AMBER.r, 1e-4);
+      if (Math.abs(current - target) > 0.02) {
+        this.windows.setColorAt(
+          landing.windowIndex,
+          this.color.copy(WINDOW_AMBER).multiplyScalar(current + (target - current) * 0.25),
+        );
+        colorsDirty = true;
+      }
+    }
     if (colorsDirty && this.windows.instanceColor) this.windows.instanceColor.needsUpdate = true;
   }
 
   dispose(): void {
     this.kitCity?.dispose();
+    for (const landing of this.planeLandings) landing.plane.dispose();
     for (const d of this.disposables) d.dispose();
   }
 }

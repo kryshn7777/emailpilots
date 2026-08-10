@@ -50,7 +50,9 @@ void main() {
 
   float steps = max(uSteps, 8.0);
   float stepLen = (tFar - tNear) / steps;
-  float jitter = hash12(gl_FragCoord.xy + fract(uTime) * 61.0);
+  // STATIC jitter: re-rolling it per frame made the whole slab crawl with
+  // shimmering grain — a stable dither pattern reads as texture, not noise
+  float jitter = hash12(gl_FragCoord.xy);
   float t = tNear + stepLen * jitter;
 
   vec3 sunDir = normalize(uSunDir);

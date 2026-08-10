@@ -63,6 +63,7 @@ export class Beacon {
   private towerTop = new Vector3();
   private flareMaterial: SpriteMaterial;
   private ship = new Group();
+  private beamYaw: number | null = null;
   private disposables: { dispose(): void }[] = [];
 
   constructor(anchor: Vector3, raycast: Raycast, private tooltip: Tooltip, quality: Quality) {
@@ -402,8 +403,16 @@ export class Beacon {
     }
     const beat = MathUtils.smoothstep(t, 0.495, 0.505) * (1 - MathUtils.smoothstep(t, 0.53, 0.54));
     const sweep = camYaw + (t - 0.5175) * 60; // crosses the lens mid-window
-    const yaw = MathUtils.lerp(freeYaw, sweep, beat);
-    this.beamPivot.rotation.y = yaw;
+    // blend ANGLES, not raw accumulators: freeYaw is hundreds of radians, so
+    // a direct lerp spun the beam wildly through the blend (the stutter)
+    const freeNear = sweep + Math.atan2(Math.sin(freeYaw - sweep), Math.cos(freeYaw - sweep));
+    const desired = MathUtils.lerp(freeNear, sweep, beat);
+    // rate-limit the swing: a ±π wrap flip becomes a fast continuous sweep
+    // instead of a single-frame teleport
+    const prev = this.beamYaw ?? desired;
+    const step = Math.atan2(Math.sin(desired - prev), Math.cos(desired - prev));
+    this.beamYaw = prev + MathUtils.clamp(step, -0.11, 0.11);
+    this.beamPivot.rotation.y = this.beamYaw;
     this.beamMaterial.uniforms.uTime!.value = time;
     // the beam stands down entering CH7 — inside-the-cone frames wash teal
     this.beamMaterial.uniforms.uIntensity!.value =
@@ -425,8 +434,8 @@ export class Beacon {
     this.sea.visible = reveal > 0.003;
 
     // — beam hits: the sweep catching the plane, then the lens —
-    const beamX = Math.cos(yaw);
-    const beamZ = -Math.sin(yaw);
+    const beamX = Math.cos(this.beamYaw);
+    const beamZ = -Math.sin(this.beamYaw);
     const lampGlow = this.beamMaterial.uniforms.uIntensity!.value / 0.8;
     let dx = planePos.x - this.towerTop.x;
     let dz = planePos.z - this.towerTop.z;
