@@ -18,9 +18,10 @@ const SLUGS = [
   'binder_notebook',
   'office_notepads',
   'clipboard',
-  // CH6 sea: a real rigged hull, replacing the toy kit ship
-  'dutch_ship_medium',
 ];
+// No ship here on purpose: Poly Haven's entire `ships` category is four
+// wooden colonial sailing vessels from one collection, so every option reads
+// as a pirate ship. CH6's freighter is procedural, in actors/Beacon.ts.
 
 function download(url, file, redirectsLeft = 3) {
   return new Promise((resolve, reject) => {
