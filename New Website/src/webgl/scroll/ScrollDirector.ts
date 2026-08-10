@@ -19,6 +19,10 @@ export class ScrollDirector {
   private lenis: Lenis | null = null;
   private trigger: ScrollTrigger;
   private tick: ((time: number) => void) | null = null;
+  /** story position captured before a re-measure, re-applied after it */
+  private heldProgress: number | null = null;
+  private onRefreshInit: () => void;
+  private onRefresh: () => void;
 
   constructor(options: ScrollDirectorOptions) {
     history.scrollRestoration = 'manual';
@@ -40,6 +44,39 @@ export class ScrollDirector {
       scrub: true,
       onUpdate: (self) => options.onProgress(self.progress),
     });
+
+    /**
+     * Hold the STORY position across a re-measure, not the pixel offset.
+     *
+     * `end` is scrollHeight − innerHeight, so anything that changes the page
+     * or viewport height changes it, and progress is scroll/end. ScrollTrigger
+     * preserves the scroll offset across a refresh, which means the flight
+     * teleports: measured at 1280×641 → 1280×900, scroll held at 4039px while
+     * end went 8077 → 11340, and the story jumped 0.500 → 0.356 — a chapter
+     * and a half backwards for a window resize. A phone rotating, or the
+     * mobile URL bar collapsing, does the same thing.
+     *
+     * Re-anchoring is skipped when the correction is under 0.5% of the story,
+     * so the constant few-pixel viewport churn on mobile can't start a
+     * feedback loop with the bar it is caused by.
+     */
+    this.onRefreshInit = () => {
+      this.heldProgress = this.trigger?.progress ?? null;
+    };
+    this.onRefresh = () => {
+      const held = this.heldProgress;
+      this.heldProgress = null;
+      if (held === null || !this.trigger) return;
+      const end = this.trigger.end;
+      if (!(end > 0)) return;
+      const target = held * end;
+      const current = this.lenis ? this.lenis.scroll : window.scrollY;
+      if (Math.abs(target - current) < end * 0.005) return;
+      if (this.lenis) this.lenis.scrollTo(target, { immediate: true, force: true });
+      else window.scrollTo(0, target);
+    };
+    ScrollTrigger.addEventListener('refreshInit', this.onRefreshInit);
+    ScrollTrigger.addEventListener('refresh', this.onRefresh);
   }
 
   /** Instant scroll-to-top for page swaps (Lenis-aware). */
@@ -54,6 +91,8 @@ export class ScrollDirector {
   }
 
   dispose(): void {
+    ScrollTrigger.removeEventListener('refreshInit', this.onRefreshInit);
+    ScrollTrigger.removeEventListener('refresh', this.onRefresh);
     this.trigger.kill();
     if (this.tick) gsap.ticker.remove(this.tick);
     this.lenis?.destroy();
