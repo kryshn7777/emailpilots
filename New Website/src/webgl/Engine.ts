@@ -5,6 +5,10 @@ import {
   HalfFloatType,
   HemisphereLight,
   MathUtils,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  Object3D,
   PMREMGenerator,
   PerspectiveCamera,
   Scene,
@@ -61,7 +65,7 @@ import { Raycast } from './interact/Raycast';
 import { Tooltip } from './interact/Tooltip';
 import { SkyDome } from './materials/SkyDome';
 import { ScrollDirector } from './scroll/ScrollDirector';
-import { detectQuality, gpuRendererString } from './quality';
+import { UNLIT, detectQuality, gpuRendererString } from './quality';
 import { mulberry32 } from './util';
 
 interface EngineOptions {
@@ -252,7 +256,7 @@ export class Engine {
     // objects sit in a room instead of floating in front of it. HIGH only:
     // it costs a normal buffer plus a screen pass.
     const effects: Effect[] = [];
-    if (this.quality.tier === 'high') {
+    if (this.quality.tier === 'high' && !UNLIT) {
       const normalPass = new NormalPass(this.scene, this.camera);
       this.composer.addPass(normalPass);
       effects.push(
@@ -272,19 +276,23 @@ export class Engine {
         }),
       );
     }
-    effects.push(
-      new BloomEffect({ luminanceThreshold: 0.85, intensity: 1.1, mipmapBlur: true }),
-      this.zoomBlur,
-      new VignetteEffect({ darkness: 0.55 }),
-    );
+    // bloom is a mip chain over the whole frame and it exists to sell light —
+    // blockout mode keeps only the scroll blur and the vignette
+    if (!UNLIT) {
+      effects.push(new BloomEffect({ luminanceThreshold: 0.85, intensity: 1.1, mipmapBlur: true }));
+    }
+    effects.push(this.zoomBlur, new VignetteEffect({ darkness: 0.55 }));
     this.composer.addPass(new EffectPass(this.camera, ...effects));
 
     this.resize();
     window.addEventListener('resize', this.resize);
     this.canvas.addEventListener('webglcontextlost', this.onContextLost);
 
+    if (UNLIT) this.flatten(this.scene);
+
     // streamed-in content (city GLB, desk props) compiles off the scroll path
     setCompiler((subtree) => {
+      if (UNLIT) this.flatten(subtree);
       void this.renderer.compileAsync(subtree, this.camera, this.scene).catch(() => {});
     });
 
@@ -416,6 +424,43 @@ export class Engine {
     this.fog.far = num((g) => g.fogFar);
     this.scene.environmentIntensity = num((g) => g.envIntensity);
   }
+
+  /**
+   * Blockout mode: swap every lit material for a flat one. Emissive is folded
+   * into the base colour so anything that was glowing (screens, lit windows,
+   * beacons) still reads, and the cache keys off the source material so
+   * instanced meshes keep sharing one material — and one draw call.
+   */
+  private flatten(root: Object3D): void {
+    root.traverse((o) => {
+      const mesh = o as Mesh;
+      if (!mesh.isMesh || Array.isArray(mesh.material)) return;
+      const src = mesh.material as MeshStandardMaterial;
+      if (!src?.isMeshStandardMaterial) return;
+      let flat = this.flatCache.get(src);
+      if (!flat) {
+        const color = src.color.clone();
+        if (src.emissiveIntensity > 0) {
+          color.add(src.emissive.clone().multiplyScalar(Math.min(src.emissiveIntensity, 1.4)));
+        }
+        flat = new MeshBasicMaterial({
+          color,
+          map: src.map ?? src.emissiveMap,
+          transparent: src.transparent,
+          opacity: src.opacity,
+          side: src.side,
+          depthWrite: src.depthWrite,
+          fog: src.fog,
+        });
+        this.flatCache.set(src, flat);
+        this.flatMaterials.push(flat);
+      }
+      mesh.material = flat;
+    });
+  }
+
+  private flatCache = new Map<MeshStandardMaterial, MeshBasicMaterial>();
+  private flatMaterials: MeshBasicMaterial[] = [];
 
   private renderFrame(): void {
     const now = performance.now();

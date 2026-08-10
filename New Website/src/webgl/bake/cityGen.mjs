@@ -126,6 +126,12 @@ export function rooftopLots(modules) {
   for (let i = 0; i < 600; i++) {
     tower(54 + rand() * 150, -105 + rand() * 210, 4.5 + rand() * 3.5);
   }
+  // the rest of the city, out to the horizon. Every one of these falls in
+  // the FAR ring, so they cost one instanced box each and carry their
+  // windows in the impostor texture — this is where density is cheap.
+  for (let i = 0; i < 2200; i++) {
+    tower(-40 + rand() * 460, -260 + rand() * 520, 4 + rand() * 5);
+  }
   return { lots };
 }
 

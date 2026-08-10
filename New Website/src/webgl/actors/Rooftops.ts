@@ -6,12 +6,13 @@ import {
   Group,
   Mesh,
   MeshBasicMaterial,
+  MeshStandardMaterial,
   PlaneGeometry,
   Points,
   PointsMaterial,
 } from 'three';
 import { ROOFTOP_BASE_Y, ROOFTOP_DECK_Y, rooftopLots } from '../bake/cityGen.mjs';
-import { cloudDeckTexture, glowTexture } from '../bake/CanvasTextures';
+import { cityGridTexture, cloudDeckTexture, glowTexture } from '../bake/CanvasTextures';
 import { KitCity, type KitLot, type KitRingSet } from './KitCity';
 import type { Quality } from '../quality';
 
@@ -29,13 +30,30 @@ export class Rooftops {
   private disposables: { dispose(): void }[] = [];
 
   constructor(rand: () => number, quality: Quality) {
-    // two offset cloud sheets: the lower one closes every gap, the upper one
-    // parallaxes over it so the deck has depth without a raymarch
+    // the city floor: streets, blocks and traffic, far below the window
+    const gridMap = cityGridTexture();
+    gridMap.repeat.set(22, 18);
+    const groundMaterial = new MeshStandardMaterial({
+      map: gridMap,
+      roughness: 0.82,
+      metalness: 0.05,
+      emissive: '#20293f',
+      emissiveMap: gridMap,
+      emissiveIntensity: 0.55, // street light and traffic read at altitude
+    });
+    const ground = new Mesh(new PlaneGeometry(900, 700), groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.set(60, ROOFTOP_BASE_Y + 0.05, 0);
+    this.group.add(ground);
+    this.disposables.push(ground.geometry, groundMaterial, gridMap);
+
+    // two offset cloud sheets drifting over it — broken, not a lid, so the
+    // grid below stays readable through the gaps
     const deckMap = cloudDeckTexture();
     this.disposables.push(deckMap);
     for (const [y, repeat, opacity, scale] of [
-      [ROOFTOP_DECK_Y - 3.5, 7, 1, 1],
-      [ROOFTOP_DECK_Y, 4.5, 0.9, 0.82],
+      [ROOFTOP_DECK_Y - 3.5, 7, 0.62, 1],
+      [ROOFTOP_DECK_Y, 4.5, 0.5, 0.82],
     ] as const) {
       const material = new MeshBasicMaterial({
         map: deckMap,

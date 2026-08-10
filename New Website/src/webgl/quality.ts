@@ -1,5 +1,15 @@
 export type Tier = 'high' | 'low';
 
+/**
+ * Blockout mode: every lit material renders flat, and the expensive passes
+ * (ambient occlusion, bloom, the raymarched cloud slab) are off, so the
+ * scene can be judged on staging, silhouette and colour alone before any of
+ * it is lit. `?lit=1` restores the full renderer.
+ */
+export const UNLIT = !new URLSearchParams(
+  typeof location === 'undefined' ? '' : location.search,
+).has('lit');
+
 export interface Quality {
   tier: Tier;
   maxDpr: number;
@@ -46,14 +56,17 @@ const LOW: Quality = {
 export function detectQuality(gpuString: string): Quality {
   void gpuString;
   const forced = new URLSearchParams(location.search).get('q');
-  if (forced === 'low') return LOW;
-  if (forced === 'high') return HIGH;
+  // the raymarched slab is the single heaviest thing in the frame and it is
+  // a lighting effect — blockout mode does without it
+  const tier = (q: Quality): Quality => (UNLIT ? { ...q, volumetricClouds: false, cloudSteps: 0 } : q);
+  if (forced === 'low') return tier(LOW);
+  if (forced === 'high') return tier(HIGH);
 
   // phones AND tablets ride the mobile profile (baked LOW city rings etc.)
   const smallScreen = Math.min(screen.width, screen.height) < 1024;
   const coarse = matchMedia('(pointer: coarse)').matches;
-  if (coarse && smallScreen) return LOW;
-  return HIGH;
+  if (coarse && smallScreen) return tier(LOW);
+  return tier(HIGH);
 }
 
 /** Unmasked GPU renderer string, best effort. */
