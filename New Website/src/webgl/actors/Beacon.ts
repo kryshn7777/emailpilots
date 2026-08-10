@@ -47,8 +47,40 @@ import rainFrag from '../shaders/rain.frag.glsl';
  * splash bursts on the beat, local rain — with the sweeping beam and radar
  * rings carrying the deliverability story through the storm.
  */
+/**
+ * The lighthouse and its islet are built at unit scale and then scaled as one
+ * — the camera crosses this chapter at y≈20 and the old 12-unit tower ended
+ * up BELOW the lens, which reads as a model on a table. At 1.75× the lantern
+ * sits well above the flight line, so the shot looks UP at the light.
+ * Anything anchored to the lantern (beam pivot, flare, tooltip) multiplies by
+ * this, so keep those in sync when changing it.
+ */
+const TOWER_SCALE = 1.55;
+
+/**
+ * Where the freighter steams during the beacon chapter, in island-local
+ * space. It is staged FAR and LARGE rather than near and cropped: the camera
+ * flies 13 units above the water, so a close hull sits under the frame edge
+ * (the old one left the shot entirely by t≈0.505). At this range it holds the
+ * lower-right third through the whole sweep, and it is heading for the light —
+ * a vessel being guided in, which is the chapter's whole point.
+ */
+/**
+ * Riding height. The hull is 5 units deep at this scale, and at the old 0.5
+ * it sat roughly 40% under — the ship read as half-sunk rather than loaded.
+ */
+const SHIP_Y = 1.0;
+/**
+ * The leg stays well out to seaward: the freighter is ~38 units long now, so
+ * a track any closer swung its bow in over the islet's rocks.
+ */
+const SHIP_FROM = new Vector3(44, SHIP_Y, 40);
+const SHIP_TO = new Vector3(34, SHIP_Y, 4);
+
 export class Beacon {
   readonly group = new Group();
+  /** the island: tower, rocks, cottage — scaled as one by TOWER_SCALE */
+  private tower = new Group();
   private beam: Mesh;
   private beamPivot = new Group();
   private beamMaterial: ShaderMaterial;
@@ -65,13 +97,16 @@ export class Beacon {
   private towerTop = new Vector3();
   private flareMaterial: SpriteMaterial;
   private ship = new Group();
+  private wake!: Mesh;
   private beamYaw: number | null = null;
   private disposables: { dispose(): void }[] = [];
 
   constructor(anchor: Vector3, raycast: Raycast, private tooltip: Tooltip, quality: Quality) {
     const baseY = anchor.y - 13;
     this.group.position.set(anchor.x + 8, baseY, anchor.z - 2.5);
-    this.towerTop.copy(this.group.position).add(new Vector3(0, 12.4, 0));
+    this.towerTop.copy(this.group.position).add(new Vector3(0, 12.4 * TOWER_SCALE, 0));
+    this.tower.scale.setScalar(TOWER_SCALE);
+    this.group.add(this.tower);
 
     // — the tower: banded hull on a splayed stone base, corbelled gallery
     // with a real balustrade, glazed lantern room around a Fresnel drum,
@@ -94,7 +129,7 @@ export class Beacon {
     const part = (g: BufferGeometry, m: MeshStandardMaterial, y: number): Mesh => {
       const mesh = new Mesh(g, m);
       mesh.position.y = y;
-      this.group.add(mesh);
+      this.tower.add(mesh);
       this.disposables.push(g);
       return mesh;
     };
@@ -117,7 +152,7 @@ export class Beacon {
         inst.setMatrixAt(i, dummy.matrix);
       }
       inst.instanceMatrix.needsUpdate = true;
-      this.group.add(inst);
+      this.tower.add(inst);
       this.disposables.push(g, inst);
     };
 
@@ -132,7 +167,7 @@ export class Beacon {
       const r = new Mesh(new TorusGeometry(1.08, 0.032, 6, 28), trim);
       r.rotation.x = Math.PI / 2;
       r.position.y = y;
-      this.group.add(r);
+      this.tower.add(r);
       this.disposables.push(r.geometry);
     };
     railTube(12.06);
@@ -146,7 +181,7 @@ export class Beacon {
       const band = new Mesh(new TorusGeometry(0.635, 0.035, 6, 24), trim);
       band.rotation.x = Math.PI / 2;
       band.position.y = y;
-      this.group.add(band);
+      this.tower.add(band);
       this.disposables.push(band.geometry);
     }
     ring(new BoxGeometry(0.05, 0.86, 0.05), trim, 8, 0.625, 12.2);
@@ -161,7 +196,7 @@ export class Beacon {
       const step = new Mesh(new TorusGeometry(0.3, 0.045, 6, 18), lensGlass);
       step.rotation.x = Math.PI / 2;
       step.position.y = y;
-      this.group.add(step);
+      this.tower.add(step);
       this.disposables.push(step.geometry);
     }
     this.disposables.push(lensGlass);
@@ -190,7 +225,7 @@ export class Beacon {
       slits.setMatrixAt(i, slitDummy.matrix);
     }
     slits.instanceMatrix.needsUpdate = true;
-    this.group.add(slits);
+    this.tower.add(slits);
     this.disposables.push(slitGeometry, slit, slits);
 
     // entry: door into the base with a small hood, reached off the walkway
@@ -203,7 +238,7 @@ export class Beacon {
     const hood = new Mesh(new BoxGeometry(0.68, 0.08, 0.3), trim);
     hood.position.set(1.06, 1.14, 0.58);
     hood.rotation.y = -0.5;
-    this.group.add(doorway, hood);
+    this.tower.add(doorway, hood);
     this.disposables.push(
       doorway.geometry, doorway.material as MeshStandardMaterial, hood.geometry,
     );
@@ -212,7 +247,7 @@ export class Beacon {
     const walk = new Mesh(new BoxGeometry(1.9, 0.1, 0.75), stone);
     walk.position.set(1.9, 0.28, 0.5);
     walk.rotation.y = -0.25;
-    this.group.add(walk);
+    this.tower.add(walk);
     this.disposables.push(walk.geometry);
 
     // — the islet: wet rocks breaking the swell —
@@ -228,7 +263,7 @@ export class Beacon {
       m.position.set(x, y, z);
       m.scale.y = 0.55;
       m.rotation.set(x, z, x * z);
-      this.group.add(m);
+      this.tower.add(m);
       this.disposables.push(g);
     }
 
@@ -264,16 +299,18 @@ export class Beacon {
     cottage.add(walls, roofPrism, chimney, door);
     cottage.position.set(2.4, 0, 0.4);
     cottage.rotation.y = -0.25;
-    this.group.add(cottage);
+    this.tower.add(cottage);
     this.disposables.push(
       walls.geometry, roofPrism.geometry, chimney.geometry, door.geometry,
       cottageWall, cottageRoof, door.material as MeshStandardMaterial, windowGlow,
     );
 
     // — the sea — oversized so the camera never looks past its far edge
-    // into black void on the way out of the chapter
+    // into black void on the way out of the chapter. Scaled up with the
+    // island: the freighter now stands well out to sea, and the water has to
+    // read as open ocean behind it rather than a pond with a far edge.
     const seg = quality.tier === 'high' ? 128 : 72;
-    const seaGeometry = new PlaneGeometry(340, 220, seg, Math.floor(seg / 2));
+    const seaGeometry = new PlaneGeometry(640, 420, seg, Math.floor(seg / 2));
     this.oceanMaterial = new ShaderMaterial({
       vertexShader: oceanVert,
       fragmentShader: oceanFrag,
@@ -285,8 +322,10 @@ export class Beacon {
         uMoonDir: { value: new Vector3(-0.2, 0.7, 0.4) },
         uTowerXZ: { value: new Vector2(this.group.position.x, this.group.position.z) },
         uFogColor: { value: new Color('#0a1d24') },
-        uFogNear: { value: 14 },
-        uFogFar: { value: 130 },
+        uFogNear: { value: 20 },
+        // pushed out with the bigger sea, so the horizon is distance rather
+        // than a wall of fog a few ship-lengths out
+        uFogFar: { value: 210 },
         uCamPos: { value: new Vector3() },
         uReveal: { value: 0 },
       },
@@ -304,8 +343,14 @@ export class Beacon {
     const splashPos = new Float32Array(SPLASHES * 3);
     for (let i = 0; i < SPLASHES; i++) {
       const a = rand() * Math.PI * 2;
-      const r = 1.9 + rand() * 1.4;
-      this.splashBase.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, phase: rand(), h: 1.2 + rand() * 1.6 });
+      // the surge ring follows the island's new footprint
+      const r = (1.9 + rand() * 1.4) * TOWER_SCALE;
+      this.splashBase.push({
+        x: Math.cos(a) * r,
+        z: Math.sin(a) * r,
+        phase: rand(),
+        h: (1.2 + rand() * 1.6) * TOWER_SCALE,
+      });
       splashPos[i * 3] = this.splashBase[i]!.x;
       splashPos[i * 3 + 2] = this.splashBase[i]!.z;
     }
@@ -375,12 +420,16 @@ export class Beacon {
       blending: AdditiveBlending,
       side: DoubleSide,
     });
-    const beamGeometry = new CylinderGeometry(0.12, 3.2, 26, 24, 1, true);
+    // The cone widens with the tower and reaches far enough to rake the
+    // freighter standing off to seaward. It also tilts DOWN now: the lantern
+    // sits ~8 units above the flight line at 1.75×, so a level beam would
+    // sweep over the lens and the "light crosses the camera" beat would die.
+    const beamGeometry = new CylinderGeometry(0.12 * TOWER_SCALE, 3.2 * TOWER_SCALE, 46, 24, 1, true);
     this.beam = new Mesh(beamGeometry, this.beamMaterial);
     this.beam.rotation.z = Math.PI / 2;
-    this.beam.position.x = 13;
-    this.beamPivot.position.y = 12.2;
-    this.beamPivot.rotation.z = 0.12;
+    this.beam.position.x = 23;
+    this.beamPivot.position.y = 12.2 * TOWER_SCALE;
+    this.beamPivot.rotation.z = -0.26;
     this.beamPivot.add(this.beam);
     this.group.add(this.beamPivot);
     this.disposables.push(beamGeometry, this.beamMaterial);
@@ -396,8 +445,8 @@ export class Beacon {
       depthTest: false,
     });
     const flare = new Sprite(this.flareMaterial);
-    flare.position.set(0, 12.2, 0);
-    flare.scale.setScalar(5);
+    flare.position.set(0, 12.2 * TOWER_SCALE, 0);
+    flare.scale.setScalar(5 * TOWER_SCALE);
     this.group.add(flare);
     this.disposables.push(this.flareMaterial);
 
@@ -415,7 +464,7 @@ export class Beacon {
       });
       const ring = new Mesh(new RingGeometry(0.96, 1, 48), m);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 1.1;
+      ring.position.y = 1.1 * TOWER_SCALE;
       this.group.add(ring);
       this.rings.push(ring);
       this.ringMaterials.push(m);
@@ -575,11 +624,34 @@ export class Beacon {
     );
     this.disposables.push(lightGeometry, lightMaterial);
 
-    // dead ahead on the approach line: the camera flies straight over the
-    // freighter's deck just before reaching the tower
-    this.ship.position.set(-16.2, 0.5, 2.4);
-    this.ship.rotation.y = 0.25;
-    this.ship.scale.setScalar(2.6);
+    // Staged out to seaward on the camera's right, bow up toward the light,
+    // and big — the old hull sat dead ahead UNDER the flight line, so the
+    // camera flew over its containers and never read the ship at all. The
+    // heading is baked from the SHIP_FROM→SHIP_TO leg so the bow always
+    // points where it is actually going.
+    this.ship.position.copy(SHIP_FROM);
+    const leg = SHIP_TO.clone().sub(SHIP_FROM);
+    this.ship.rotation.y = Math.atan2(-leg.z, leg.x); // model's bow is +x
+    this.ship.scale.setScalar(4.4);
+
+    // wake: a long foam wedge lying flat on the water behind the hull, kept
+    // in the island's frame (not the ship's) so the swell roll never tips it
+    const wakeMaterial = new MeshStandardMaterial({
+      color: '#0b2b30',
+      emissive: '#9fd6cf',
+      emissiveIntensity: 0.9,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+      side: DoubleSide,
+      map: glowTexture(),
+    });
+    const wakeGeometry = new PlaneGeometry(54, 7);
+    this.wake = new Mesh(wakeGeometry, wakeMaterial);
+    this.wake.rotation.x = -Math.PI / 2;
+    this.wake.renderOrder = 1;
+    this.group.add(this.wake);
+    this.disposables.push(wakeGeometry, wakeMaterial);
     this.group.add(this.ship);
   }
 
@@ -645,11 +717,30 @@ export class Beacon {
     const camHit = Math.pow(Math.max((beamX * dx + beamZ * dz) / len, 0), 30) * lampGlow;
     this.flareMaterial.opacity = camHit * 0.95;
 
-    // — the freighter rides the swell —
-    this.ship.position.y = 0.5 + Math.sin(time * 0.7) * 0.3;
+    // — the freighter stands in toward the light —
+    // The passage is STORY-T driven, not wall-clock: the ship has to cross
+    // the same part of the frame on every scroll-through, or the shot is
+    // whatever the page happened to be doing when you got there. Wall-clock
+    // is left to the swell it rides on.
+    const passage = MathUtils.smoothstep(t, 0.43, 0.6);
+    this.ship.position.lerpVectors(SHIP_FROM, SHIP_TO, passage);
+    this.ship.position.y = SHIP_Y + Math.sin(time * 0.7) * 0.3;
     this.ship.rotation.z = Math.sin(time * 0.7 + 1.3) * 0.05;
     this.ship.rotation.x = Math.sin(time * 0.55) * 0.035;
-    this.ship.position.x = -16.2 + Math.sin(time * 0.07) * 2;
+
+    // the wake lies flat astern, along the heading, fading with the sea
+    this.wake.visible = this.ship.visible;
+    if (this.wake.visible) {
+      this.wake.position.set(
+        this.ship.position.x - Math.cos(this.ship.rotation.y) * 21,
+        0.32,
+        this.ship.position.z + Math.sin(this.ship.rotation.y) * 21,
+      );
+      // a plane pitched flat by rotation.x maps its long axis to
+      // (cos z, 0, −sin z), so this matches the hull's heading exactly
+      this.wake.rotation.z = this.ship.rotation.y;
+      (this.wake.material as MeshStandardMaterial).opacity = reveal * 0.3;
+    }
 
     // splash bursts: parabolic arcs synced to the surge beat
     const attr = this.splashGeometry.attributes.position!;
