@@ -487,8 +487,12 @@ export class Engine {
       this.renderT = target;
       this.scrubVel = 0;
     } else {
-      const K = 170; // stiffness: response ≈ fifth of a second
-      const C = 25; // damping: ζ≈0.96 — weight without jelly
+      // Softer and less damped than before: K 170/C 25 sat at ζ≈0.96, which
+      // is a spring that stops dead on arrival. ζ≈0.80 lets the world lean
+      // past the target and settle back, so the flight carries its own
+      // momentum a few frames beyond the scroll instead of being pinned to it.
+      const K = 120; // stiffness: response ≈ quarter of a second
+      const C = 17.5; // damping: ζ≈0.80 — weight, with a breath of overshoot
       this.scrubVel += (target - this.renderT) * K * dt;
       this.scrubVel *= Math.exp(-C * dt);
       this.renderT = MathUtils.clamp(this.renderT + this.scrubVel * dt, 0, 1);

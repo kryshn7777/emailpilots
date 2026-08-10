@@ -28,10 +28,19 @@ export class ScrollDirector {
     history.scrollRestoration = 'manual';
 
     if (!options.reducedMotion) {
-      // lerp above the 0.1 default: Lenis smoothing stacks under the engine's
-      // renderT spring, and the two together read as input lag. The lower
-      // wheelMultiplier is the "weight" — each notch moves less world.
-      this.lenis = new Lenis({ autoRaf: false, lerp: 0.14, wheelMultiplier: 0.85 });
+      /**
+       * Weight, and a coast after you let go.
+       *
+       * lerp is the whole trick: Lenis eases its scroll toward a target the
+       * wheel has already moved, so a LOWER lerp keeps easing for longer after
+       * the last input — that carry-on is the "few frames forward" rather than
+       * a hard stop the moment your finger leaves. 0.075 coasts; the old 0.14
+       * arrived almost immediately.
+       *
+       * wheelMultiplier goes back up to 1: with the coast doing the work, a
+       * damped notch just felt like resistance instead of mass.
+       */
+      this.lenis = new Lenis({ autoRaf: false, lerp: 0.075, wheelMultiplier: 1 });
       this.lenis.on('scroll', ScrollTrigger.update);
       this.tick = (time: number) => this.lenis?.raf(time * 1000);
       gsap.ticker.add(this.tick);

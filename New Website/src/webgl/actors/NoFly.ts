@@ -53,10 +53,16 @@ export class NoFly {
     // the descent line by > radius + 4 — the flight threads between them and
     // none can swallow the frame. They overlap future city lots, but the city
     // only fades in after 0.655 while these fade out — a deliberate crossfade.
+    // Spacing is the point. At +13/+20/+27 the three zones were 7 units apart
+    // with two of them on the same side of the line (z +3 and +4), so they
+    // read as one clump the flight had to squirm through — the bend looked
+    // like a slalom around a single obstacle. Now ~13 apart and clearly
+    // alternating sides, with smaller radii, so each is its own detour and
+    // the gaps between them are legible.
     const zones: [number, number, number][] = [
-      [anchor.x + 13, anchor.z + 3, 6.5],
-      [anchor.x + 20, anchor.z - 21, 6],
-      [anchor.x + 27, anchor.z + 4, 5],
+      [anchor.x + 8, anchor.z + 7, 5.5],
+      [anchor.x + 21, anchor.z - 23, 5],
+      [anchor.x + 34, anchor.z + 9, 4.5],
     ];
     for (const [x, z, r] of zones) {
       // fog: false — the zones live 30–50 units out where this chapter's
