@@ -2,8 +2,6 @@
 // runtime (fallback massing + window placement). Plain ESM so Node can run
 // it without a TS loader; types live in cityGen.d.ts. One seed → one
 // layout, so the baked GLB and the runtime window quads always agree.
-import { BoxGeometry, BufferAttribute, Color } from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export const CITY_SEED = 20260809;
 
@@ -106,35 +104,3 @@ export function rooftopLots(modules) {
   return { lots };
 }
 
-/**
- * Merged city massing with baked vertex colors: facade tint × height-based
- * AO (streets stay dark, tops catch sky light) — the "texture bake" without
- * a DCC tool.
- */
-export function cityGeometry(buildings) {
-  const base = new Color('#39415a');
-  const parts = [];
-  const tint = new Color();
-
-  for (const b of buildings) {
-    const g = new BoxGeometry(b.w, b.h, b.d);
-    g.translate(b.x, b.h / 2, b.z);
-    const pos = g.getAttribute('position');
-    const colors = new Float32Array(pos.count * 3);
-    for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i);
-      const ao = 0.25 + 0.75 * Math.pow(Math.min(y / Math.max(b.h, 1), 1), 0.8);
-      tint.copy(base).multiplyScalar(ao);
-      colors[i * 3] = tint.r;
-      colors[i * 3 + 1] = tint.g;
-      colors[i * 3 + 2] = tint.b;
-    }
-    g.setAttribute('color', new BufferAttribute(colors, 3));
-    parts.push(g);
-  }
-
-  const merged = mergeGeometries(parts, false);
-  for (const p of parts) p.dispose();
-  if (!merged) throw new Error('city merge failed');
-  return merged;
-}

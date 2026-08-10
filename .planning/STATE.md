@@ -35,6 +35,23 @@ Progress: [█████░░░░░] ~71%
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
+
+### Kit-instanced cities (2026-08-10)
+
+Both cities render Kenney City Kit modules (CC0, 10 curated, 883KB committed
+incl. shared colormap) through `KitCity`: NEAR ring = one InstancedMesh per
+module with a single night-graded colormap material; MID+FAR = emissive-
+facade impostor boxes. Rings are baked per tier by `scripts/bake-city-rings.mjs`
+against the flight spline (3D distance to building span — flat xz called the
+skyline "near" under a high leg). Runtime does zero LOD math. Mesh LOD1 was
+dropped: meshopt only collapses flat-shaded kit geometry ~22%, impostors
+carry MID fine. Measured (this iGPU, dpr 0.675 LOW): rooftops 47 calls /
+114k tris / 2.6ms; city 49 calls / 96k tris / 4.7ms — inside the mid-Android
+budget (≤80 calls, ≤150k tris). HIGH keeps full kit everywhere (city 48
+calls / 139k, rooftops 358k). Regen order after layout edits:
+`check-citygen → bake-city-rings` (lots and rings MUST come from one bake;
+runtime fetches are no-cache and KitCity drops stale indices as a backstop).
+Old box massing, `city.glb`, `bake-city.mjs`, and `cityGeometry` are deleted.
 Recent decisions affecting current work:
 
 - [Init]: Volumetric Cinema direction (raymarched clouds + god rays + particle beats), overnight color arc, minimal-real ground, cinematic-minimal type, SFX-only audio — spec at docs/superpowers/specs/2026-08-08-site-direction-design.md

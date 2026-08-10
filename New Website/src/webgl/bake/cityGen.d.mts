@@ -1,5 +1,3 @@
-import type { BufferGeometry } from 'three';
-
 export const CITY_SEED: number;
 export const CROSS_STREET_X: number[];
 
@@ -28,6 +26,5 @@ export interface CityLot {
 }
 
 export function cityLayout(canyonZ?: number): Building[];
-export function cityGeometry(buildings: Building[]): BufferGeometry;
 export function cityRecipes(modules: KitModuleRef[], canyonZ?: number): { lots: CityLot[] };
 export function rooftopLots(modules: KitModuleRef[]): { lots: CityLot[] };

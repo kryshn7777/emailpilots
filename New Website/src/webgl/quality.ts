@@ -49,7 +49,8 @@ export function detectQuality(gpuString: string): Quality {
   if (forced === 'low') return LOW;
   if (forced === 'high') return HIGH;
 
-  const smallScreen = Math.min(screen.width, screen.height) < 820;
+  // phones AND tablets ride the mobile profile (baked LOW city rings etc.)
+  const smallScreen = Math.min(screen.width, screen.height) < 1024;
   const coarse = matchMedia('(pointer: coarse)').matches;
   if (coarse && smallScreen) return LOW;
   return HIGH;
