@@ -90,13 +90,18 @@ function bindReveals(): void {
   observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-in');
-          observer?.unobserve(entry.target);
-        }
+        // Two-way, and deliberately so. This used to add `is-in` once and then
+        // unobserve, which on a sticky scrollytelling section meant the copy
+        // faded in at 25% and then sat perfectly still for the rest of a
+        // chapter — the reveal was real but you almost never saw it play.
+        // Toggling lets each chapter's copy arrive and leave with its own
+        // stretch of flight, and replay on the way back up.
+        entry.target.classList.toggle('is-in', entry.isIntersecting);
       }
     },
-    { threshold: 0.25 },
+    // a shade earlier than 0.25 and trimmed at the bottom, so the copy is
+    // already settling as its chapter takes the frame rather than catching up
+    { threshold: 0.15, rootMargin: '0px 0px -12% 0px' },
   );
   for (const el of document.querySelectorAll('[data-reveal]')) {
     splitWords(el);
