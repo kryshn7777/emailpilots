@@ -42,10 +42,12 @@ export class KitCity {
       colormap.flipY = false; // glTF UV convention
       KitCity.sharedKitMaterial = new MeshStandardMaterial({
         map: colormap,
-        color: '#7d86a3', // pulls the daylight kit palette down into the night
+        // light multiplier: #7d86a3 crushed the palette to flat navy — the
+        // night mood comes from the scene grade, not from killing the map
+        color: '#c6ccdd',
         roughness: 0.85,
-        emissive: '#11162a',
-        emissiveIntensity: 0.6, // night sheen — silhouettes never go black
+        emissive: '#0e1322',
+        emissiveIntensity: 0.5, // night sheen — silhouettes never go black
       });
     }
     return KitCity.sharedKitMaterial;
@@ -104,8 +106,13 @@ export class KitCity {
         indices.forEach((lotIndex, k) => {
           const lot = lots[lotIndex]!;
           q.setFromAxisAngle(Y, lot.yaw);
-          // manifest carries measured bounds; scale the ~1-unit module to the lot
-          s.set(lot.w / mod.footprint[0], lot.h / mod.height, lot.d / mod.footprint[1]);
+          // UNIFORM footprint fit: stretching a designed facade to the lot
+          // box smeared windows and left giant blank walls. The module keeps
+          // its proportions inside the lot (gaps read as alleys); height
+          // stays EXACT lot.h — window quads, clutter, and deliveries are
+          // all placed against it.
+          const sxz = Math.min(lot.w / mod.footprint[0], lot.d / mod.footprint[1]);
+          s.set(sxz, lot.h / mod.height, sxz);
           p.set(lot.x, -baseY * s.y, lot.z);
           inst.setMatrixAt(k, m4.compose(p, q, s));
           inst.setColorAt(k, this.color.set(lot.tint));

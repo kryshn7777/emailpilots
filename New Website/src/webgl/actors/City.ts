@@ -92,14 +92,32 @@ export class City {
     this.kitCity = new KitCity(lots as KitLot[], rings, manifest.modules);
     this.group.add(this.kitCity.group);
 
+    // effective wall half-extents per lot: kit modules are uniform-fit
+    // INSIDE the lot box, so dressing placed on the old box faces would
+    // hover in air beside the real walls (yaw 90/270 swaps the axes)
+    const extents = new Map<number, { hx: number; hz: number }>();
+    (lots as KitLot[]).forEach((lot, i) => {
+      const mod = manifest.modules.find((m: { id: string }) => m.id === lot.moduleId);
+      if (!mod) return;
+      const sxz = Math.min(lot.w / mod.footprint[0], lot.d / mod.footprint[1]);
+      const hx = (sxz * mod.footprint[0]) / 2;
+      const hz = (sxz * mod.footprint[1]) / 2;
+      const quarter = Math.round(lot.yaw / (Math.PI / 2)) % 2 !== 0;
+      extents.set(i, quarter ? { hx: hz, hz: hx } : { hx, hz });
+    });
+
     const buildings = cityLayout(0);
     const nearSet = new Set(rings.near);
     const nearMid = new Set([...rings.near, ...rings.mid]);
-    const nearBuildings = buildings.filter((_, i) => nearSet.has(i));
-    this.buildWindows(buildings.filter((_, i) => nearMid.has(i)));
-    this.buildRoofClutter(nearBuildings);
-    this.buildRoofDetail(nearBuildings);
-    this.buildStreetDressing(nearBuildings);
+    const keep = (set: Set<number>): [Building, { hx: number; hz: number }][] =>
+      buildings
+        .map((b, i) => [b, extents.get(i), set.has(i)] as const)
+        .filter((row): row is [Building, { hx: number; hz: number }, true] => !!row[1] && row[2])
+        .map(([b, e]) => [b, e]);
+    this.buildWindows(keep(nearMid));
+    this.buildRoofClutter(keep(nearSet));
+    this.buildRoofDetail(buildings.filter((_, i) => nearSet.has(i)));
+    this.buildStreetDressing(keep(nearSet));
     this.buildDeliveries(buildings, path);
   }
 
@@ -110,7 +128,7 @@ export class City {
    * glow sprites, neon signs on the canyon-facing walls, and antennas with
    * red aircraft-warning blinkers on the tallest towers. Five draws total.
    */
-  private buildStreetDressing(buildings: Building[]): void {
+  private buildStreetDressing(rows: [Building, { hx: number; hz: number }][]): void {
     const rand = mulberry32(880);
 
     // lamp posts, both canyon curbs
@@ -149,7 +167,7 @@ export class City {
     this.group.add(lamps);
     this.disposables.push(lampGeometry, lampMaterial);
 
-    // neon signs on walls facing the canyon
+    // neon signs on walls facing the canyon — on the ACTUAL kit walls
     const NEON = ['#ff5f8f', '#5fd0ff', '#ffd05f', '#8fff9f', '#c88fff'];
     const sign = neonSignTexture();
     const signMaterial = new MeshBasicMaterial({
@@ -159,17 +177,17 @@ export class City {
       depthWrite: false,
     });
     const signGeometry = new PlaneGeometry(1.5, 0.75);
-    const candidates = buildings.filter((b) => Math.abs(b.z) < 5 && b.h > 3);
+    const candidates = rows.filter(([b]) => Math.abs(b.z) < 5 && b.h > 3);
     const signs = new InstancedMesh(signGeometry, signMaterial, Math.min(10, candidates.length));
     const yaw = new Quaternion();
     const Y = new Vector3(0, 1, 0);
     for (let i = 0; i < signs.count; i++) {
-      const b = candidates[Math.floor(rand() * candidates.length)]!;
+      const [b, e] = candidates[Math.floor(rand() * candidates.length)]!;
       const north = b.z < 0;
       p.set(
-        b.x + (rand() - 0.5) * (b.w * 0.4),
+        b.x + (rand() - 0.5) * e.hx * 0.5,
         1.6 + rand() * Math.min(b.h - 2, 3.5),
-        b.z + (b.d / 2 + 0.06) * (north ? 1 : -1),
+        b.z + (e.hz + 0.06) * (north ? 1 : -1),
       );
       yaw.setFromAxisAngle(Y, north ? 0 : Math.PI);
       signs.setMatrixAt(i, new Matrix4().compose(p, yaw, s));
@@ -180,7 +198,7 @@ export class City {
     this.disposables.push(signGeometry, signMaterial, sign, signs);
 
     // antennas + red blinkers on the tallest towers
-    const tall = [...buildings].sort((a, b) => b.h - a.h).slice(0, 9);
+    const tall = rows.map(([b]) => b).sort((a, b) => b.h - a.h).slice(0, 9);
     const antennaGeometry = new CylinderGeometry(0.015, 0.025, 1.6, 5);
     const antennas = new InstancedMesh(antennaGeometry, poleMaterial, tall.length);
     const blinkPos: number[] = [];
@@ -214,7 +232,7 @@ export class City {
    * massing — bare flat roofs read as gray slabs no matter how lit the walls
    * are. Two instanced draws total.
    */
-  private buildRoofClutter(buildings: Building[]): void {
+  private buildRoofClutter(rows: [Building, { hx: number; hz: number }][]): void {
     const rand = mulberry32(60309);
     const clutterMaterial = new MeshStandardMaterial({ color: '#2a3145', roughness: 0.8 });
     const tankMaterial = new MeshStandardMaterial({ color: '#1f2634', roughness: 0.6, metalness: 0.3 });
@@ -227,22 +245,25 @@ export class City {
     const s = new Vector3();
     const yaw = new Quaternion();
     const Y = new Vector3(0, 1, 0);
-    for (const b of buildings) {
+    for (const [b, e] of rows) {
       // clutter only on flat low/mid roofs — kit skyscrapers step back near
       // the top, and boxes placed at the old box height hover in air there
       if (b.h < 3.5 || b.h > 6.5) continue;
+      // stay well inside the ACTUAL kit roof (effective extents)
+      const rx = Math.max(e.hx * 2 - 0.7, 0.3);
+      const rz = Math.max(e.hz * 2 - 0.7, 0.3);
       const units = 1 + Math.floor(rand() * 2);
       for (let i = 0; i < units; i++) {
         const w = 0.5 + rand() * 0.9;
         const h = 0.25 + rand() * 0.45;
-        p.set(b.x + (rand() - 0.5) * (b.w - w), b.h + h / 2, b.z + (rand() - 0.5) * (b.d - w));
-        s.set(w, h, 0.4 + rand() * 0.8);
+        p.set(b.x + (rand() - 0.5) * rx, b.h + h / 2, b.z + (rand() - 0.5) * rz);
+        s.set(Math.min(w, rx), h, Math.min(0.4 + rand() * 0.8, rz));
         yaw.setFromAxisAngle(Y, rand() * Math.PI);
         const m = new Matrix4().compose(p, yaw, s);
         boxes.push(m);
       }
-      if (b.h > 5 && rand() < 0.45) {
-        p.set(b.x + (rand() - 0.5) * (b.w - 1.2), b.h + 0.55, b.z + (rand() - 0.5) * (b.d - 1.2));
+      if (b.h > 5 && rand() < 0.45 && Math.min(rx, rz) > 1.2) {
+        p.set(b.x + (rand() - 0.5) * (rx - 1), b.h + 0.55, b.z + (rand() - 0.5) * (rz - 1));
         s.set(1, 1.1, 1);
         tanks.push(new Matrix4().compose(p, q, s));
       }
@@ -475,7 +496,7 @@ export class City {
     posAttr.needsUpdate = true;
   }
 
-  private buildWindows(buildings: Building[]): void {
+  private buildWindows(rows: [Building, { hx: number; hz: number }][]): void {
     const rand = mulberry32(77);
     const slots: { pos: Vector3; quat: Quaternion; lit: number }[] = [];
     const Y = new Vector3(0, 1, 0);
@@ -483,7 +504,7 @@ export class City {
     const faceCanyonNeg = new Quaternion().setFromAxisAngle(Y, Math.PI); // -Z
     const faceBackX = new Quaternion().setFromAxisAngle(Y, -Math.PI / 2); // -X, toward the approaching camera
 
-    for (const b of buildings) {
+    for (const [b, e] of rows) {
       const floors = Math.max(1, Math.floor(b.h / 1.1) - 1);
       for (let f = 0; f < floors; f++) {
         const y = 0.8 + f * 1.1;
@@ -493,14 +514,15 @@ export class City {
         // kit towers step back near their tops — no quads above 70% height,
         // that's where they hovered in air off the old box faces
         if (y > b.h * 0.7) continue;
-        // canyon-facing wall (seen while banking through the dive)
+        // canyon-facing wall (seen while banking through the dive) — placed
+        // on the ACTUAL kit wall (effective extents), not the old lot box
         if (rand() >= 0.2) {
           const facingCanyon = b.z > 0 ? -1 : 1; // canyon sits at z≈0 local
           slots.push({
             pos: new Vector3(
-              b.x - b.w / 4 + rand() * (b.w / 2),
+              b.x - e.hx / 2 + rand() * e.hx,
               y,
-              b.z + (b.d / 2 + 0.03) * facingCanyon,
+              b.z + (e.hz + 0.03) * facingCanyon,
             ),
             quat: facingCanyon === -1 ? faceCanyonNeg : faceCanyonPos,
             lit: litRoll(),
@@ -511,9 +533,9 @@ export class City {
         if (rand() >= 0.18) {
           slots.push({
             pos: new Vector3(
-              b.x - b.w / 2 - 0.03,
+              b.x - e.hx - 0.03,
               y,
-              b.z - b.d / 4 + rand() * (b.d / 2),
+              b.z - e.hz / 2 + rand() * e.hz,
             ),
             quat: faceBackX,
             lit: litRoll(),
