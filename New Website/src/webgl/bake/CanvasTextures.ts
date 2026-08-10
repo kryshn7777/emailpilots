@@ -616,6 +616,48 @@ export function laptopKeysTexture(): CanvasTexture {
   return texture;
 }
 
+/**
+ * Overcast deck seen from above: soft billowed cloud tops, drawn as stacked
+ * radial blobs so the layer reads as weather rather than a painted plane.
+ * Alpha falls off inside each blob, so two offset copies parallax into a
+ * convincing depth without a single raymarch step.
+ */
+export function cloudDeckTexture(): CanvasTexture {
+  const S = 512;
+  const [canvas, ctx] = makeCanvas(S);
+  ctx.clearRect(0, 0, S, S);
+  let seed = 20260810;
+  const rand = (): number => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const blob = (x: number, y: number, r: number, a: number, tint: string): void => {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(${tint}, ${a})`);
+    g.addColorStop(0.55, `rgba(${tint}, ${a * 0.55})`);
+    g.addColorStop(1, `rgba(${tint}, 0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  // base haze so gaps never punch through to whatever is under the deck
+  blob(S / 2, S / 2, S * 0.85, 0.5, '206, 218, 236');
+  for (let i = 0; i < 130; i++) {
+    const x = rand() * S;
+    const y = rand() * S;
+    const r = S * (0.05 + rand() * 0.13);
+    // shaded underside first, lit crown offset up-left toward the dawn sun
+    blob(x, y + r * 0.22, r, 0.32, '120, 136, 166');
+    blob(x - r * 0.16, y - r * 0.2, r * 0.82, 0.5, '236, 242, 252');
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+
 /** Soft radial spot — dust motes, rain caps, glows. */
 export function glowTexture(): CanvasTexture {
   const [canvas, ctx] = makeCanvas(64);

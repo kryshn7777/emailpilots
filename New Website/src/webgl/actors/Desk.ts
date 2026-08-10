@@ -76,6 +76,21 @@ export class Desk {
     this.group.add(floor, backWall, sideWall);
     this.disposables.push(floor.geometry, backWall.geometry, sideWall.geometry);
 
+    // the tower this floor belongs to: a curtain-wall skirt dropping from
+    // the sill into the overcast. Without it the study reads as a box in
+    // the sky the moment the flight turns and looks back at it.
+    const towerSkin = new MeshStandardMaterial({
+      color: '#171d2b',
+      roughness: 0.35,
+      metalness: 0.45,
+    });
+    const skirt = new Mesh(new BoxGeometry(23, 26, 12.6), towerSkin);
+    skirt.position.set(2.4, -14.4, 0.5);
+    const sill = new Mesh(new BoxGeometry(23.6, 0.35, 13.2), towerSkin);
+    sill.position.set(2.4, -1.42, 0.5);
+    this.group.add(skirt, sill);
+    this.disposables.push(skirt.geometry, sill.geometry, towerSkin);
+
     // baseboards ground the walls
     const boardMaterial = new MeshStandardMaterial({ color: '#0e1420', roughness: 0.7 });
     const backBoard = new Mesh(new BoxGeometry(26, 0.28, 0.07), boardMaterial);

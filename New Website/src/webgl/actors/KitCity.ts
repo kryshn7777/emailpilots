@@ -1,3 +1,4 @@
+import type { Texture } from 'three';
 import {
   BoxGeometry,
   BufferGeometry,
@@ -36,24 +37,35 @@ interface KitModule { id: string; lod0: string; footprint: [number, number]; hei
 export class KitCity {
   readonly group = new Group();
   private disposables: { dispose(): void }[] = [];
-  private static sharedKitMaterial: MeshStandardMaterial | null = null;
+  private static sharedColormap: Texture | null = null;
+  private kitMaterialInstance: MeshStandardMaterial | null = null;
 
-  private static kitMaterial(): MeshStandardMaterial {
-    if (!KitCity.sharedKitMaterial) {
+  /**
+   * One material per city, sharing the single colormap upload. They differ
+   * only in self-lit strength: the window district hangs in dawn haze where
+   * the chapter's fog would otherwise crush every tower to a black cut-out,
+   * while the night canyon wants its own darkness.
+   */
+  private kitMaterial(glow: number): MeshStandardMaterial {
+    if (!KitCity.sharedColormap) {
       const colormap = new TextureLoader().load('/models/city-kit/colormap.png');
       colormap.colorSpace = SRGBColorSpace;
       colormap.flipY = false; // glTF UV convention
-      KitCity.sharedKitMaterial = new MeshStandardMaterial({
-        map: colormap,
+      KitCity.sharedColormap = colormap;
+    }
+    if (!this.kitMaterialInstance) {
+      this.kitMaterialInstance = new MeshStandardMaterial({
+        map: KitCity.sharedColormap,
         // light multiplier: #7d86a3 crushed the palette to flat navy — the
         // night mood comes from the scene grade, not from killing the map
         color: '#c6ccdd',
         roughness: 0.85,
-        emissive: '#0e1322',
-        emissiveIntensity: 0.5, // night sheen — silhouettes never go black
+        emissive: '#26314c',
+        emissiveIntensity: glow,
       });
+      this.disposables.push(this.kitMaterialInstance);
     }
-    return KitCity.sharedKitMaterial;
+    return this.kitMaterialInstance;
   }
 
   constructor(
@@ -64,6 +76,8 @@ export class KitCity {
     /** lit window quads on all four walls — for cities without their own
      * dressing pass (City runs a canyon-tuned builder of its own) */
     dressWindows = false,
+    /** self-lit strength, so a city can survive its chapter's fog */
+    glow = 0.5,
     private color = new Color(),
   ) {
     // MID + FAR: emissive facade impostors (windows live in the texture)
@@ -106,7 +120,7 @@ export class KitCity {
         // scaled ×7 on a tower floats the roof dressing above the mesh
         geometry.computeBoundingBox();
         const baseY = geometry.boundingBox!.min.y;
-        const inst = new InstancedMesh(geometry, KitCity.kitMaterial(), indices.length);
+        const inst = new InstancedMesh(geometry, this.kitMaterial(glow), indices.length);
         const m4 = new Matrix4();
         const q = new Quaternion();
         const p = new Vector3();
@@ -224,14 +238,17 @@ export class KitCity {
       // bands are a FRACTION of the lot height, never a fixed pitch: these
       // lots run from 2-unit shopfronts to 9-unit towers, and a fixed pitch
       // put every window on one ground-floor band hidden behind the block
-      const bands = Math.min(6, Math.max(2, Math.round(lot.h / 1.15)));
-      const wy = Math.min(0.55, Math.max(0.24, (lot.h * 0.6) / bands / 1.9));
+      // quads are sized from their own spacing, never a fixed clamp: on a
+      // 22-unit tower a 0.5-unit window is a speck, and hundreds of specks
+      // read as noise floating where the facade should be
+      const bands = Math.min(5, Math.max(2, Math.round(lot.h / 3.2)));
+      const wy = Math.max(0.3, ((lot.h * 0.6) / bands) * 0.42);
       for (let f = 0; f < bands; f++) {
         const y = lot.h * (0.2 + ((f + 0.5) / bands) * 0.6);
         for (const [nx, nz, faceYaw] of FACES) {
           const span = nx ? e.hz : e.hx;
-          const cols = Math.min(7, Math.max(2, Math.round(span * 2.6)));
-          const wx = Math.min(0.5, ((span * 2) / cols) * 0.55);
+          const cols = Math.min(5, Math.max(2, Math.round(span * 1.1)));
+          const wx = Math.max(0.3, ((span * 2) / cols) * 0.5);
           for (let c = 0; c < cols; c++) {
             salt++;
             if (hash(i, salt) > density) continue;

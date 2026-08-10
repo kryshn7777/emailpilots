@@ -72,36 +72,56 @@ export function cityRecipes(modules, canyonZ = 0) {
 }
 
 /**
- * The window city's lots (Rooftops actor): near field outside the CH1
- * window plus the far skyline row, exit corridor kept clear. Same recipe
- * shape as cityRecipes so both cities share the KitCity runtime.
+ * The window city's lots (Rooftops actor). The study is a high floor of an
+ * office tower, so this is a district of tall neighbours seen at altitude:
+ * every lot is based at ROOFTOP_BASE_Y, far below the window, and rises past
+ * the cloud deck the actor floats at ROOFTOP_DECK_Y. Nothing here has a
+ * visible bottom — the streets are under the weather.
  */
+export const ROOFTOP_BASE_Y = -14;
+export const ROOFTOP_DECK_Y = -7;
+
 export function rooftopLots(modules) {
   const rand = mulberry32(CITY_SEED + 31);
   const lots = [];
-  const place = (x, z, w, d, h) => {
+  const pool = modules.filter((m) => /sky/i.test(m.id));
+  const pick = pool.length ? pool : modules;
+  /**
+   * Lot dimensions are DERIVED from the module and one uniform scale, never
+   * chosen independently: KitCity fits the footprint uniformly but matches
+   * height exactly, so an authored 30-unit lot on a 5-unit module stretched
+   * the facade 4x and shredded it into vertical streaks. Deriving w/d/h from
+   * (footprint, height) x s makes both factors equal s — zero distortion,
+   * and s alone says how big the tower is.
+   */
+  const tower = (x, z, s) => {
     // exit corridor stays clear — 4.5 covers the camera's swing, not just
     // the plane's line (3.2 put a facade against the lens at t≈0.125)
     if (Math.abs(z - 1) < 4.5 && x < 24) return;
-    const tall = h > 5;
-    const pool = modules.filter((m) => (tall ? /sky/i.test(m.id) : !/sky/i.test(m.id)));
-    const pick = (pool.length ? pool : modules);
     const mod = pick[Math.floor(rand() * pick.length)];
+    const w = mod.footprint[0] * s;
+    const d = mod.footprint[1] * s;
+    // towers this size must not interpenetrate — overlapping facades read as
+    // one broken building, so a candidate that lands on a neighbour is dropped
+    for (const other of lots) {
+      const near = (Math.max(w, d) + Math.max(other.w, other.d)) * 0.52;
+      if (Math.abs(other.x - x) < near && Math.abs(other.z - z) < near) return;
+    }
     lots.push({
-      x, z, w, d, h,
+      x, z, w, d,
+      h: mod.height * s,
       yaw: (Math.floor(rand() * 4) * Math.PI) / 2,
       tint: TINTS[Math.floor(rand() * TINTS.length)],
       moduleId: mod.id,
     });
   };
-  for (let i = 0; i < 150; i++) {
-    place(9 + rand() * 46, -22 + rand() * 44, 2 + rand() * 3.4, 1.8 + rand() * 3, 0.7 + rand() * 2.6);
+  // near neighbours: crowns land around the window's eye line
+  for (let i = 0; i < 300; i++) {
+    tower(12 + rand() * 66, -40 + rand() * 80, 3.2 + rand() * 2.3);
   }
-  // far skyline: taller, wider silhouettes closing the horizon. Wide enough
-  // to hide the ground plane's far edge now that the takeoff leg climbs and
-  // the camera looks down on the field instead of across it.
-  for (let i = 0; i < 110; i++) {
-    place(52 + rand() * 120, -58 + rand() * 116, 3.5 + rand() * 4.5, 3 + rand() * 4, 2.6 + rand() * 6.4);
+  // the district beyond: taller, closing the horizon in every direction
+  for (let i = 0; i < 300; i++) {
+    tower(58 + rand() * 150, -105 + rand() * 210, 4.5 + rand() * 3.5);
   }
   return { lots };
 }

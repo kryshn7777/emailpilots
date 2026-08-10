@@ -1,48 +1,66 @@
 import {
   AdditiveBlending,
   BufferGeometry,
+  DoubleSide,
   Float32BufferAttribute,
   Group,
   Mesh,
-  MeshStandardMaterial,
+  MeshBasicMaterial,
   PlaneGeometry,
   Points,
   PointsMaterial,
 } from 'three';
-import { rooftopLots } from '../bake/cityGen.mjs';
-import { glowTexture } from '../bake/CanvasTextures';
+import { ROOFTOP_BASE_Y, ROOFTOP_DECK_Y, rooftopLots } from '../bake/cityGen.mjs';
+import { cloudDeckTexture, glowTexture } from '../bake/CanvasTextures';
 import { KitCity, type KitLot, type KitRingSet } from './KitCity';
 import type { Quality } from '../quality';
 
 /**
- * CH2–3: the pre-dawn city outside the window. Kit-instanced buildings on
- * the shared baked LOD rings (near field = real modules, skyline = emissive
- * impostors), on a ground plane with scattered warm night lights.
+ * CH2–3: the district outside the study window. The study is a high floor of
+ * an office tower, so this is neighbouring towers seen at altitude, standing
+ * in an overcast deck that hides every base — there is no ground in this
+ * chapter, only weather. Buildings are kit-instanced on the shared baked LOD
+ * rings (near field = real modules, far district = emissive impostors).
  */
 export class Rooftops {
   readonly group = new Group();
   private kitCity: KitCity | null = null;
+  private deck: Mesh[] = [];
   private disposables: { dispose(): void }[] = [];
 
   constructor(rand: () => number, quality: Quality) {
-    // the ground the city stands on — without it the blocks float on sky
-    const groundMaterial = new MeshStandardMaterial({ color: '#0c1019', roughness: 0.97 });
-    // wide enough that every edge sits past the chapter's fog far plane —
-    // at 320x220 the plate's own boundary was visible as a hard line against
-    // the sky once the takeoff leg climbed above the rooftops
-    const ground = new Mesh(new PlaneGeometry(900, 700), groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.set(60, -0.06, 0);
-    this.group.add(ground);
-    this.disposables.push(ground.geometry, groundMaterial);
-
-    // scattered lit windows + a street of lamps
-    const warm: number[] = [];
-    for (let i = 0; i < 120; i++) {
-      warm.push(9 + rand() * 42, 0.3 + rand() * 2.2, -15 + rand() * 30);
+    // two offset cloud sheets: the lower one closes every gap, the upper one
+    // parallaxes over it so the deck has depth without a raymarch
+    const deckMap = cloudDeckTexture();
+    this.disposables.push(deckMap);
+    for (const [y, repeat, opacity, scale] of [
+      [ROOFTOP_DECK_Y - 3.5, 7, 1, 1],
+      [ROOFTOP_DECK_Y, 4.5, 0.9, 0.82],
+    ] as const) {
+      const material = new MeshBasicMaterial({
+        map: deckMap,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        side: DoubleSide,
+        fog: true,
+      });
+      material.map = deckMap.clone();
+      material.map.needsUpdate = true;
+      material.map.repeat.set(repeat, repeat);
+      const sheet = new Mesh(new PlaneGeometry(900 * scale, 760 * scale), material);
+      sheet.rotation.x = -Math.PI / 2;
+      sheet.position.set(60, y, 0);
+      sheet.renderOrder = -2; // always behind the towers standing in it
+      this.group.add(sheet);
+      this.deck.push(sheet);
+      this.disposables.push(sheet.geometry, material, material.map);
     }
-    for (let i = 0; i < 14; i++) {
-      warm.push(10 + i * 3, 0.35, 5.5);
+
+    // aircraft-warning reds and lit crowns scattered across the district
+    const warm: number[] = [];
+    for (let i = 0; i < 130; i++) {
+      warm.push(11 + rand() * 70, ROOFTOP_BASE_Y + 12 + rand() * 26, -40 + rand() * 80);
     }
     const g = new BufferGeometry();
     g.setAttribute('position', new Float32BufferAttribute(warm, 3));
@@ -51,7 +69,7 @@ export class Rooftops {
       new PointsMaterial({
         map: glowTexture(),
         color: '#ffc98a',
-        size: 0.32,
+        size: 0.5,
         transparent: true,
         opacity: 0.85,
         depthWrite: false,
@@ -66,6 +84,15 @@ export class Rooftops {
     void this.init(quality);
   }
 
+  /** Drifts the two sheets against each other — the deck is never static. */
+  update(time: number): void {
+    if (!this.group.visible) return;
+    for (let i = 0; i < this.deck.length; i++) {
+      const map = (this.deck[i]!.material as MeshBasicMaterial).map;
+      if (map) map.offset.x = time * (i === 0 ? 0.0016 : 0.0029);
+    }
+  }
+
   private async init(quality: Quality): Promise<void> {
     // no-cache: lots and rings MUST come from the same bake — a stale cached
     // rings file indexes past the end of a freshly generated lot list
@@ -77,7 +104,12 @@ export class Rooftops {
     const { lots } = rooftopLots(manifest.modules);
     // dressWindows: unlike City this actor has no dressing pass of its own,
     // so its blocks read as unlit massing through the study window
-    this.kitCity = new KitCity(lots as KitLot[], rings, manifest.modules, quality.tier, true);
+    // glow 1.5: this district sits 20–100 units out in a chapter whose fog is
+    // tuned for a dark room, which crushed every tower to a black cut-out
+    this.kitCity = new KitCity(lots as KitLot[], rings, manifest.modules, quality.tier, true, 1.5);
+    // the district stands far below the window; only its top third clears
+    // the deck, so no tower ever shows a base
+    this.kitCity.group.position.y = ROOFTOP_BASE_Y;
     this.group.add(this.kitCity.group);
   }
 

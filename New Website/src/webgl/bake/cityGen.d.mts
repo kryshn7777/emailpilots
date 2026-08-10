@@ -1,5 +1,7 @@
 export const CITY_SEED: number;
 export const CROSS_STREET_X: number[];
+export const ROOFTOP_BASE_Y: number;
+export const ROOFTOP_DECK_Y: number;
 
 export interface Building {
   x: number;

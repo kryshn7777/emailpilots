@@ -6,7 +6,7 @@ import assert from 'node:assert';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { CatmullRomCurve3, Vector3 } from 'three';
 import { PATH_POINTS } from '../src/webgl/rig/pathPoints.mjs';
-import { cityRecipes, rooftopLots } from '../src/webgl/bake/cityGen.mjs';
+import { ROOFTOP_BASE_Y, cityRecipes, rooftopLots } from '../src/webgl/bake/cityGen.mjs';
 
 const manifest = JSON.parse(
   readFileSync(new URL('../public/models/city-kit/manifest.json', import.meta.url), 'utf8'),
@@ -20,8 +20,12 @@ const curve = new CatmullRomCurve3(
 const CAM = curve.getSpacedPoints(400);
 
 // group offsets mirror Engine constructor placement (measured live):
-// City group at (chapterAnchor(7).x, 0, 1) = (193.81, 0, 1); Rooftops at origin
-const OFFSETS = { city: { x: 193.81, z: 1 }, rooftops: { x: 0, z: 0 } };
+// City group at (chapterAnchor(7).x, 0, 1) = (193.81, 0, 1); the window
+// district hangs at ROOFTOP_BASE_Y so its towers rise out of the cloud deck
+const OFFSETS = {
+  city: { x: 193.81, y: 0, z: 1 },
+  rooftops: { x: 0, y: ROOFTOP_BASE_Y, z: 0 },
+};
 
 const RINGS = { high: { near: 28, mid: 70 }, low: { near: 12, mid: 34 } };
 
@@ -37,7 +41,7 @@ const partition = (lots, offset) => {
     for (const c of CAM) {
       // 3D distance to the building's nearest span point: flat xz distance
       // alone called rooftops "near" under a leg flying 18 units overhead
-      const dy = Math.max(0, c.y - lot.h);
+      const dy = Math.max(0, c.y - (lot.h + offset.y));
       const d = Math.hypot(wx - c.x, dy, wz - c.z);
       if (d < best) best = d;
     }
