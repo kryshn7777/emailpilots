@@ -21,14 +21,14 @@ import {
   ShaderMaterial,
   Vector3,
 } from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { CROSS_STREET_X, cityGeometry, cityLayout, type Building } from '../bake/cityGen.mjs';
-import { facadeTexture, neonSignTexture, roadTexture } from '../bake/CanvasTextures';
+import { CROSS_STREET_X, cityLayout, cityRecipes, type Building } from '../bake/cityGen.mjs';
+import { neonSignTexture, roadTexture } from '../bake/CanvasTextures';
 import { glowTexture } from '../bake/CanvasTextures';
-import { requestCompile } from '../warm';
+import { KitCity, type KitLot, type KitRingSet } from './KitCity';
 import { mulberry32 } from '../util';
 import type { FlightPath } from '../rig/FlightPath';
+import type { Quality } from '../quality';
 import carVert from '../shaders/carLights.vert.glsl';
 import carFrag from '../shaders/carLights.frag.glsl';
 import carGlowVert from '../shaders/carGlow.vert.glsl';
@@ -56,70 +56,14 @@ export class City {
   private windowBase: number[] = [];
   private deliveries: Delivery[] = [];
   private envelopeMeshes: Mesh[] = [];
+  private kitCity: KitCity | null = null;
   private color = new Color();
   private disposables: { dispose(): void }[] = [];
 
-  constructor(anchor: Vector3, path: FlightPath) {
+  constructor(anchor: Vector3, path: FlightPath, quality: Quality) {
     this.group.position.set(anchor.x, 0, 1);
 
-    // faint urban glow keeps silhouettes readable against the night sky —
-    // pure albedo × the dim city sun rendered to black.
-    // NO vertexColors: the COLOR_0 path black-frames the whole composer on
-    // ANGLE/D3D here — height-AO is injected in the shader instead.
-    // every box face carries the full window grid via its 0..1 UVs — the
-    // whole massing reads as lit buildings, not one flat-shaded low-poly blob
-    const facade = facadeTexture();
-    this.disposables.push(facade);
-    const massingMaterial = new MeshStandardMaterial({
-      color: '#39415a',
-      roughness: 0.85,
-      emissive: '#e8b878',
-      emissiveMap: facade,
-      emissiveIntensity: 0.85,
-    });
-    massingMaterial.onBeforeCompile = (shader) => {
-      shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying float vCityY;')
-        .replace(
-          '#include <begin_vertex>',
-          '#include <begin_vertex>\nvCityY = (modelMatrix * vec4(position, 1.0)).y;',
-        );
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying float vCityY;')
-        .replace(
-          '#include <color_fragment>',
-          '#include <color_fragment>\n  diffuseColor.rgb *= 0.3 + 0.7 * clamp(vCityY / 9.0, 0.0, 1.0);',
-        )
-        // windows live on the walls — kill the emissive grid on roof faces,
-        // the city entry looks straight down at them
-        .replace(
-          '#include <emissivemap_fragment>',
-          '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= 1.0 - smoothstep(0.35, 0.6, normal.y);',
-        );
-    };
-    this.disposables.push(massingMaterial);
-    const buildings = cityLayout(0);
-
-    new GLTFLoader().load(
-      '/models/city.glb',
-      (gltf) => {
-        gltf.scene.traverse((o) => {
-          const mesh = o as Mesh;
-          if (mesh.isMesh) mesh.material = massingMaterial;
-        });
-        this.group.add(gltf.scene);
-        requestCompile(gltf.scene);
-      },
-      undefined,
-      () => {
-        // offline/missing GLB: regenerate the identical massing procedurally
-        const g = cityGeometry(buildings);
-        this.group.add(new Mesh(g, massingMaterial));
-        this.disposables.push(g);
-      },
-    );
-
-    // ground sheet under the massing
+    // ground sheet under the buildings
     const groundMaterial = new MeshStandardMaterial({ color: '#0a0d16', roughness: 0.95 });
     const ground = new Mesh(new PlaneGeometry(140, 100), groundMaterial);
     ground.rotation.x = -Math.PI / 2;
@@ -127,12 +71,34 @@ export class City {
     this.group.add(ground);
     this.disposables.push(ground.geometry, groundMaterial);
 
-    this.buildWindows(buildings);
-    this.buildRoofClutter(buildings);
-    this.buildRoofDetail(buildings);
-    this.buildStreetDressing(buildings);
-    this.buildDeliveries(buildings, path);
     this.buildTraffic();
+    void this.init(path, quality);
+  }
+
+  /**
+   * Buildings are kit-instanced with ring-baked LODs (see KitCity). Dressing
+   * follows the rings: windows spawn on NEAR+MID lots, clutter/parapets/
+   * billboards on NEAR only — FAR carries its windows in the impostor texture.
+   */
+  private async init(path: FlightPath, quality: Quality): Promise<void> {
+    const [manifest, allRings] = await Promise.all([
+      fetch('/models/city-kit/manifest.json').then((r) => r.json()),
+      fetch('/models/city-rings.json').then((r) => r.json()),
+    ]);
+    const rings = allRings.city[quality.tier] as KitRingSet;
+    const { lots } = cityRecipes(manifest.modules);
+    this.kitCity = new KitCity(lots as KitLot[], rings, manifest.modules);
+    this.group.add(this.kitCity.group);
+
+    const buildings = cityLayout(0);
+    const nearSet = new Set(rings.near);
+    const nearMid = new Set([...rings.near, ...rings.mid]);
+    const nearBuildings = buildings.filter((_, i) => nearSet.has(i));
+    this.buildWindows(buildings.filter((_, i) => nearMid.has(i)));
+    this.buildRoofClutter(nearBuildings);
+    this.buildRoofDetail(nearBuildings);
+    this.buildStreetDressing(nearBuildings);
+    this.buildDeliveries(buildings, path);
   }
 
   private blinkMaterial!: PointsMaterial;
@@ -260,7 +226,9 @@ export class City {
     const yaw = new Quaternion();
     const Y = new Vector3(0, 1, 0);
     for (const b of buildings) {
-      if (b.h < 3.5) continue;
+      // clutter only on flat low/mid roofs — kit skyscrapers step back near
+      // the top, and boxes placed at the old box height hover in air there
+      if (b.h < 3.5 || b.h > 6.5) continue;
       const units = 1 + Math.floor(rand() * 2);
       for (let i = 0; i < units; i++) {
         const w = 0.5 + rand() * 0.9;
@@ -271,7 +239,7 @@ export class City {
         const m = new Matrix4().compose(p, yaw, s);
         boxes.push(m);
       }
-      if (b.h > 6.5 && rand() < 0.45) {
+      if (b.h > 5 && rand() < 0.45) {
         p.set(b.x + (rand() - 0.5) * (b.w - 1.2), b.h + 0.55, b.z + (rand() - 0.5) * (b.d - 1.2));
         s.set(1, 1.1, 1);
         tanks.push(new Matrix4().compose(p, q, s));
@@ -288,36 +256,11 @@ export class City {
   }
 
   /**
-   * Parapet lips ringing every roof edge + big lit billboards on the tallest
-   * towers — the silhouette detail that keeps the massing from reading as
-   * bare low-poly boxes. Two instanced draws.
+   * Big lit billboards on the tallest towers — kit modules carry their own
+   * cornices, so the old parapet lips are gone. One instanced draw.
    */
   private buildRoofDetail(buildings: Building[]): void {
     const rand = mulberry32(3117);
-    const lipMaterial = new MeshStandardMaterial({ color: '#2e3548', roughness: 0.85 });
-    const lipGeometry = new BoxGeometry(1, 1, 1);
-    const lips: Matrix4[] = [];
-    const q = new Quaternion();
-    const p = new Vector3();
-    const s = new Vector3();
-    for (const b of buildings) {
-      if (b.h < 2.8) continue;
-      const y = b.h + 0.09;
-      p.set(b.x, y, b.z - b.d / 2);
-      s.set(b.w + 0.1, 0.18, 0.09);
-      lips.push(new Matrix4().compose(p, q, s));
-      p.set(b.x, y, b.z + b.d / 2);
-      lips.push(new Matrix4().compose(p, q, s));
-      p.set(b.x - b.w / 2, y, b.z);
-      s.set(0.09, 0.18, b.d + 0.1);
-      lips.push(new Matrix4().compose(p, q, s));
-      p.set(b.x + b.w / 2, y, b.z);
-      lips.push(new Matrix4().compose(p, q, s));
-    }
-    const lipMesh = new InstancedMesh(lipGeometry, lipMaterial, lips.length);
-    lips.forEach((m, i) => lipMesh.setMatrixAt(i, m));
-    this.group.add(lipMesh);
-    this.disposables.push(lipGeometry, lipMaterial, lipMesh);
 
     // rooftop billboards, glowing over the skyline
     const NEON = ['#ff5f8f', '#5fd0ff', '#ffd05f', '#8fff9f'];
@@ -334,7 +277,8 @@ export class City {
     const boards = new InstancedMesh(boardGeometry, boardMaterial, tall.length);
     const Y = new Vector3(0, 1, 0);
     const yaw = new Quaternion();
-    s.set(1, 1, 1);
+    const p = new Vector3();
+    const s = new Vector3(1, 1, 1);
     tall.forEach((b, i) => {
       p.set(b.x, b.h + 1.0, b.z);
       yaw.setFromAxisAngle(Y, (rand() - 0.5) * 0.9 + (b.z > 0 ? Math.PI : 0));
@@ -544,6 +488,9 @@ export class City {
         // dense + bright: sparse dim windows lost to the massing at the city
         // entry and whole blocks read as gray boxes
         const litRoll = (): number => (rand() < 0.72 ? 0.5 + rand() * 0.85 : 0.06);
+        // kit towers step back near their tops — no quads above 70% height,
+        // that's where they hovered in air off the old box faces
+        if (y > b.h * 0.7) continue;
         // canyon-facing wall (seen while banking through the dive)
         if (rand() >= 0.2) {
           const facingCanyon = b.z > 0 ? -1 : 1; // canyon sits at z≈0 local
@@ -691,6 +638,7 @@ export class City {
   }
 
   dispose(): void {
+    this.kitCity?.dispose();
     for (const d of this.disposables) d.dispose();
   }
 }

@@ -11,5 +11,23 @@ export interface Building {
   d: number;
 }
 
+export interface KitModuleRef {
+  id: string;
+  [key: string]: unknown;
+}
+
+export interface CityLot {
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  h: number;
+  yaw: number;
+  tint: string;
+  moduleId: string;
+}
+
 export function cityLayout(canyonZ?: number): Building[];
 export function cityGeometry(buildings: Building[]): BufferGeometry;
+export function cityRecipes(modules: KitModuleRef[], canyonZ?: number): { lots: CityLot[] };
+export function rooftopLots(modules: KitModuleRef[]): { lots: CityLot[] };

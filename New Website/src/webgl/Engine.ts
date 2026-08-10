@@ -189,7 +189,7 @@ export class Engine {
     this.birds = new Birds(rand);
     this.beacon = new Beacon(this.path.chapterAnchor(5), this.raycast, this.tooltip, this.quality);
     this.noFly = new NoFly(this.path.chapterAnchor(6));
-    this.city = new City(this.path.chapterAnchor(7), this.path);
+    this.city = new City(this.path.chapterAnchor(7), this.path, this.quality);
     this.copilot = new Copilot(this.path.chapterAnchor(8));
     this.landing = new Landing(this.path.storyPoint(0.985));
     this.burst = new PaperBurst(rand);
