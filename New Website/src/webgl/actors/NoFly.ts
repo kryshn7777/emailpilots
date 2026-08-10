@@ -60,9 +60,9 @@ export class NoFly {
     // alternating sides, with smaller radii, so each is its own detour and
     // the gaps between them are legible.
     const zones: [number, number, number][] = [
-      [anchor.x + 8, anchor.z + 7, 5.5],
-      [anchor.x + 21, anchor.z - 23, 5],
-      [anchor.x + 34, anchor.z + 9, 4.5],
+      [anchor.x + 4, anchor.z + 11, 5.5],
+      [anchor.x + 26, anchor.z - 27, 5],
+      [anchor.x + 48, anchor.z + 13, 4.5],
     ];
     for (const [x, z, r] of zones) {
       // fog: false — the zones live 30–50 units out where this chapter's
