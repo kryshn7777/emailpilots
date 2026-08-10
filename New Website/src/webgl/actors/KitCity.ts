@@ -108,7 +108,10 @@ export class KitCity {
     // FAR: emissive facade impostors (windows live in the texture)
     const facade = facadeTexture();
     const impostorMaterial = new MeshStandardMaterial({
-      color: '#39415a',
+      // lifted toward the kit material's own tone: with the mid boundary
+      // pulled in to 45 the impostors start mid-frame, and at #39415a the
+      // swap from real module to box read as a tide line across the district
+      color: '#7c869f',
       roughness: 0.85,
       emissive: '#e8b878',
       emissiveMap: facade,

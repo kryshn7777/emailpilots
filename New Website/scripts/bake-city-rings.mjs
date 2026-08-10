@@ -27,13 +27,11 @@ const OFFSETS = {
   rooftops: { x: 0, y: ROOFTOP_BASE_Y, z: 0 },
 };
 
-// Ring radii, in world units of distance to the flight spline. Cut to 30% of
-// what they were: a lot only earns real kit geometry while the camera can
-// resolve it, and 28 units was holding full modules well past the point where
-// a facade is a few pixels wide. Everything that falls out lands on the FAR
-// impostor at 12 triangles against ~1800, which is where the frame cost of
-// this district actually lives.
-const RINGS = { high: { near: 8.4, mid: 21 }, low: { near: 3.6, mid: 10.2 } };
+// Ring radii, 35% tighter than the previous pass. The mid boundary is the
+// one that pays: MID and NEAR both draw the real module now, so pulling
+// near in only moves work sideways, while pulling mid in from 70 to 45
+// hands those lots to the FAR impostor at 12 triangles instead of ~1800.
+const RINGS = { high: { near: 18, mid: 45 }, low: { near: 8, mid: 22 } };
 
 const partition = (lots, offset) => {
   const out = {
