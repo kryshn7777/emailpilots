@@ -47,10 +47,14 @@ export const PATH_POINTS = [
   // CH6 beacon — calm rising arc
   [122, 18, 0],
   [134, 20, -4],
-  // CH7 no-fly — wide bend around red zones
-  [146, 17, 8],
-  [156, 15, 14],
-  [166, 14, 6],
+  // CH7 no-fly — ONE easy arc around the red zones, not a slalom. The old
+  // line ran z −4 → 8 → 14 → 6 → 1 across five control points: an 18-unit
+  // swing out and back inside 30 units of travel, which is what made the dart
+  // wag through this chapter. Halving the excursion to a single crest keeps
+  // the detour readable while the curve stays gentle enough to fly.
+  [147, 16.5, 4],
+  [157, 15, 7.5],
+  [167, 13.5, 4],
   // CH8 city dive — the canyon runs world z 0..2 (group z offset 1); the old
   // z −4 leg flew straight through the north building row
   [176, 10, 1],
