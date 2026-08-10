@@ -86,7 +86,11 @@ export const CHAPTERS: Chapter[] = [
   {
     id: 'beacon', t0: 0.48, t1: 0.58,
     rig: { fov: 46, camLag: 0.024, lookAhead: 0.014, turbAmp: 0.09, offsetUp: 1.8, offsetSide: 1.0, offsetBack: 1.5 },
-    grade: { zenith: '#060b12', horizon: '#0e2530', sunColor: '#7fe8d8', sunIntensity: 0.38, sunDir: [-0.2, 0.7, 0.4], fogColor: '#0a1a21', fogNear: 11, fogFar: 115, envIntensity: 0.26 },
+    // fog reaches much further than the other night chapters on purpose: the
+    // sea and the freighter standing off it are staged at 80–100 units, and
+    // at the old far=115 the ship dissolved into fog colour instead of
+    // reading as distance
+    grade: { zenith: '#060b12', horizon: '#0e2530', sunColor: '#7fe8d8', sunIntensity: 0.38, sunDir: [-0.2, 0.7, 0.4], fogColor: '#0a1a21', fogNear: 14, fogFar: 185, envIntensity: 0.26 },
   },
   {
     id: 'no-fly', t0: 0.58, t1: 0.66,

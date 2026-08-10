@@ -74,8 +74,8 @@ const SHIP_Y = 1.0;
  * The leg stays well out to seaward: the freighter is ~38 units long now, so
  * a track any closer swung its bow in over the islet's rocks.
  */
-const SHIP_FROM = new Vector3(44, SHIP_Y, 40);
-const SHIP_TO = new Vector3(34, SHIP_Y, 4);
+const SHIP_FROM = new Vector3(76, SHIP_Y, 57);
+const SHIP_TO = new Vector3(61, SHIP_Y, 3);
 
 export class Beacon {
   readonly group = new Group();
