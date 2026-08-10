@@ -21,25 +21,29 @@ export const PATH_POINTS = [
   // starts; the old line was already at cloud height by x=32 and the city
   // was behind you before you had looked at it
   [24, 9, 2],
-  [33, 13, -2],
+  [33, 11, -2],
   // Then the nose comes up and the district drops away for good. This climb
   // is deliberately long and deliberately steep — four points instead of
   // three — because the whole beat is the distance travelled between the
   // rooftops and the weather. The old 15-unit top left the city still close
   // underneath when the cloud arrived; the deck rides on the CH4 anchor, so
   // taking the path this high carries the whole cloud sea up with it.
-  [42, 22, 3],
-  [50, 34, -1],
-  // CH4 formation — S through the cloud sea, now far above the city
-  [60, 46, 8],
-  [70, 52, -8],
-  [80, 49, 6],
-  // CH5 storm slalom — the long let-down out of the high air, landing on the
+  // Altitudes are the cruise height plus a fraction of what the climb used to
+  // gain — scaling the GAIN, not the absolute value, keeps the shape of the
+  // ascent identical and only pulls its reach in. Twice reduced from the tall
+  // version: the gain is now about half of it.
+  [42, 15, 3],
+  [50, 21, -1],
+  // CH4 formation — S through the cloud sea, above the city
+  [60, 27, 8],
+  [70, 30, -8],
+  [80, 28.5, 6],
+  // CH5 storm slalom — the let-down out of the high air, landing on the
   // original altitude by its last point so CH6's approach is undisturbed
-  [88, 40, -6],
-  [94, 32, 6],
-  [100, 25, -6],
-  [106, 19, 6],
+  [88, 24, -6],
+  [94, 20, 6],
+  [100, 17, -6],
+  [106, 16, 6],
   [110, 15.5, -4],
   // CH6 beacon — calm rising arc
   [122, 18, 0],
