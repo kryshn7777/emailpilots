@@ -136,8 +136,13 @@ export function rooftopLots(modules) {
     // 0.34, not a full half-extent sum: a dense downtown wants towers packed
     // shoulder to shoulder with alleys between them, and 0.52 left suburban
     // gaps you could see the horizon through
+    // 0.55, not 0.34. Half the summed extents is the exact touching distance,
+    // so anything under 0.5 is authorising overlap — which was invisible only
+    // while modules rendered at a fraction of their lot. Now that a lot is
+    // drawn at its true size, 0.34 stood the towers inside one another. Using
+    // max(w,d) on both axes covers the 90-degree yaws.
     for (const other of lots) {
-      const near = (Math.max(w, d) + Math.max(other.w, other.d)) * 0.34;
+      const near = (Math.max(w, d) + Math.max(other.w, other.d)) * 0.55;
       if (Math.abs(other.x - x) < near && Math.abs(other.z - z) < near) return;
     }
     lots.push({
@@ -148,18 +153,20 @@ export function rooftopLots(modules) {
       moduleId: mod.id,
     });
   };
+  // attempt counts are up across the board: honest spacing rejects far more
+  // candidates, and without more tries the district thins out into suburbs
   // near neighbours: crowns land around the window's eye line
-  for (let i = 0; i < 600; i++) {
+  for (let i = 0; i < 1400; i++) {
     tower(12 + rand() * 62, -38 + rand() * 76, 3.2 + rand() * 2.3);
   }
   // the district beyond: taller, closing the horizon in every direction
-  for (let i = 0; i < 600; i++) {
+  for (let i = 0; i < 1400; i++) {
     tower(54 + rand() * 150, -105 + rand() * 210, 4.5 + rand() * 3.5);
   }
   // the rest of the city, out to the horizon. Every one of these falls in
   // the FAR ring, so they cost one instanced box each and carry their
   // windows in the impostor texture — this is where density is cheap.
-  for (let i = 0; i < 2200; i++) {
+  for (let i = 0; i < 5000; i++) {
     tower(-40 + rand() * 460, -260 + rand() * 520, 4 + rand() * 5);
   }
   return { lots };

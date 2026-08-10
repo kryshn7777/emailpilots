@@ -84,7 +84,28 @@ export class KitCity {
     glow = 0.5,
     private color = new Color(),
   ) {
-    // MID + FAR: emissive facade impostors (windows live in the texture)
+    // guard against a rings file from a different bake than the lot list
+    const valid = (indices: number[]): number[] => indices.filter((i) => lots[i] !== undefined);
+
+    /**
+     * LOD split: real kit modules for NEAR **and MID**, impostor box for FAR.
+     *
+     * Decimated mesh LODs were generated and measured, and they do not work
+     * on this kit — meshopt returns 6-35% off even when asked for 15%,
+     * because flat shading splits a normal at every hard edge and there is
+     * no interior detail to collapse (see scripts/bake-kit-lods.mjs). The
+     * real LOD for a blocky building is a box: the impostor is 12 triangles
+     * against ~1800.
+     *
+     * So the balance is drawn by distance instead of by decimation. MID was
+     * on the impostor before and is promoted to real geometry now that
+     * modules render at their true lot size — it is the band the camera can
+     * still resolve. FAR stays impostors, which is where the ~100x saving
+     * lives and where nothing is resolvable anyway. Draw calls do not scale
+     * with lot count either way: modules instance per type.
+     */
+    const modelled = valid([...rings.near, ...rings.mid]);
+    // FAR: emissive facade impostors (windows live in the texture)
     const facade = facadeTexture();
     const impostorMaterial = new MeshStandardMaterial({
       color: '#39415a',
@@ -94,15 +115,19 @@ export class KitCity {
       emissiveIntensity: 0.85,
     });
     this.disposables.push(facade, impostorMaterial);
-    // guard against a rings file from a different bake than the lot list
-    const valid = (indices: number[]): number[] => indices.filter((i) => lots[i] !== undefined);
-    this.buildImpostors(lots, valid([...rings.mid, ...rings.far]), impostorMaterial, tier);
+    this.buildImpostors(lots, valid(rings.far), impostorMaterial, tier);
+    // roof clutter stays a NEAR-ring treat. Spread over every lot in the
+    // district it stops reading as detail and becomes a carpet of specks and
+    // masts across the whole horizon.
     if (tier === 'high') this.buildRoofDressing(lots, valid(rings.near), modules);
-    if (dressWindows) this.buildWindowBands(lots, valid(rings.near), modules, tier);
+    // the impostors used to carry the district's lit windows in their facade
+    // texture; with them gone the band pass has to reach every lot or the
+    // city goes dark past the near ring
+    if (dressWindows) this.buildWindowBands(lots, modelled, modules, tier);
 
-    // NEAR: real kit modules, streamed in, one draw per module type
+    // real kit modules, streamed in, one draw per module type
     const byModule = new Map<string, number[]>();
-    for (const i of valid(rings.near)) {
+    for (const i of modelled) {
       const arr = byModule.get(lots[i]!.moduleId) ?? [];
       arr.push(i);
       byModule.set(lots[i]!.moduleId, arr);
@@ -143,6 +168,8 @@ export class KitCity {
         const bounds = geometry.boundingBox!;
         const baseY = bounds.min.y;
         const geomHeight = bounds.max.y - bounds.min.y;
+        const geomW = bounds.max.x - bounds.min.x;
+        const geomD = bounds.max.z - bounds.min.z;
         const inst = new InstancedMesh(geometry, this.kitMaterial(glow), indices.length);
         const m4 = new Matrix4();
         const q = new Quaternion();
@@ -164,7 +191,19 @@ export class KitCity {
           // Proportions survive the rescale, so one factor off the height is
           // both uniform (no facade stretch) and exact: the footprint lands
           // on lot.w/lot.d of its own accord.
-          const fit = lot.h / geomHeight;
+          // Fit the module INSIDE the lot box on all three axes, uniformly.
+          //
+          // Height alone is not enough: the kit has squat modules (one is
+          // 0.88 wide by 0.89 tall), and scaling those to a 6-unit lot height
+          // made them 11 units wide on a 4.2-unit street grid — every
+          // building growing through its neighbours. Taking the smallest of
+          // the three ratios keeps the module undistorted AND inside its plot.
+          //
+          // Rooftop lots derive w/d/h from this same module, so all three
+          // ratios are equal there and the height still lands exactly on
+          // lot.h — which is what the window bands and roof clutter are
+          // placed against.
+          const fit = Math.min(lot.w / geomW, lot.d / geomD, lot.h / geomHeight);
           s.set(fit, fit, fit);
           p.set(lot.x, -baseY * fit, lot.z);
           inst.setMatrixAt(k, m4.compose(p, q, s));

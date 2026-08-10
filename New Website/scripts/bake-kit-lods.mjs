@@ -60,14 +60,26 @@ for (const mod of manifest.modules) {
   await lod0.transform(quantize());
   const lod0File = join(kitDir, `${mod.id}.lod0.glb`);
   await io.write(lod0File, lod0);
-
-  // NO mesh LOD1: meshopt cannot meaningfully collapse flat-shaded kit
-  // geometry (22% at best), and the emissive-facade impostor already reads
-  // perfectly at MID distances — so MID and FAR both ride the impostor.
   mod.lod0 = `${mod.id}.lod0.glb`;
-  delete mod.lod1;
-  delete mod.tris1;
   totalBytes += statSync(lod0File).size;
+
+  /**
+   * NO decimated mesh LODs, and this is measured rather than assumed. Asking
+   * meshopt for 40% of the triangles returns 6-33% off, and asking for 15%
+   * with a 4x larger error budget returns 6-35% — the same geometry twice.
+   * The kit is flat-shaded: every hard edge is a normal split, weld cannot
+   * merge across it, and there is no interior detail left to collapse. Two
+   * extra files per module cost 1.5MB to save a handful of triangles.
+   *
+   * The LOD that works on a blocky building is a box. FAR rides the shared
+   * emissive-facade impostor (12 triangles against ~1800), which is the
+   * ~100x win; NEAR and MID keep the real module, so everything the camera
+   * can actually resolve is real geometry.
+   */
+  delete mod.lod1;
+  delete mod.lod2;
+  delete mod.tris1;
+  delete mod.tris2;
 
   assert(mod.footprint[0] > 0 && mod.footprint[1] > 0 && mod.height > 0, `${mod.id}: empty bounds`);
 }
