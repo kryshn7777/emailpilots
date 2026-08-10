@@ -12,8 +12,10 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  Object3D,
   PlaneGeometry,
   PointLight,
+  SphereGeometry,
   Quaternion,
   Points,
   PointsMaterial,
@@ -42,6 +44,9 @@ import { requestCompile } from '../warm';
 export class Desk {
   readonly group = new Group();
   readonly lamp: PointLight;
+  /** kept out of the static merge — the end balls actually swing */
+  private cradle = new Group();
+  private cradleArms: Group[] = [];
 
   private screenLight: PointLight;
   private dust: Points;
@@ -52,7 +57,7 @@ export class Desk {
   constructor(origin: Vector3, dustCount: number, rand: () => number) {
     this.group.position.copy(origin);
 
-    // the desk is a real table model now (WoodenTable_02, streamed in below);
+    // the desk is built below as an office slab (no GLB);
     // an interim invisible-thin top is unnecessary — props already float at
     // the exact height the table's top surface lands on (y −0.10)
 
@@ -334,10 +339,30 @@ export class Desk {
         requestCompile(s);
       });
     };
-    prop('/models/potted_plant_04.glb', 0.95, -2.3, -1.35, 0.6);
-    // book row parked neatly along the back edge beside the plant
-    prop('/models/book_encyclopedia_set_01.glb', 0.5, -1.15, -1.72, 0.06);
+    prop('/models/potted_plant_04.glb', 0.95, -2.85, -1.4, 0.6);
     prop('/models/ceramic_vase_01.glb', 0.62, 2.0, -0.85, 0.2);
+
+    // Paperwork is FLAT, so it fits by footprint, not height: scaling a
+    // 2cm-thick notepad to a target height blew it up to a desk-sized slab.
+    const flatProp = (url: string, targetW: number, x: number, z: number, rotY: number): void => {
+      loader.load(url, (gltf) => {
+        const s = gltf.scene;
+        const box = new Box3().setFromObject(s);
+        const size = box.getSize(new Vector3());
+        s.scale.setScalar(targetW / Math.max(size.x, size.z, 1e-3));
+        box.setFromObject(s);
+        s.position.set(x, -0.1 - box.min.y, z);
+        s.rotation.y = rotY;
+        this.group.add(s);
+        requestCompile(s);
+      });
+    };
+    // notepads by the writing hand, bound notebooks squared up behind the
+    // laptop, a clipboard parked at the far corner
+    flatProp('/models/office_notepads.glb', 0.3, 1.72, 0.78, -0.5);
+    flatProp('/models/binder_notebook.glb', 0.28, -1.62, -1.1, 0.22);
+    flatProp('/models/binder_notebook.glb', 0.28, -1.22, -1.0, -0.14);
+    flatProp('/models/clipboard.glb', 0.3, 2.75, 1.02, 1.15);
 
     // — the study set: real furniture, floor-standing —
     const floorProp = (url: string, targetH: number, x: number, z: number, rotY: number): void => {
@@ -391,7 +416,92 @@ export class Desk {
     part(new BoxGeometry(1.38, 0.4, 0.04), deskTop, -2.35, -1.01, -0.39);
     part(new BoxGeometry(0.5, 0.035, 0.03), deskSteel, -2.35, -0.44, -0.365);
     part(new BoxGeometry(0.5, 0.035, 0.03), deskSteel, -2.35, -0.9, -0.365);
-    floorProp('/models/Shelf_01.glb', 2.7, -3.7, -3.2, 0);
+    // (the worn bookshelf that stood here read as a junk-room prop; the wall
+    // of document binders below does the same job in an office register)
+
+    // — wall unit of document binders behind the desk —
+    const shelfBoard = new MeshStandardMaterial({ color: '#202634', roughness: 0.5 });
+    this.disposables.push(shelfBoard);
+    // one material per colour, not per binder: mergeStatics collapses by
+    // material, so unique materials would have cost ~60 draw calls
+    const binderMaterials = ['#3f4a63', '#6b4230', '#2f5d4a', '#5a3550', '#4a4f5c', '#7a6234'].map(
+      (color) => {
+        const m = new MeshStandardMaterial({ color, roughness: 0.72 });
+        this.disposables.push(m);
+        return m;
+      },
+    );
+    for (let row = 0; row < 3; row++) {
+      const shelfY = -0.55 + row * 0.78;
+      const board = new Mesh(new BoxGeometry(3.4, 0.07, 0.62), shelfBoard);
+      board.position.set(-2.6, shelfY, -3.32);
+      this.group.add(board);
+      this.disposables.push(board.geometry);
+      // binders stood on their spines, leaning at the end of each run
+      let x = -4.18;
+      let i = 0;
+      while (x < -1.06) {
+        const wide = 0.11 + ((row * 7 + i) % 4) * 0.035;
+        const tall = 0.44 + ((row * 5 + i) % 3) * 0.07;
+        const binder = new Mesh(
+          new BoxGeometry(wide, tall, 0.46),
+          binderMaterials[(row * 3 + i) % binderMaterials.length]!,
+        );
+        binder.position.set(x + wide / 2, shelfY + 0.035 + tall / 2, -3.34);
+        if (x + wide > -1.3) binder.rotation.z = 0.22; // the run leans over
+        this.group.add(binder);
+        this.disposables.push(binder.geometry);
+        x += wide + 0.012;
+        i++;
+      }
+    }
+
+    // — Newton's cradle on the desk: frame, cords, five polished balls —
+    const cradleSteel = new MeshStandardMaterial({
+      color: '#c3c9d6',
+      roughness: 0.18,
+      metalness: 0.95,
+    });
+    const cradleBase = new MeshStandardMaterial({ color: '#1b1f2b', roughness: 0.4 });
+    const cordMat = new MeshStandardMaterial({ color: '#8d94a6', roughness: 0.6 });
+    this.disposables.push(cradleSteel, cradleBase, cordMat);
+    this.cradle.position.set(2.95, -0.1, 0.42);
+    this.cradle.rotation.y = -0.5;
+    this.cradle.scale.setScalar(1.45);
+    this.group.add(this.cradle);
+    const cradlePart = (g: BufferGeometry, m: MeshStandardMaterial, px: number, py: number, pz: number): Mesh => {
+      const mesh = new Mesh(g, m);
+      mesh.position.set(px, py, pz);
+      this.cradle.add(mesh);
+      this.disposables.push(g);
+      return mesh;
+    };
+    cradlePart(new BoxGeometry(0.46, 0.03, 0.3), cradleBase, 0, 0.015, 0);
+    for (const sx of [-0.2, 0.2]) {
+      cradlePart(new BoxGeometry(0.02, 0.34, 0.02), cradleSteel, sx, 0.19, -0.12);
+      cradlePart(new BoxGeometry(0.02, 0.34, 0.02), cradleSteel, sx, 0.19, 0.12);
+    }
+    for (const sz of [-0.12, 0.12]) {
+      cradlePart(new BoxGeometry(0.42, 0.02, 0.02), cradleSteel, 0, 0.35, sz);
+    }
+    const ballGeometry = new SphereGeometry(0.037, 14, 12);
+    this.disposables.push(ballGeometry);
+    for (let i = 0; i < 5; i++) {
+      const arm = new Group();
+      arm.position.set(-0.148 + i * 0.074, 0.35, 0);
+      this.cradle.add(arm);
+      this.cradleArms.push(arm);
+      for (const sz of [-0.12, 0.12]) {
+        const cord = new Mesh(new CylinderGeometry(0.0035, 0.0035, 0.23, 4), cordMat);
+        cord.position.set(0, -0.115, sz / 2);
+        cord.rotation.x = sz > 0 ? -0.44 : 0.44;
+        arm.add(cord);
+        this.disposables.push(cord.geometry);
+      }
+      const ball = new Mesh(ballGeometry, cradleSteel);
+      ball.position.y = -0.228;
+      arm.add(ball);
+    }
 
     // low credenza along the back wall — the carved console it replaces was
     // the loudest period piece left in frame
@@ -518,14 +628,21 @@ export class Desk {
     const makeMug = (bodyColor: string): Group => {
       const mug = new Group();
       const bodyMaterial = new MeshStandardMaterial({ color: bodyColor, roughness: 0.35 });
-      const body = new Mesh(new CylinderGeometry(0.105, 0.09, 0.17, 18), bodyMaterial);
-      body.position.y = 0.085;
+      // the body stops just under the rim so the coffee is the top surface —
+      // it used to sit at 0.156 inside a solid cylinder whose cap reached
+      // 0.17, i.e. buried in the mug where nothing could ever see it
+      const body = new Mesh(new CylinderGeometry(0.105, 0.09, 0.15, 18), bodyMaterial);
+      body.position.y = 0.075;
       const handle = new Mesh(new TorusGeometry(0.055, 0.015, 8, 18, Math.PI), bodyMaterial);
-      handle.position.set(0.1, 0.09, 0);
+      handle.position.set(0.1, 0.08, 0);
       handle.rotation.z = -Math.PI / 2;
-      const coffeeMaterial = new MeshStandardMaterial({ color: '#241610', roughness: 0.25 });
-      const coffee = new Mesh(new CylinderGeometry(0.093, 0.093, 0.008, 18), coffeeMaterial);
-      coffee.position.y = 0.156;
+      const coffeeMaterial = new MeshStandardMaterial({
+        color: '#4b2c17',
+        roughness: 0.12,
+        metalness: 0.05,
+      });
+      const coffee = new Mesh(new CylinderGeometry(0.094, 0.094, 0.006, 18), coffeeMaterial);
+      coffee.position.y = 0.152;
       mug.add(body, handle, coffee);
       this.disposables.push(body.geometry, handle.geometry, coffee.geometry, bodyMaterial, coffeeMaterial);
       return mug;
@@ -642,6 +759,8 @@ export class Desk {
     this.group.traverse((o) => {
       const mesh = o as Mesh;
       if (!mesh.isMesh || (mesh as unknown as InstancedMesh).isInstancedMesh) return;
+      // anything under a moving parent must keep its own transform
+      for (let p: Object3D | null = mesh; p; p = p.parent) if (p === this.cradle) return;
       const material = mesh.material;
       if (Array.isArray(material) || !(material as MeshStandardMaterial).isMeshStandardMaterial) {
         return;
@@ -667,6 +786,13 @@ export class Desk {
   update(time: number): void {
     // live-screen flicker: the send is happening right now
     this.screenLight.intensity = 2.5 + Math.sin(time * 2.6) * 0.6;
+
+    // Newton's cradle: only the end balls move, and only one at a time —
+    // the middle three hang dead, which is the whole reason it reads as one
+    const beat = Math.sin(time * 2.9);
+    const swing = 0.5 * Math.abs(beat) * (0.75 + 0.25 * Math.cos(time * 0.4));
+    this.cradleArms[0]!.rotation.z = beat > 0 ? swing : 0;
+    this.cradleArms[4]!.rotation.z = beat > 0 ? 0 : -swing;
     const attr = this.dustGeometry.attributes.position!;
     const arr = attr.array as Float32Array;
     for (let i = 0; i < arr.length; i += 3) {

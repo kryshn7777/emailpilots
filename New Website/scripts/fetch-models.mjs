@@ -13,14 +13,11 @@ const tmpRoot = join(root, '.tmp-models');
 
 const SLUGS = [
   'potted_plant_04',
-  'book_encyclopedia_set_01',
   'ceramic_vase_01',
-  // luxury study set (CH1 room)
-  'WoodenTable_02',
-  'ClassicConsole_01',
-  'ArmChair_01',
-  'Chandelier_03',
-  'Shelf_01',
+  // office desk dressing (CH1 room)
+  'binder_notebook',
+  'office_notepads',
+  'clipboard',
 ];
 
 function download(url, file, redirectsLeft = 3) {
