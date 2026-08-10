@@ -142,7 +142,12 @@ export class NoFly {
 
   update(time: number, t: number): void {
     if (!this.group.visible) return;
-    const arrive = MathUtils.smoothstep(t, 0.59, 0.625);
+    // Red starts a touch later than it used to. The sea now holds at full
+    // strength longer (SEA_FADE_DELAY in Beacon), and the sea plane reaches
+    // right over this map — starting at 0.59 put red exclusion pillars
+    // standing in open water. Only the START moves: red is still fully in by
+    // 0.625 and still clears before the city, so nothing downstream shifts.
+    const arrive = MathUtils.smoothstep(t, 0.596, 0.625);
     // red is fully out BEFORE the city fades in at 0.645 — red over the lit
     // skyline read as leftover error; the floor lingers longer so the city
     // arrives on ground that is already there

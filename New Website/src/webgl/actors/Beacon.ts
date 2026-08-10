@@ -74,8 +74,11 @@ const SHIP_Y = 1.0;
  * The leg stays well out to seaward: the freighter is ~38 units long now, so
  * a track any closer swung its bow in over the islet's rocks.
  */
-const SHIP_FROM = new Vector3(76, SHIP_Y, 57);
-const SHIP_TO = new Vector3(61, SHIP_Y, 3);
+/** extra scroll the sea holds before it starts letting go — see `reveal` */
+const SEA_FADE_DELAY = 0.012;
+
+const SHIP_FROM = new Vector3(25, SHIP_Y, -80);
+const SHIP_TO = new Vector3(65, SHIP_Y, -40);
 
 export class Beacon {
   readonly group = new Group();
@@ -692,10 +695,19 @@ export class Beacon {
       MathUtils.smoothstep(t, 0.45, 0.5) * (1 - MathUtils.smoothstep(t, 0.57, 0.605));
     this.rainMaterial.uniforms.uTime!.value = time;
     this.rainMaterial.uniforms.uOpacity!.value = beaconness * 0.85;
-    // the sea is gone before the no-fly map develops — overlapping them put
-    // red exclusion circles on the water
+    // The sea is gone before the no-fly map develops — overlapping them put
+    // red exclusion circles on the water, and the sea plane is wide enough to
+    // reach right over the CH7 map.
+    //
+    // SEA_FADE_DELAY holds the water at full strength for another ~90px of
+    // scroll (about half a second at an unhurried pace on this 7.5k-pixel
+    // story) and then fades quicker, so only the START moves. The END stays
+    // pinned at 0.605 on purpose: red arrives at 0.59 and has to be gone
+    // before the city at 0.65, so pushing the whole window would ripple
+    // straight through two downstream chapters.
     const reveal =
-      MathUtils.smoothstep(t, 0.44, 0.49) * (1 - MathUtils.smoothstep(t, 0.575, 0.605));
+      MathUtils.smoothstep(t, 0.44, 0.49) *
+      (1 - MathUtils.smoothstep(t, 0.575 + SEA_FADE_DELAY, 0.6));
     this.oceanMaterial.uniforms.uReveal!.value = reveal;
     // a fullscreen transparent plane at alpha≈0 still pays full fragment cost
     this.sea.visible = reveal > 0.003;
