@@ -81,9 +81,11 @@ export class City {
    * billboards on NEAR only — FAR carries its windows in the impostor texture.
    */
   private async init(path: FlightPath, quality: Quality): Promise<void> {
+    // no-cache: lots and rings MUST come from the same bake — a stale cached
+    // rings file indexes past the end of a freshly generated lot list
     const [manifest, allRings] = await Promise.all([
-      fetch('/models/city-kit/manifest.json').then((r) => r.json()),
-      fetch('/models/city-rings.json').then((r) => r.json()),
+      fetch('/models/city-kit/manifest.json', { cache: 'no-cache' }).then((r) => r.json()),
+      fetch('/models/city-rings.json', { cache: 'no-cache' }).then((r) => r.json()),
     ]);
     const rings = allRings.city[quality.tier] as KitRingSet;
     const { lots } = cityRecipes(manifest.modules);

@@ -67,11 +67,13 @@ export class KitCity {
       emissiveIntensity: 0.85,
     });
     this.disposables.push(facade, impostorMaterial);
-    this.buildImpostors(lots, [...rings.mid, ...rings.far], impostorMaterial);
+    // guard against a rings file from a different bake than the lot list
+    const valid = (indices: number[]): number[] => indices.filter((i) => lots[i] !== undefined);
+    this.buildImpostors(lots, valid([...rings.mid, ...rings.far]), impostorMaterial);
 
     // NEAR: real kit modules, streamed in, one draw per module type
     const byModule = new Map<string, number[]>();
-    for (const i of rings.near) {
+    for (const i of valid(rings.near)) {
       const arr = byModule.get(lots[i]!.moduleId) ?? [];
       arr.push(i);
       byModule.set(lots[i]!.moduleId, arr);

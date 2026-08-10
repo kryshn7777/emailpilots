@@ -82,7 +82,9 @@ export function rooftopLots(modules) {
   const rand = mulberry32(CITY_SEED + 31);
   const lots = [];
   const place = (x, z, w, d, h) => {
-    if (Math.abs(z - 1) < 3.2 && x < 22) return; // exit corridor stays clear
+    // exit corridor stays clear — 4.5 covers the camera's swing, not just
+    // the plane's line (3.2 put a facade against the lens at t≈0.125)
+    if (Math.abs(z - 1) < 4.5 && x < 24) return;
     const tall = h > 5;
     const pool = modules.filter((m) => (tall ? /sky/i.test(m.id) : !/sky/i.test(m.id)));
     const pick = (pool.length ? pool : modules);

@@ -181,7 +181,7 @@ export class Engine {
     this.desk = new Desk(new Vector3(0.4, 1.29, 0), this.quality.dustCount, rand);
     this.panel = new Panel(this.path.chapterAnchor(1));
     this.windowFrame = new WindowFrame(new Vector3(7, 2, 0.8));
-    this.rooftops = new Rooftops(rand);
+    this.rooftops = new Rooftops(rand, this.quality);
     this.clouds = new Clouds(this.path.chapterAnchor(3), this.quality, rand, this.renderer);
     this.envelopes = new Envelopes(this.raycast, this.tooltip);
     this.storm = new Storm(this.path, this.quality.rainCount, rand);
