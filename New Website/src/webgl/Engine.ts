@@ -384,26 +384,63 @@ export class Engine {
 
   private warming = true;
 
+  private hslA = { h: 0, s: 0, l: 0 };
+  private hslB = { h: 0, s: 0, l: 0 };
+
+  /**
+   * Cross-fade two chapter colours into `colorA`, taking hue the SHORT way.
+   *
+   * A channel-wise lerp walks a straight line through colour space, and when
+   * the ends sit opposite in hue and far apart in luminance that line runs
+   * through mud. The copilot→landing seam is the flight's worst case: near
+   * black night blue (#05070f) to dawn peach (#c9a58f) gave a flat brick brown
+   * for the whole 0.83–0.88 band — measured #766054 fog, #985d4a horizon at
+   * t=0.85, which is neither night nor dawn.
+   *
+   * three's own lerpHSL does not help: it lerps hue linearly with no wrap, so
+   * the same pair ran DOWNWARD through cyan and yellow instead (horizon
+   * #e8ef3c at 0.865 — a green sunrise). Wrapping at ±0.5 takes the arc a real
+   * sunrise takes: indigo, violet, rose, peach.
+   *
+   * Saturation is pulled DOWN in the middle of the crossing. Interpolating it
+   * straight lands on a fully saturated mid-tone — the same seam went neon
+   * purple (#81439e horizon, a flat magenta field). Skies desaturate as they
+   * turn; the sine dips to 0.5 at the midpoint and is exactly 1 at both ends,
+   * so no chapter's own grade is altered.
+   */
+  private blend(a: string, b: string, u: number): void {
+    this.colorA.set(a).getHSL(this.hslA);
+    this.colorB.set(b).getHSL(this.hslB);
+    let dh = this.hslB.h - this.hslA.h;
+    if (dh > 0.5) dh -= 1;
+    else if (dh < -0.5) dh += 1;
+    this.colorA.setHSL(
+      (this.hslA.h + dh * u + 1) % 1,
+      MathUtils.lerp(this.hslA.s, this.hslB.s, u) * (1 - 0.5 * Math.sin(Math.PI * u)),
+      MathUtils.lerp(this.hslA.l, this.hslB.l, u),
+    );
+  }
+
   private applyGrade(t: number): void {
     const { from, to, u } = gradeBlendAt(t);
     const num = (pick: (g: GradeParams) => number): number =>
       MathUtils.lerp(pick(from), pick(to), u);
 
-    this.colorA.set(from.zenith).lerp(this.colorB.set(to.zenith), u);
+    this.blend(from.zenith, to.zenith, u);
     this.sky.zenith.copy(this.colorA);
-    this.colorA.set(from.horizon).lerp(this.colorB.set(to.horizon), u);
+    this.blend(from.horizon, to.horizon, u);
     this.sky.horizon.copy(this.colorA);
 
     const sunLevel = num((g) => g.sunIntensity);
     // clouds dim with the sun so the storm reads dark, not milky
     const cloudBrightness = MathUtils.clamp(0.3 + (sunLevel / 1.6) * 0.7, 0.3, 1);
 
-    this.colorA.set(from.sunColor).lerp(this.colorB.set(to.sunColor), u);
+    this.blend(from.sunColor, to.sunColor, u);
     this.sky.sunColor.copy(this.colorA);
     this.sun.color.copy(this.colorA);
     this.clouds.sunColor.copy(this.colorA).multiplyScalar(cloudBrightness);
 
-    this.colorA.set(from.fogColor).lerp(this.colorB.set(to.fogColor), u);
+    this.blend(from.fogColor, to.fogColor, u);
     this.fog.color.copy(this.colorA);
     this.clouds.fogColor.copy(this.colorA);
     this.renderer.setClearColor(this.colorA);
