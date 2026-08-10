@@ -48,7 +48,6 @@ import { Desk } from './actors/Desk';
 import { Envelopes } from './actors/Envelopes';
 import { Landing } from './actors/Landing';
 import { LaunchString } from './actors/LaunchString';
-import { NoFly } from './actors/NoFly';
 import { Panel } from './actors/Panel';
 import { PaperBurst } from './actors/PaperBurst';
 import { PaperPlane } from './actors/PaperPlane';
@@ -119,7 +118,6 @@ export class Engine {
   private biplane: Biplane;
   private birds: Birds;
   private beacon: Beacon;
-  private noFly: NoFly;
   private wingPlanes = new WingPlanes();
   private traffic!: Traffic;
   private zoomBlur = new ZoomBlurEffect();
@@ -209,7 +207,6 @@ export class Engine {
     this.biplane = new Biplane(this.path);
     this.birds = new Birds(rand);
     this.beacon = new Beacon(this.path.chapterAnchor(5), this.raycast, this.tooltip, this.quality);
-    this.noFly = new NoFly(this.path.chapterAnchor(6));
     this.city = new City(this.path.chapterAnchor(7), this.path, this.quality);
     this.copilot = new Copilot(this.path.chapterAnchor(8));
     // fixed roll-out point, not a story-t sample: the flight now turns off
@@ -236,12 +233,12 @@ export class Engine {
       this.windowFrame.group,
       this.rooftops.group,
       this.clouds.sprites,
+      this.clouds.night,
       this.envelopes.group,
       this.storm.group,
       this.biplane.group,
       this.birds.group,
       this.beacon.group,
-      this.noFly.group,
       this.wingPlanes.group,
       this.traffic.group,
       this.city.group,
@@ -367,7 +364,7 @@ export class Engine {
       this.biplane.group,
       this.birds.group,
       this.beacon.group,
-      this.noFly.group,
+      this.clouds.night,
       this.city.group,
       this.copilot.group,
       this.landing.group,
@@ -590,13 +587,15 @@ export class Engine {
     // ends with the sea reveal (0.605) — the extra tail let the camera catch
     // radar rings and ship lights hanging in the no-fly sky during the bend
     this.beacon.group.visible = t > 0.44 && t < 0.605;
-    // overlaps the sea fade-out so the ground never drops to void; red zones
-    // fade 0.59–0.652 (gone before the city), the map floor lingers to 0.69
-    this.noFly.group.visible = t > 0.585 && t < 0.695;
+    // (the overnight deck gates itself — Clouds.update fades it in on t)
     // city arrives while the camera is still short of the first lots (it
     // crosses x≈170 near t 0.66) so it builds at a distance instead of
-    // materializing around the lens; the red map is already out by then
-    this.city.group.visible = t > 0.65 && t < 0.83;
+    // materializing around the lens.
+    // Earlier than it used to be: the no-fly map that used to floor this gap
+    // is gone, and the overnight deck's lower band stops at x≈184, so between
+    // 0.635 and 0.65 there was nothing under the flight at all. The city's own
+    // ground sheet is what fills it — 30+ units out and deep in fog.
+    this.city.group.visible = t > 0.635 && t < 0.83;
     this.copilot.group.visible = t > 0.75 && t < 0.9;
     this.landing.group.visible = t > 0.85;
     // The room is measurably off-screen from t=0.17 — an AABB-vs-frustum test
@@ -644,7 +643,7 @@ export class Engine {
 
     if (nearDesk) this.desk.update(time); // 250-mote dust loop, pointless offscreen
     this.panel.update(t);
-    this.clouds.update(time, this.sunScreenDir, this.fog.near, this.fog.far);
+    this.clouds.update(time, this.sunScreenDir, this.fog.near, this.fog.far, t);
     this.envelopes.update(
       this.rig.planeWorldPos,
       this.rig.currentSide,
@@ -668,7 +667,6 @@ export class Engine {
     );
     this.traffic.update(t, time);
     this.plane.setBeamHit(this.beacon.update(time, this.camera, t, this.rig.planeWorldPos));
-    this.noFly.update(time, t);
     this.city.update(t, time);
     this.copilot.update(
       this.rig.planeWorldPos,
@@ -753,7 +751,6 @@ export class Engine {
     this.biplane.dispose();
     this.birds.dispose();
     this.beacon.dispose();
-    this.noFly.dispose();
     this.wingPlanes.dispose();
     this.traffic.dispose();
     this.city.dispose();
