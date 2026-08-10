@@ -455,8 +455,7 @@ export class Beacon {
 
     this.buildShip();
 
-    // — radar rings, lifted clear of the water with the ship: at swell height
-    // they cut through the hull and read as rings floating IN the sea —
+    // — radar rings riding just above the swell —
     for (let i = 0; i < 3; i++) {
       const m = new MeshStandardMaterial({
         color: '#06211f',
@@ -468,7 +467,7 @@ export class Beacon {
       });
       const ring = new Mesh(new RingGeometry(0.96, 1, 48), m);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 4.4 * TOWER_SCALE;
+      ring.position.y = 1.1 * TOWER_SCALE;
       this.group.add(ring);
       this.rings.push(ring);
       this.ringMaterials.push(m);
