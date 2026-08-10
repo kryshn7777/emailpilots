@@ -51,9 +51,12 @@ export class Rooftops {
     // grid below stays readable through the gaps
     const deckMap = cloudDeckTexture();
     this.disposables.push(deckMap);
+    // repeat counts are high on purpose: the sheets are 900 units across, and
+    // at the old 4.5–7 a single cloud tile smeared over most of the frame as
+    // soon as the flight climbed — giant marbled slabs, not weather
     for (const [y, repeat, opacity, scale] of [
-      [ROOFTOP_DECK_Y - 3.5, 7, 0.62, 1],
-      [ROOFTOP_DECK_Y, 4.5, 0.5, 0.82],
+      [ROOFTOP_DECK_Y - 3.5, 20, 0.62, 1],
+      [ROOFTOP_DECK_Y, 13, 0.5, 0.82],
     ] as const) {
       const material = new MeshBasicMaterial({
         map: deckMap,

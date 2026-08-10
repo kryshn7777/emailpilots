@@ -44,6 +44,31 @@ function rightSide(): Tri[] {
   ];
 }
 
+/**
+ * The folded dart on its own, with no morph targets — for instanced flocks
+ * of background planes that never unfold. Shares the crease data above, so
+ * the traffic on the airway is the same aircraft as the hero.
+ */
+export function dartGeometry(): BufferGeometry {
+  const pos: number[] = [];
+  const uv: number[] = [];
+  for (const tri of rightSide()) {
+    for (const sign of [1, -1] as const) {
+      for (const i of sign === 1 ? [0, 1, 2] : [0, 2, 1]) {
+        const f = tri.folded[i]!;
+        const fl = tri.flat[i]!;
+        pos.push(f[0] * sign, f[1], f[2]);
+        uv.push((fl[0] * sign) / SHEET_W + 0.5, fl[2] / L + 0.5);
+      }
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
+  g.computeVertexNormals();
+  return g;
+}
+
 export class PaperPlane {
   readonly group = new Group();
   private mesh: Mesh;

@@ -56,6 +56,8 @@ import { Rooftops } from './actors/Rooftops';
 import { Storm } from './actors/Storm';
 import { Traffic } from './actors/Traffic';
 import { Trail } from './actors/Trail';
+import { AirTrail } from './actors/AirTrail';
+import { Flock } from './actors/Flock';
 import { WindowFrame } from './actors/WindowFrame';
 import { WingPlanes } from './actors/WingPlanes';
 import { CameraRig } from './rig/CameraRig';
@@ -100,6 +102,8 @@ export class Engine {
   private path = new FlightPath();
   private plane = new PaperPlane();
   private trail = new Trail();
+  private airTrail = new AirTrail();
+  private flock!: Flock;
   private launchString = new LaunchString();
   private rig: CameraRig;
   private sky = new SkyDome();
@@ -215,10 +219,13 @@ export class Engine {
     this.burst = new PaperBurst(rand);
     this.confetti = new PaperBurst(rand);
     this.traffic = new Traffic(this.path);
+    this.flock = new Flock(rand);
 
     this.scene.add(
       this.plane.group,
       this.trail.line,
+      this.airTrail.mesh,
+      this.flock.group,
       this.launchString.line,
       this.sky.mesh,
       this.sun,
@@ -567,8 +574,10 @@ export class Engine {
     // CH6 — overlapping them stacked two fullscreen shaders on iGPUs
     // weather starts ABOVE the city, not over it: the deck used to open at
     // 0.14 while the flight was still crossing rooftops
-    if (this.clouds.volume) this.clouds.volume.visible = t > 0.25 && t < 0.46;
-    this.clouds.sprites.visible = t > 0.23 && t < 0.58;
+    // the deck opens DURING the climb now, so the first puffs arrive while the
+    // nose is still coming up out of the city and the camera flies into them
+    if (this.clouds.volume) this.clouds.volume.visible = t > 0.225 && t < 0.46;
+    this.clouds.sprites.visible = t > 0.2 && t < 0.58;
     // storm rain is fully faded by 0.52 (stormness ends there) — the group
     // lingering to 0.58 double-paid rain over the beacon's local shower
     this.storm.group.visible = t > 0.3 && t < 0.52;
@@ -636,12 +645,15 @@ export class Engine {
     this.confetti.update(time);
     this.raycast.update(this.camera);
 
+    this.flock.update(t, time, this.path, this.camera);
+
     if (t > CONTRAIL_FROM) {
       this.trail.visible = true;
       this.trail.update(t, this.path, this.plane.group.position);
     } else {
       this.trail.visible = false;
     }
+    this.airTrail.update(t, time, this.path, this.plane.group.position);
 
     this.composer.render();
 
@@ -690,6 +702,8 @@ export class Engine {
     this.composer.dispose();
     this.plane.dispose();
     this.trail.dispose();
+    this.airTrail.dispose();
+    this.flock.dispose();
     this.launchString.dispose();
     this.sky.dispose();
     this.desk.dispose();

@@ -32,7 +32,10 @@ import volumeFrag from '../shaders/cloudVolume.frag.glsl';
  * change (the live shader keeps rotation, lighting, rim, and fog).
  */
 function bakeDensityAtlas(renderer: WebGLRenderer): WebGLRenderTarget {
-  const rt = new WebGLRenderTarget(1024, 512, { depthBuffer: false });
+  // 512 px per variant, not 256: once the deck straddles the flight line a
+  // single puff can fill most of the frame, and at the old tile size that
+  // magnified the fbm into blurry marble instead of cloud
+  const rt = new WebGLRenderTarget(2048, 1024, { depthBuffer: false });
   const scene = new Scene();
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const material = new ShaderMaterial({
@@ -51,7 +54,7 @@ function bakeDensityAtlas(renderer: WebGLRenderer): WebGLRenderTarget {
   renderer.autoClear = false;
   for (let v = 0; v < 8; v++) {
     material.uniforms.uSeed!.value = v * 0.137 + 0.05;
-    renderer.setViewport((v % 4) * 256, Math.floor(v / 4) * 256, 256, 256);
+    renderer.setViewport((v % 4) * 512, Math.floor(v / 4) * 512, 512, 512);
     renderer.render(scene, camera);
   }
   renderer.autoClear = prevAutoClear;
@@ -99,7 +102,9 @@ export class Clouds {
         uFogColor: { value: this.fogColor },
         uFogNear: { value: 30 },
         uFogFar: { value: 220 },
-        uOpacity: { value: 0.72 },
+        // per-sprite alpha is LOW on purpose: density is meant to come from
+        // many overlapping puffs, not from each one being nearly solid
+        uOpacity: { value: 0.42 },
       },
       transparent: true,
       depthWrite: false,
@@ -114,15 +119,20 @@ export class Clouds {
     const p = new Vector3();
     for (let i = 0; i < count; i++) {
       seeds[i] = rand();
-      const spread = 90;
-      // mass sits below the flight line so the plane skims cloud TOPS and
-      // the sky above stays visible for contrast
+      const spread = 108;
+      // the deck now STRADDLES the flight line — the climb out of the city
+      // ends inside weather, so puffs pass the lens instead of scrolling by
+      // underneath. Biased low (pow > 1) so most of the mass is still below
+      // and there is open sky overhead to climb toward.
       p.set(
-        center.x - spread / 2 + rand() * spread,
-        center.y - 11 + rand() * 10,
+        center.x - spread * 0.56 + rand() * spread,
+        center.y - 12 + Math.pow(rand(), 1.4) * 15.5,
         center.z - 50 + rand() * 100,
       );
-      const scale = 5 + rand() * 14;
+      // smaller puffs than before: the deck is twice as populous now, and
+      // 19-unit sprites at deck altitude read as marbled slabs rather than
+      // cloud. More, smaller elements carry the same mass with real detail.
+      const scale = 4 + rand() * 8.5;
       s.setScalar(scale);
       m.compose(p, q, s);
       this.sprites.setMatrixAt(i, m);
@@ -133,9 +143,11 @@ export class Clouds {
     this.sprites.renderOrder = 2;
 
     if (quality.volumetricClouds) {
+      // the slab straddles the line too, so the raymarch is what the camera
+      // is actually inside during the formation chapter
       const box = new Box3(
-        new Vector3(center.x - 42, center.y - 9, center.z - 30),
-        new Vector3(center.x + 42, center.y - 1, center.z + 30),
+        new Vector3(center.x - 52, center.y - 9, center.z - 30),
+        new Vector3(center.x + 46, center.y + 3.5, center.z + 30),
       );
       this.volumeGeometry = new BoxGeometry(
         box.max.x - box.min.x,
@@ -163,7 +175,9 @@ export class Clouds {
         side: BackSide,
       });
       this.volume = new Mesh(this.volumeGeometry, this.volumeMaterial);
-      this.volume.position.copy(center);
+      // the slab is no longer symmetric about the anchor, so the shell must
+      // sit on the BOX centre or the geometry and the raymarch bounds part
+      box.getCenter(this.volume.position);
       this.volume.renderOrder = 3;
       this.volume.frustumCulled = false;
     }

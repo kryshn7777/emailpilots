@@ -11,6 +11,7 @@ uniform float uOpacity;
 varying vec2 vUv;
 varying float vSeed;
 varying float vDepth;
+varying float vScale;
 
 void main() {
   // per-sprite rotation (plus a silent drift) so the field never reads as
@@ -31,16 +32,23 @@ void main() {
   float radial = 1.0 - smoothstep(0.12, 0.5, length(p * vec2(1.0, 1.25)));
   vec2 sunDir2 = normalize(uSunScreenDir + 1e-5);
   float lit = clamp(dot(normalize(p + 1e-5), sunDir2) * 0.5 + 0.5, 0.0, 1.0);
-  vec3 color = mix(uShadowColor, uSunColor, lit * lit * 0.9 + 0.1);
+  // real cloud shadow is lit by the sky, never black — pinning the dark side
+  // to the raw shadow colour turned every puff over the bright city into a
+  // dark marbled smear
+  vec3 shade = mix(uShadowColor, uSunColor, 0.38);
+  vec3 color = mix(shade, uSunColor, lit * lit * 0.9 + 0.1);
   float rim = pow(1.0 - radial, 1.8) * pow(lit, 2.0);
   color += uSunColor * rim * 0.9;
 
   float fog = smoothstep(uFogNear, uFogFar, vDepth);
   color = mix(color, uFogColor, fog);
 
-  // fade out sprites the camera is about to fly through — a near sprite is a
-  // fullscreen quad, the single biggest overdraw cost in the scene
-  float near_ = smoothstep(2.5, 9.0, vDepth);
+  // Fade out sprites the camera is about to fly through — a near sprite is a
+  // fullscreen quad, the single biggest overdraw cost in the scene. The band
+  // has to scale WITH the sprite: puffs run 5–19 units across, so a fixed
+  // 2.5–9 fade left the big ones filling the lens with raw atlas swirl once
+  // the deck straddled the flight line.
+  float near_ = smoothstep(max(vScale * 0.8, 3.0), max(vScale * 2.4, 11.0), vDepth);
 
   gl_FragColor = vec4(color, min(density * 1.35, 1.0) * uOpacity * near_ * (1.0 - fog));
 }

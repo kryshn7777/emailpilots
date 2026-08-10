@@ -11,13 +11,16 @@ import {
   Float32BufferAttribute,
   Group,
   IcosahedronGeometry,
+  InstancedMesh,
   MathUtils,
   Mesh,
   MeshStandardMaterial,
+  Object3D,
   PlaneGeometry,
   Points,
   PointsMaterial,
   RingGeometry,
+  SphereGeometry,
   ShaderMaterial,
   Sprite,
   SpriteMaterial,
@@ -71,33 +74,147 @@ export class Beacon {
     this.group.position.set(anchor.x + 8, baseY, anchor.z - 2.5);
     this.towerTop.copy(this.group.position).add(new Vector3(0, 12.4, 0));
 
-    // — the tower: banded hull, gallery, lantern room, roof —
+    // — the tower: banded hull on a splayed stone base, corbelled gallery
+    // with a real balustrade, glazed lantern room around a Fresnel drum,
+    // domed roof and lightning rod. Poly Haven has no CC0 lighthouse, so the
+    // detail is procedural; every part shares one of four materials so the
+    // whole tower is still only a handful of draw calls.
     const hullMap = lighthouseTexture();
     const hullMaterial = new MeshStandardMaterial({ map: hullMap, roughness: 0.55 });
-    const tower = new Mesh(new CylinderGeometry(0.55, 0.95, 11.2, 20), hullMaterial);
-    tower.position.y = 6;
-    this.disposables.push(tower.geometry, hullMaterial, hullMap);
-
     const trim = new MeshStandardMaterial({ color: '#232a36', roughness: 0.5, metalness: 0.4 });
-    const gallery = new Mesh(new CylinderGeometry(0.95, 0.95, 0.12, 20), trim);
-    gallery.position.y = 11.65;
-    const rail = new Mesh(new TorusGeometry(0.92, 0.03, 8, 28), trim);
-    rail.rotation.x = Math.PI / 2;
-    rail.position.y = 12.0;
+    const stone = new MeshStandardMaterial({ color: '#5d5b57', roughness: 0.9 });
     const lanternGlass = new MeshStandardMaterial({
       color: '#0d3a38',
       emissive: '#7fe8d8',
       emissiveIntensity: 2.4,
       roughness: 0.3,
     });
-    const lantern = new Mesh(new CylinderGeometry(0.62, 0.62, 0.85, 12), lanternGlass);
-    lantern.position.y = 12.2;
-    const roof = new Mesh(new ConeGeometry(0.72, 0.6, 12), trim);
-    roof.position.y = 12.95;
-    this.group.add(tower, gallery, rail, lantern, roof);
-    this.disposables.push(
-      gallery.geometry, rail.geometry, lantern.geometry, lanternGlass, roof.geometry, trim,
+    this.disposables.push(hullMaterial, hullMap, trim, stone, lanternGlass);
+
+    /** places a part on the tower centreline and tracks its geometry */
+    const part = (g: BufferGeometry, m: MeshStandardMaterial, y: number): Mesh => {
+      const mesh = new Mesh(g, m);
+      mesh.position.y = y;
+      this.group.add(mesh);
+      this.disposables.push(g);
+      return mesh;
+    };
+    /** one draw call for a ring of identical small parts */
+    const ring = (
+      g: BufferGeometry,
+      m: MeshStandardMaterial,
+      count: number,
+      radius: number,
+      y: number,
+      faceOut = false,
+    ): void => {
+      const inst = new InstancedMesh(g, m, count);
+      const dummy = new Object3D();
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2;
+        dummy.position.set(Math.cos(a) * radius, y, Math.sin(a) * radius);
+        dummy.rotation.y = faceOut ? -a : 0;
+        dummy.updateMatrix();
+        inst.setMatrixAt(i, dummy.matrix);
+      }
+      inst.instanceMatrix.needsUpdate = true;
+      this.group.add(inst);
+      this.disposables.push(g, inst);
+    };
+
+    part(new CylinderGeometry(1.5, 1.78, 0.3, 20), stone, 0.12); // plinth
+    part(new CylinderGeometry(1.02, 1.32, 0.85, 20), stone, 0.5); // base course
+    part(new CylinderGeometry(0.55, 0.95, 11.2, 20), hullMaterial, 6); // banded hull
+    part(new CylinderGeometry(1.06, 0.6, 0.5, 20), trim, 11.35); // corbel flare
+    part(new CylinderGeometry(1.12, 1.12, 0.12, 20), trim, 11.66); // gallery deck
+
+    // balustrade: hand rail, mid rail, and posts between them
+    const railTube = (y: number): void => {
+      const r = new Mesh(new TorusGeometry(1.08, 0.032, 6, 28), trim);
+      r.rotation.x = Math.PI / 2;
+      r.position.y = y;
+      this.group.add(r);
+      this.disposables.push(r.geometry);
+    };
+    railTube(12.06);
+    railTube(11.9);
+    ring(new BoxGeometry(0.05, 0.36, 0.05), trim, 18, 1.08, 11.9);
+
+    // lantern room: glazing drum, astragal rings top and bottom, vertical
+    // mullions, and the stepped Fresnel lens burning inside it
+    part(new CylinderGeometry(0.62, 0.62, 0.85, 16), lanternGlass, 12.2);
+    for (const y of [11.79, 12.61]) {
+      const band = new Mesh(new TorusGeometry(0.635, 0.035, 6, 24), trim);
+      band.rotation.x = Math.PI / 2;
+      band.position.y = y;
+      this.group.add(band);
+      this.disposables.push(band.geometry);
+    }
+    ring(new BoxGeometry(0.05, 0.86, 0.05), trim, 8, 0.625, 12.2);
+    const lensGlass = new MeshStandardMaterial({
+      color: '#123c3a',
+      emissive: '#eafffb',
+      emissiveIntensity: 3.2,
+      roughness: 0.15,
+    });
+    part(new CylinderGeometry(0.3, 0.3, 0.46, 14), lensGlass, 12.18);
+    for (const y of [11.94, 12.42]) {
+      const step = new Mesh(new TorusGeometry(0.3, 0.045, 6, 18), lensGlass);
+      step.rotation.x = Math.PI / 2;
+      step.position.y = y;
+      this.group.add(step);
+      this.disposables.push(step.geometry);
+    }
+    this.disposables.push(lensGlass);
+
+    // roof: cone, ventilator dome, finial, lightning rod
+    part(new ConeGeometry(0.78, 0.62, 16), trim, 12.96);
+    part(new SphereGeometry(0.13, 12, 8), trim, 13.3);
+    part(new CylinderGeometry(0.015, 0.015, 0.62, 6), trim, 13.72);
+
+    // stairwell slits winding up the hull — the tower reads as climbable
+    const slit = new MeshStandardMaterial({
+      color: '#1a1408',
+      emissive: '#ffc06a',
+      emissiveIntensity: 1.1,
+    });
+    const slitGeometry = new BoxGeometry(0.2, 0.44, 0.07);
+    const slits = new InstancedMesh(slitGeometry, slit, 6);
+    const slitDummy = new Object3D();
+    for (let i = 0; i < 6; i++) {
+      const y = 1.9 + i * 1.55;
+      const a = i * 1.9; // ~one turn every three floors
+      const r = 0.95 - 0.4 * ((y - 0.4) / 11.2) + 0.02;
+      slitDummy.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+      slitDummy.rotation.y = -a;
+      slitDummy.updateMatrix();
+      slits.setMatrixAt(i, slitDummy.matrix);
+    }
+    slits.instanceMatrix.needsUpdate = true;
+    this.group.add(slits);
+    this.disposables.push(slitGeometry, slit, slits);
+
+    // entry: door into the base with a small hood, reached off the walkway
+    const doorway = new Mesh(
+      new BoxGeometry(0.5, 0.95, 0.14),
+      new MeshStandardMaterial({ color: '#1b2a34', roughness: 0.6 }),
     );
+    doorway.position.set(1.02, 0.62, 0.55);
+    doorway.rotation.y = -0.5;
+    const hood = new Mesh(new BoxGeometry(0.68, 0.08, 0.3), trim);
+    hood.position.set(1.06, 1.14, 0.58);
+    hood.rotation.y = -0.5;
+    this.group.add(doorway, hood);
+    this.disposables.push(
+      doorway.geometry, doorway.material as MeshStandardMaterial, hood.geometry,
+    );
+
+    // walkway from the cottage to the door, so the two buildings connect
+    const walk = new Mesh(new BoxGeometry(1.9, 0.1, 0.75), stone);
+    walk.position.set(1.9, 0.28, 0.5);
+    walk.rotation.y = -0.25;
+    this.group.add(walk);
+    this.disposables.push(walk.geometry);
 
     // — the islet: wet rocks breaking the swell —
     const rock = new MeshStandardMaterial({ color: '#151c26', roughness: 0.35, metalness: 0.1 });

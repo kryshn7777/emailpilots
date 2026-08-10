@@ -5,6 +5,7 @@ uniform float uTime;
 varying vec2 vUv;
 varying float vSeed;
 varying float vDepth;
+varying float vScale;
 
 void main() {
   vUv = uv;
@@ -12,6 +13,7 @@ void main() {
 
   vec4 center = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
   float scale = length(vec3(instanceMatrix[0][0], instanceMatrix[0][1], instanceMatrix[0][2]));
+  vScale = scale;
 
   // slow drift so the field breathes
   center.x += sin(uTime * 0.03 + aSeed * 12.0) * 0.8;
