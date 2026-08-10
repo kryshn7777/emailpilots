@@ -43,6 +43,7 @@ import { Biplane } from './actors/Biplane';
 import { Birds } from './actors/Birds';
 import { City } from './actors/City';
 import { Clouds } from './actors/Clouds';
+import { Rocket } from './actors/Rocket';
 import { Copilot } from './actors/Copilot';
 import { Desk } from './actors/Desk';
 import { Envelopes } from './actors/Envelopes';
@@ -110,6 +111,7 @@ export class Engine {
   private windowFrame: WindowFrame;
   private rooftops!: Rooftops;
   private clouds: Clouds;
+  private rocket: Rocket;
   private envelopes: Envelopes;
   private storm: Storm;
   private biplane: Biplane;
@@ -200,6 +202,7 @@ export class Engine {
     this.windowFrame = new WindowFrame(new Vector3(7, 2, 0.8));
     this.rooftops = new Rooftops(rand, this.quality);
     this.clouds = new Clouds(this.path.chapterAnchor(3), this.quality, rand, this.renderer);
+    this.rocket = new Rocket(this.path.chapterAnchor(3));
     this.envelopes = new Envelopes(this.raycast, this.tooltip);
     this.storm = new Storm(this.path, this.quality.rainCount, rand);
     this.biplane = new Biplane(this.path);
@@ -229,6 +232,7 @@ export class Engine {
       this.windowFrame.group,
       this.rooftops.group,
       this.clouds.sprites,
+      this.rocket.group,
       this.envelopes.group,
       this.storm.group,
       this.biplane.group,
@@ -440,7 +444,11 @@ export class Engine {
       let flat = this.flatCache.get(src);
       if (!flat) {
         const color = src.color.clone();
-        if (src.emissiveIntensity > 0) {
+        // Only fold FLAT emissive into the colour. When there is an emissive
+        // MAP the texture already says where the light is, and adding the
+        // tint on top washed whole buildings to solid glow — the facades
+        // vanished and the district read as floating windows.
+        if (src.emissiveIntensity > 0 && !src.emissiveMap) {
           color.add(src.emissive.clone().multiplyScalar(Math.min(src.emissiveIntensity, 1.4)));
         }
         flat = new MeshBasicMaterial({
@@ -561,8 +569,10 @@ export class Engine {
     // sky gradient — so distant chapters are hidden outright.
     // the raymarched slab hands weather over to the beacon's own sea/rain at
     // CH6 — overlapping them stacked two fullscreen shaders on iGPUs
-    if (this.clouds.volume) this.clouds.volume.visible = t > 0.14 && t < 0.44;
-    this.clouds.sprites.visible = t > 0.14 && t < 0.58;
+    // weather starts ABOVE the city, not over it: the deck used to open at
+    // 0.14 while the flight was still crossing rooftops
+    if (this.clouds.volume) this.clouds.volume.visible = t > 0.25 && t < 0.46;
+    this.clouds.sprites.visible = t > 0.23 && t < 0.58;
     // storm rain is fully faded by 0.52 (stormness ends there) — the group
     // lingering to 0.58 double-paid rain over the beacon's local shower
     this.storm.group.visible = t > 0.3 && t < 0.52;
@@ -586,7 +596,10 @@ export class Engine {
     this.windowFrame.group.visible = nearDesk;
     // gone before the cloud sea: at t≈0.2+ the tallest roofs poked through
     // the cloud floor as floating slabs
-    this.rooftops.group.visible = t > 0.06 && t < 0.24;
+    // the district stays under the flight until the climb reaches the deck
+    this.rooftops.group.visible = t > 0.06 && t < 0.33;
+    this.rocket.group.visible = t > 0.255 && t < 0.4;
+    this.rocket.update(t, time);
     this.rooftops.update(time);
 
     if (nearDesk) this.desk.update(time); // 250-mote dust loop, pointless offscreen
@@ -690,6 +703,7 @@ export class Engine {
     this.windowFrame.dispose();
     this.rooftops.dispose();
     this.clouds.dispose();
+    this.rocket.dispose();
     this.envelopes.dispose();
     this.storm.dispose();
     this.biplane.dispose();

@@ -392,10 +392,12 @@ export function facadeTexture(): CanvasTexture {
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2d context unavailable');
-  ctx.fillStyle = '#151b29';
+  // the wall has to READ as mass: at #151b29 the far impostors went black
+  // against the night sky and the district looked like floating windows
+  ctx.fillStyle = '#3c4763';
   ctx.fillRect(0, 0, 256, 512);
   // parapet band
-  ctx.fillStyle = '#0e1420';
+  ctx.fillStyle = '#2b344a';
   ctx.fillRect(0, 0, 256, 26);
   // window grid: 8 floors × 6 bays
   const COLS = 6;
@@ -405,7 +407,7 @@ export function facadeTexture(): CanvasTexture {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const roll = Math.random();
-      let fill = '#0a0e18'; // dark glass
+      let fill = '#1b2233'; // dark glass, still lighter than the night sky
       if (roll < 0.22) fill = `rgba(255, 201, 138, ${0.55 + Math.random() * 0.4})`; // lamp on
       else if (roll < 0.38) fill = 'rgba(148, 168, 204, 0.16)'; // tv glow
       ctx.fillStyle = fill;

@@ -4,20 +4,25 @@
 export const PATH_POINTS = [
   // CH1 desk — starts ON the laptop screen (mid-send), dips over the letter
   [-0.62, 1.75, 0],
-  [1.2, 1.25, 0.2],
-  // rises before the wall: at y≈1.47 the plane clipped the window sill (1.6)
-  [2.5, 1.5, -0.1],
-  // CH2 preflight taxi past the panel
-  [8, 1.7, 1.0],
+  // the dip is shallow now: at 1.25 the line ran below the desk clutter
+  [1.2, 1.62, 0.2],
+  // clears the Newton's cradle, whose frame tops out at world y≈1.70 — the
+  // old 1.5 ran straight through it
+  [2.5, 1.98, -0.1],
+  // CH2 preflight taxi past the panel, through the middle of the window
+  // opening (frame centred at y=2) rather than into its sill and hinge
+  [8, 2.06, 1.0],
   // hard climb the moment the window is cleared: at the old y≈2 the camera
   // rode BELOW the rooftops, so the empty apron of the city's ground plane
   // filled the lower frame. Higher camera pushes the frame's bottom ground
   // hit far enough out that buildings cover it.
   [16, 6.5, -1.0],
-  // CH3 takeoff climb through the window line
-  [24, 11, 2],
-  [32, 14, -2],
-  [40, 16, 3],
+  // CH3 takeoff — a long shallow cruise ACROSS the district before the climb
+  // starts; the old line was already at cloud height by x=32 and the city
+  // was behind you before you had looked at it
+  [24, 9, 2],
+  [32, 10.5, -2],
+  [40, 12.5, 3],
   // CH4 formation — S through the cloud sea
   [52, 16, 8],
   [64, 18, -8],

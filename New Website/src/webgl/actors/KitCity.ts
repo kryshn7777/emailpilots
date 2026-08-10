@@ -220,7 +220,9 @@ export class KitCity {
       const x = Math.sin(n * 127.1 + salt * 311.7) * 43758.5453;
       return x - Math.floor(x);
     };
-    const density = tier === 'high' ? 0.62 : 0.4;
+    // sparser and smaller than before: at 0.62 with spacing-sized quads the
+    // windows out-read the buildings and the district became a light swarm
+    const density = tier === 'high' ? 0.42 : 0.3;
     const Y = new Vector3(0, 1, 0);
     const FACES: [number, number, number][] = [
       // [normal x, normal z, extra yaw for the quad]
@@ -246,13 +248,13 @@ export class KitCity {
       // 22-unit tower a 0.5-unit window is a speck, and hundreds of specks
       // read as noise floating where the facade should be
       const bands = Math.min(5, Math.max(2, Math.round(lot.h / 3.2)));
-      const wy = Math.max(0.3, ((lot.h * 0.6) / bands) * 0.42);
+      const wy = Math.max(0.24, ((lot.h * 0.6) / bands) * 0.3);
       for (let f = 0; f < bands; f++) {
         const y = lot.h * (0.2 + ((f + 0.5) / bands) * 0.6);
         for (const [nx, nz, faceYaw] of FACES) {
           const span = nx ? e.hz : e.hx;
           const cols = Math.min(5, Math.max(2, Math.round(span * 1.1)));
-          const wx = Math.max(0.3, ((span * 2) / cols) * 0.5);
+          const wx = Math.max(0.24, ((span * 2) / cols) * 0.36);
           for (let c = 0; c < cols; c++) {
             salt++;
             if (hash(i, salt) > density) continue;
