@@ -425,6 +425,85 @@ export function facadeTexture(): CanvasTexture {
 }
 
 /** Lighthouse hull: classic red/white bands with weather streaks. */
+/** how many spine variants per side of the book atlas */
+export const BOOK_SPINE_CELLS = 4;
+
+/**
+ * Sixteen book spines in a 4×4 atlas: cloth grain, head and tail bands, gilt
+ * rules and a lettering panel each, with the left-lit/right-shadowed gradient
+ * that makes a flat box read as a rounded spine.
+ *
+ * One texture and ONE material for the whole wall — each book's box UVs are
+ * remapped into its own cell, so the shelf still collapses to a single draw
+ * call in Desk.mergeStatics(). Per-book materials would cost ~60 calls, which
+ * is exactly why the wall was flat-coloured before.
+ *
+ * Titles are abstract bars rather than lettering: the camera passes this wall
+ * at a distance where real words would be unreadable mush anyway.
+ */
+export function bookSpineTexture(): CanvasTexture {
+  const S = 1024;
+  const C = S / BOOK_SPINE_CELLS;
+  const [canvas, ctx] = makeCanvas(S);
+  // seeded, so the wall is the same wall on every reload
+  let seed = 20260810;
+  const rand = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const cloth = [
+    '#3f4a63', '#6b4230', '#2f5d4a', '#5a3550', '#4a4f5c', '#7a6234', '#2b3f57', '#734a3a',
+    '#39543f', '#4c3550', '#5b6070', '#6d5a2c', '#334a66', '#5d3a30', '#2e4c46', '#453c58',
+  ];
+  for (let cell = 0; cell < BOOK_SPINE_CELLS * BOOK_SPINE_CELLS; cell++) {
+    ctx.save();
+    ctx.translate((cell % BOOK_SPINE_CELLS) * C, Math.floor(cell / BOOK_SPINE_CELLS) * C);
+    ctx.beginPath();
+    ctx.rect(0, 0, C, C);
+    ctx.clip();
+
+    ctx.fillStyle = cloth[cell]!;
+    ctx.fillRect(0, 0, C, C);
+    for (let i = 0; i < 70; i++) {
+      ctx.fillStyle = `rgba(0,0,0,${(0.03 + rand() * 0.05).toFixed(3)})`;
+      ctx.fillRect(rand() * C, 0, 1 + rand() * 2, C); // cloth grain runs with the spine
+    }
+
+    // rounded-spine shading
+    const round = ctx.createLinearGradient(0, 0, C, 0);
+    round.addColorStop(0, 'rgba(255,255,255,0.18)');
+    round.addColorStop(0.3, 'rgba(255,255,255,0.04)');
+    round.addColorStop(1, 'rgba(0,0,0,0.36)');
+    ctx.fillStyle = round;
+    ctx.fillRect(0, 0, C, C);
+
+    // head and tail bands, then the gilt rules that frame the panel
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.fillRect(0, C * 0.07, C, C * 0.035);
+    ctx.fillRect(0, C * 0.895, C, C * 0.035);
+    const gilt = rand() < 0.5 ? '#c9a44c' : '#d6d0c2';
+    ctx.fillStyle = gilt;
+    ctx.fillRect(0, C * 0.118, C, 2);
+    ctx.fillRect(0, C * 0.872, C, 2);
+
+    // lettering panel
+    const ly = C * (0.22 + rand() * 0.1);
+    const lh = C * (0.2 + rand() * 0.1);
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(C * 0.1, ly, C * 0.8, lh);
+    ctx.strokeStyle = gilt;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(C * 0.1, ly, C * 0.8, lh);
+    ctx.fillStyle = gilt;
+    const bars = 2 + Math.floor(rand() * 2);
+    for (let b = 0; b < bars; b++) {
+      const bw = C * (0.28 + rand() * 0.34);
+      ctx.fillRect(C * 0.5 - bw / 2, ly + lh * (0.24 + b * 0.27), bw, 3);
+    }
+    ctx.restore();
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 export function lighthouseTexture(): CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;

@@ -2,6 +2,7 @@ import {
   AdditiveBlending,
   Box3,
   BoxGeometry,
+  BufferAttribute,
   BufferGeometry,
   CylinderGeometry,
   DoubleSide,
@@ -25,6 +26,8 @@ import {
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
+  BOOK_SPINE_CELLS,
+  bookSpineTexture,
   floorPlankTexture,
   frameArtTexture,
   glowTexture,
@@ -435,37 +438,77 @@ export class Desk {
     // — wall unit of document binders behind the desk —
     const shelfBoard = new MeshStandardMaterial({ color: '#202634', roughness: 0.5 });
     this.disposables.push(shelfBoard);
-    // one material per colour, not per binder: mergeStatics collapses by
-    // material, so unique materials would have cost ~60 draw calls
-    const binderMaterials = ['#3f4a63', '#6b4230', '#2f5d4a', '#5a3550', '#4a4f5c', '#7a6234'].map(
-      (color) => {
-        const m = new MeshStandardMaterial({ color, roughness: 0.72 });
-        this.disposables.push(m);
-        return m;
-      },
-    );
+    // ONE material for every book on the wall. Detail comes from the spine
+    // atlas instead of from colour: each book's box UVs are remapped into one
+    // of sixteen cells, so mergeStatics still collapses the whole shelf to a
+    // single draw call. Per-book materials cost ~60 calls, which is why this
+    // wall used to be flat blocks of colour.
+    const spineMap = bookSpineTexture();
+    const bookMaterial = new MeshStandardMaterial({ map: spineMap, roughness: 0.74 });
+    this.disposables.push(spineMap, bookMaterial);
+
+    /**
+     * Points a box at one atlas cell. The inset keeps the sample off the cell
+     * border — without it, mips blend neighbouring spines and books pick up a
+     * fringe of the wrong colour along their edges.
+     */
+    const spineCell = (geometry: BoxGeometry, cell: number): BoxGeometry => {
+      const uv = geometry.attributes.uv as BufferAttribute;
+      const step = 1 / BOOK_SPINE_CELLS;
+      const inset = step * 0.03;
+      const span = step - inset * 2;
+      const cx = (cell % BOOK_SPINE_CELLS) * step + inset;
+      const cy = Math.floor(cell / BOOK_SPINE_CELLS) * step + inset;
+      for (let v = 0; v < uv.count; v++) {
+        uv.setXY(v, cx + uv.getX(v) * span, cy + uv.getY(v) * span);
+      }
+      uv.needsUpdate = true;
+      return geometry;
+    };
+
+    const book = (
+      w: number, h: number, d: number, cell: number, x: number, y: number, z: number,
+    ): Mesh => {
+      const mesh = new Mesh(spineCell(new BoxGeometry(w, h, d), cell), bookMaterial);
+      mesh.position.set(x, y, z);
+      this.group.add(mesh);
+      this.disposables.push(mesh.geometry);
+      return mesh;
+    };
+
     for (let row = 0; row < 3; row++) {
       const shelfY = -0.55 + row * 0.78;
       const board = new Mesh(new BoxGeometry(3.4, 0.07, 0.62), shelfBoard);
       board.position.set(-2.6, shelfY, -3.32);
       this.group.add(board);
       this.disposables.push(board.geometry);
-      // binders stood on their spines, leaning at the end of each run
+      // books stood on their spines, leaning at the end of each run
       let x = -4.18;
       let i = 0;
       while (x < -1.06) {
         const wide = 0.11 + ((row * 7 + i) % 4) * 0.035;
         const tall = 0.44 + ((row * 5 + i) % 3) * 0.07;
-        const binder = new Mesh(
-          new BoxGeometry(wide, tall, 0.46),
-          binderMaterials[(row * 3 + i) % binderMaterials.length]!,
+        // depth varies too — a shelf where every fore-edge lines up perfectly
+        // reads as a texture swatch, not as books someone actually pulls out
+        const deep = 0.42 + ((row * 3 + i) % 3) * 0.035;
+        const spine = book(
+          wide, tall, deep, (row * 5 + i * 3) % (BOOK_SPINE_CELLS * BOOK_SPINE_CELLS),
+          x + wide / 2, shelfY + 0.035 + tall / 2, -3.34 + (0.46 - deep) / 2,
         );
-        binder.position.set(x + wide / 2, shelfY + 0.035 + tall / 2, -3.34);
-        if (x + wide > -1.3) binder.rotation.z = 0.22; // the run leans over
-        this.group.add(binder);
-        this.disposables.push(binder.geometry);
+        if (x + wide > -1.3) spine.rotation.z = 0.22; // the run leans over
         x += wide + 0.012;
         i++;
+      }
+      // a few laid flat in the gap the leaning run opens up, plus one left
+      // face-out against the stack — the small disorder that says in use
+      if (row < 2) {
+        const stackX = -1.02;
+        for (let s = 0; s < 2 + row; s++) {
+          book(
+            0.44, 0.1, 0.38 + s * 0.02, (row * 7 + s * 5 + 2) % (BOOK_SPINE_CELLS * BOOK_SPINE_CELLS),
+            stackX, shelfY + 0.09 + s * 0.105, -3.36,
+          ).rotation.y = 0.06 * (s % 2 ? 1 : -1);
+        }
       }
     }
 

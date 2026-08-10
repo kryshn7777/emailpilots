@@ -112,18 +112,37 @@ export class KitCity {
       const mod = modules.find((m) => m.id === moduleId);
       if (!mod) continue;
       loader.load(`/models/city-kit/${mod.lod0}`, (gltf) => {
-        let found: BufferGeometry | null = null;
+        let found: Mesh | null = null;
+        gltf.scene.updateMatrixWorld(true);
         gltf.scene.traverse((o) => {
           const mesh = o as Mesh;
-          if (mesh.isMesh && !found) found = mesh.geometry;
+          if (mesh.isMesh && !found) found = mesh;
         });
         // TS can't track the closure assignment — hold it in a plain const
-        const geometry = found as BufferGeometry | null;
-        if (!geometry) return;
+        const source = found as Mesh | null;
+        if (!source) return;
+        /**
+         * Bake the node transform into the geometry before measuring it.
+         *
+         * scripts/bake-kit-lods.mjs records footprint/height BEFORE running
+         * gltf-transform's quantize(), and quantize normalises the POSITION
+         * accessor into a unit range and puts the real size back on the NODE
+         * as a scale. Reading mesh.geometry alone therefore threw that scale
+         * away: every lod0 arrived with its largest dimension exactly 2, so
+         * `lot.h / mod.height` sized towers by a manifest that no longer
+         * described them — modules rendered at 37%–184% of their lot height
+         * while the window bands, roof clutter and neighbouring impostors all
+         * sat at the full lot.h. That is the district where the lights float
+         * clear of the buildings.
+         */
+        const geometry = source.geometry.clone().applyMatrix4(source.matrixWorld);
+        this.disposables.push(geometry);
         // module pivots are not exactly ground-zero; a few cm of offset
         // scaled ×7 on a tower floats the roof dressing above the mesh
         geometry.computeBoundingBox();
-        const baseY = geometry.boundingBox!.min.y;
+        const bounds = geometry.boundingBox!;
+        const baseY = bounds.min.y;
+        const geomHeight = bounds.max.y - bounds.min.y;
         const inst = new InstancedMesh(geometry, this.kitMaterial(glow), indices.length);
         const m4 = new Matrix4();
         const q = new Quaternion();
@@ -133,14 +152,21 @@ export class KitCity {
         indices.forEach((lotIndex, k) => {
           const lot = lots[lotIndex]!;
           q.setFromAxisAngle(Y, lot.yaw);
-          // UNIFORM footprint fit: stretching a designed facade to the lot
-          // box smeared windows and left giant blank walls. The module keeps
-          // its proportions inside the lot (gaps read as alleys); height
-          // stays EXACT lot.h — window quads, clutter, and deliveries are
-          // all placed against it.
-          const sxz = Math.min(lot.w / mod.footprint[0], lot.d / mod.footprint[1]);
-          s.set(sxz, lot.h / mod.height, sxz);
-          p.set(lot.x, -baseY * s.y, lot.z);
+          // UNIFORM fit measured off the GEOMETRY, never off the manifest.
+          // The lod0 files are each uniformly rescaled so their largest
+          // dimension is 2, while manifest.footprint/height still describe
+          // the pre-bake source — so `lot.h / mod.height` sized every tower
+          // by a factor of 2/maxSourceDim, between 0.37× and 1.84×. The
+          // buildings came out short or tall while the window bands, roof
+          // clutter and impostor neighbours all sat at the full lot.h, which
+          // is the district reading as lights floating clear of buildings.
+          //
+          // Proportions survive the rescale, so one factor off the height is
+          // both uniform (no facade stretch) and exact: the footprint lands
+          // on lot.w/lot.d of its own accord.
+          const fit = lot.h / geomHeight;
+          s.set(fit, fit, fit);
+          p.set(lot.x, -baseY * fit, lot.z);
           inst.setMatrixAt(k, m4.compose(p, q, s));
           inst.setColorAt(k, this.color.set(lot.tint));
         });

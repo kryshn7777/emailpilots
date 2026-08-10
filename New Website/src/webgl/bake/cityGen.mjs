@@ -118,19 +118,29 @@ export function rooftopLots(modules) {
       moduleId: mod.id,
     });
   };
+  /**
+   * Scales are roughly half what they were, and that is a correction, not a
+   * change of mind. KitCity used to size near modules against manifest
+   * heights that no longer matched the baked lod0 geometry, so every tower
+   * rendered at about half the lot it was authored for. The window bands and
+   * roof clutter were always at full lot height — that mismatch was the
+   * floating-lights bug. Now that modules render at their true lot size, the
+   * old numbers put a district twice as tall around a flight path that was
+   * framed against the short version.
+   */
   // near neighbours: crowns land around the window's eye line
   for (let i = 0; i < 600; i++) {
-    tower(12 + rand() * 62, -38 + rand() * 76, 3.2 + rand() * 2.3);
+    tower(12 + rand() * 62, -38 + rand() * 76, 1.75 + rand() * 1.25);
   }
   // the district beyond: taller, closing the horizon in every direction
   for (let i = 0; i < 600; i++) {
-    tower(54 + rand() * 150, -105 + rand() * 210, 4.5 + rand() * 3.5);
+    tower(54 + rand() * 150, -105 + rand() * 210, 2.45 + rand() * 1.9);
   }
   // the rest of the city, out to the horizon. Every one of these falls in
   // the FAR ring, so they cost one instanced box each and carry their
   // windows in the impostor texture — this is where density is cheap.
   for (let i = 0; i < 2200; i++) {
-    tower(-40 + rand() * 460, -260 + rand() * 520, 4 + rand() * 5);
+    tower(-40 + rand() * 460, -260 + rand() * 520, 2.2 + rand() * 2.7);
   }
   return { lots };
 }
