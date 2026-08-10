@@ -21,6 +21,7 @@ import {
   Vector3,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   floorPlankTexture,
   frameArtTexture,
@@ -84,42 +85,31 @@ export class Desk {
     this.group.add(backBoard, sideBoard);
     this.disposables.push(backBoard.geometry, sideBoard.geometry, boardMaterial);
 
-    // — real wall relief: crown, chair rail, and raised wainscot frames —
-    // (the walls carried only a painted texture before; luxury needs geometry)
-    const trimMaterial = new MeshStandardMaterial({ color: '#c9bda6', roughness: 0.65 });
+    // — wall relief: slim shadow-gap reveals, no raised panel frames —
+    // (cream wainscot frames read as a period drawing room; the modern set
+    // keeps only the horizontal lines, in cool white)
+    const trimMaterial = new MeshStandardMaterial({ color: '#e6eaf2', roughness: 0.5 });
     this.disposables.push(trimMaterial);
     const crownBack = new Mesh(new BoxGeometry(26, 0.22, 0.12), trimMaterial);
     crownBack.position.set(3, 5.05, -3.66);
     const crownSide = new Mesh(new BoxGeometry(0.12, 0.22, 18), trimMaterial);
     crownSide.position.set(-4.56, 5.05, 0.6);
-    const railBack = new Mesh(new BoxGeometry(26, 0.09, 0.09), trimMaterial);
-    railBack.position.set(3, 1.05, -3.67);
-    const railSide = new Mesh(new BoxGeometry(0.09, 0.09, 18), trimMaterial);
-    railSide.position.set(-4.58, 1.05, 0.6);
-    this.group.add(crownBack, crownSide, railBack, railSide);
-    this.disposables.push(crownBack.geometry, crownSide.geometry, railBack.geometry, railSide.geometry);
-    const stileH = new BoxGeometry(1.9, 0.07, 0.06); // panel top/bottom
-    const stileV = new BoxGeometry(0.07, 1.5, 0.06); // panel sides
-    this.disposables.push(stileH, stileV);
-    const panelAt = (px: number, pz: number, side: boolean): void => {
-      const y = -0.1;
-      const make = (g: BoxGeometry, ox: number, oy: number, oz: number): void => {
-        const m = new Mesh(g, trimMaterial);
-        if (side) {
-          m.rotation.y = Math.PI / 2;
-          m.position.set(pz, y + oy, px + ox);
-        } else {
-          m.position.set(px + ox, y + oy, pz + oz);
-        }
-        this.group.add(m);
-      };
-      make(stileH, 0, 0.75, 0);
-      make(stileH, 0, -0.75, 0);
-      make(stileV, -0.95, 0, 0);
-      make(stileV, 0.95, 0, 0);
-    };
-    for (const px of [-3.4, -0.9, 1.6, 4.1, 6.6]) panelAt(px, -3.64, false);
-    for (const pz of [-2.6, -0.1, 2.4]) panelAt(pz, -4.54, true);
+    // no chair rail — a mid-wall moulding line is the most period-reading
+    // detail a room can have; the modern set keeps only crown + cove
+    this.group.add(crownBack, crownSide);
+    this.disposables.push(crownBack.geometry, crownSide.geometry);
+    // a single recessed light cove tracing the back wall replaces the panels
+    const coveMaterial = new MeshStandardMaterial({
+      color: '#dfe7f7',
+      emissive: '#cfe0ff',
+      emissiveIntensity: 0.9,
+    });
+    const coveBack = new Mesh(new BoxGeometry(26, 0.05, 0.03), coveMaterial);
+    coveBack.position.set(3, 2.9, -3.63);
+    const coveSide = new Mesh(new BoxGeometry(0.03, 0.05, 18), coveMaterial);
+    coveSide.position.set(-4.55, 2.9, 0.6);
+    this.group.add(coveBack, coveSide);
+    this.disposables.push(coveBack.geometry, coveSide.geometry, coveMaterial);
 
     // rug under the desk pulls the furniture into one composition
     const rugMap = rugTexture();
@@ -152,7 +142,7 @@ export class Desk {
       this.disposables.push(g);
     }
     // curtain rod across the opening
-    const rodMaterial = new MeshStandardMaterial({ color: '#6a5433', roughness: 0.4, metalness: 0.5 });
+    const rodMaterial = new MeshStandardMaterial({ color: '#3a4050', roughness: 0.35, metalness: 0.7 });
     const rod = new Mesh(new CylinderGeometry(0.035, 0.035, 6.2, 8), rodMaterial);
     rod.rotation.x = Math.PI / 2;
     rod.position.set(6.42, 4.05, 0.8);
@@ -160,7 +150,7 @@ export class Desk {
     this.disposables.push(rod.geometry, rodMaterial);
 
     // framed art + a wall clock so the walls aren't bare planes
-    const frameMaterial = new MeshStandardMaterial({ color: '#2b2118', roughness: 0.6 });
+    const frameMaterial = new MeshStandardMaterial({ color: '#12151d', roughness: 0.45 });
     this.disposables.push(frameMaterial);
     ([[-0.6, 2.6, 0], [1.9, 2.35, 1]] as const).forEach(([fx, fy, variant]) => {
       const art = frameArtTexture(variant);
@@ -348,40 +338,128 @@ export class Desk {
         requestCompile(s);
       });
     };
-    // the desk itself: plain wooden table stretched to the set's scale —
-    // its top must land exactly at y −0.10 where the laptop + props sit
-    loader.load('/models/WoodenTable_02.glb', (gltf) => {
-      const s = gltf.scene;
-      const box = new Box3().setFromObject(s);
-      const size = box.getSize(new Vector3());
-      s.scale.set(6.8 / size.x, 1.18 / size.y, 4.2 / size.z);
-      box.setFromObject(s);
-      s.position.set(0, -1.28 - box.min.y, 0);
-      this.group.add(s);
-      requestCompile(s);
-    });
-    floorProp('/models/ClassicConsole_01.glb', 1.15, 4.9, -3.05, 0);
-    floorProp('/models/ArmChair_01.glb', 1.7, -2.3, 2.6, -2.45);
+    // the desk itself: modern executive office desk — dark laminate slab on
+    // brushed-steel panel legs with a drawer pedestal. Top face lands exactly
+    // at y −0.10 where the laptop + props sit.
+    const deskTop = new MeshStandardMaterial({ color: '#262b38', roughness: 0.38, metalness: 0.08 });
+    const deskSteel = new MeshStandardMaterial({ color: '#9aa1b0', roughness: 0.32, metalness: 0.85 });
+    const deskDark = new MeshStandardMaterial({ color: '#171b26', roughness: 0.5, metalness: 0.2 });
+    this.disposables.push(deskTop, deskSteel, deskDark);
+    // furniture is authored as loose boxes but SHIPS as three merged meshes —
+    // one per material. Thirty-odd draw calls for static geometry is the
+    // kind of thing that quietly eats the mobile call budget.
+    const furniture = new Map<MeshStandardMaterial, BufferGeometry[]>();
+    const part = (
+      g: BufferGeometry,
+      m: MeshStandardMaterial,
+      x: number,
+      y: number,
+      z: number,
+      rot?: [number, number, number],
+    ): void => {
+      if (rot) g.rotateX(rot[0]), g.rotateY(rot[1]), g.rotateZ(rot[2]);
+      g.translate(x, y, z);
+      const bucket = furniture.get(m);
+      if (bucket) bucket.push(g);
+      else furniture.set(m, [g]);
+    };
+    part(new BoxGeometry(7.0, 0.09, 4.3), deskTop, 0, -0.145, 0);
+    // slim fascia under the slab reads as the slab's thickness edge
+    part(new BoxGeometry(7.0, 0.07, 4.3), deskDark, 0, -0.222, 0);
+    // panel legs + modesty panel
+    part(new BoxGeometry(0.09, 1.09, 3.7), deskSteel, -3.32, -0.815, 0);
+    part(new BoxGeometry(0.09, 1.09, 3.7), deskSteel, 3.32, -0.815, 0);
+    part(new BoxGeometry(6.5, 0.62, 0.06), deskDark, 0, -0.58, -1.78);
+    // drawer pedestal with two faces + steel pulls
+    part(new BoxGeometry(1.5, 1.02, 1.0), deskDark, -2.35, -0.79, -0.9);
+    part(new BoxGeometry(1.38, 0.4, 0.04), deskTop, -2.35, -0.55, -0.39);
+    part(new BoxGeometry(1.38, 0.4, 0.04), deskTop, -2.35, -1.01, -0.39);
+    part(new BoxGeometry(0.5, 0.035, 0.03), deskSteel, -2.35, -0.44, -0.365);
+    part(new BoxGeometry(0.5, 0.035, 0.03), deskSteel, -2.35, -0.9, -0.365);
     floorProp('/models/Shelf_01.glb', 2.7, -3.7, -3.2, 0);
-    // chandelier hangs over the desk; cord runs up into the dark
-    loader.load('/models/Chandelier_03.glb', (gltf) => {
-      const s = gltf.scene;
-      const box = new Box3().setFromObject(s);
-      const size = box.getSize(new Vector3());
-      s.scale.setScalar(1.7 / Math.max(size.y, 1e-3));
-      box.setFromObject(s);
-      s.position.set(1.4, 4.55 - box.max.y, -0.4);
-      this.group.add(s);
-      requestCompile(s);
+
+    // low credenza along the back wall — the carved console it replaces was
+    // the loudest period piece left in frame
+    const CX = 4.9;
+    const CY = -1.28;
+    const CZ = -3.15;
+    part(new BoxGeometry(2.6, 0.78, 0.62), deskDark, CX, CY + 0.52, CZ);
+    part(new BoxGeometry(2.68, 0.05, 0.68), deskTop, CX, CY + 0.935, CZ);
+    for (const dx of [-0.65, 0.65]) {
+      part(new BoxGeometry(1.16, 0.62, 0.03), deskTop, CX + dx, CY + 0.52, CZ + 0.32);
+      part(new BoxGeometry(0.42, 0.03, 0.025), deskSteel, CX + dx, CY + 0.75, CZ + 0.35);
+    }
+    for (const dx of [-1.15, 1.15]) {
+      part(new BoxGeometry(0.05, 0.14, 0.5), deskSteel, CX + dx, CY + 0.07, CZ);
+    }
+
+    // modern task chair pulled up to the desk (its own group so the whole
+    // chair can be yawed, then merged with everything else by material)
+    const chair = new Group();
+    chair.position.set(-2.3, -1.28, 2.5);
+    chair.rotation.y = -2.45;
+    this.group.add(chair);
+    const seatFabric = new MeshStandardMaterial({ color: '#2f3646', roughness: 0.85 });
+    this.disposables.push(seatFabric);
+    const chairParts = new Map<MeshStandardMaterial, BufferGeometry[]>();
+    const chairPart = (
+      g: BufferGeometry,
+      m: MeshStandardMaterial,
+      x: number,
+      y: number,
+      z: number,
+      rot?: [number, number, number],
+    ): void => {
+      if (rot) g.rotateX(rot[0]), g.rotateY(rot[1]), g.rotateZ(rot[2]);
+      g.translate(x, y, z);
+      const bucket = chairParts.get(m);
+      if (bucket) bucket.push(g);
+      else chairParts.set(m, [g]);
+    };
+    chairPart(new BoxGeometry(0.62, 0.1, 0.6), seatFabric, 0, 0.62, 0);
+    chairPart(new BoxGeometry(0.6, 0.72, 0.08), seatFabric, 0, 1.02, -0.28, [-0.14, 0, 0]);
+    chairPart(new CylinderGeometry(0.05, 0.06, 0.5, 10), deskSteel, 0, 0.32, 0);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      chairPart(
+        new BoxGeometry(0.34, 0.05, 0.07), deskSteel,
+        Math.cos(a) * 0.17, 0.1, Math.sin(a) * 0.17, [0, -a, 0],
+      );
+      chairPart(
+        new CylinderGeometry(0.045, 0.045, 0.04, 8), deskDark,
+        Math.cos(a) * 0.33, 0.05, Math.sin(a) * 0.33, [0, 0, Math.PI / 2],
+      );
+    }
+    for (const [material, parts] of chairParts) {
+      const merged = mergeGeometries(parts, false);
+      parts.forEach((g) => g.dispose());
+      if (!merged) continue;
+      chair.add(new Mesh(merged, material));
+      this.disposables.push(merged);
+    }
+    for (const [material, parts] of furniture) {
+      const merged = mergeGeometries(parts, false);
+      parts.forEach((g) => g.dispose());
+      if (!merged) continue;
+      this.group.add(new Mesh(merged, material));
+      this.disposables.push(merged);
+    }
+    // slim ceiling LED panel over the desk — the modern room's key light
+    const panelFrame = new MeshStandardMaterial({ color: '#242936', roughness: 0.4, metalness: 0.5 });
+    const panelFace = new MeshStandardMaterial({
+      color: '#eef2fa',
+      emissive: '#e8eefb',
+      emissiveIntensity: 1.7,
     });
-    const cordMaterial = new MeshStandardMaterial({ color: '#191d28', roughness: 0.6 });
-    const cord = new Mesh(new CylinderGeometry(0.02, 0.02, 1.4, 6), cordMaterial);
-    cord.position.set(1.4, 5.2, -0.4);
-    this.group.add(cord);
-    this.disposables.push(cord.geometry, cordMaterial);
-    const candleLight = new PointLight('#ffd9a0', 6, 10, 1.8);
-    candleLight.position.set(1.4, 3.6, -0.4);
-    this.group.add(candleLight);
+    const ledFrame = new Mesh(new BoxGeometry(2.4, 0.06, 1.3), panelFrame);
+    ledFrame.position.set(0.9, 4.52, -0.3);
+    const ledFace = new Mesh(new BoxGeometry(2.2, 0.02, 1.1), panelFace);
+    ledFace.position.set(0.9, 4.485, -0.3);
+    this.group.add(ledFrame, ledFace);
+    this.disposables.push(ledFrame.geometry, ledFace.geometry, panelFrame, panelFace);
+    const panelLight = new PointLight('#eef3ff', 9, 12, 1.6);
+    panelLight.position.set(0.9, 3.7, -0.3);
+    this.group.add(panelLight);
 
     // flowers rising from the vase mouth — stems + heads + a leaf each
     const flowers = new Group();
@@ -475,29 +553,31 @@ export class Desk {
     this.group.add(pen);
     this.disposables.push(pen.geometry, penMaterial);
 
-    const metal = new MeshStandardMaterial({ color: '#2a2e3c', roughness: 0.35, metalness: 0.6 });
-    const stem = new Mesh(new CylinderGeometry(0.035, 0.05, 1.15, 10), metal);
-    stem.position.set(1.75, 0.42, -1.85);
-    stem.rotation.z = -0.28;
-    const shade = new Mesh(new CylinderGeometry(0.32, 0.14, 0.32, 16, 1, true), metal);
-    shade.position.set(1.38, 0.98, -1.85);
-    shade.rotation.z = -0.9;
-    this.group.add(stem, shade);
-    this.disposables.push(stem.geometry, shade.geometry, metal);
+    // modern LED task lamp: matte-black post + horizontal light bar with a
+    // white emissive underside — the pool that frames the letter is white now
+    const metal = new MeshStandardMaterial({ color: '#1c202b', roughness: 0.4, metalness: 0.6 });
+    const lampBase = new Mesh(new CylinderGeometry(0.16, 0.18, 0.04, 16), metal);
+    lampBase.position.set(1.75, -0.08, -1.85);
+    const post = new Mesh(new CylinderGeometry(0.025, 0.025, 1.05, 8), metal);
+    post.position.set(1.75, 0.44, -1.85);
+    const arm = new Mesh(new BoxGeometry(0.78, 0.045, 0.07), metal);
+    arm.position.set(1.42, 0.97, -1.8);
+    this.group.add(lampBase, post, arm);
+    this.disposables.push(lampBase.geometry, post.geometry, arm.geometry, metal);
 
     // lamp hangs ahead-left of the flight start so its pool frames the letter
-    this.lamp = new PointLight('#ffb65c', 22, 16, 1.8);
-    this.lamp.position.set(1.1, 1.0, -1.7);
+    this.lamp = new PointLight('#f2f5ff', 18, 16, 1.8);
+    this.lamp.position.set(1.1, 0.9, -1.7);
     this.group.add(this.lamp);
 
-    // visible bulb so the lamp itself blooms
+    // visible LED strip on the bar's underside so the lamp itself blooms
     const bulbMaterial = new MeshStandardMaterial({
-      color: '#ffb65c',
-      emissive: '#ffb65c',
-      emissiveIntensity: 3.2,
+      color: '#f4f7ff',
+      emissive: '#f0f4ff',
+      emissiveIntensity: 3.0,
     });
-    const bulb = new Mesh(new CylinderGeometry(0.07, 0.07, 0.06, 10), bulbMaterial);
-    bulb.position.set(1.18, 0.92, -1.7);
+    const bulb = new Mesh(new BoxGeometry(0.68, 0.015, 0.05), bulbMaterial);
+    bulb.position.set(1.42, 0.944, -1.8);
     this.group.add(bulb);
     this.disposables.push(bulb.geometry, bulbMaterial);
 
@@ -517,16 +597,56 @@ export class Desk {
     this.dustGeometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
     const dustMaterial = new PointsMaterial({
       map: glowTexture(),
-      color: '#ffcf94',
+      color: '#dde5f4',
       size: 0.035,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.5,
       depthWrite: false,
       blending: AdditiveBlending,
     });
     this.dust = new Points(this.dustGeometry, dustMaterial);
     this.group.add(this.dust);
     this.disposables.push(this.dustGeometry, dustMaterial);
+
+    this.mergeStatics();
+  }
+
+  /**
+   * Collapse every static mesh in the room into one draw per material. The
+   * study is authored as ~60 individual props, which is the right way to
+   * write it and the wrong way to ship it: on the mobile tier those props
+   * alone blew the whole frame's draw-call budget before the city even
+   * appeared. Instanced meshes and the animated dust cloud are left alone,
+   * and GLB props stream in after this runs, so they are untouched.
+   */
+  private mergeStatics(): void {
+    this.group.updateMatrixWorld(true);
+    const toGroup = this.group.matrixWorld.clone().invert();
+    const byMaterial = new Map<MeshStandardMaterial, BufferGeometry[]>();
+    const drop: Mesh[] = [];
+    this.group.traverse((o) => {
+      const mesh = o as Mesh;
+      if (!mesh.isMesh || (mesh as unknown as InstancedMesh).isInstancedMesh) return;
+      const material = mesh.material;
+      if (Array.isArray(material) || !(material as MeshStandardMaterial).isMeshStandardMaterial) {
+        return;
+      }
+      const local = toGroup.clone().multiply(mesh.matrixWorld);
+      const geometry = mesh.geometry.clone().applyMatrix4(local);
+      const key = material as MeshStandardMaterial;
+      const bucket = byMaterial.get(key);
+      if (bucket) bucket.push(geometry);
+      else byMaterial.set(key, [geometry]);
+      drop.push(mesh);
+    });
+    for (const mesh of drop) mesh.removeFromParent();
+    for (const [material, parts] of byMaterial) {
+      const merged = parts.length === 1 ? parts[0]! : mergeGeometries(parts, false);
+      if (parts.length > 1) parts.forEach((g) => g.dispose());
+      if (!merged) continue;
+      this.group.add(new Mesh(merged, material));
+      this.disposables.push(merged);
+    }
   }
 
   update(time: number): void {

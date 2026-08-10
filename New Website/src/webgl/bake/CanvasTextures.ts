@@ -131,33 +131,20 @@ export function bannerTexture(): CanvasTexture {
   return texture;
 }
 
-/** Bordered study rug: deep field, double border, faint medallion. */
+/** Modern area rug: charcoal field, one thin accent border, flat weave. */
 export function rugTexture(): CanvasTexture {
   const [canvas, ctx] = makeCanvas(512);
-  ctx.fillStyle = '#1d2436';
+  ctx.fillStyle = '#232833';
   ctx.fillRect(0, 0, 512, 512);
-  ctx.strokeStyle = '#5a2e38';
-  ctx.lineWidth = 26;
-  ctx.strokeRect(28, 28, 456, 456);
-  ctx.strokeStyle = '#8a6a3f';
-  ctx.lineWidth = 5;
-  ctx.strokeRect(56, 56, 400, 400);
-  ctx.strokeRect(13, 13, 486, 486);
-  // medallion rings
-  ctx.strokeStyle = 'rgba(138, 106, 63, 0.5)';
-  for (const r of [70, 110, 150]) {
-    ctx.beginPath();
-    ctx.arc(256, 256, r, 0, Math.PI * 2);
-    ctx.lineWidth = r === 110 ? 10 : 4;
-    ctx.stroke();
+  // subtle two-tone weave bands
+  for (let y = 0; y < 512; y += 16) {
+    if ((y / 16) % 2 === 0) continue;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+    ctx.fillRect(0, y, 512, 16);
   }
-  // corner ornaments
-  ctx.fillStyle = 'rgba(90, 46, 56, 0.7)';
-  for (const [cx, cy] of [[90, 90], [422, 90], [90, 422], [422, 422]] as const) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, 22, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  ctx.strokeStyle = 'rgba(154, 161, 176, 0.8)';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(30, 30, 452, 452);
   // pile noise
   for (let i = 0; i < 2600; i++) {
     ctx.fillStyle = `rgba(255, 245, 225, ${0.015 + Math.random() * 0.02})`;

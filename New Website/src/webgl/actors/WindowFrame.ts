@@ -1,4 +1,5 @@
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import { BoxGeometry, BufferGeometry, Group, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
  * CH3: the open window the plane threads on its way out — a simple frame
@@ -7,7 +8,7 @@ import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 export class WindowFrame {
   readonly group = new Group();
   private material = new MeshStandardMaterial({ color: '#2c3348', roughness: 0.6 });
-  private geometries: BoxGeometry[] = [];
+  private geometries: BufferGeometry[] = [];
 
   constructor(anchor: Vector3, size = 3.6) {
     this.group.position.copy(anchor);
@@ -23,12 +24,16 @@ export class WindowFrame {
       [BAR, SIZE, -SIZE / 2, 0, 0],
       [BAR * 0.6, SIZE, 0, 0, 0], // center mullion
     ];
-    for (const [w, h, x, y, z] of bars) {
-      const g = new BoxGeometry(w, h, 0.25);
-      const bar = new Mesh(g, this.material);
-      bar.position.set(x, y, z);
-      this.group.add(bar);
-      this.geometries.push(g);
+    // one merged mesh: five identical-material bars had no reason to be five
+    // draw calls in a scene that also has to fit a phone's call budget
+    const parts = bars.map(([w, h, x, y, z]) =>
+      new BoxGeometry(w, h, 0.25).translate(x, y, z),
+    );
+    const merged = mergeGeometries(parts, false);
+    parts.forEach((g) => g.dispose());
+    if (merged) {
+      this.group.add(new Mesh(merged, this.material));
+      this.geometries.push(merged);
     }
   }
 

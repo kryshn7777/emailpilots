@@ -72,7 +72,9 @@ export class Rooftops {
     ]);
     const rings = allRings.rooftops[quality.tier] as KitRingSet;
     const { lots } = rooftopLots(manifest.modules);
-    this.kitCity = new KitCity(lots as KitLot[], rings, manifest.modules);
+    // dressWindows: unlike City this actor has no dressing pass of its own,
+    // so its blocks read as unlit massing through the study window
+    this.kitCity = new KitCity(lots as KitLot[], rings, manifest.modules, quality.tier, true);
     this.group.add(this.kitCity.group);
   }
 

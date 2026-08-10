@@ -97,7 +97,7 @@ export class City {
     ]);
     const rings = allRings.city[quality.tier] as KitRingSet;
     const { lots } = cityRecipes(manifest.modules);
-    this.kitCity = new KitCity(lots as KitLot[], rings, manifest.modules);
+    this.kitCity = new KitCity(lots as KitLot[], rings, manifest.modules, quality.tier);
     this.group.add(this.kitCity.group);
 
     // effective wall half-extents per lot: kit modules are uniform-fit
