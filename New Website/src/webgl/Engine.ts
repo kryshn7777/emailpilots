@@ -43,7 +43,6 @@ import { Biplane } from './actors/Biplane';
 import { Birds } from './actors/Birds';
 import { City } from './actors/City';
 import { Clouds } from './actors/Clouds';
-import { Rocket } from './actors/Rocket';
 import { Copilot } from './actors/Copilot';
 import { Desk } from './actors/Desk';
 import { Envelopes } from './actors/Envelopes';
@@ -111,7 +110,6 @@ export class Engine {
   private windowFrame: WindowFrame;
   private rooftops!: Rooftops;
   private clouds: Clouds;
-  private rocket: Rocket;
   private envelopes: Envelopes;
   private storm: Storm;
   private biplane: Biplane;
@@ -202,7 +200,6 @@ export class Engine {
     this.windowFrame = new WindowFrame(new Vector3(7, 2, 0.8));
     this.rooftops = new Rooftops(rand, this.quality);
     this.clouds = new Clouds(this.path.chapterAnchor(3), this.quality, rand, this.renderer);
-    this.rocket = new Rocket(this.path.chapterAnchor(3));
     this.envelopes = new Envelopes(this.raycast, this.tooltip);
     this.storm = new Storm(this.path, this.quality.rainCount, rand);
     this.biplane = new Biplane(this.path);
@@ -232,7 +229,6 @@ export class Engine {
       this.windowFrame.group,
       this.rooftops.group,
       this.clouds.sprites,
-      this.rocket.group,
       this.envelopes.group,
       this.storm.group,
       this.biplane.group,
@@ -598,8 +594,6 @@ export class Engine {
     // the cloud floor as floating slabs
     // the district stays under the flight until the climb reaches the deck
     this.rooftops.group.visible = t > 0.06 && t < 0.33;
-    this.rocket.group.visible = t > 0.255 && t < 0.4;
-    this.rocket.update(t, time);
     this.rooftops.update(time);
 
     if (nearDesk) this.desk.update(time); // 250-mote dust loop, pointless offscreen
@@ -703,7 +697,6 @@ export class Engine {
     this.windowFrame.dispose();
     this.rooftops.dispose();
     this.clouds.dispose();
-    this.rocket.dispose();
     this.envelopes.dispose();
     this.storm.dispose();
     this.biplane.dispose();

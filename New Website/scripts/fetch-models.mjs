@@ -18,6 +18,8 @@ const SLUGS = [
   'binder_notebook',
   'office_notepads',
   'clipboard',
+  // CH6 sea: a real rigged hull, replacing the toy kit ship
+  'dutch_ship_medium',
 ];
 
 function download(url, file, redirectsLeft = 3) {
@@ -76,7 +78,11 @@ for (const slug of SLUGS) {
     // execSync is safe here: every interpolated value is a hardcoded constant
     // (SLUGS + repo paths); npx.cmd on Windows needs the shell regardless.
     execSync(
-      `npx --yes @gltf-transform/cli optimize "${gltfFile}" "${target}" --compress quantize --texture-compress false`,
+      // half-size textures: the rigged ship ships 8.5MB of PNG at 1k, more
+      // bytes than the rest of the site put together. (webp encoding fails
+      // on this toolchain: sharp reports "colourspace: parameter space not
+      // set" on Poly Haven's 16-bit maps.)
+      `npx --yes @gltf-transform/cli optimize "${gltfFile}" "${target}" --compress quantize --texture-compress false --texture-size 512`,
       { stdio: 'inherit' },
     );
     console.log('saved', target);

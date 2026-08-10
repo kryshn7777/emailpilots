@@ -319,9 +319,13 @@ export class Beacon {
     });
   }
 
-  /** A tall ship riding the swell off the islet (Kenney CC0 model), nav lights on. */
+  /**
+   * A rigged merchantman riding the swell off the islet, nav lights on.
+   * Poly Haven's photogrammetry hull (CC0) replaced the kit ship, which read
+   * as a toy pirate galleon at any distance the camera actually passes it.
+   */
   private buildShip(): void {
-    new GLTFLoader().load('/models/ship_large.glb', (gltf) => {
+    new GLTFLoader().load('/models/dutch_ship_medium.glb', (gltf) => {
       const s = gltf.scene;
       const box = new Box3().setFromObject(s);
       const size = box.getSize(new Vector3());

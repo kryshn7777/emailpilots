@@ -32,7 +32,7 @@ const HIGH: Quality = {
   // 22 dithered steps + the thin-sample sun-tap skip: quality between the
   // old 32 and the grainy 16, still well under the original fragment bill
   cloudSteps: 22,
-  cloudSprites: 110,
+  cloudSprites: 260,
   rainCount: 1500,
   dustCount: 250,
 };
@@ -43,7 +43,7 @@ const LOW: Quality = {
   renderScale: 0.75,
   volumetricClouds: false,
   cloudSteps: 0,
-  cloudSprites: 70,
+  cloudSprites: 150,
   rainCount: 500,
   dustCount: 90,
 };

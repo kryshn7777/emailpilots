@@ -193,6 +193,11 @@ export class KitCity {
     if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
     this.group.add(inst);
     this.disposables.push(box, inst);
+    // MUST go through the engine hook like every other streamed mesh: this
+    // one is built after the engine's first pass over the scene, so without
+    // it the whole far city missed the blockout material swap and rendered
+    // black — a lit-window swarm with no buildings behind it
+    requestCompile(inst);
   }
 
   /** module half-extents after the uniform footprint fit, in lot-local axes */
@@ -289,6 +294,7 @@ export class KitCity {
     if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
     this.group.add(inst);
     this.disposables.push(geometry, material, inst);
+    requestCompile(inst);
   }
 
   /**
