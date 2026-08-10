@@ -47,6 +47,11 @@ for (const mod of manifest.modules) {
   const lod0 = await io.read(src);
   await lod0.transform(dedup(), weld());
   const scene = lod0.getRoot().getDefaultScene() ?? lod0.getRoot().listScenes()[0];
+  // NOTE: these are the SOURCE dimensions. quantize() renormalises POSITION
+  // and compensates with a node scale that getBounds() accounts for but
+  // three's GLTFLoader does not carry into mesh.geometry — three sees each
+  // module with its largest dimension normalised to 2. cityGen scales lots by
+  // lodScale() to bridge the two; see the comment there.
   const b = getBounds(scene);
   mod.footprint = [+(b.max[0] - b.min[0]).toFixed(3), +(b.max[2] - b.min[2]).toFixed(3)];
   mod.height = +(b.max[1] - b.min[1]).toFixed(3);

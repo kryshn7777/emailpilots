@@ -69,7 +69,7 @@ const TOWER_SCALE = 1.55;
  * Riding height. The hull is 5 units deep at this scale, and at the old 0.5
  * it sat roughly 40% under — the ship read as half-sunk rather than loaded.
  */
-const SHIP_Y = 1.0;
+const SHIP_Y = 2.15;
 /**
  * The leg stays well out to seaward: the freighter is ~38 units long now, so
  * a track any closer swung its bow in over the islet's rocks.
@@ -736,7 +736,9 @@ export class Beacon {
     // is left to the swell it rides on.
     const passage = MathUtils.smoothstep(t, 0.43, 0.6);
     this.ship.position.lerpVectors(SHIP_FROM, SHIP_TO, passage);
-    this.ship.position.y = SHIP_Y + Math.sin(time * 0.7) * 0.3;
+    // shallower bob than before: at ±0.3 the trough dipped the boot-topping
+    // under and the hull kept reading as half-swamped
+    this.ship.position.y = SHIP_Y + Math.sin(time * 0.7) * 0.16;
     this.ship.rotation.z = Math.sin(time * 0.7 + 1.3) * 0.05;
     this.ship.rotation.x = Math.sin(time * 0.55) * 0.035;
 

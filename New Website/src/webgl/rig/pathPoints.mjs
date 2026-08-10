@@ -21,20 +21,28 @@ export const PATH_POINTS = [
   // starts; the old line was already at cloud height by x=32 and the city
   // was behind you before you had looked at it
   [24, 9, 2],
-  [32, 10.5, -2],
-  // then the nose comes up and the district drops away: the takeoff ENDS in
-  // a hard climb for the deck, so CH4 opens with the camera inside weather
-  // instead of cruising politely over the top of it
-  [41, 15.5, 3],
-  // CH4 formation — S through the cloud sea, up at deck height
-  [53, 21, 8],
-  [64, 23, -8],
-  [76, 21.5, 6],
-  // CH5 storm slalom — carries the new altitude, then lets down into CH6
-  [86, 18.5, -6],
-  [92, 17, 6],
-  [98, 16, -6],
-  [104, 15, 6],
+  [33, 12, -2],
+  // Then the nose comes up and the district drops away for good. This climb
+  // is deliberately long and deliberately steep — four points instead of
+  // three — because the whole beat is the distance travelled between the
+  // rooftops and the weather. The old 15-unit top left the city still close
+  // underneath when the cloud arrived; the deck rides on the CH4 anchor, so
+  // taking the path this high carries the whole cloud sea up with it.
+  // 30% off the climb: every altitude here is the cruise height plus 0.7 of
+  // what it used to gain, so the shape of the ascent is unchanged and only
+  // its reach comes down
+  [42, 18, 3],
+  [50, 26.5, -1],
+  // CH4 formation — S through the cloud sea, well above the city
+  [60, 35, 8],
+  [70, 39, -8],
+  [80, 37, 6],
+  // CH5 storm slalom — the long let-down out of the high air, landing on the
+  // original altitude by its last point so CH6's approach is undisturbed
+  [88, 31, -6],
+  [94, 25, 6],
+  [100, 20, -6],
+  [106, 16, 6],
   [110, 15.5, -4],
   // CH6 beacon — calm rising arc
   [122, 18, 0],
@@ -67,4 +75,4 @@ export const PATH_POINTS = [
 ];
 
 /** First control-point index of each chapter's zone (matches the blocks). */
-export const CH_START_INDEX = [0, 3, 5, 8, 11, 16, 18, 21, 25, 28];
+export const CH_START_INDEX = [0, 3, 5, 9, 12, 17, 19, 22, 26, 29];
