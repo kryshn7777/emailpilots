@@ -60,7 +60,9 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'preflight', t0: 0.09, t1: 0.17,
-    rig: { fov: 42, camLag: 0.012, lookAhead: 0.006, turbAmp: 0.02, offsetUp: 0.8, offsetSide: 0.6, offsetBack: 1.8 },
+    // rides high and looks flat, not up the climb: aiming far along a steeply
+    // rising path pitched the lens at open sky just as the city should appear
+    rig: { fov: 42, camLag: 0.012, lookAhead: 0.001, turbAmp: 0.02, offsetUp: 2.6, offsetSide: 0.6, offsetBack: 1.8 },
     grade: { zenith: '#111726', horizon: '#27324a', sunColor: '#ffb65c', sunIntensity: 0.3, sunDir: [0.3, 0.8, 0.4], fogColor: '#111726', fogNear: 6, fogFar: 60, envIntensity: 0.3 },
   },
   {

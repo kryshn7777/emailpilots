@@ -97,9 +97,11 @@ export function rooftopLots(modules) {
   for (let i = 0; i < 150; i++) {
     place(9 + rand() * 46, -22 + rand() * 44, 2 + rand() * 3.4, 1.8 + rand() * 3, 0.7 + rand() * 2.6);
   }
-  // far skyline: taller, wider silhouettes closing the horizon
-  for (let i = 0; i < 70; i++) {
-    place(52 + rand() * 70, -38 + rand() * 76, 3.5 + rand() * 4.5, 3 + rand() * 4, 2.2 + rand() * 5.5);
+  // far skyline: taller, wider silhouettes closing the horizon. Wide enough
+  // to hide the ground plane's far edge now that the takeoff leg climbs and
+  // the camera looks down on the field instead of across it.
+  for (let i = 0; i < 110; i++) {
+    place(52 + rand() * 120, -58 + rand() * 116, 3.5 + rand() * 4.5, 3 + rand() * 4, 2.6 + rand() * 6.4);
   }
   return { lots };
 }

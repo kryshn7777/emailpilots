@@ -27,7 +27,10 @@ export class Rooftops {
   constructor(rand: () => number, quality: Quality) {
     // the ground the city stands on — without it the blocks float on sky
     const groundMaterial = new MeshStandardMaterial({ color: '#0c1019', roughness: 0.97 });
-    const ground = new Mesh(new PlaneGeometry(320, 220), groundMaterial);
+    // wide enough that every edge sits past the chapter's fog far plane —
+    // at 320x220 the plate's own boundary was visible as a hard line against
+    // the sky once the takeoff leg climbed above the rooftops
+    const ground = new Mesh(new PlaneGeometry(900, 700), groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(60, -0.06, 0);
     this.group.add(ground);

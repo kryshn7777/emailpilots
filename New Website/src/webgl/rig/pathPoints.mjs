@@ -9,11 +9,15 @@ export const PATH_POINTS = [
   [2.5, 1.5, -0.1],
   // CH2 preflight taxi past the panel
   [8, 1.7, 1.0],
-  [16, 2.0, -1.0],
+  // hard climb the moment the window is cleared: at the old y≈2 the camera
+  // rode BELOW the rooftops, so the empty apron of the city's ground plane
+  // filled the lower frame. Higher camera pushes the frame's bottom ground
+  // hit far enough out that buildings cover it.
+  [16, 6.5, -1.0],
   // CH3 takeoff climb through the window line
-  [24, 4, 2],
-  [32, 9, -2],
-  [40, 14, 3],
+  [24, 11, 2],
+  [32, 14, -2],
+  [40, 16, 3],
   // CH4 formation — S through the cloud sea
   [52, 16, 8],
   [64, 18, -8],
