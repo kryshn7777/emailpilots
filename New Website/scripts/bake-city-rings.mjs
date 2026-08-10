@@ -27,7 +27,13 @@ const OFFSETS = {
   rooftops: { x: 0, y: ROOFTOP_BASE_Y, z: 0 },
 };
 
-const RINGS = { high: { near: 28, mid: 70 }, low: { near: 12, mid: 34 } };
+// Ring radii, in world units of distance to the flight spline. Cut to 30% of
+// what they were: a lot only earns real kit geometry while the camera can
+// resolve it, and 28 units was holding full modules well past the point where
+// a facade is a few pixels wide. Everything that falls out lands on the FAR
+// impostor at 12 triangles against ~1800, which is where the frame cost of
+// this district actually lives.
+const RINGS = { high: { near: 8.4, mid: 21 }, low: { near: 3.6, mid: 10.2 } };
 
 const partition = (lots, offset) => {
   const out = {
