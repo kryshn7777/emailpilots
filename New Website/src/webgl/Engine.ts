@@ -481,12 +481,13 @@ export class Engine {
     this.biplane.group.visible = t > 0.32 && t < 0.49;
     this.birds.group.visible = t > 0.055 && t < 0.3;
     this.beacon.group.visible = t > 0.44 && t < 0.615;
-    // waits for the sea to fade — overlapped, its red zones floated on water
-    this.noFly.group.visible = t > 0.6 && t < 0.7;
-    // city waits until the camera reaches it — its westmost massing stands
-    // on the no-fly map's ground and read as floating gray blocks at t≈0.6;
-    // the city grade's near fog covers the entry
-    this.city.group.visible = t > 0.655 && t < 0.83;
+    // overlaps the sea fade-out so the ground never drops to void; red zones
+    // fade 0.59–0.652 (gone before the city), the map floor lingers to 0.69
+    this.noFly.group.visible = t > 0.585 && t < 0.695;
+    // city arrives while the camera is still short of the first lots (it
+    // crosses x≈170 near t 0.66) so it builds at a distance instead of
+    // materializing around the lens; the red map is already out by then
+    this.city.group.visible = t > 0.65 && t < 0.83;
     this.copilot.group.visible = t > 0.75 && t < 0.9;
     this.landing.group.visible = t > 0.85;
     const nearDesk = t < 0.32;
