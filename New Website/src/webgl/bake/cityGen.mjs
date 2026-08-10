@@ -153,21 +153,23 @@ export function rooftopLots(modules) {
       moduleId: mod.id,
     });
   };
-  // attempt counts are up across the board: honest spacing rejects far more
-  // candidates, and without more tries the district thins out into suburbs
+  // Every ring's reach is halved, and the attempt counts come down with the
+  // square of it — half the radius is a quarter of the ground, so holding
+  // the old counts would have packed the same towers into a smaller city
+  // rather than trimming it. Spacing per building is unchanged.
   // near neighbours: crowns land around the window's eye line
-  for (let i = 0; i < 1400; i++) {
-    tower(12 + rand() * 62, -38 + rand() * 76, 3.2 + rand() * 2.3);
+  for (let i = 0; i < 360; i++) {
+    tower(12 + rand() * 31, -19 + rand() * 38, 3.2 + rand() * 2.3);
   }
   // the district beyond: taller, closing the horizon in every direction
-  for (let i = 0; i < 1400; i++) {
-    tower(54 + rand() * 150, -105 + rand() * 210, 4.5 + rand() * 3.5);
+  for (let i = 0; i < 360; i++) {
+    tower(54 + rand() * 75, -52 + rand() * 105, 4.5 + rand() * 3.5);
   }
   // the rest of the city, out to the horizon. Every one of these falls in
   // the FAR ring, so they cost one instanced box each and carry their
   // windows in the impostor texture — this is where density is cheap.
-  for (let i = 0; i < 5000; i++) {
-    tower(-40 + rand() * 460, -260 + rand() * 520, 4 + rand() * 5);
+  for (let i = 0; i < 1250; i++) {
+    tower(-20 + rand() * 230, -130 + rand() * 260, 4 + rand() * 5);
   }
   return { lots };
 }
