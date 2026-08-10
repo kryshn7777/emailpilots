@@ -595,7 +595,17 @@ export class Engine {
     this.city.group.visible = t > 0.65 && t < 0.83;
     this.copilot.group.visible = t > 0.75 && t < 0.9;
     this.landing.group.visible = t > 0.85;
-    const nearDesk = t < 0.32;
+    // The room is measurably off-screen from t=0.17 — an AABB-vs-frustum test
+    // on the desk, the panel and the window frame returns false at 0.17, 0.19,
+    // 0.21, 0.24, 0.28 and 0.31 — but it was kept "visible" until 0.32.
+    //
+    // The saving is CPU, not GPU: three already frustum-culls the geometry, so
+    // draw calls barely move (21 to 23 across the old boundary). What stops is
+    // the per-frame work that visibility gates — the 250-mote dust loop below,
+    // and the matrix/traverse cost of the room's object tree — for the ~15% of
+    // the story between leaving the window and the old cut. 0.20 keeps a
+    // margin past the window exit.
+    const nearDesk = t < 0.2;
     this.desk.group.visible = nearDesk;
     this.panel.group.visible = nearDesk;
     this.windowFrame.group.visible = nearDesk;
