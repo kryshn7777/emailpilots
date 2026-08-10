@@ -59,7 +59,11 @@ export class KitCity {
         // light multiplier: #7d86a3 crushed the palette to flat navy — the
         // night mood comes from the scene grade, not from killing the map
         color: '#c6ccdd',
-        roughness: 0.85,
+        // glass-and-steel towers catch the sky probe: at 0.85 rough with no
+        // env weight they were matte cardboard under any lighting
+        roughness: 0.55,
+        metalness: 0.25,
+        envMapIntensity: 1.35,
         emissive: '#26314c',
         emissiveIntensity: glow,
       });

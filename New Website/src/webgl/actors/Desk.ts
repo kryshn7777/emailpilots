@@ -66,7 +66,14 @@ export class Desk {
     const wallMap = wallPanelTexture();
     const wall = new MeshStandardMaterial({ map: wallMap, roughness: 0.9 });
     const floorMap = floorPlankTexture();
-    const floorMat = new MeshStandardMaterial({ map: floorMap, roughness: 0.85 });
+    // polished office floor: low roughness + a strong env weight is what
+    // turns the sky probe into an actual reflection you can see moving
+    const floorMat = new MeshStandardMaterial({
+      map: floorMap,
+      roughness: 0.24,
+      metalness: 0.12,
+      envMapIntensity: 1.5,
+    });
     this.disposables.push(wall, floorMat, wallMap, floorMap);
     floorMap.repeat.set(5, 3.5);
     const floor = new Mesh(new PlaneGeometry(26, 18), floorMat);
@@ -381,9 +388,15 @@ export class Desk {
     // the desk itself: modern executive office desk — dark laminate slab on
     // brushed-steel panel legs with a drawer pedestal. Top face lands exactly
     // at y −0.10 where the laptop + props sit.
-    const deskTop = new MeshStandardMaterial({ color: '#262b38', roughness: 0.38, metalness: 0.08 });
-    const deskSteel = new MeshStandardMaterial({ color: '#9aa1b0', roughness: 0.32, metalness: 0.85 });
-    const deskDark = new MeshStandardMaterial({ color: '#171b26', roughness: 0.5, metalness: 0.2 });
+    const deskTop = new MeshStandardMaterial({
+      color: '#262b38', roughness: 0.22, metalness: 0.18, envMapIntensity: 1.4,
+    });
+    const deskSteel = new MeshStandardMaterial({
+      color: '#9aa1b0', roughness: 0.16, metalness: 0.95, envMapIntensity: 1.6,
+    });
+    const deskDark = new MeshStandardMaterial({
+      color: '#171b26', roughness: 0.42, metalness: 0.3, envMapIntensity: 1.2,
+    });
     this.disposables.push(deskTop, deskSteel, deskDark);
     // furniture is authored as loose boxes but SHIPS as three merged meshes —
     // one per material. Thirty-odd draw calls for static geometry is the
