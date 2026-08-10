@@ -45,12 +45,17 @@ export const PATH_POINTS = [
   [210, 10, -2],
   [220, 20, 0],
   [230, 26, 2],
-  // CH10 landing — long descent onto the runway
+  // CH10 landing — long descent, touchdown, then the delivery itself: right
+  // off the runway, up the apron, in through the arrival office door and
+  // into the screen. The last point IS the laptop display.
   [240, 16, 0],
   [250, 6, 0],
   [258, 1.2, 0],
-  [266, 0.6, 0],
-  [272, 0.5, 0],
+  [266, 0.55, 0],
+  [271, 0.5, 1.6],
+  [275, 0.55, 7],
+  [277.6, 0.8, 13],
+  [278, 1.05, 19.1],
 ];
 
 /** First control-point index of each chapter's zone (matches the blocks). */

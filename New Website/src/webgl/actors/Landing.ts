@@ -7,10 +7,11 @@ import {
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
+  PointLight,
   SphereGeometry,
   Vector3,
 } from 'three';
-import { replyTexture, runwayTexture } from '../bake/CanvasTextures';
+import { arrivalScreenTexture, replyTexture, runwayTexture } from '../bake/CanvasTextures';
 
 /**
  * CH10: a real dawn airfield. Marked runway with edge/threshold lights, an
@@ -18,6 +19,15 @@ import { replyTexture, runwayTexture } from '../bake/CanvasTextures';
  * control tower, hangar, apron and windsock — and after touchdown the dart
  * unfolds back into the letter while the "Re:" reply slides out.
  */
+/**
+ * The arrival office, and the desk height its laptop sits at. These are
+ * fixed world coordinates on purpose: the flight line's final control point
+ * (pathPoints.mjs) is authored to end inside this screen, so the two must be
+ * edited together.
+ */
+const OFFICE = { x: 278, z: 17 };
+const DESK_TOP = 0.62;
+
 export class Landing {
   readonly group = new Group();
   private edgeLightMaterial: MeshStandardMaterial;
@@ -25,6 +35,8 @@ export class Landing {
   private windsock: Mesh;
   private reply: Mesh;
   private replyHome = new Vector3();
+  private screenMaterial!: MeshStandardMaterial;
+  private screenLight!: PointLight;
   private disposables: { dispose(): void }[] = [];
 
   constructor(runwayEnd: Vector3) {
@@ -153,15 +165,88 @@ export class Landing {
     this.group.add(pole, this.windsock);
     this.disposables.push(pole.geometry, this.windsock.geometry, sockMat);
 
-    // the reply sheet waits at the rollout point
+    this.buildArrivalOffice();
+
+    // the printed reply waits on the arrival desk, beside the laptop
     const paper = new MeshStandardMaterial({ map: replyTexture(), roughness: 0.9 });
-    this.reply = new Mesh(new PlaneGeometry(0.92, 1.3), paper);
+    this.reply = new Mesh(new PlaneGeometry(0.5, 0.7), paper);
     this.reply.rotation.x = -Math.PI / 2;
     this.reply.rotation.z = -0.12;
-    this.replyHome.set(runwayEnd.x, 0.03, runwayEnd.z);
+    this.replyHome.set(OFFICE.x + 0.95, DESK_TOP + 0.01, OFFICE.z + 1.9);
     this.reply.position.copy(this.replyHome);
     this.group.add(this.reply);
     this.disposables.push(this.reply.geometry, paper);
+  }
+
+  /**
+   * The delivery itself: an office off the apron with its door open to the
+   * taxiway, a desk, and the laptop the flight ends inside. The flight line's
+   * last control point IS this screen, so the dart flies into it head-on.
+   */
+  private buildArrivalOffice(): void {
+    const { x, z } = OFFICE;
+    const shell = new MeshStandardMaterial({ color: '#2b3244', roughness: 0.8 });
+    const trim = new MeshStandardMaterial({ color: '#e6eaf2', roughness: 0.5 });
+    const deskMat = new MeshStandardMaterial({ color: '#262b38', roughness: 0.4 });
+    const steel = new MeshStandardMaterial({ color: '#9aa1b0', roughness: 0.3, metalness: 0.8 });
+    this.disposables.push(shell, trim, deskMat, steel);
+    const box = (
+      m: MeshStandardMaterial,
+      w: number, h: number, d: number,
+      px: number, py: number, pz: number,
+    ): void => {
+      const mesh = new Mesh(new BoxGeometry(w, h, d), m);
+      mesh.position.set(px, py, pz);
+      this.group.add(mesh);
+      this.disposables.push(mesh.geometry);
+    };
+    // floor slab, back and side walls, ceiling. The −z face stays open: that
+    // is the doorway the dart comes through.
+    box(deskMat, 11, 0.08, 11, x, 0.04, z);
+    box(shell, 11, 3.6, 0.16, x, 1.8, z + 5.5);
+    box(shell, 0.16, 3.6, 11, x - 5.5, 1.8, z);
+    box(shell, 0.16, 3.6, 11, x + 5.5, 1.8, z);
+    box(shell, 11, 0.16, 11, x, 3.66, z);
+    // doorway reveal — a lit frame so the opening reads as a door
+    box(trim, 0.3, 3.6, 0.3, x - 2.6, 1.8, z - 5.4);
+    box(trim, 0.3, 3.6, 0.3, x + 2.6, 1.8, z - 5.4);
+    box(trim, 5.5, 0.3, 0.3, x, 3.45, z - 5.4);
+
+    // ceiling panel: the only light in here, so the screen reads as the hero
+    const panelFace = new MeshStandardMaterial({
+      color: '#eef2fa',
+      emissive: '#e8eefb',
+      emissiveIntensity: 1.5,
+    });
+    this.disposables.push(panelFace);
+    box(panelFace, 3.2, 0.04, 1.4, x, 3.5, z + 0.4);
+    const roomLight = new PointLight('#eef3ff', 7, 14, 1.7);
+    roomLight.position.set(x, 2.9, z + 0.6);
+    this.group.add(roomLight);
+
+    // desk facing the door, laptop open toward the incoming flight
+    box(deskMat, 4.2, 0.09, 2.2, x, DESK_TOP, z + 2.1);
+    box(steel, 0.08, 0.85, 1.9, x - 1.95, DESK_TOP - 0.5, z + 2.1);
+    box(steel, 0.08, 0.85, 1.9, x + 1.95, DESK_TOP - 0.5, z + 2.1);
+    box(deskMat, 1.7, 0.05, 1.15, x - 0.5, DESK_TOP + 0.06, z + 1.55); // deck
+    box(deskMat, 1.5, 1.25, 0.06, x - 0.5, DESK_TOP + 0.68, z + 2.24); // lid
+
+    const screenMaterial = new MeshStandardMaterial({
+      map: arrivalScreenTexture(),
+      emissiveMap: arrivalScreenTexture(),
+      emissive: '#ffffff',
+      emissiveIntensity: 0.12, // dark until the mail actually lands
+      roughness: 0.25,
+    });
+    this.screenMaterial = screenMaterial;
+    const screen = new Mesh(new PlaneGeometry(1.34, 1.06), screenMaterial);
+    screen.position.set(x - 0.5, DESK_TOP + 0.68, z + 2.2);
+    screen.rotation.y = Math.PI; // faces −z, into the approach
+    this.group.add(screen);
+    this.screenLight = new PointLight('#9be8ff', 0, 6, 2);
+    this.screenLight.position.set(x - 0.5, DESK_TOP + 0.7, z + 1.4);
+    this.group.add(this.screenLight);
+    this.disposables.push(screen.geometry, screenMaterial);
   }
 
   update(t: number, time: number): void {
@@ -178,11 +263,17 @@ export class Landing {
 
     this.windsock.rotation.y = Math.sin(time * 0.7) * 0.4;
 
-    // "Re:" slides out from under the landed letter at the very end
-    const slide = MathUtils.smoothstep(t, 0.975, 0.997);
+    // the mail lands: the screen wakes as the dart reaches it, then holds
+    const arrive = MathUtils.smoothstep(t, 0.978, 0.995);
+    const ping = arrive * (1 + Math.sin(time * 3.4) * 0.14);
+    this.screenMaterial.emissiveIntensity = 0.12 + ping * 2.3;
+    this.screenLight.intensity = ping * 3.5;
+
+    // the printed reply slides out of the tray once the mail is in
+    const slide = MathUtils.smoothstep(t, 0.985, 0.999);
     this.reply.position
       .copy(this.replyHome)
-      .add(new Vector3(0.25 * slide, 0, 1.15 * slide));
+      .add(new Vector3(0.1 * slide, 0, -0.75 * slide));
     this.reply.rotation.z = -0.12 - slide * 0.22;
   }
 

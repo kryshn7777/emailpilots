@@ -105,7 +105,10 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'landing', t0: 0.88, t1: 1.0,
-    rig: { fov: 40, camLag: 0.018, lookAhead: 0.008, turbAmp: 0.02, offsetUp: 0.9, offsetSide: 0.5, offsetBack: 1.8 },
+    // tight lag and almost no trail: this chapter ends INSIDE a laptop screen,
+    // and at the old 0.018 lag the camera stopped ten units short of it, in
+    // the middle of the office, with the payoff a postage stamp in frame
+    rig: { fov: 40, camLag: 0.005, lookAhead: 0.004, turbAmp: 0.02, offsetUp: 0.55, offsetSide: 0.25, offsetBack: 0.5 },
     grade: { zenith: '#4a5a80', horizon: '#ff9e7a', sunColor: '#ffe8c9', sunIntensity: 1.2, sunDir: [0.7, 0.15, 0.3], fogColor: '#c9a58f', fogNear: 25, fogFar: 200, envIntensity: 0.55 },
   },
 ];

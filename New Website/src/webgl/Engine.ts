@@ -192,7 +192,10 @@ export class Engine {
     this.noFly = new NoFly(this.path.chapterAnchor(6));
     this.city = new City(this.path.chapterAnchor(7), this.path, this.quality);
     this.copilot = new Copilot(this.path.chapterAnchor(8));
-    this.landing = new Landing(this.path.storyPoint(0.985));
+    // fixed roll-out point, not a story-t sample: the flight now turns off
+    // the runway into the arrival office, so sampling near t=1 would drag the
+    // whole airfield along with the turn
+    this.landing = new Landing(new Vector3(270, 0.5, 0));
     this.burst = new PaperBurst(rand);
     this.confetti = new PaperBurst(rand);
     this.traffic = new Traffic(this.path);
@@ -429,6 +432,9 @@ export class Engine {
     // the plane "comes out of the screen": hidden until the launch thread
     // has drawn a little way out of the laptop (sub-pages always show it)
     this.plane.group.visible = this.idlePreset !== null || t > 0.012;
+    // the dart is swallowed by the arrival screen it flies into
+    const absorbed = this.idlePreset ? 0 : MathUtils.smoothstep(t, 0.982, 0.998);
+    this.plane.group.scale.setScalar(1 - absorbed);
     this.launchString.update(this.idlePreset ? 1 : t, this.path);
     this.plane.flex(time, t > CONTRAIL_FROM || this.idlePreset ? 1 : 0);
 
