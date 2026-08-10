@@ -52,9 +52,14 @@ export const PATH_POINTS = [
   // swing out and back inside 30 units of travel, which is what made the dart
   // wag through this chapter. Halving the excursion to a single crest keeps
   // the detour readable while the curve stays gentle enough to fly.
-  [147, 16.5, 4],
-  [157, 15, 7.5],
-  [167, 13.5, 4],
+  // Flattened again: the crest is now barely a crest. Most of the remaining
+  // swing came from the -4 this chapter INHERITS from the end of CH6, so
+  // pulling the middle down to +2.5 makes the whole run -4 → 0 → 2.5 → 2 → 1
+  // — a drift rather than an arc. The bend around the zones is now carried by
+  // where the zones sit, not by throwing the dart sideways.
+  [147, 16.5, 0],
+  [157, 15, 2.5],
+  [167, 13.5, 2],
   // CH8 city dive — the canyon runs world z 0..2 (group z offset 1); the old
   // z −4 leg flew straight through the north building row
   [176, 10, 1],
