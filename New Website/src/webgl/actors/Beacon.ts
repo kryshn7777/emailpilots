@@ -101,7 +101,8 @@ export class Beacon {
   private flareMaterial: SpriteMaterial;
   private ship = new Group();
   private wake!: Mesh;
-  private beamYaw: number | null = null;
+  /** last computed sweep bearing — derived from t each frame, never carried */
+  private beamYaw = 0;
   private disposables: { dispose(): void }[] = [];
 
   constructor(anchor: Vector3, raycast: Raycast, private tooltip: Tooltip, quality: Quality) {
@@ -660,9 +661,21 @@ export class Beacon {
 
   update(time: number, camera: Camera, t: number, planePos: Vector3): number {
     if (!this.group.visible) return 0;
-    // free sweep + a scroll-driven phase: scrubbing the chapter always drags
-    // the beam through at least one full pass over the flight line
-    const freeYaw = time * 0.45 + t * 40;
+    /**
+     * The sweep is SCROLL-DRIVEN: there is no wall-clock term anywhere in the
+     * bearing, so the beam does not turn on a still page. It used to add
+     * `time * 0.45`, which meant the lamp kept sweeping whether or not you
+     * were reading.
+     *
+     * What stays is the rate limiter, and it is not decoration. The scroll
+     * gain is 40–60 radians per unit t, so a thousandth of scroll jitter —
+     * the scrub spring settling, the camera's own turbulence — is several
+     * degrees of swing. Driving rotation.y straight off t made the beam
+     * shiver on a still page just as visibly as the old clock did, and blew
+     * the lens beat entirely. Clamping the per-frame step absorbs that and
+     * still comes to a complete stop once t stops changing.
+     */
+    const freeYaw = t * 40;
     // keyframed beat at t≈0.515: the beam deliberately sweeps across the
     // lens — guaranteed on every scroll-through, not left to sweep luck
     let camYaw = 0;
@@ -677,11 +690,10 @@ export class Beacon {
     // a direct lerp spun the beam wildly through the blend (the stutter)
     const freeNear = sweep + Math.atan2(Math.sin(freeYaw - sweep), Math.cos(freeYaw - sweep));
     const desired = MathUtils.lerp(freeNear, sweep, beat);
-    // rate-limit the swing: a ±π wrap flip becomes a fast continuous sweep
-    // instead of a single-frame teleport
-    const prev = this.beamYaw ?? desired;
-    const step = Math.atan2(Math.sin(desired - prev), Math.cos(desired - prev));
-    this.beamYaw = prev + MathUtils.clamp(step, -0.11, 0.11);
+    // a ±π wrap flip becomes a fast continuous sweep, not a single-frame
+    // teleport — and scroll jitter becomes nothing at all
+    const step = Math.atan2(Math.sin(desired - this.beamYaw), Math.cos(desired - this.beamYaw));
+    this.beamYaw += MathUtils.clamp(step, -0.11, 0.11);
     this.beamPivot.rotation.y = this.beamYaw;
     this.beamMaterial.uniforms.uTime!.value = time;
     // the beam stands down entering CH7 — inside-the-cone frames wash teal
