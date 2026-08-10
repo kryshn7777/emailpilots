@@ -1,15 +1,23 @@
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
+import { detectQuality } from '../quality';
 
 /**
  * Runtime "texture baking": every map the world needs is drawn once into a
  * canvas at boot (all < 16ms), replacing authored bitmap assets.
  */
 
+// bake scale: the desk chapter parks the lens close enough to magnify a 512
+// canvas ~2.5x, which read as smeared low-res. All makeCanvas callers draw in
+// their original coordinate space; the backing store is 2x on HIGH (mobile
+// keeps 1x so bake memory stays flat there).
+const BAKE_SCALE = detectQuality('').tier === 'high' ? 2 : 1;
+
 function makeCanvas(size: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
+  canvas.width = canvas.height = size * BAKE_SCALE;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2d context unavailable');
+  ctx.scale(BAKE_SCALE, BAKE_SCALE);
   return [canvas, ctx];
 }
 
@@ -157,6 +165,8 @@ export function rugTexture(): CanvasTexture {
   }
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
+  // floor maps live at grazing angles — without anisotropy they mip to mush
+  texture.anisotropy = 8;
   return texture;
 }
 
@@ -290,6 +300,8 @@ export function runwayTexture(): CanvasTexture {
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
+  // the landing camera skims the deck — markings smear without anisotropy
+  texture.anisotropy = 8;
   return texture;
 }
 
@@ -505,6 +517,7 @@ export function roadTexture(): CanvasTexture {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
   return texture;
 }
 
@@ -536,6 +549,7 @@ export function wallPanelTexture(): CanvasTexture {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
   return texture;
 }
 
@@ -560,6 +574,7 @@ export function floorPlankTexture(): CanvasTexture {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
   return texture;
 }
 
@@ -609,6 +624,8 @@ export function laptopKeysTexture(): CanvasTexture {
   ctx.fillRect(78, 152, 100, 84);
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
+  // the deck is seen nearly edge-on from the desk camera
+  texture.anisotropy = 8;
   return texture;
 }
 
