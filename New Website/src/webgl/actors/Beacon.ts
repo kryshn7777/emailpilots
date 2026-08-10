@@ -785,9 +785,15 @@ export class Beacon {
     // rings retire with the sea — pulsing at full strength until the group
     // cut, one read as a stray white circle in the no-fly sky mid-bend
     const ringFade = 1 - MathUtils.smoothstep(t, 0.575, 0.6);
+    // the rings open around the PLANE, not around the island — it flies
+    // through their centre instead of across a set of circles beside it
+    const ringX = planePos.x - this.group.position.x;
+    const ringZ = planePos.z - this.group.position.z;
     for (let i = 0; i < this.rings.length; i++) {
       const phase = ((time * 0.35 + i / 3) % 1 + 1) % 1;
       const radius = 1 + phase * 16;
+      this.rings[i]!.position.x = ringX;
+      this.rings[i]!.position.z = ringZ;
       this.rings[i]!.scale.setScalar(radius);
       this.ringMaterials[i]!.opacity =
         MathUtils.smoothstep(phase, 0, 0.12) * (1 - phase) * 0.8 * ringFade;

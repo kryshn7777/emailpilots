@@ -62,7 +62,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'preflight', t0: 0.09, t1: 0.17,
     // rides high and looks flat, not up the climb: aiming far along a steeply
     // rising path pitched the lens at open sky just as the city should appear
-    rig: { fov: 42, camLag: 0.012, lookAhead: 0.001, turbAmp: 0.02, offsetUp: 2.6, offsetSide: 0.6, offsetBack: 1.8 },
+    rig: { fov: 42, camLag: 0.018, lookAhead: 0.001, turbAmp: 0.02, offsetUp: 2.6, offsetSide: 0.6, offsetBack: 1.8 },
     // the window opens on a tower district standing in an overcast deck, so
     // the haze is cloud-coloured and reaches far: the old near-black fog at
     // 60 units cut every neighbour down to a silhouette
@@ -70,22 +70,22 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'takeoff', t0: 0.17, t1: 0.26,
-    rig: { fov: 55, camLag: 0.016, lookAhead: 0.010, turbAmp: 0.06, offsetUp: 1.1, offsetSide: 0.2, offsetBack: 0.5 },
+    rig: { fov: 55, camLag: 0.028, lookAhead: 0.010, turbAmp: 0.06, offsetUp: 1.1, offsetSide: 0.2, offsetBack: 0.5 },
     grade: { zenith: '#27324a', horizon: '#8fa8cc', sunColor: '#ffd9a0', sunIntensity: 0.9, sunDir: [0.55, 0.35, 0.2], fogColor: '#3a4a6a', fogNear: 20, fogFar: 160, envIntensity: 0.45 },
   },
   {
     id: 'formation', t0: 0.26, t1: 0.36,
-    rig: { fov: 50, camLag: 0.020, lookAhead: 0.012, turbAmp: 0.10, offsetUp: 1.2, offsetSide: 1.4, offsetBack: 1.2 },
+    rig: { fov: 50, camLag: 0.034, lookAhead: 0.012, turbAmp: 0.10, offsetUp: 1.2, offsetSide: 1.4, offsetBack: 1.2 },
     grade: { zenith: '#7f9cc8', horizon: '#ffd9a0', sunColor: '#ffd9a0', sunIntensity: 1.6, sunDir: [0.62, 0.25, 0.1], fogColor: '#b8c7e0', fogNear: 30, fogFar: 220, envIntensity: 0.6 },
   },
   {
     id: 'storm', t0: 0.36, t1: 0.48,
-    rig: { fov: 60, camLag: 0.012, lookAhead: 0.008, turbAmp: 0.55, offsetUp: 0.8, offsetSide: 0.0, offsetBack: 0.4 },
+    rig: { fov: 60, camLag: 0.020, lookAhead: 0.008, turbAmp: 0.55, offsetUp: 0.8, offsetSide: 0.0, offsetBack: 0.4 },
     grade: { zenith: '#0f1220', horizon: '#3b2e4f', sunColor: '#8a7fb0', sunIntensity: 0.35, sunDir: [0.2, 0.6, -0.3], fogColor: '#1a1530', fogNear: 8, fogFar: 70, envIntensity: 0.2 },
   },
   {
     id: 'beacon', t0: 0.48, t1: 0.58,
-    rig: { fov: 46, camLag: 0.024, lookAhead: 0.014, turbAmp: 0.09, offsetUp: 1.8, offsetSide: 1.0, offsetBack: 1.5 },
+    rig: { fov: 46, camLag: 0.038, lookAhead: 0.014, turbAmp: 0.09, offsetUp: 1.8, offsetSide: 1.0, offsetBack: 1.5 },
     // fog reaches much further than the other night chapters on purpose: the
     // sea and the freighter standing off it are staged at 80–100 units, and
     // at the old far=115 the ship dissolved into fog colour instead of
@@ -94,17 +94,17 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'no-fly', t0: 0.58, t1: 0.66,
-    rig: { fov: 50, camLag: 0.020, lookAhead: 0.012, turbAmp: 0.08, offsetUp: 3.6, offsetSide: 0.4, offsetBack: 1.6 },
+    rig: { fov: 50, camLag: 0.032, lookAhead: 0.012, turbAmp: 0.08, offsetUp: 3.6, offsetSide: 0.4, offsetBack: 1.6 },
     grade: { zenith: '#0a0f1c', horizon: '#141c2e', sunColor: '#aab6d0', sunIntensity: 0.4, sunDir: [-0.3, 0.6, 0.2], fogColor: '#101318', fogNear: 12, fogFar: 120, envIntensity: 0.25 },
   },
   {
     id: 'city', t0: 0.66, t1: 0.78,
-    rig: { fov: 62, camLag: 0.014, lookAhead: 0.008, turbAmp: 0.12, offsetUp: 0.9, offsetSide: 0.3, offsetBack: 0.6 },
+    rig: { fov: 62, camLag: 0.024, lookAhead: 0.008, turbAmp: 0.12, offsetUp: 0.9, offsetSide: 0.3, offsetBack: 0.6 },
     grade: { zenith: '#0b1024', horizon: '#2a2138', sunColor: '#ffc96b', sunIntensity: 0.3, sunDir: [-0.4, 0.5, 0.1], fogColor: '#151a33', fogNear: 6, fogFar: 68, envIntensity: 0.3 },
   },
   {
     id: 'copilot', t0: 0.78, t1: 0.88,
-    rig: { fov: 44, camLag: 0.022, lookAhead: 0.014, turbAmp: 0.05, offsetUp: 1.4, offsetSide: 1.2, offsetBack: 1.4 },
+    rig: { fov: 44, camLag: 0.034, lookAhead: 0.014, turbAmp: 0.05, offsetUp: 1.4, offsetSide: 1.2, offsetBack: 1.4 },
     grade: { zenith: '#05070f', horizon: '#0a0f1c', sunColor: '#9be8ff', sunIntensity: 0.25, sunDir: [-0.5, 0.4, -0.2], fogColor: '#05070f', fogNear: 20, fogFar: 180, envIntensity: 0.15 },
   },
   {
@@ -112,7 +112,7 @@ export const CHAPTERS: Chapter[] = [
     // tight lag and almost no trail: this chapter ends INSIDE a laptop screen,
     // and at the old 0.018 lag the camera stopped ten units short of it, in
     // the middle of the office, with the payoff a postage stamp in frame
-    rig: { fov: 40, camLag: 0.005, lookAhead: 0.004, turbAmp: 0.02, offsetUp: 0.55, offsetSide: 0.25, offsetBack: 0.5 },
+    rig: { fov: 40, camLag: 0.008, lookAhead: 0.004, turbAmp: 0.02, offsetUp: 0.55, offsetSide: 0.25, offsetBack: 0.5 },
     grade: { zenith: '#4a5a80', horizon: '#ff9e7a', sunColor: '#ffe8c9', sunIntensity: 1.2, sunDir: [0.7, 0.15, 0.3], fogColor: '#c9a58f', fogNear: 25, fogFar: 200, envIntensity: 0.55 },
   },
 ];

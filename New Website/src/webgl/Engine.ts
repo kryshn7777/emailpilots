@@ -609,10 +609,33 @@ export class Engine {
     this.desk.group.visible = nearDesk;
     this.panel.group.visible = nearDesk;
     this.windowFrame.group.visible = nearDesk;
+    /**
+     * Climb-out: the deck closes underneath you.
+     *
+     * Driven by ALTITUDE, not by t, so the district is lost to weather at the
+     * height where that reads as true rather than at a scroll position that
+     * happens to be near it. Fog pulls in hard as the camera passes ~14 up to
+     * ~24, which is also what thickens the cloud sprites — they take their
+     * fog from these same two numbers on the next line.
+     *
+     * The district is only CUT once that fog has already swallowed it, so the
+     * removal cannot pop: at full closure fogFar is 34 while the nearest roof
+     * is tens of units off, leaving it milk before it goes. Bounded to the
+     * climb (out by t=0.42) so CH9's starfield keeps its own long fog.
+     */
+    const deckClose =
+      MathUtils.smoothstep(this.camera.position.y, 17, 26) *
+      (1 - MathUtils.smoothstep(t, 0.36, 0.42));
+    if (deckClose > 0) {
+      // eased back from 2/34: at that thickness the climb went to flat milk
+      // and took the formation chapter's staging with it. 8/78 still loses
+      // the ground and still reads as cloud, without closing the whole frame.
+      this.fog.near = MathUtils.lerp(this.fog.near, 8, deckClose);
+      this.fog.far = MathUtils.lerp(this.fog.far, 78, deckClose);
+    }
     // gone before the cloud sea: at t≈0.2+ the tallest roofs poked through
     // the cloud floor as floating slabs
-    // the district stays under the flight until the climb reaches the deck
-    this.rooftops.group.visible = t > 0.06 && t < 0.33;
+    this.rooftops.group.visible = t > 0.06 && t < 0.33 && deckClose < 0.99;
     this.rooftops.update(time);
 
     if (nearDesk) this.desk.update(time); // 250-mote dust loop, pointless offscreen
