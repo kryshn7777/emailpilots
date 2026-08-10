@@ -480,7 +480,9 @@ export class Engine {
     this.storm.group.visible = t > 0.3 && t < 0.52;
     this.biplane.group.visible = t > 0.32 && t < 0.49;
     this.birds.group.visible = t > 0.055 && t < 0.3;
-    this.beacon.group.visible = t > 0.44 && t < 0.615;
+    // ends with the sea reveal (0.605) — the extra tail let the camera catch
+    // radar rings and ship lights hanging in the no-fly sky during the bend
+    this.beacon.group.visible = t > 0.44 && t < 0.605;
     // overlaps the sea fade-out so the ground never drops to void; red zones
     // fade 0.59–0.652 (gone before the city), the map floor lingers to 0.69
     this.noFly.group.visible = t > 0.585 && t < 0.695;

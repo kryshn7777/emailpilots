@@ -432,6 +432,9 @@ export class Beacon {
     this.oceanMaterial.uniforms.uReveal!.value = reveal;
     // a fullscreen transparent plane at alpha≈0 still pays full fragment cost
     this.sea.visible = reveal > 0.003;
+    // the freighter's additive nav/porthole points outlive the dark hull —
+    // a lone red dot hung in the no-fly sky until the group cut at 0.615
+    this.ship.visible = reveal > 0.05;
 
     // — beam hits: the sweep catching the plane, then the lens —
     const beamX = Math.cos(this.beamYaw);
@@ -467,11 +470,15 @@ export class Beacon {
     attr.needsUpdate = true;
     this.splashMaterial.opacity = 0.5 + Math.sin(time * 1.15) * 0.3; // breathes with the surge
 
+    // rings retire with the sea — pulsing at full strength until the group
+    // cut, one read as a stray white circle in the no-fly sky mid-bend
+    const ringFade = 1 - MathUtils.smoothstep(t, 0.575, 0.6);
     for (let i = 0; i < this.rings.length; i++) {
       const phase = ((time * 0.35 + i / 3) % 1 + 1) % 1;
       const radius = 1 + phase * 16;
       this.rings[i]!.scale.setScalar(radius);
-      this.ringMaterials[i]!.opacity = MathUtils.smoothstep(phase, 0, 0.12) * (1 - phase) * 0.8;
+      this.ringMaterials[i]!.opacity =
+        MathUtils.smoothstep(phase, 0, 0.12) * (1 - phase) * 0.8 * ringFade;
     }
 
     if (this.hovered) this.tooltip.pin(this.towerTop, camera, 30);
