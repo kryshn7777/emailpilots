@@ -33,6 +33,7 @@ import { neonSignTexture, roadTexture } from '../bake/CanvasTextures';
 import { glowTexture } from '../bake/CanvasTextures';
 import { KitCity, type KitLot, type KitRingSet } from './KitCity';
 import { PaperPlane } from './PaperPlane';
+import { asset } from '../asset';
 import { mulberry32 } from '../util';
 import type { FlightPath } from '../rig/FlightPath';
 import type { Quality } from '../quality';
@@ -100,8 +101,8 @@ export class City {
     // no-cache: lots and rings MUST come from the same bake — a stale cached
     // rings file indexes past the end of a freshly generated lot list
     const [manifest, allRings] = await Promise.all([
-      fetch('/models/city-kit/manifest.json', { cache: 'no-cache' }).then((r) => r.json()),
-      fetch('/models/city-rings.json', { cache: 'no-cache' }).then((r) => r.json()),
+      fetch(asset('/models/city-kit/manifest.json'), { cache: 'no-cache' }).then((r) => r.json()),
+      fetch(asset('/models/city-rings.json'), { cache: 'no-cache' }).then((r) => r.json()),
     ]);
     const rings = allRings.city[quality.tier] as KitRingSet;
     const { lots } = cityRecipes(manifest.modules);

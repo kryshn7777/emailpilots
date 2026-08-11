@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import { DOWNLOAD } from '../story/copy';
+import { href } from '../lib/href';
 ---
 
 <Base
@@ -22,7 +23,7 @@ import { DOWNLOAD } from '../story/copy';
       >
         {DOWNLOAD.cta.label}
       </a>
-      <a class="btn btn--ghost" href="/pricing">See pricing</a>
+      <a class="btn btn--ghost" href={href("/pricing")}>See pricing</a>
     </div>
     <p class="pricing-card__note" style="margin-top:0.9rem">{DOWNLOAD.requirements}</p>
 

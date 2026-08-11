@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import { HOME_CHAPTERS } from '../story/copy';
+import { href } from '../lib/href';
 ---
 
 <Base
@@ -46,10 +47,10 @@ import { HOME_CHAPTERS } from '../story/copy';
           )}
           {i === HOME_CHAPTERS.length - 1 && (
             <div class="btn-row">
-              <a class="btn btn--primary" data-magnetic href="/download">
+              <a class="btn btn--primary" data-magnetic href={href("/download")}>
                 Download for Windows — 7-day free trial
               </a>
-              <a class="btn btn--ghost" href="/pricing">
+              <a class="btn btn--ghost" href={href("/pricing")}>
                 See pricing
               </a>
             </div>

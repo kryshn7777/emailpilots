@@ -18,6 +18,7 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { facadeTexture } from '../bake/CanvasTextures';
+import { asset } from '../asset';
 import { requestCompile } from '../warm';
 
 export interface KitLot {
@@ -48,7 +49,7 @@ export class KitCity {
    */
   private kitMaterial(glow: number): MeshStandardMaterial {
     if (!KitCity.sharedColormap) {
-      const colormap = new TextureLoader().load('/models/city-kit/colormap.png');
+      const colormap = new TextureLoader().load(asset('/models/city-kit/colormap.png'));
       colormap.colorSpace = SRGBColorSpace;
       colormap.flipY = false; // glTF UV convention
       KitCity.sharedColormap = colormap;

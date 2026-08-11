@@ -3,6 +3,7 @@ import '@fontsource-variable/bricolage-grotesque';
 import '@fontsource-variable/inter';
 import '../styles/global.css';
 import Nav from '../components/islands/Nav.tsx';
+import { href } from '../lib/href';
 
 interface Props {
   title: string;
@@ -18,7 +19,7 @@ const { title, description } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href={href("/favicon.svg")} />
     <title>{title}</title>
   </head>
   <body>
@@ -38,7 +39,7 @@ const { title, description } = Astro.props;
     </div>
 
     <header class="site-header">
-      <a class="brand" href="/" aria-label="Email Pilots home">
+      <a class="brand" href={href("/")} aria-label="Email Pilots home">
         <svg viewBox="0 0 48 48" width="22" height="22" fill="none" aria-hidden="true">
           <path d="M4 26 L44 10 L24 40 L21 29 Z" fill="currentColor" opacity="0.95"></path>
         </svg>
@@ -62,7 +63,7 @@ const { title, description } = Astro.props;
 
     <footer class="site-footer">
       <div>
-        <a class="brand" href="/" aria-label="Email Pilots home">
+        <a class="brand" href={href("/")} aria-label="Email Pilots home">
           <svg viewBox="0 0 48 48" width="20" height="20" fill="none" aria-hidden="true">
             <path d="M4 26 L44 10 L24 40 L21 29 Z" fill="currentColor" opacity="0.95"></path>
           </svg>
@@ -74,14 +75,14 @@ const { title, description } = Astro.props;
         </p>
       </div>
       <nav aria-label="Site">
-        <a href="/features">Flight manual</a>
-        <a href="/pricing">Pricing</a>
-        <a href="/download">Download</a>
+        <a href={href("/features")}>Flight manual</a>
+        <a href={href("/pricing")}>Pricing</a>
+        <a href={href("/download")}>Download</a>
       </nav>
       <nav aria-label="Journey">
-        <a href="/#desk">The Desk</a>
-        <a href="/#storm">The Storm</a>
-        <a href="/#landing">The Landing</a>
+        <a href={href("/#desk")}>The Desk</a>
+        <a href={href("/#storm")}>The Storm</a>
+        <a href={href("/#landing")}>The Landing</a>
       </nav>
       <div class="site-footer__fine">
         <span>© 2026 EMAIL PILOTS · WINDOWS DESKTOP</span>

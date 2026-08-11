@@ -67,6 +67,7 @@ import { Tooltip } from './interact/Tooltip';
 import { SkyDome } from './materials/SkyDome';
 import { ScrollDirector } from './scroll/ScrollDirector';
 import { UNLIT, detectQuality, gpuRendererString } from './quality';
+import { asset } from './asset';
 import { mulberry32 } from './util';
 
 interface EngineOptions {
@@ -185,7 +186,7 @@ export class Engine {
     this.scene.environment = roomEnv.texture;
     this.scene.environmentIntensity = 0.3;
     new HDRLoader().load(
-      '/hdri/sky_1k.hdr',
+      asset('/hdri/sky_1k.hdr'),
       (hdr) => {
         this.scene.environment = pmrem.fromEquirectangular(hdr).texture;
         hdr.dispose();

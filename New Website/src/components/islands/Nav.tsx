@@ -1,3 +1,4 @@
+import { href } from '../../lib/href';
 import { useEffect, useState } from 'react';
 
 const LINKS = [
@@ -20,11 +21,11 @@ export default function Nav() {
     <nav aria-label="Main" className={`nav ${solid ? 'nav--solid' : ''}`}>
       <div className="nav__links">
         {LINKS.map((l) => (
-          <a key={l.href} href={l.href}>
+          <a key={l.href} href={href(l.href)}>
             {l.label}
           </a>
         ))}
-        <a className="nav__cta" href="/download">
+        <a className="nav__cta" href={href('/download')}>
           Download
         </a>
       </div>
@@ -41,7 +42,7 @@ export default function Nav() {
         <ul className="nav__sheet">
           {[...LINKS, { href: '/download', label: 'Download' }].map((l) => (
             <li key={l.href}>
-              <a href={l.href} onClick={() => setOpen(false)}>
+              <a href={href(l.href)} onClick={() => setOpen(false)}>
                 {l.label}
               </a>
             </li>

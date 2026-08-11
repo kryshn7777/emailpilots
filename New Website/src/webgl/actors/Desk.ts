@@ -37,6 +37,7 @@ import {
   rugTexture,
   wallPanelTexture,
 } from '../bake/CanvasTextures';
+import { asset } from '../asset';
 import { requestCompile } from '../warm';
 
 /**
@@ -349,8 +350,8 @@ export class Desk {
         requestCompile(s);
       });
     };
-    prop('/models/potted_plant_04.glb', 0.95, -2.85, -1.4, 0.6);
-    prop('/models/ceramic_vase_01.glb', 0.62, 2.0, -0.85, 0.2);
+    prop(asset('/models/potted_plant_04.glb'), 0.95, -2.85, -1.4, 0.6);
+    prop(asset('/models/ceramic_vase_01.glb'), 0.62, 2.0, -0.85, 0.2);
 
     // Paperwork is FLAT, so it fits by footprint, not height: scaling a
     // 2cm-thick notepad to a target height blew it up to a desk-sized slab.
@@ -369,10 +370,10 @@ export class Desk {
     };
     // notepads by the writing hand, bound notebooks squared up behind the
     // laptop, a clipboard parked at the far corner
-    flatProp('/models/office_notepads.glb', 0.3, 1.72, 0.78, -0.5);
-    flatProp('/models/binder_notebook.glb', 0.28, -1.62, -1.1, 0.22);
-    flatProp('/models/binder_notebook.glb', 0.28, -1.22, -1.0, -0.14);
-    flatProp('/models/clipboard.glb', 0.3, 2.75, 1.02, 1.15);
+    flatProp(asset('/models/office_notepads.glb'), 0.3, 1.72, 0.78, -0.5);
+    flatProp(asset('/models/binder_notebook.glb'), 0.28, -1.62, -1.1, 0.22);
+    flatProp(asset('/models/binder_notebook.glb'), 0.28, -1.22, -1.0, -0.14);
+    flatProp(asset('/models/clipboard.glb'), 0.3, 2.75, 1.02, 1.15);
 
     // — the study set: real furniture, floor-standing —
     const floorProp = (url: string, targetH: number, x: number, z: number, rotY: number): void => {

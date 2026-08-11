@@ -1,0 +1,70 @@
+name: Deploy The Overnight Flight to GitHub Pages
+
+# MANUAL ONLY, on purpose.
+#
+# A repository has exactly one Pages site, and `deploy-landing.yml` already
+# publishes `landing/` to it. Running this workflow REPLACES what is live at
+# that URL with the site in `New Website/`. Giving it a push trigger would
+# mean any commit to this branch silently took the marketing site down, so it
+# stays on workflow_dispatch until that switchover is deliberate.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag to build and publish
+        required: false
+        default: feat/overnight-flight-site
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# shares the `pages` group with deploy-landing so the two can never race each
+# other onto the same site
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: New Website
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: New Website/package-lock.json
+      - run: npm ci
+
+      # The HDRI is fetched, not committed (see scripts/fetch-hdri.mjs). The
+      # engine falls back to RoomEnvironment if it is missing, so a fetch
+      # failure degrades the lighting instead of failing the deploy.
+      - run: npm run setup:assets
+        continue-on-error: true
+
+      - run: npm run build
+        env:
+          # project site lives at /<repo>/ — derived, never hardcoded
+          PAGES_BASE: /${{ github.event.repository.name }}/
+          PAGES_SITE: https://${{ github.repository_owner }}.github.io
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: New Website/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -14,6 +14,7 @@ import {
 import { ROOFTOP_BASE_Y, ROOFTOP_DECK_Y, rooftopLots } from '../bake/cityGen.mjs';
 import { cityGridTexture, cloudDeckTexture, glowTexture } from '../bake/CanvasTextures';
 import { KitCity, type KitLot, type KitRingSet } from './KitCity';
+import { asset } from '../asset';
 import type { Quality } from '../quality';
 
 /**
@@ -118,8 +119,8 @@ export class Rooftops {
     // no-cache: lots and rings MUST come from the same bake — a stale cached
     // rings file indexes past the end of a freshly generated lot list
     const [manifest, allRings] = await Promise.all([
-      fetch('/models/city-kit/manifest.json', { cache: 'no-cache' }).then((r) => r.json()),
-      fetch('/models/city-rings.json', { cache: 'no-cache' }).then((r) => r.json()),
+      fetch(asset('/models/city-kit/manifest.json'), { cache: 'no-cache' }).then((r) => r.json()),
+      fetch(asset('/models/city-rings.json'), { cache: 'no-cache' }).then((r) => r.json()),
     ]);
     const rings = allRings.rooftops[quality.tier] as KitRingSet;
     const { lots } = rooftopLots(manifest.modules);
