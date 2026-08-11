@@ -1,12 +1,16 @@
-name: Deploy The Overnight Flight to GitHub Pages
+name: Deploy site (landing + Overnight Flight)
 
 # MANUAL ONLY, on purpose.
 #
-# A repository has exactly one Pages site, and `deploy-landing.yml` already
-# publishes `landing/` to it. Running this workflow REPLACES what is live at
-# that URL with the site in `New Website/`. Giving it a push trigger would
-# mean any commit to this branch silently took the marketing site down, so it
-# stays on workflow_dispatch until that switchover is deliberate.
+# A repository has exactly one Pages site, so this workflow publishes BOTH
+# sites in one artifact rather than fighting deploy-landing.yml over it:
+#
+#   /            landing/          (the existing marketing site)
+#   /flight/     New Website/      (The Overnight Flight)
+#
+# It stays on workflow_dispatch so nothing goes live by accident, and shares
+# the `pages` concurrency group with deploy-landing.yml so the two can never
+# race each other onto the same site.
 on:
   workflow_dispatch:
     inputs:
@@ -20,8 +24,6 @@ permissions:
   pages: write
   id-token: write
 
-# shares the `pages` group with deploy-landing so the two can never race each
-# other onto the same site
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -29,35 +31,64 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: New Website
+    env:
+      # project site lives at /<repo>/ — derived, never hardcoded, so renaming
+      # the repository does not silently break every asset path
+      ROOT_BASE: /${{ github.event.repository.name }}/
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: New Website/package-lock.json
-      - run: npm ci
 
-      # The HDRI is fetched, not committed (see scripts/fetch-hdri.mjs). The
-      # engine falls back to RoomEnvironment if it is missing, so a fetch
-      # failure degrades the lighting instead of failing the deploy.
-      - run: npm run setup:assets
-        continue-on-error: true
-
-      - run: npm run build
+      # ---- landing → site root ----
+      - name: Install landing
+        working-directory: landing
+        run: npm ci
+      - name: Build landing
+        working-directory: landing
+        run: npm run build
         env:
-          # project site lives at /<repo>/ — derived, never hardcoded
-          PAGES_BASE: /${{ github.event.repository.name }}/
+          PAGES_BASE: ${{ env.ROOT_BASE }}
+
+      # ---- flight → /flight/ ----
+      - name: Install flight
+        working-directory: New Website
+        run: npm ci
+      # The HDRI is fetched, not committed (scripts/fetch-hdri.mjs). The engine
+      # falls back to RoomEnvironment when it is missing, so a fetch failure
+      # should degrade the lighting, not fail the deploy.
+      - name: Fetch flight assets
+        working-directory: New Website
+        run: npm run setup:assets
+        continue-on-error: true
+      - name: Build flight
+        working-directory: New Website
+        run: npm run build
+        env:
+          PAGES_BASE: ${{ env.ROOT_BASE }}flight/
           PAGES_SITE: https://${{ github.repository_owner }}.github.io
+
+      - name: Assemble one artifact
+        run: |
+          mkdir -p _site
+          cp -r landing/dist/. _site/
+          mkdir -p "_site/flight"
+          cp -r "New Website/dist/." "_site/flight/"
+          # Pages runs Jekyll over the artifact unless told not to, and Jekyll
+          # drops every directory whose name starts with an underscore —
+          # which is exactly where Astro puts its bundles (_astro/).
+          touch _site/.nojekyll
+          echo "--- published tree (top level) ---"
+          ls -la _site
+          ls -la _site/flight
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: New Website/dist
+          path: _site
 
   deploy:
     needs: build

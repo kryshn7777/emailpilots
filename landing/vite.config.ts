@@ -4,7 +4,10 @@ import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 
 // GitHub Pages serves a project site from /Emailpilots3/; local dev/build from /.
-const base = process.env.GITHUB_ACTIONS ? '/Emailpilots3/' : '/'
+// PAGES_BASE overrides both, for the combined deploy in the emailpilots repo
+// that publishes this site at the root and the flight site under /flight/.
+// deploy-landing.yml does not set it, so that workflow is unaffected.
+const base = process.env.PAGES_BASE || (process.env.GITHUB_ACTIONS ? '/Emailpilots3/' : '/')
 
 export default defineConfig({
   base,
