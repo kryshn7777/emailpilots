@@ -304,10 +304,34 @@ export class Clouds {
       this.nightSun.copy(this.sunColor).lerp(this.moon, 0.7);
       this.nightShadow.copy(this.shadowColor).lerp(this.deepNight, 0.55);
     }
+
+    /**
+     * The formation deck fades on the same principle. It used to be a plain
+     * visibility switch at t=0.2 and t=0.58, so 640 puffs arrived and left in
+     * a single frame — the most visible pop in the flight, right where the
+     * climb is supposed to be entering weather.
+     *
+     * The ramps are long on the way in (0.17→0.26, most of the takeoff) and
+     * short on the way out, because leaving is motivated: the storm takes the
+     * sky over at 0.36 and the beacon's own weather owns everything past 0.5.
+     */
+    const day =
+      0.42 *
+      MathUtils.smoothstep(t, 0.17, 0.26) *
+      (1 - MathUtils.smoothstep(t, 0.53, 0.585));
+    this.spriteMaterial.uniforms.uOpacity!.value = day;
+    this.sprites.visible = day > 0.002;
+
     if (this.volumeMaterial) {
       this.volumeMaterial.uniforms.uTime!.value = time;
       this.volumeMaterial.uniforms.uFogNear!.value = fogNear;
       this.volumeMaterial.uniforms.uFogFar!.value = fogFar;
+      // the raymarch has no opacity — coverage IS its density, so thinning it
+      // to nothing is how the slab arrives and leaves without a hard edge
+      const slab =
+        MathUtils.smoothstep(t, 0.2, 0.28) * (1 - MathUtils.smoothstep(t, 0.4, 0.47));
+      this.volumeMaterial.uniforms.uCoverage!.value = 0.14 + 0.48 * slab;
+      this.volume!.visible = slab > 0.004;
     }
   }
 

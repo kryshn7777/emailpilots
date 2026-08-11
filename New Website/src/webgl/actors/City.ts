@@ -22,7 +22,13 @@ import {
   Vector3,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { CROSS_STREET_X, cityLayout, cityRecipes, type Building } from '../bake/cityGen.mjs';
+import {
+  CITY_EXTENT,
+  CROSS_STREET_X,
+  cityLayout,
+  cityRecipes,
+  type Building,
+} from '../bake/cityGen.mjs';
 import { neonSignTexture, roadTexture } from '../bake/CanvasTextures';
 import { glowTexture } from '../bake/CanvasTextures';
 import { KitCity, type KitLot, type KitRingSet } from './KitCity';
@@ -73,7 +79,9 @@ export class City {
 
     // ground sheet under the buildings
     const groundMaterial = new MeshStandardMaterial({ color: '#0a0d16', roughness: 0.95 });
-    const ground = new Mesh(new PlaneGeometry(140, 100), groundMaterial);
+    // 260x200, not 140x100: the district is 97 x 39 now and the old sheet's
+    // edge cut across the frame in the upper corners of the dive
+    const ground = new Mesh(new PlaneGeometry(260, 200), groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.02;
     this.group.add(ground);
@@ -340,18 +348,27 @@ export class City {
     const road = roadTexture();
     const roadMat = new MeshStandardMaterial({ map: road, roughness: 0.95 });
     this.disposables.push(roadMat, road);
-    const canyonRoad = new Mesh(new PlaneGeometry(66, 4.6), roadMat);
+    // roads span the built grid rather than a hardcoded 66x27: the district is
+    // 24x11 blocks now, and the old canyon road stopped dead a third of the way
+    // along it with buildings either side of open ground
+    const [x0, x1] = CITY_EXTENT.x;
+    const [z0, z1] = CITY_EXTENT.z;
+    const runX = x1 - x0 + 12; // a little past the last block at each end
+    const runZ = z1 - z0 + 10;
+    const canyonRoad = new Mesh(new PlaneGeometry(runX, 4.6), roadMat);
     canyonRoad.rotation.x = -Math.PI / 2;
-    canyonRoad.position.set(1, 0.005, 0);
-    if (canyonRoad.material.map) canyonRoad.material.map.repeat.set(9, 1);
+    canyonRoad.position.set((x0 + x1) / 2, 0.005, 0);
+    // one dash tile per ~7 units, so the markings keep their spacing as the
+    // road grows instead of stretching
+    if (canyonRoad.material.map) canyonRoad.material.map.repeat.set(Math.round(runX / 7.3), 1);
     this.group.add(canyonRoad);
     this.disposables.push(canyonRoad.geometry);
     for (const sx of CROSS_STREET_X) {
-      // 27-long axis carries the dashes (texture U), then swings onto world z
-      const cross = new Mesh(new PlaneGeometry(27, 2.6), roadMat);
+      // the long axis carries the dashes (texture U), then swings onto world z
+      const cross = new Mesh(new PlaneGeometry(runZ, 2.6), roadMat);
       cross.rotation.x = -Math.PI / 2;
       cross.rotation.z = Math.PI / 2;
-      cross.position.set(sx, 0.004, -1);
+      cross.position.set(sx, 0.004, (z0 + z1) / 2);
       this.group.add(cross);
       this.disposables.push(cross.geometry);
     }
@@ -360,9 +377,12 @@ export class City {
     interface Lane { origin: Vector3; dir: Vector3; len: number; hue: number; count: number }
     const lanes: Lane[] = [];
     for (const sx of CROSS_STREET_X) {
+      // lanes run the full cross street, so traffic no longer stops short of
+      // the pavement at both ends
+      const z0Lane = (z0 + z1) / 2 - runZ / 2;
       lanes.push(
-        { origin: new Vector3(sx - 0.6, 0.12, -14), dir: new Vector3(0, 0, 1), len: 27, hue: 0, count: 6 },
-        { origin: new Vector3(sx + 0.6, 0.12, -14), dir: new Vector3(0, 0, 1), len: 27, hue: 1, count: 6 },
+        { origin: new Vector3(sx - 0.6, 0.12, z0Lane), dir: new Vector3(0, 0, 1), len: runZ, hue: 0, count: 8 },
+        { origin: new Vector3(sx + 0.6, 0.12, z0Lane), dir: new Vector3(0, 0, 1), len: runZ, hue: 1, count: 8 },
       );
     }
 

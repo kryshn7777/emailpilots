@@ -614,8 +614,8 @@ export class Engine {
     // 0.14 while the flight was still crossing rooftops
     // the deck opens DURING the climb now, so the first puffs arrive while the
     // nose is still coming up out of the city and the camera flies into them
-    if (this.clouds.volume) this.clouds.volume.visible = t > 0.225 && t < 0.46;
-    this.clouds.sprites.visible = t > 0.2 && t < 0.58;
+    // (both cloud decks and the raymarched slab gate themselves — Clouds.update
+    // ramps their opacity/coverage on t so nothing pops on or off)
     // storm rain is fully faded by 0.52 (stormness ends there) — the group
     // lingering to 0.58 double-paid rain over the beacon's local shower
     this.storm.group.visible = t > 0.3 && t < 0.52;

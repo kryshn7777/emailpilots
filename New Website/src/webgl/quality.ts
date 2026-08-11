@@ -34,7 +34,7 @@ const HIGH: Quality = {
   cloudSteps: 22,
   // density comes from COUNT, not from fog: thickening the haze instead just
   // turned the climb to flat milk and took the staging with it
-  cloudSprites: 460,
+  cloudSprites: 640,
   rainCount: 1500,
   dustCount: 250,
 };
@@ -45,7 +45,7 @@ const LOW: Quality = {
   renderScale: 0.75,
   volumetricClouds: false,
   cloudSteps: 0,
-  cloudSprites: 260,
+  cloudSprites: 360,
   rainCount: 500,
   dustCount: 90,
 };

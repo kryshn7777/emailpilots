@@ -5,8 +5,31 @@
 
 export const CITY_SEED = 20260809;
 
+/**
+ * The block grid. Was 14x7 starting at x=-28: 84 cells, ~60 surviving lots,
+ * a district the dive crossed in a couple of seconds and then ran out of.
+ * 24x11 from x=-48 gives ~180, and widens the canyon walls on both sides so
+ * there is city in peripheral vision the whole way down.
+ */
+export const COLS = 24;
+export const ROWS = 11;
+const X0 = -48;
+const Z0 = -21;
+const DX = 4.2;
+const DZ = 3.9;
+/** Every 5th column is a cross street (traffic runs down these gaps). */
+const isCrossStreet = (col) => col % 5 === 4;
+
 /** Local-space X of each cross street (center of the skipped columns). */
-export const CROSS_STREET_X = [4 * 4.2 - 28 + 1.2, 9 * 4.2 - 28 + 1.2];
+export const CROSS_STREET_X = Array.from({ length: COLS }, (_, c) => c)
+  .filter(isCrossStreet)
+  .map((c) => c * DX + X0 + 1.2);
+
+/** Half-extents of the built area, so roads and ground can be sized from it. */
+export const CITY_EXTENT = {
+  x: [X0, X0 + (COLS - 1) * DX],
+  z: [Z0, Z0 + (ROWS - 1) * DZ],
+};
 
 // local PRNG copy (util.ts is TypeScript; this file must stay Node-loadable)
 function mulberry32(seed) {
@@ -24,15 +47,14 @@ function mulberry32(seed) {
 export function cityLayout(canyonZ = 0) {
   const rand = mulberry32(CITY_SEED);
   const buildings = [];
-  for (let row = 0; row < 7; row++) {
-    for (let col = 0; col < 14; col++) {
-      // every 5th column is a cross street (traffic runs down these gaps)
-      if (col % 5 === 4) {
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      if (isCrossStreet(col)) {
         rand(); rand(); rand(); rand(); // keep the layout stable for other cells
         continue;
       }
-      const x = col * 4.2 + rand() * 1.2 - 28;
-      const z = canyonZ - 13 + row * 3.9 + rand() * 1.1;
+      const x = col * DX + rand() * 1.2 + X0;
+      const z = canyonZ + Z0 + row * DZ + rand() * 1.1;
       const near = Math.abs(z - canyonZ);
       // keep the canyon the plane dives through open (deep buildings can
       // protrude d/2 ≈ 1.4 toward the gap — 2.7 leaves real wingtip room)
@@ -84,13 +106,38 @@ export function cityRecipes(modules, canyonZ = 0) {
     const pick = (pool.length ? pool : modules);
     const mod = pick[Math.floor(rand() * pick.length)];
     const ls = lodScale(mod);
-    // cityLayout's clearance test runs on the UNSCALED footprint, and lodScale
-    // widens the short modules by up to 1.8x — enough for a face to reach into
-    // the canyon the plane dives through. Re-test with the real depth and drop
-    // the lot rather than fly through it.
-    if (Math.abs(b.z - canyonZ) - (b.d * ls) / 2 < 1.3) continue;
+    /**
+     * Lot size is DERIVED from the module, exactly as rooftopLots does it.
+     *
+     * cityLayout picks w/d/h independently (w 1.8–3.2, d 1.6–2.8, h 2–12), and
+     * KitCity fits a module by min(lot.w/geomW, lot.d/geomD, lot.h/geomH) — so
+     * whichever ratio came out smallest decided the building, and every tower
+     * landed at some arbitrary fraction of its plot. That is why this district
+     * read as wrongly scaled next to the window city, which has always derived
+     * its lots. One scale s makes all three ratios equal, so the module renders
+     * at its own proportions.
+     *
+     * s comes from the PLOT, not from the height. Solving s for the layout's
+     * intended height instead (b.h / mod.height) blew up every squat module:
+     * a low-slung block asked to reach 10 units got its footprint multiplied
+     * to match, and the district came out as wide flat slabs. A plot has a
+     * ground area; the building's height is whatever module stands on it, and
+     * `tall` already routes the tall lots to the skyscraper pool.
+     *
+     * The b.h term keeps the canyon drama: lots the layout wanted tall get a
+     * bigger building in every dimension, which is what a downtown core does.
+     */
+    const s =
+      Math.min(b.w / mod.footprint[0], b.d / mod.footprint[1]) * (0.85 + b.h / 14);
+    const w = mod.footprint[0] * s * ls;
+    const d = mod.footprint[1] * s * ls;
+    // cityLayout's clearance test runs on the UNSCALED footprint, and the
+    // derived depth can be wider still — enough for a face to reach into the
+    // canyon the plane dives through. Re-test with the real depth and drop the
+    // lot rather than fly through it.
+    if (Math.abs(b.z - canyonZ) - d / 2 < 1.3) continue;
     lots.push({
-      x: b.x, z: b.z, w: b.w * ls, d: b.d * ls, h: b.h * ls,
+      x: b.x, z: b.z, w, d, h: mod.height * s * ls,
       yaw: (Math.floor(rand() * 4) * Math.PI) / 2,
       tint: TINTS[Math.floor(rand() * TINTS.length)],
       moduleId: mod.id,

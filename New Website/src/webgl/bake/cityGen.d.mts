@@ -1,5 +1,8 @@
 export const CITY_SEED: number;
+export const COLS: number;
+export const ROWS: number;
 export const CROSS_STREET_X: number[];
+export const CITY_EXTENT: { x: [number, number]; z: [number, number] };
 export const ROOFTOP_BASE_Y: number;
 export const ROOFTOP_DECK_Y: number;
 
