@@ -319,12 +319,14 @@ export class Beacon {
     // read as open ocean behind it rather than a pond with a far edge.
     /**
      * 256, not 128. The mesh is 640 units across, so 128 segments meant 5-unit
-     * quads, and the shortest swell still in ocean.vert has a 12-unit
-     * wavelength — 2.4 samples per wave. That undersampling beat against the
-     * grid as regular rows of marks across the mid-distance water, which is
-     * what the fish-scale lattice actually was (not the fragment ripples, and
-     * not the two chop terms already removed for the same reason). At 2.5-unit
-     * quads it is ~4.8 samples per wave. Costs 65k triangles.
+     * quads against a shortest swell wavelength of 12 units — 2.4 samples per
+     * wave, which is marginal. 2.5-unit quads take it to ~4.8. Costs 65k
+     * triangles.
+     *
+     * Kept for its own sake, NOT as the fix for the fish-scale lattice this
+     * was raised chasing: that turned out to be the rain shader shearing its
+     * drop field by height (see rain.vert), and it survived this change
+     * untouched.
      */
     const seg = quality.tier === 'high' ? 256 : 120;
     const seaGeometry = new PlaneGeometry(640, 420, seg, Math.floor(seg / 2));

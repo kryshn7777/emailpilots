@@ -31,7 +31,10 @@ void main() {
    * it costs nothing visually because past 30 units they were never resolving
    * as ripples anyway.
    */
-  float detail = 1.0 - smoothstep(24.0, 85.0, depth);
+  // Starts at 8, not 24. Aliasing begins as soon as a pixel spans about half
+  // a wavelength, and these ripples are 2-3 units — at this FOV that is inside
+  // 15 units, so a fade starting at 24 was already too late to help.
+  float detail = 1.0 - smoothstep(8.0, 34.0, depth);
   vec2 rp = vWorldPos.xz;
   float r1 = sin(dot(rp, vec2(2.1, 1.4)) + uTime * 2.8);
   float r2 = sin(dot(rp, vec2(-1.6, 2.5)) + uTime * 3.6);
@@ -70,8 +73,23 @@ void main() {
   vec3 view = normalize(uCamPos - vWorldPos);
   vec3 halfDir = normalize(view + normalize(uMoonDir));
   float ndh = max(dot(n, halfDir), 0.0);
+  /**
+   * The sparkle term is the aliasing AMPLIFIER, and it is why this artifact
+   * survived four attempts to fix it upstream.
+   *
+   * pow(ndh, 240) is a knife-edge function of the normal, so any wobble in n
+   * that is undersampled on screen comes back as hard-edged specks — and
+   * because the ripple field is periodic, those specks land in a regular
+   * lattice rather than as noise. Isolating it took hiding every Points object
+   * in the beacon (rain and splashes both innocent) to prove the pattern was
+   * on the water surface itself.
+   *
+   * So it fades with the same distance term as the ripples that feed it. Close
+   * up, where the normal is properly sampled, it is untouched; past ~34 units
+   * the water keeps the broad sheen and loses the glitter.
+   */
   float spec = pow(ndh, 42.0);
-  float sparkle = pow(ndh, 240.0);
+  float sparkle = pow(ndh, 240.0) * detail;
   color += vec3(0.55, 0.85, 0.8) * (spec * 0.45 + sparkle * 0.9);
 
   // manual fog (ShaderMaterial skips the scene fog chunks) — depth is already

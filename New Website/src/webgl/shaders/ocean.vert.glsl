@@ -19,17 +19,17 @@ float swell(vec2 p, float t) {
   h += 0.29 * sin(dot(p, vec2(0.23, -0.19)) + t * 2.4);
   h += 0.14 * sin(dot(p, vec2(0.4, 0.33)) + t * 3.2);
   /**
-   * The two high-frequency chop terms that used to sit here are GONE, and
-   * they cannot come back at this vertex density.
+   * The two high-frequency chop terms that used to sit here are GONE.
    *
-   * The mesh is 640 units across 128 segments — 5 units per quad — and those
-   * terms had wavelengths of 5.7 and 5.1 units. Roughly one sample per wave:
-   * textbook aliasing. At the old amplitudes (0.05, 0.035) it hid; at 1.6x,
-   * with steeper normals, it became the dominant read — a regular fish-scale
-   * lattice across every shadowed face, which is not what water does.
+   * They had wavelengths of 5.7 and 5.1 units against 5-unit quads — about one
+   * sample per wave, which is genuinely undersampled and worth removing on its
+   * own merits at these amplitudes. Their detail now comes from the
+   * per-fragment ripple field in ocean.frag, which has no sampling rate to
+   * violate.
    *
-   * The surface detail they were there for now comes from the per-fragment
-   * ripple field in ocean.frag, which has no sampling rate to violate.
+   * They were NOT, however, the fish-scale lattice they were removed chasing.
+   * That was the rain shader shearing its drop field by height (rain.vert),
+   * and it outlived this edit by two more wrong guesses.
    */
   // sharpen crests, keep troughs broad
   return h + 0.3 * pow(abs(sin(dot(p, vec2(0.11, 0.13)) + t * 1.2)), 4.0);
