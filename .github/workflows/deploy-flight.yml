@@ -17,7 +17,7 @@ on:
       ref:
         description: Branch or tag to build and publish
         required: false
-        default: feat/overnight-flight-site
+        default: main
 
 permissions:
   contents: read
