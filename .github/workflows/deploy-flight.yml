@@ -55,9 +55,14 @@ jobs:
           PAGES_BASE: ${{ env.ROOT_BASE }}
 
       # ---- flight → /flight/ ----
+      # --legacy-peer-deps is required, not cosmetic. vite-plugin-glsl declares
+      # a peerOptional on @rollup/pluginutils@^5 while @swup/parallel-plugin
+      # pulls v3 in through microbundle, which plain npm cannot resolve. The
+      # lock file is generated the same way, so CI has to install it the same
+      # way. (landing above resolves cleanly and stays on plain `npm ci`.)
       - name: Install flight
         working-directory: New Website
-        run: npm ci
+        run: npm ci --legacy-peer-deps
       # The HDRI is fetched, not committed (scripts/fetch-hdri.mjs). The engine
       # falls back to RoomEnvironment when it is missing, so a fetch failure
       # should degrade the lighting, not fail the deploy.
