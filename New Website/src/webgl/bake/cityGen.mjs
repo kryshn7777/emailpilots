@@ -8,13 +8,24 @@ export const CITY_SEED = 20260809;
 /**
  * The block grid. Was 14x7 starting at x=-28: 84 cells, ~60 surviving lots,
  * a district the dive crossed in a couple of seconds and then ran out of.
- * 24x11 from x=-48 gives ~180, and widens the canyon walls on both sides so
- * there is city in peripheral vision the whole way down.
+ * 24x11 fixed that; 32x15 goes further, and the origin moves with it so the
+ * grid stays centred on the dive rather than growing off one end.
+ *
+ * Depth is where this reads: the flight only ever crosses ~34 units of x, so
+ * extra columns are approach and departure, while extra rows stack the canyon
+ * walls deeper into peripheral vision.
+ *
+ * Note none of this reaches the FAR impostor ring at high tier. Ring distance
+ * is measured to the nearest point on the whole spline, and the spline runs
+ * the length of the world in x — so for this district only |z| and height
+ * separate a lot from the flight, and the widest row is 27 out against a mid
+ * radius of 45. Every city lot is a real module at high tier; the impostors
+ * only kick in on LOW, whose mid radius is 22.
  */
-export const COLS = 24;
-export const ROWS = 11;
-const X0 = -48;
-const Z0 = -21;
+export const COLS = 32;
+export const ROWS = 15;
+const X0 = -65;
+const Z0 = -27;
 const DX = 4.2;
 const DZ = 3.9;
 /** Every 5th column is a cross street (traffic runs down these gaps). */

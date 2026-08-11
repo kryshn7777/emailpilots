@@ -189,14 +189,16 @@ export class Clouds {
       depthWrite: false,
     });
     this.night = this.field(
-      Math.round(quality.cloudSprites * 0.72),
+      quality.cloudSprites,
       nightRand,
       (p, r) => {
         // the ceiling takes the larger share and a tighter z spread: it is
         // seen from 25 units below, where a field spread as wide as the floor
-        // thins out to a few stray wisps against the starfield
-        if (r() < 0.62) {
-          p.set(168 + r() * 52, 25 + Math.pow(r(), 1.3) * 6, -42 + r() * 84);
+        // thins out to a few stray wisps against the starfield. Its x reach
+        // grew with the district — the city runs to world x≈259 now, and a
+        // lid that stopped at 220 left the far half of the dive open sky.
+        if (r() < 0.66) {
+          p.set(166 + r() * 88, 24 + Math.pow(r(), 1.3) * 7, -48 + r() * 96);
           return 4 + r() * 7;
         }
         // tight z too — CH7 flies a near-straight line at z≈2, so spreading
