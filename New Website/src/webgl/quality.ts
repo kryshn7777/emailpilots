@@ -2,13 +2,20 @@ export type Tier = 'high' | 'low';
 
 /**
  * Blockout mode: every lit material renders flat, and the expensive passes
- * (ambient occlusion, bloom, the raymarched cloud slab) are off, so the
- * scene can be judged on staging, silhouette and colour alone before any of
- * it is lit. `?lit=1` restores the full renderer.
+ * (ambient occlusion, bloom, the raymarched cloud slab) are off, so the scene
+ * can be judged on staging, silhouette and colour alone before any of it is
+ * lit.
+ *
+ * OPT-IN now (user call, 2026-08-11). It was the default through the art
+ * passes, which meant the shipped render was the blockout: no AO, no bloom, no
+ * volumetric slab, and every MeshStandardMaterial flattened to basic — which
+ * is also why roof clutter and kit trim read as black slabs, having lost the
+ * emissive term that lit them. `?blockout=1` brings it back for staging work;
+ * `?lit=1` is still accepted and now does nothing, being the default.
  */
-export const UNLIT = !new URLSearchParams(
+export const UNLIT = new URLSearchParams(
   typeof location === 'undefined' ? '' : location.search,
-).has('lit');
+).has('blockout');
 
 export interface Quality {
   tier: Tier;
@@ -29,13 +36,20 @@ const HIGH: Quality = {
   maxDpr: 2,
   renderScale: 1,
   volumetricClouds: true,
-  // 22 dithered steps + the thin-sample sun-tap skip: quality between the
-  // old 32 and the grainy 16, still well under the original fragment bill
+  /**
+   * 22 dithered steps + the thin-sample sun-tap skip.
+   *
+   * Briefly 32 as part of the max-fidelity pass, and that is what made the
+   * formation chapter lag: the slab is a fullscreen raymarch and the camera
+   * flies INSIDE it, so every step is paid on every pixel of the frame. The
+   * step count is the one term that scales that cost linearly. Every pass
+   * still renders — AO, bloom, the slab itself — this is only the march.
+   */
   cloudSteps: 22,
   // density comes from COUNT, not from fog: thickening the haze instead just
   // turned the climb to flat milk and took the staging with it
   cloudSprites: 640,
-  rainCount: 1500,
+  rainCount: 2600,
   dustCount: 250,
 };
 
@@ -46,7 +60,7 @@ const LOW: Quality = {
   volumetricClouds: false,
   cloudSteps: 0,
   cloudSprites: 360,
-  rainCount: 500,
+  rainCount: 900,
   dustCount: 90,
 };
 

@@ -6,19 +6,33 @@ varying vec3 vWorldPos;
 varying vec3 vNormal;
 varying float vCrest;
 
+// Amplitudes are 1.6x the first pass and the whole field runs ~30% faster:
+// this is weather, not a harbour on a calm night. The consumers of vCrest in
+// the fragment shader have their thresholds scaled with it (by ~1.4, so foam
+// coverage grows too), and Beacon lifts the freighter to match — a bigger sea
+// under an unmoved hull is how the ship ends up looking swamped.
 float swell(vec2 p, float t) {
   float h = 0.0;
   // four directions: long storm swells + shorter wind chop
-  h += 0.46 * sin(dot(p, vec2(0.14, 0.06)) + t * 1.0);
-  h += 0.30 * sin(dot(p, vec2(-0.09, 0.17)) + t * 1.4);
-  h += 0.18 * sin(dot(p, vec2(0.23, -0.19)) + t * 1.9);
-  h += 0.09 * sin(dot(p, vec2(0.4, 0.33)) + t * 2.6);
-  // high-frequency chop rides on the swells — the surface reads as water,
-  // not as a slow rubber sheet
-  h += 0.05 * sin(dot(p, vec2(0.9, 0.63)) + t * 3.4);
-  h += 0.035 * sin(dot(p, vec2(-0.71, 1.02)) + t * 4.1);
+  h += 0.74 * sin(dot(p, vec2(0.14, 0.06)) + t * 1.3);
+  h += 0.48 * sin(dot(p, vec2(-0.09, 0.17)) + t * 1.8);
+  h += 0.29 * sin(dot(p, vec2(0.23, -0.19)) + t * 2.4);
+  h += 0.14 * sin(dot(p, vec2(0.4, 0.33)) + t * 3.2);
+  /**
+   * The two high-frequency chop terms that used to sit here are GONE, and
+   * they cannot come back at this vertex density.
+   *
+   * The mesh is 640 units across 128 segments — 5 units per quad — and those
+   * terms had wavelengths of 5.7 and 5.1 units. Roughly one sample per wave:
+   * textbook aliasing. At the old amplitudes (0.05, 0.035) it hid; at 1.6x,
+   * with steeper normals, it became the dominant read — a regular fish-scale
+   * lattice across every shadowed face, which is not what water does.
+   *
+   * The surface detail they were there for now comes from the per-fragment
+   * ripple field in ocean.frag, which has no sampling rate to violate.
+   */
   // sharpen crests, keep troughs broad
-  return h + 0.16 * pow(abs(sin(dot(p, vec2(0.11, 0.13)) + t)), 4.0);
+  return h + 0.3 * pow(abs(sin(dot(p, vec2(0.11, 0.13)) + t * 1.2)), 4.0);
 }
 
 void main() {
@@ -31,7 +45,10 @@ void main() {
   float hz = swell(xz + vec2(0.0, 0.35), t);
   p.z += h; // local z = world y before the mesh rotation
 
-  vNormal = normalize(vec3(h - hx, 0.6, h - hz));
+  // 0.45, not 0.6: a smaller up component tilts the normals harder for the
+  // same slope, so the bigger swells actually catch and lose the moon instead
+  // of staying evenly lit across a face
+  vNormal = normalize(vec3(h - hx, 0.45, h - hz));
   vCrest = h;
 
   vec4 world = modelMatrix * vec4(p, 1.0);

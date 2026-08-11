@@ -691,7 +691,7 @@ export class Engine {
     );
     const stormness =
       MathUtils.smoothstep(t, 0.34, 0.38) * (1 - MathUtils.smoothstep(t, 0.46, 0.52));
-    this.storm.update(time, dt, stormness, Math.random);
+    this.storm.update(time, dt, stormness, Math.random, t);
     this.biplane.update(t, time);
     this.birds.update(time, t);
     this.wingPlanes.update(

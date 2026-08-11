@@ -251,8 +251,19 @@ export class City {
    */
   private buildRoofClutter(rows: [Building, { hx: number; hz: number }][]): void {
     const rand = mulberry32(60309);
-    const clutterMaterial = new MeshStandardMaterial({ color: '#2a3145', roughness: 0.8 });
-    const tankMaterial = new MeshStandardMaterial({ color: '#1f2634', roughness: 0.6, metalness: 0.3 });
+    /**
+     * Both carry a lift of emissive. This chapter's key light is 0.3 and the
+     * hemisphere under it is nearly black, so an unlit #2a3145 box crushed to
+     * pure black — 151 of them read as holes punched in the roofline rather
+     * than as clutter standing on it. The roof dressing over in KitCity has
+     * always had this and never showed the problem.
+     */
+    const clutterMaterial = new MeshStandardMaterial({
+      color: '#2a3145', roughness: 0.8, emissive: '#131a2a', emissiveIntensity: 0.55,
+    });
+    const tankMaterial = new MeshStandardMaterial({
+      color: '#1f2634', roughness: 0.6, metalness: 0.3, emissive: '#121826', emissiveIntensity: 0.5,
+    });
     this.disposables.push(clutterMaterial, tankMaterial);
 
     const boxes: Matrix4[] = [];
@@ -338,7 +349,11 @@ export class City {
   private carQuatFwd = new Quaternion();
   private carQuatBack = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
   private carPos = new Vector3();
-  private carScale = new Vector3(1, 1, 1);
+  // 1.35: the district grew and the canyon road with it, which left the cars
+  // reading as specks against the block faces. Applied as instance scale so
+  // the head/taillight sprites, which are placed from the same lane formula,
+  // keep sitting on the bodies.
+  private carScale = new Vector3(1.35, 1.35, 1.35);
 
   private static readonly CANYON_LEN = 66;
   private static readonly CANYON_X0 = -32;

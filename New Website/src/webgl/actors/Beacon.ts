@@ -69,7 +69,11 @@ const TOWER_SCALE = 1.55;
  * Riding height. The hull is 5 units deep at this scale, and at the old 0.5
  * it sat roughly 40% under — the ship read as half-sunk rather than loaded.
  */
-const SHIP_Y = 2.15;
+// Rides higher than it used to. The swells in ocean.vert are 1.6x taller now
+// and peak around 2 units above the plane at y=0.15, which at the old 2.15 put
+// crests through the boot topping — the exact "half underwater" look this
+// number was raised to fix in the first place.
+const SHIP_Y = 2.85;
 /**
  * The leg stays well out to seaward: the freighter is ~38 units long now, so
  * a track any closer swung its bow in over the islet's rocks.
@@ -313,7 +317,16 @@ export class Beacon {
     // into black void on the way out of the chapter. Scaled up with the
     // island: the freighter now stands well out to sea, and the water has to
     // read as open ocean behind it rather than a pond with a far edge.
-    const seg = quality.tier === 'high' ? 128 : 72;
+    /**
+     * 256, not 128. The mesh is 640 units across, so 128 segments meant 5-unit
+     * quads, and the shortest swell still in ocean.vert has a 12-unit
+     * wavelength — 2.4 samples per wave. That undersampling beat against the
+     * grid as regular rows of marks across the mid-distance water, which is
+     * what the fish-scale lattice actually was (not the fragment ripples, and
+     * not the two chop terms already removed for the same reason). At 2.5-unit
+     * quads it is ~4.8 samples per wave. Costs 65k triangles.
+     */
+    const seg = quality.tier === 'high' ? 256 : 120;
     const seaGeometry = new PlaneGeometry(640, 420, seg, Math.floor(seg / 2));
     this.oceanMaterial = new ShaderMaterial({
       vertexShader: oceanVert,
@@ -748,11 +761,15 @@ export class Beacon {
     // is left to the swell it rides on.
     const passage = MathUtils.smoothstep(t, 0.43, 0.6);
     this.ship.position.lerpVectors(SHIP_FROM, SHIP_TO, passage);
-    // shallower bob than before: at ±0.3 the trough dipped the boot-topping
-    // under and the hull kept reading as half-swamped
-    this.ship.position.y = SHIP_Y + Math.sin(time * 0.7) * 0.16;
-    this.ship.rotation.z = Math.sin(time * 0.7 + 1.3) * 0.05;
-    this.ship.rotation.x = Math.sin(time * 0.55) * 0.035;
+    // Works this sea harder than the last one — two beat frequencies so the
+    // hull never settles into an obvious loop, and real pitch and roll. The
+    // bob stays modest relative to the swell (±0.34 against ~2 units of wave)
+    // because the failure mode here has always been the trough dipping the
+    // boot topping under; it is the ROTATION that sells the weather.
+    this.ship.position.y =
+      SHIP_Y + Math.sin(time * 0.7) * 0.22 + Math.sin(time * 1.13 + 0.7) * 0.12;
+    this.ship.rotation.z = Math.sin(time * 0.7 + 1.3) * 0.115 + Math.sin(time * 1.31) * 0.04;
+    this.ship.rotation.x = Math.sin(time * 0.55) * 0.075;
 
     // the wake lies flat astern, along the heading, fading with the sea
     this.wake.visible = this.ship.visible;
