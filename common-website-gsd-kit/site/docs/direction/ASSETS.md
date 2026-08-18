@@ -1,7 +1,7 @@
 # ASSETS — Plan & Ledger
 
 > Started in Phase 1 as the **plan** (D-07); becomes the ingest **ledger** in Phases 2–3 (add "actual optimized size + ingest date" per row as assets enter the pipeline).
-> Rules: no asset enters the repo without a row here · CC0/CC-BY only · every download passes the pipeline (gltf-transform 4.x `optimize --compress meshopt --texture-compress ktx2`; ETC1S for color, UASTC for normal/roughness/UI text; HDRI 1K .hdr for IBL) · raw downloads never ship · a model that fails Lane-A budgets after optimization is "not available" → scene-director redirects the scene.
+> Rules: no asset enters the repo without a row here · CC0/CC-BY only · every download passes the pipeline (gltf-transform 4.x `optimize --compress meshopt --texture-compress ktx2` + simplify to the per-row tri target (gltf-transform `simplify` or gltfpack `-si`) — 4 assets exceed their tri targets at source, so meshopt+KTX2 alone is insufficient; ETC1S for color, UASTC for normal/roughness/UI text; HDRI 1K .hdr for IBL) · raw downloads never ship · a model that fails Lane-A budgets after optimization is "not available" → scene-director redirects the scene.
 > **Attribution surface (planned from day one):** "Credits & licenses" colophon linked from the Chapter 7 footer — full CC-BY credit lines (title · author · link · license) render there; CC0 sources get courtesy credits in the same list.
 > Verification: **[V]** = URL-verified live this session (2026-08-18, Poly Haven `/info` + Sketchfab/ambientCG APIs) · **[I]** = proven by name in `.planning/research/PITFALLS.md` live inventory (2026-08-18).
 
@@ -16,14 +16,28 @@
 | 1–7 (dressing) | Office Notepads [I] | https://polyhaven.com/a/office_notepads | CC0 | None (courtesy) | ~10–25 MB | ≤ 1 MB, 1K KTX2 |
 | 1–7 (dressing) | Stationery Supplies (pen hero in Ch7) [I] | https://polyhaven.com/a/stationery_supplies | CC0 | None (courtesy) | ~15–30 MB | ≤ 1.5 MB, 1K KTX2 |
 | 2–6 (stack base) | Clipboard [I] | https://polyhaven.com/a/clipboard | CC0 | None (courtesy) | ~10–20 MB | ≤ 0.8 MB, 1K KTX2 |
-| 1–7 (dressing) | Binder Notebook [I] | https://polyhaven.com/a/binder_notebook | CC0 | None (courtesy) | ~15–30 MB | ≤ 1.2 MB, 1K KTX2 |
+| 1–7 (dressing) | Binder Notebook [I] | https://polyhaven.com/a/binder_notebook | CC0 | None (courtesy) | ~15–30 MB | ≤ 1.2 MB, ≤ 12K tris, 1K KTX2 |
 | 1–7 (dressing) | Book Encyclopedia Set 01 [V] | https://polyhaven.com/a/book_encyclopedia_set_01 | CC0 | None (courtesy) | ~20–40 MB | ≤ 1.8 MB, ≤ 20K tris, 1K KTX2 |
 | 1–7 (desktop-only side dressing; first cut candidate) | Shelf 01 [V] | https://polyhaven.com/a/Shelf_01 | CC0 | None (courtesy) | ~15–30 MB | ≤ 1.2 MB, 1K KTX2 — CUT on mobile |
-| 2, 5 (hero envelope, close-ups) | Papers & Envelopes — bossdeff (Michael V), uid `303f54d7a6e84aad9af3f341c2fa4ad7`, 460 faces [V] | https://sketchfab.com/3d-models/papers-envelopes-303f54d7a6e84aad9af3f341c2fa4ad7 | CC BY 4.0 | **REQUIRED** — title/author/link/license in colophon (grab Sketchfab's generated credit text at download) | < 5 MB | ≤ 0.3 MB geometry; textures replaced by project `Paper001` KTX2 (re-surface per ART-DIRECTION) |
+| 2, 5 (hero envelope, close-ups) | tax-documents ("Papers & Envelopes" set) — bossdeff (Michael V), uid `303f54d7a6e84aad9af3f341c2fa4ad7`, 460 faces [V] | https://sketchfab.com/3d-models/papers-envelopes-303f54d7a6e84aad9af3f341c2fa4ad7 | CC BY 4.0 | **REQUIRED** — title/author/link/license in colophon (grab Sketchfab's generated credit text at download) | < 5 MB | ≤ 0.3 MB geometry; textures replaced by project `Paper001` KTX2 (re-surface per ART-DIRECTION) |
 | 3, 4 (instanced flock/stacks) | Envelope — Multipainkiller_Studio, uid `73faa986225f4241809b922f92a48884`, 23 faces [V] | https://sketchfab.com/3d-models/envelope-73faa986225f4241809b922f92a48884 | CC BY 4.0 | **REQUIRED** — colophon | < 1 MB | ≤ 0.05 MB, InstancedMesh, project materials |
-| backup hero (only if Papers & Envelopes fails close-up QA) | Stamp Envelope — kelvladmail, uid `b2be990d9e93441d939631c49738f591`, 3,263 faces [V] | https://sketchfab.com/3d-models/stamp-envelope-b2be990d9e93441d939631c49738f591 | CC BY 4.0 | **REQUIRED** if used — colophon | < 5 MB | ≤ 0.5 MB, project materials |
+| backup hero (only if Papers & Envelopes fails close-up QA) | stamp ("Stamp Envelope") — kelvladmail, uid `b2be990d9e93441d939631c49738f591`, 3,263 faces [V] | https://sketchfab.com/3d-models/stamp-envelope-b2be990d9e93441d939631c49738f591 | CC BY 4.0 | **REQUIRED** if used — colophon | < 5 MB | ≤ 0.5 MB, project materials |
 
 Procedural (no source, no license): letter/blank sheet (subdivided plane + 2-bone fold), wait-tags/day-tag cards, room walls/floor planes, window frame, leader-line ribbons, constellation points, window glow billboard, dust sprites. Permitted under brief 04's abstract/procedural carve-out — none is a sourced-model substitute.
+
+### Source polycounts & decimation plan (live API, 2026-08-18)
+
+| Asset | Source tris (API) | Ledger target | Action |
+|---|---|---|---|
+| WoodenTable_02 | 1,514 | ≤30K | none — already under; the 30–60 MB original is texture weight. Drawer geometry unconfirmed: verify at first ingest; sanctioned fallback = procedural drawer box (brief 04 procedural carve-out) |
+| WoodenChair_01 | 19,992 | ≤12K | decimate ~40% |
+| desk_lamp_arm_01 | 25,710 | ≤10K | decimate ~61% — asset is RIGGED (API category); simplification must preserve skinning |
+| alarm_clock_01 | 13,006 | ≤10K | decimate ~23% — hand articulation unconfirmed, verify at ingest |
+| binder_notebook | 18,077 | ≤12K | decimate ~34% |
+| book_encyclopedia_set_01 | 67,306 | ≤20K | decimate ~70% — the big simplification job |
+
+- The simplify step must preserve skins and named nodes (rigged lamp, clock hands).
+- Sketchfab face counts confirmed exact via API: 460 / 23 / 3,263.
 
 ## HDRIs (environment/lighting — the Qwantani one-location family, all Poly Haven CC0)
 
