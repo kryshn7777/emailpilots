@@ -14,11 +14,12 @@ Target reaction chain: "I need to send this to someone." → (creators) "I want 
 
 ### Validated
 
-(None yet — the site workspace is greenfield; ship to validate. The *product's* validated capabilities live in `docs/product/FEATURES.md` and `.planning/codebase/` — they are the truth source for every claim the site makes, not site requirements.)
+- ✓ Creative blueprint locked — Phase 1 (2026-08-18): concept "While You Were Away" (7-chapter desk-across-six-days journey), `docs/direction/` canon (STORYBOARD / ART-DIRECTION / ASSETS with live-verified licenses), `.planning/` BUDGETS + STACK-DECISION (vanilla three.js island in Astro shell) + COPY-PLAN; verification 13/13, gate transcript in `01-04-SUMMARY.md`
+
+(The *product's* validated capabilities live in `docs/product/FEATURES.md` and `.planning/codebase/` — they are the truth source for every claim the site makes, not site requirements.)
 
 ### Active
 
-- [ ] Complete creative blueprint before any production code: concept, screenplay, full storyboard at `docs/direction/STORYBOARD.md` (owned by the `scene-director` subagent), art direction, stack decision, performance budgets
 - [ ] One primary interactive journey (polished 60–120 s core experience; optional depth beyond, never required)
 - [ ] The visitor understands what Email Pilots actually does — claims sourced exclusively from `docs/product/FEATURES.md` / the app code
 - [ ] Progressive loading: something meaningful is visible immediately; never blocked behind a giant WebGL bundle
@@ -67,6 +68,9 @@ Target reaction chain: "I need to send this to someone." → (creators) "I want 
 | Roadmap fixed to the RUNBOOK's 6 phases (blueprint → foundation → core → mobile/a11y → conversion → perf/QA) | The kit's phase table maps brief parts to phases; deviating breaks the per-phase context contract | — Pending |
 | Product facts frozen as `docs/product/FEATURES.md` snapshot inside the workspace | Researchers/planners read audited truth without escaping the workspace or opening user-state files | — Pending |
 | Commits ride the outer repo's current branch (`feat/founder-month-promo`) for now | Avoid surprising the user with a branch switch mid-flight; `/gsd:pr-branch` can filter later | ⚠️ Revisit |
+| Concept: "While You Were Away" — desk across six days/nights; no planes, no laptop-hardware hero | Won 43/45 vs 3 rejected worlds; fits verified CC0 territories (desk props + Qwantani sky family); differentiates from Overnight Flight | ✓ Good |
+| Stack: Astro 7 shell + vanilla three.js WebGL2 island (no R3F); GSAP 3.15 + Lenis; meshopt + KTX2 | Zero stateful DOM-interleaved chapters (D-10 trigger not met); ~70 KB lighter; proven Engine.ts precedent | — Pending |
+| Worktree isolation off for this project (`workflow.use_worktrees: false`) | Docs-heavy plans with disjoint files inside a shared dirty outer repo on Windows — sequential execution is simpler and safe | — Pending |
 
 ## Evolution
 
@@ -86,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-18 after initialization*
+*Last updated: 2026-08-18 after Phase 1 completion*
