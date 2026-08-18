@@ -94,13 +94,44 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmap) | | |
+| DIR-01 | Phase 1 | Pending |
+| DIR-02 | Phase 1 | Pending |
+| DIR-03 | Phase 1 | Pending |
+| DIR-04 | Phase 1 | Pending |
+| DIR-05 | Phase 1 | Pending |
+| FND-01 | Phase 2 | Pending |
+| FND-02 | Phase 2 | Pending |
+| FND-03 | Phase 2 | Pending |
+| FND-04 | Phase 2 | Pending |
+| FND-05 | Phase 2 | Pending |
+| FND-06 | Phase 2 | Pending |
+| EXP-01 | Phase 3 | Pending |
+| EXP-02 | Phase 3 | Pending |
+| EXP-03 | Phase 3 | Pending |
+| EXP-04 | Phase 3 | Pending |
+| EXP-05 | Phase 3 | Pending |
+| EXP-06 | Phase 3 | Pending |
+| EXP-07 | Phase 3 | Pending |
+| MOB-01 | Phase 4 | Pending |
+| MOB-02 | Phase 4 | Pending |
+| MOB-03 | Phase 4 | Pending |
+| MOB-04 | Phase 4 | Pending |
+| MOB-05 | Phase 4 | Pending |
+| CNV-01 | Phase 5 | Pending |
+| CNV-02 | Phase 5 | Pending |
+| CNV-03 | Phase 5 | Pending |
+| CNV-04 | Phase 5 | Pending |
+| CNV-05 | Phase 5 | Pending |
+| QA-01 | Phase 6 | Pending |
+| QA-02 | Phase 6 | Pending |
+| QA-03 | Phase 6 | Pending |
+| QA-04 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 27 total
-- Mapped to phases: 0
-- Unmapped: 27 ⚠️ (roadmap pending)
+- v1 requirements: 32 total (header previously miscounted as 27; corrected during roadmap creation)
+- Mapped to phases: 32
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-08-18*
-*Last updated: 2026-08-18 after initial definition*
+*Last updated: 2026-08-18 after roadmap creation (traceability populated)*
