@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Verify + patch the creative canon (live asset re-verification, real Sketchfab titles, decimation plan, V1/V5/V8)
+- [x] 01-01-PLAN.md — Verify + patch the creative canon (live asset re-verification, real Sketchfab titles, decimation plan, V1/V5/V8)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -137,7 +137,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Creative Blueprint & Budgets | 0/4 | Planned | - |
+| 1. Creative Blueprint & Budgets | 1/4 | In Progress|  |
 | 2. Foundation & Architecture | 0/TBD | Not started | - |
 | 3. Core Experience | 0/TBD | Not started | - |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |

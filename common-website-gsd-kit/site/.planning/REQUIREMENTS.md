@@ -9,8 +9,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Direction (creative blueprint — docs, not code)
 
-- [ ] **DIR-01**: A complete storyboard exists at `docs/direction/STORYBOARD.md` (authored via the `scene-director` subagent): concept, screenplay, full scene list, choreography, camera plan, kinetic-typography beats, plus explicit mobile and reduced-motion columns
-- [ ] **DIR-02**: Art direction + asset plan exists in which every 3D asset is matched to a verified licensed source (Poly Haven CC0 first; Sketchfab CC0/CC-BY with attribution plan; ambientCG) — direction adapts where assets don't exist (research: no aviation/mail assets on Poly Haven; desks + sky/clouds are the strong CC0 territories)
+- [x] **DIR-01**: A complete storyboard exists at `docs/direction/STORYBOARD.md` (authored via the `scene-director` subagent): concept, screenplay, full scene list, choreography, camera plan, kinetic-typography beats, plus explicit mobile and reduced-motion columns
+- [x] **DIR-02**: Art direction + asset plan exists in which every 3D asset is matched to a verified licensed source (Poly Haven CC0 first; Sketchfab CC0/CC-BY with attribution plan; ambientCG) — direction adapts where assets don't exist (research: no aviation/mail assets on Poly Haven; desks + sky/clouds are the strong CC0 territories)
 - [ ] **DIR-03**: Stack decision is recorded with per-dependency justification (R3F island vs vanilla three call made against research criteria; WebGL2 floor, WebGPU enhancement-only)
 - [ ] **DIR-04**: Performance budgets are written as numbers per device class (draw calls, tris, texture memory, JS/frame, DPR clamp, total transfer) with the adaptive-quality strategy that enforces them
 - [ ] **DIR-05**: Conversion strategy + copy plan exists, every product claim traced to `docs/product/FEATURES.md` (Appendix A items excluded; Appendix B wording respected)
@@ -94,8 +94,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DIR-01 | Phase 1 | Pending |
-| DIR-02 | Phase 1 | Pending |
+| DIR-01 | Phase 1 | Complete |
+| DIR-02 | Phase 1 | Complete |
 | DIR-03 | Phase 1 | Pending |
 | DIR-04 | Phase 1 | Pending |
 | DIR-05 | Phase 1 | Pending |
