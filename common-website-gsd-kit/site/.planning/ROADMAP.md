@@ -13,7 +13,7 @@ Six phases, fixed by the kit's runbook, take the project from a locked creative 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Creative Blueprint & Budgets** - Docs-only: storyboard, art direction + licensed asset plan, stack decision, numeric performance budgets
+- [x] **Phase 1: Creative Blueprint & Budgets** - Docs-only: storyboard, art direction + licensed asset plan, stack decision, numeric performance budgets (completed 2026-08-18)
 - [ ] **Phase 2: Foundation & Architecture** - Deployed walking skeleton: static shell, three-path boot gate, scroll sync, centralized systems, asset pipeline, authored loader
 - [ ] **Phase 3: Core Experience** - The storyboarded one-take journey: pinned set-pieces, signature transitions, scene preloading, kinetic typography, product story
 - [ ] **Phase 4: Mobile, Fallbacks & Accessibility** - Authored mobile and reduced-motion cuts, no-WebGL story parity, device-floor frame-rate, lifecycle robustness
@@ -49,7 +49,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-04-PLAN.md — Phase gate: full V1–V8 + DIR-03/04/05 suite green in one recorded run
+- [x] 01-04-PLAN.md — Phase gate: full V1–V8 + DIR-03/04/05 suite green in one recorded run
 
 ### Phase 2: Foundation & Architecture
 
@@ -137,7 +137,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Creative Blueprint & Budgets | 3/4 | In Progress|  |
+| 1. Creative Blueprint & Budgets | 4/4 | Complete   | 2026-08-18 |
 | 2. Foundation & Architecture | 0/TBD | Not started | - |
 | 3. Core Experience | 0/TBD | Not started | - |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |
