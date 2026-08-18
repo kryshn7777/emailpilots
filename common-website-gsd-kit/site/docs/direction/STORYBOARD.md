@@ -1,0 +1,304 @@
+# STORYBOARD — Email Pilots Experience Site
+
+> Author/owner: `scene-director`. Single creative source of truth (D-16/D-17).
+> Status: **LOCKED for Phase-1 planning** — scenes change only through this document.
+> Version: 1.0 — 2026-08-18. Budgets referenced: research Lane A baseline (CONTEXT D-13) until `.planning/BUDGETS.md` ratifies.
+
+---
+
+## Concept Selection
+
+Four genuinely distinct worlds were generated and scored against brief 03's nine criteria (1–5).
+Asset feasibility (D-02) is a hard gate, not a score — verdicts are grounded in `.planning/research/PITFALLS.md`
+plus live verification performed for this document (Poly Haven / Sketchfab / ambientCG APIs, 2026-08-18).
+
+| Criterion | A. While You Were Away | B. The Tower | C. Correspondence Museum | D. Desk Country |
+|---|---|---|---|---|
+| Memorability | 5 | 4 | 4 | 4 |
+| Product relevance | 5 | 3 | 3 | 3 |
+| Emotional impact | 5 | 3 | 4 | 4 |
+| Shareability | 4 | 4 | 3 | 5 |
+| Visual uniqueness | 4 | 3 | 4 | 5 |
+| Clarity | 5 | 4 | 3 | 2 |
+| Conversion potential | 5 | 3 | 3 | 3 |
+| Technical feasibility | 5 | 3 | 4 | 4 |
+| Mobile performance | 5 | 4 | 4 | 3 |
+| **Total** | **43** | **31** | **32** | **33** |
+| Asset-feasibility gate | **PASS** — heroes sit entirely on the two strongest verified territories (Poly Haven desk/office CC0 photoscans + 297 CC0 sky HDRIs); envelope cluster is trivial geometry re-surfaced with CC0 paper PBR. Every hero asset URL-verified this session. | CONDITIONAL — control towers exist only as CC-BY stylized meshes (2.9–5.2K faces); forces an all-stylized register and re-enters aviation-sky territory. | PASS-with-gaps — vitrines/display frames unverified on Poly Haven; would redirect to plain tables. | PASS — photoscans hold up at macro scale; ambientCG macro paper confirmed. |
+
+**A. While You Were Away** *(winner)* — A writing desk in a quiet room, watched across six days and nights. By daylight you write one personal letter; at dusk you hand the desk your follow-ups; through the nights it sends them at humanly-random minutes, keeps your pace, retires dead addresses — and the moment a reply drifts back in through the window, the remaining follow-ups lie down flat. Then the desk turns out to be a Windows app. Time is the metaphor, light is the engine, and the product's actual behaviors are the plot.
+
+**Rejected, one line each:**
+- **B. The Tower** (outreach as air-traffic control): re-treads the prior site's aviation-sky world (D-03) and reads "operations at scale" — precisely the connotation the personal-outreach positioning must avoid.
+- **C. Correspondence Museum** (archive walk of one thread): elegant but passive — the product's living behavior (sending, pacing, stopping) never performs, so clarity and conversion collapse.
+- **D. Desk Country** (macro odyssey across a desk-as-landscape): most shareable imagery, least product meaning — features would be narrated over the scenery instead of enacted by it.
+
+**Differentiation vs. prior site (D-03):** Overnight Flight was a paper plane flying through volumetric clouds — a sky journey, camera in flight. This is a grounded interior chamber piece: the camera never leaves one room, the sky exists only as light through a window, the hero is *time and a desk*, and there is no plane anywhere. Carried genre grammar (permitted): one-take camera, pinned scrubbed chapters.
+
+---
+
+## The Concept — "While You Were Away"
+
+*(The title is the product's own feature vocabulary — FEATURES §8 "While you were away" digest.)*
+
+- **A · Core concept:** the desk that follows up. One room, one desk, six days of light. The product is never explained first — it is *witnessed*, then named.
+- **B · Emotional journey:** calm intimacy → recognition ("the follow-up is the part I forget") → quiet astonishment ("it's doing it by itself") → awe + trust (time-lapse under visible rules) → relief/warmth (it stops when she answers) → clarity ("oh — it's software") → resolve ("I want this").
+- **C · Story premise:** you write one honest email to one person. Life happens. The desk carries the follow-ups through the nights at a human pace — and stands down the instant a reply lands.
+- **D · Opening hook:** ink writes itself across macro paper grain, and a `{{ name }}` merge token resolves into a real name mid-sentence. No hands, no explanation.
+- **E · Scene sequence:** 7 chapters (below).
+- **F · Transitions:** one continuous camera, zero cuts; chapters hand off via light-state changes (time of day) and three escalating PULL-WIDE moves.
+- **G · Interaction model:** scrubbed, reversible scroll (Lenis + GSAP ScrollTrigger); light hover/tap probes (constellation timestamps, UI mapping); zero scroll-hijack; persistent quiet nav ("Email Pilots" wordmark + small "Download" link from Ch3 onward — the fast path for busy visitors).
+- **H · Product reveal:** Ch6 — the desk surface emits the real light-theme app UI as a plane of light; world objects snap to their UI counterparts with leader lines.
+- **I · Proof moments:** rules enacted on screen (wobbled timestamps, warm-up ramp, bounce → do-not-send drawer, stop-on-reply) + Ch6 proof chips with only Appendix-B-safe numbers.
+- **J · CTA moments:** quiet persistent "Download" from Ch3; full conversion block in Ch7 (free download, SmartScreen honesty, founder-window note — **no Buy button**).
+- **K · Ending:** the room at rest in morning light, a fresh blank sheet where the first letter was — the loop offered to the visitor.
+- **L · Shareable moments:** WOW A (Six Days day-wheel), WOW B (The Reply stand-down), WOW C (desk→UI snap). All composed to survive a 9:16 crop.
+
+**Product-truth note:** "Maya" and every on-screen thread are demo narrative (the app itself ships an explore mode with sample data — FEATURES §11); nothing is presented as a testimonial or statistic. Every claim line below traces to `docs/product/FEATURES.md` (section cited per scene).
+
+---
+
+## Camera Language (defined once, reused everywhere)
+
+| Move | Definition | Used in |
+|---|---|---|
+| **LOCKED** | No camera motion at all; the world and light move. The default state — stillness is the style. | All chapters between moves |
+| **SETTLE** | Dolly-in 6–12% of camera distance, long deceleration to a full stop, scroll-scrubbed. Opens a subject. | Ch2, Ch5 |
+| **ORBIT-HOLD** | Arc around the desk anchor, ≤30°, constant height, ends stationary. | Ch2 (20°), Ch4 (30°) |
+| **TILT-REVEAL** | Position locked; pan/tilt ≤15° toward a subject, always motivated by an on-screen event. | Ch3, Ch5 |
+| **PULL-WIDE** | Dolly-back + rise; the recontextualizing move. Used exactly three times, each a scale of understanding: paper→desk (Ch1), desk→app (Ch6), app→room/you (Ch7). | Ch1 (micro), Ch6, Ch7 |
+
+**Forbidden (amateur tells):** idle drift/breathing noise on holds · easing that terminates abruptly · cuts (there are none) · camera roll · spinning · camera moving against scroll direction (motion-sickness guard, PITFALLS #9).
+
+**Rhythm law:** never animate camera, objects, and light simultaneously at full intensity. Each chapter has one dominant mover. Quiet → spectacular alternation: Ch1 quiet, Ch2 quiet-warm, Ch3 first astonishment, Ch4 spectacular, Ch5 near-silence then payoff, Ch6 spectacular reveal, Ch7 quiet resolve.
+
+---
+
+## Global Choreography Map
+
+Scroll is the storyteller. Total core journey ≈ 740vh desktop (~75–110 s at typical scroll pace). One pinned WebGL stage; chapters are scrubbed segments of one master timeline.
+
+| # | Chapter | Arc stage | Scroll span (desktop) | Energy | Dominant mover |
+|---|---|---|---|---|---|
+| 1 | First Light | Setup | 0–90vh | Quiet | Ink (object) |
+| 2 | The Handoff | Curiosity | 90–190vh | Quiet, warming | Objects + first light change |
+| 3 | Night Shift | Discovery | 190–310vh | First astonishment | Objects (departures) |
+| 4 | Six Days | Escalation | 310–450vh | **Spectacular (WOW A)** | Light (the day-wheel) |
+| 5 | The Reply | Emotional payoff | 450–560vh | Hush → warm payoff (**WOW B**) | One object + dawn |
+| 6 | Your Desk, The App | Product revelation + proof | 560–670vh | **Spectacular reveal (WOW C)** | UI light + camera |
+| 7 | Ready When You Are | Conversion | 670–740vh | Quiet, resolved | DOM + final pull |
+
+Beat percentages below are **chapter-local** (0% = chapter entry, 100% = exit).
+
+---
+
+## Chapter 1 — FIRST LIGHT
+
+- **Purpose:** Setup + hook. Establish the world (one desk, morning), the register (personal, one human writing to one human), and the first oddity (ink writing itself; a merge token resolving).
+- **User emotion:** Calm intimacy; a prick of curiosity at the self-writing ink.
+- **Visual composition:** Opens ECU (extreme close-up) on cream paper grain, raking morning sun from frame right, shallow world (paper fills frame). Ends at a 3/4 medium shot: desk surface lower third, window with morning sky upper right, lamp (off) frame left, negative space upper left reserved for DOM type.
+- **Camera position:** Start ~8cm above the letter, 35° pitch; end ~1.2m back, ~50cm above desk height, 3/4 angle on the desk.
+- **Camera movement:** **PULL-WIDE (micro)** — one continuous scrubbed pull from paper ECU to desk medium, decelerating; then LOCKED.
+- **Objects:** Letter sheet (procedural subdivided plane — permitted procedural geometry) with ambientCG `Paper001` PBR (CC0) · hero desk **Poly Haven `WoodenTable_02`** (CC0) · **`WoodenChair_01`** (CC0, pushed back — implied absent writer) · **`desk_lamp_arm_01`** (CC0, off) · dressing: **`office_notepads`**, **`stationery_supplies`**, **`binder_notebook`**, **`book_encyclopedia_set_01`**, **`alarm_clock_01`** (all Poly Haven CC0; office props verified in PITFALLS inventory; table/chair/lamp/clock URL-verified 2026-08-18). No human figures, ever.
+- **Animation:** Ink stroke draws along an authored path (SDF stroke revealed in the paper's texture shader — no model). At the token beat, "{{ name }}" cross-dissolves to "Maya," with a slight ink-bleed spread (200ms texture blend).
+- **Environmental effects:** Dust motes in the sun shaft — ≤40 instanced sprites inside the light volume only (motivated, not random; desktop only).
+- **Lighting:** IBL + sun directional from **`qwantani_sunrise_puresky`** (Poly Haven CC0, 1K for IBL); warm rake, long soft shadows (1 shadow map, desktop). Baked AO on all static props.
+- **Materials:** Worn-photoreal family (see ART-DIRECTION "Real Under the Lamp"): wood satin sheen, paper matte with fiber normal.
+- **Textures:** Prop sets at 2K KTX2 (desktop) / 1K (mobile); `Paper001` at 2K for the ECU (the one texture allowed 2K on mobile — it is the opening frame).
+- **Typography:** DOM overlay, upper left: display serif headline (Fraunces), body (Inter). World type: the handwriting itself (ink texture) — typography embedded in the world doing narrative work.
+- **3D text:** None extruded. The written letter is the type moment.
+- **On-screen copy:** H1 (0–20%): **"You write it once."** Sub (55%): **"One personal email, to one person you actually want to reach."** *(FEATURES intro + §2 merge fields — the token IS the claim.)*
+- **Interaction:** Scroll only. (Quietest chapter — establish that scroll = time.)
+- **Scroll behavior (beats):** 0–15%: LOCKED ECU, ink begins "Hi ". 15–40%: ink writes "{{ name }},". 40–48%: token resolves to "Maya," (the hook lands while the camera is still). 48–95%: PULL-WIDE (micro) to desk medium; headline+sub fade in staggered. 95–100%: hold; sun imperceptibly warms (HDRI exposure +0.2 stop).
+- **Transition in:** Page load → styled loader inside the reserved canvas box (paper-texture card, thin progress rule); first frame is the ECU already composed (no CLS — box reserved in CSS).
+- **Transition out:** Sun angle begins to fall (exposure and hue shift toward dusk starts in the last 5% — anticipation for Ch2).
+- **Sound opportunity (note only — v1 ships silent, D-09):** faint nib scratch would be the only candidate; deliberately not planned.
+- **Performance risk:** LOW. ~12 draw calls live, one 2K paper texture, one HDRI. ECU close-up is the sharpest texture demand of the site — budget the 2K there, nowhere else. Ink shader is a UV-space reveal (cheap).
+- **Mobile adaptation (authored second cut):** Portrait recompose — ECU fills 9:16 naturally; end frame is a *higher, tighter* top-down 30° shot so desk (lower 2/3) + window (upper 1/3) stack vertically. Cut dust motes. Headline moves to top-center over the window sky.
+- **Reduced-motion behavior (authored third cut):** Two composed stills — (1) the finished written letter ECU with "Maya," already resolved, (2) the desk medium — crossfaded ≤300ms on scroll thresholds. Full copy identical. No write-on, no pull.
+
+---
+
+## Chapter 2 — THE HANDOFF
+
+- **Purpose:** Curiosity. Introduce the follow-up problem and the product's core object grammar: the sequence = a stack of ready envelopes with waits. Dusk arrives; the lamp takes over.
+- **User emotion:** Recognition ("the follow-up is the part I always drop") and a small delight at the lamp click.
+- **Visual composition:** Medium shot holds; the letter is center-lower, envelope slides in from the clipboard area; the growing stack reads left-to-right beside the lamp pool. Window sky shifts orange→violet.
+- **Camera position:** From Ch1 end position.
+- **Camera movement:** **ORBIT-HOLD 20°** left across the chapter (brings stack + lamp into strong 2/3 frame), then LOCKED.
+- **Objects:** Envelopes from Sketchfab **"Papers & Envelopes"** set (CC-BY, 460 faces, author bossdeff — uid `303f54d7a6e84aad9af3f341c2fa4ad7`), re-surfaced with `Paper001`/`Cardboard004` PBR (ambientCG CC0) per the register strategy · paper fold uses the Ch1 procedural sheet · small paper wait-tags (procedural quads, mono type) · **`clipboard`** (Poly Haven CC0) as the stack's home base.
+- **Animation:** 0. Letter folds twice (procedural plane, two hinged fold bones, 900ms scrubbed). 1. Slides into envelope #1. 2. Envelopes #2 and #3 slide from under the clipboard and stack behind it, each stamping a small tag: "FOLLOW-UP 2 · wait 3 days", "FOLLOW-UP 3 · wait 4 days". 3. Lamp head nods and clicks ON (one-frame light state + 150ms glow ramp) as the sky loses the sun.
+- **Environmental effects:** None new. Dust motes fade out with the sun.
+- **Lighting:** Crossfade `qwantani_sunrise_puresky` → **`qwantani_dusk_2_puresky`** (CC0, URL-verified) across 0–70%; at 70% the lamp becomes key light (warm point + spot pool on the desk). Sun shadow map fades out; lamp gets no shadow map (pool is faked with a soft projected gradient — cheap).
+- **Materials/Textures:** As Ch1; envelope paper shares the exact `Paper001` family so the CC-BY meshes sit inside the world (PITFALLS #11 counter-measure).
+- **Typography:** DOM headline upper-left; world type on the wait-tags (IBM Plex Mono, small caps, printed-label look).
+- **3D text:** Wait-tags are flat printed labels in-world (billboard-free, lying on the desk — readable, purposeful).
+- **On-screen copy:** H2 (10%): **"Then the part you always mean to do:"** (beat) **"the follow-ups."** Sub (60%): **"A first email, the follow-ups, and the wait between each. You choose; it remembers."** *(FEATURES §4 multi-step sequences.)*
+- **Interaction:** Scroll only.
+- **Scroll behavior (beats):** 0–20%: fold one. 20–35%: fold two + slide into envelope (anticipation: envelope flap closes at 35% exactly as headline line 1 completes). 35–60%: stack assembles, tags print (each tag stamps with a 120ms settle — three small payoffs). 60–70%: sky completes dusk crossfade. 70–75%: **lamp clicks on** — the chapter's single accent event, timed to a scroll pause-point. 75–100%: ORBIT-HOLD completes; hold on the armed stack under lamplight.
+- **Transition in:** Continuous from Ch1 (sun already falling).
+- **Transition out:** Sky continues into night (dusk→night crossfade begins at 95%); DOM copy fully faded by 100%.
+- **Sound opportunity (note only):** the lamp click — the single most earnable sound on the site. Logged for v2 (EXPX-02); v1 silent.
+- **Performance risk:** LOW-MED. Two HDRIs resident during crossfade (both 1K, pre-PMREM'd at load — PITFALLS #4 discipline: PMREM once, dispose sources). Fold rig is 2 bones on a small plane.
+- **Mobile adaptation:** Same top-down-ish portrait frame as Ch1-end; ORBIT reduced to 10°; stack builds vertically (envelopes stack toward camera) so it reads in 9:16; tags render as DOM captions pinned to anchors (crisper than tiny world text on small screens).
+- **Reduced-motion:** Two stills: (folded letter entering envelope) → (armed stack under lamplight, tags legible). Copy identical. Lamp state change is a crossfade between the stills, no glow ramp.
+
+---
+
+## Chapter 3 — NIGHT SHIFT
+
+- **Purpose:** Discovery. The desk sends by itself — at visibly human-random times, under visible limits. First "wait, what?" of the journey.
+- **User emotion:** Quiet astonishment; the beginning of trust (it behaves like a careful person, not a cannon).
+- **Visual composition:** Night. The room falls away to darkness except the lamp pool and the moonlit window (`qwantani_night_puresky` glow). The desk is an island of warm light in blue dark. Departing envelopes travel desk → window; each leaves a small hanging point of light with a timestamp — a constellation growing above the desk.
+- **Camera position:** Ch2 end (medium, desk + window both in frame).
+- **Camera movement:** LOCKED. One **TILT-REVEAL** (≤10° up) at the first departure, following it to the window; camera does not chase — departures are *observed*, which keeps them uncanny.
+- **Objects:** Envelope instances (Sketchfab **"Envelope"**, CC-BY, 23 faces, Multipainkiller_Studio, uid `73faa986225f4241809b922f92a48884` — InstancedMesh for all flying/stacked duplicates) · constellation points (instanced emissive quads ≤24) · **`alarm_clock_01`** (CC0, rigged) with readable hands in the lamp pool.
+- **Animation:** Departure grammar (reused all site): envelope lifts 10cm (300ms ease-out), pauses 150ms (anticipation), glides window-ward on a shallow arc, crosses the window plane and dissolves into a single light-point that drifts to its constellation slot with a mono timestamp tag. Clock hands tick to each send time (rigged bones).
+- **Environmental effects:** Faint cool volumetric-*looking* gradient from the window (a billboard gradient, not real volumetrics).
+- **Lighting:** **`qwantani_night_puresky`** (CC0, URL-verified) IBL at low intensity + moon directional (cool, faint) + lamp key. Desktop: moon shadow map replaces sun's (still exactly 1). Baked AO carries the dark corners.
+- **Materials/Textures:** Envelope whites read slightly warm in lamplight, cool at the window — the two-temperature world (see ART-DIRECTION color system).
+- **Typography:** Timestamps = IBM Plex Mono small tags beside constellation points (in-world, billboarded, fade at distance). DOM copy lower-left (window owns upper frame now).
+- **3D text:** Constellation tags — typography as the *data* of the story (send times made physical).
+- **On-screen copy:** H2 (15%): **"While you're anywhere else, it sends."** Timestamps appear as world events: **9:14 pm · 9:41 pm · 10:07 pm**. Sub (70%): **"Never at 9:00:00 sharp. Human pauses between sends, a daily cap per mailbox, at most 3 a day to the same person."** *(FEATURES §5: wobble, randomized gaps, caps.)*
+- **Interaction:** Hover (desktop) / tap (mobile) a constellation point → its tag brightens + a one-line detail ("first email · sent 9:41 pm"). Optional depth; never required.
+- **Scroll behavior (beats):** 0–10%: night settles, silence (anticipation — nothing moves). 10–22%: **first departure** (TILT-REVEAL up, clock reads 9:14). 22–40%: hold; the light-point settles; headline lands. 40–52%: second departure (9:41 — different arc, slightly different speed: sameness is the enemy). 52–60%: quiet. 60–72%: third departure (10:07). 72–100%: constellation of 3 glows; sub-copy lands; clock ticks softly onward.
+- **Transition in:** Dusk→night completed in first 5%.
+- **Transition out:** None visible — Ch4 begins with the first hint of dawn at the window (the wheel starting), which reads as "time is about to compress".
+- **Sound opportunity (note only):** one soft paper-slide per departure; logged v2, ships silent.
+- **Performance risk:** LOW. Envelope flock is 1 instanced draw; constellation 1; night HDRI 1K. Watch: the window gradient billboard must not overdraw the whole frame on mobile (clip to window rect).
+- **Mobile adaptation:** Portrait frame holds desk (bottom) + window (top) — the departure path is *vertical*, which is native 9:16 drama. Constellation ≤10 points, larger tags, tap targets ≥44px. TILT-REVEAL reduced to 5°.
+- **Reduced-motion:** Three stills: (night desk, clock 9:14) → (one envelope at the window mid-dissolve) → (constellation of three with timestamps). Crossfades only. Copy identical; timestamps in the still are static and readable.
+
+---
+
+## Chapter 4 — SIX DAYS *(WOW A)*
+
+- **Purpose:** Escalation. Time-lapse: six days of light wheel over one desk while the system works — follow-ups advance, the warm-up ramp lifts, a bounce is caught and retired. Rules made visible at scale, still personal.
+- **User emotion:** Awe (the day-wheel) braided with trust (every event obeys a visible rule).
+- **Visual composition:** The room becomes a sundial: sun/moon light sweeps around the desk; shadows wheel like clock hands. Above the desk, the constellation accumulates nightly (never exceeding ~20 points). A small paper day-tag on the desk flips MON→SAT. Maya's stack (with tags) sits distinct in the lamp pool; anonymous envelopes (other contacts) come and go behind it.
+- **Camera position:** Medium-wide, slightly higher than Ch3 (sees more floor shadow — the sweep needs floor).
+- **Camera movement:** One slow **ORBIT-HOLD 30°** across the entire chapter — the only long camera move in the site; the wheeling light provides the spectacle, the orbit provides parallax majesty. Ends LOCKED for the bounce beat.
+- **Objects:** As Ch3, plus: paper day-tag (procedural card, mono type) · desk drawer of `WoodenTable_02` (its real geometry) used as the do-not-send drawer · one "bounced" envelope variant (same 23-face instance, red-marked via decal in shader).
+- **Animation:** HDRI wheel (below) · departures each night (2 on night one → 5+ by night five — **the warm-up ramp performed**, FEATURES §5) · day 3: Maya's "FOLLOW-UP 2" envelope slides out of the stack, waits for night, departs · day 5 beat: one envelope **returns** mid-arc, reversed, lands dark with a red mark stamping across it (200ms decal reveal); the desk drawer slides open, the envelope files itself in, drawer closes with a firm settle · clock hands spin through days (rigged).
+- **Environmental effects:** Shadow sweep (the real drama — one directional light animated along the HDRI's sun path); brief dawn/dusk color washes each cycle.
+- **Lighting:** The verified one-location family carries the entire wheel — **`qwantani_sunrise_puresky` → `qwantani_noon_puresky` → `qwantani_dusk_2_puresky` → `qwantani_night_puresky` → (moon arc: `qwantani_moonrise_puresky`)** — all Poly Haven CC0, same landscape, so the window view stays continuous while time flies (this family's existence at five times of day is the concept's luckiest verified fact). All pre-PMREM'd at 1K during load; crossfade two-at-a-time max.
+- **Materials/Textures:** Unchanged (stability under wheeling light is the photoreal register's proof moment — PITFALLS #11 review happens on this chapter's renders).
+- **Typography:** Day-tag (mono) · stack tags · DOM copy kept sparse — two short lines the whole chapter; the wheel is the message.
+- **3D text:** Day-tag flips (world type as calendar).
+- **On-screen copy:** (20%) **"Days pass. It keeps your pace."** (55%, as ramp visibly lifts) **"New mailboxes ease in — about 5 a day at first, toward about 50."** *(FEATURES §5 warm-up, Appendix-B safe numbers.)* (80%, bounce beat, small) **"A dead address comes back once — and is never emailed again."** *(FEATURES §6 bounce auto-retire + shared do-not-send list.)*
+- **Interaction:** Constellation hover/tap persists. No new interaction — the chapter is a ride.
+- **Scroll behavior (beats):** 0–8%: dawn 2 breaks (wheel speed ×1). 8–30%: day 2 full cycle (×2 speed; departures at night). 30–48%: day 3 (×3): Maya FOLLOW-UP 2 advances + departs; copy line 2. 48–66%: days 4–5 blur (×4; ramp visibly higher — more departures per night). 66–82%: **hard ritenuto** — wheel slows abruptly into day 5 night; the returning bounce envelope enters against traffic (the "wrong-way" motion snaps attention); red mark; drawer files it. 82–100%: day 6 dawn begins slowly; constellation ~18 points; stack shows only "FOLLOW-UP 3" remaining. *(Anticipation for Ch5: one envelope left, one person quiet.)*
+- **Transition in:** Continuous (first dawn = the wheel engaging).
+- **Transition out:** Wheel decelerates to a stop in pre-dawn dark — the stillness IS the transition.
+- **Sound opportunity (note only):** none — this is the beat where restraint reads as confidence. Silent by design.
+- **Performance risk:** **MEDIUM — the budget chapter.** Mitigations: HDRI crossfades capped at 2 resident PMREMs; departures instanced; shadow = still exactly 1 map (animated light direction, not extra maps); decal in the instance shader (no extra material); orbit + wheel are uniform updates only, zero allocations. Verify ≤75 draw calls / ≤5ms JS here first (D-15); if the wheel + orbit combined jank on mid-mobile, mobile drops the orbit (LOCKED) before dropping the wheel.
+- **Mobile adaptation:** Four days, not six (cycles ×1–×3); orbit 12° or LOCKED per perf; constellation ≤12; no dust/gradient extras; shadow sweep replaced by material light-response only (no cast-shadow sweep — contact shadows + wheeling light *color* still tells time). Day-tag rendered DOM.
+- **Reduced-motion:** A triptych of stills — (day 2 noon, few stars) → (day 4 night, fuller constellation + ramp caption) → (day 5 night, bounced envelope with red mark by the open drawer) — crossfaded. Copy identical. No wheel, no sweep, no spin.
+
+---
+
+## Chapter 5 — THE REPLY *(WOW B)*
+
+- **Purpose:** Emotional payoff — the product's soul. A reply arrives; the machine stands down. The anti-mass-email thesis in one motion.
+- **User emotion:** Held breath → relief → warmth. (The one chapter allowed sentiment.)
+- **Visual composition:** Pre-dawn: deepest blue of the site (`qwantani_moonrise_puresky` low), lamp pool small and warm, constellation dim. Dead center of frame: empty desk surface in lamplight. One envelope drifts IN through the window — the trained departure grammar reversed, instantly legible. It lands in the pool. Then Maya's "FOLLOW-UP 3" — standing ready — lies down flat, its tag fades, and it slides back under the clipboard. Dawn floods.
+- **Camera position:** Returns near Ch3's frame (the audience knows this view — repetition sets up the reversal).
+- **Camera movement:** LOCKED until the landing; then one soft **SETTLE** toward the desk (the site's most intimate move); **TILT** stays untouched. Hold through dawn.
+- **Objects:** One arriving envelope (the 460-face "Papers & Envelopes" hero — closest close-up of the site, its `Paper001` re-surface must sell here) · Maya's FOLLOW-UP 3 envelope + tag · clock reading 6:12 am.
+- **Animation:** Arrival arc (window → desk, 1400ms scrubbed, slower than any departure — arrivals matter more) · landing settle with one gentle paper flex · FOLLOW-UP 3: 400ms lie-flat + tag fade + 600ms slide-away (the stand-down must feel *restful*, not deleted) · constellation dims 30%.
+- **Environmental effects:** Dawn bloom is *light*, not post: HDRI crossfade to `qwantani_sunrise_puresky` + sun directional rising during the final 20%.
+- **Lighting:** Moonrise-dark → sunrise. Lamp stays on into dawn — then clicks OFF at 97% (bookends Ch2's click; the desk's shift is over).
+- **Materials/Textures:** Hero envelope close-up: `Paper001` 2K on this one instance (desktop), fiber normal visible in lamplight.
+- **Typography:** DOM only, minimal, centered-low. Timestamps silent this chapter.
+- **3D text:** None. (Quietest type chapter — the object is the sentence.)
+- **On-screen copy:** (38%, after the landing, alone on screen:) **"She answered."** (62%, as FOLLOW-UP 3 lies down:) **"So the rest stands down. Before every follow-up, it checks for a reply — any of your inboxes counts."** *(FEATURES §4 stop-on-reply across connected inboxes; §8 replies checked every 15 minutes — the number is saved for Ch6's chips.)*
+- **Interaction:** None. Deliberately. (Interaction here would cheapen it.)
+- **Scroll behavior (beats):** 0–15%: stillness in deep blue (the site's longest quiet — anticipation). 15–35%: arrival arc through the window (against all trained traffic). 35–45%: landing + "She answered." holds alone. 45–60%: beat of nothing (let it land). 60–75%: FOLLOW-UP 3 lies flat, tag fades, slides away; second copy line. 75–97%: dawn floods, constellation dims, SETTLE completes. 97–100%: lamp clicks off.
+- **Transition in:** The stopped wheel's stillness.
+- **Transition out:** Full morning light = Ch6's stage.
+- **Sound opportunity (note only):** a single low arrival tone is the only other sound v2 should ever consider. v1 silent.
+- **Performance risk:** LOW. One hero texture at 2K; everything else already resident. This chapter must hold locked 60fps — it is the shareable heart; any hitch here is a ship-blocker (D-15).
+- **Mobile adaptation:** Vertical arrival path (window top → desk bottom) is *stronger* in 9:16 than desktop — compose mobile-first here; hero envelope fills lower third on landing; copy centered above desk. 2K hero texture allowed on mobile for this chapter only if memory headroom proves out, else 1K.
+- **Reduced-motion:** Three stills — (deep-blue still room) → (envelope on desk in lamp pool, "She answered.") → (stack gone, dawn room, second line). The story beat survives completely in stills.
+
+---
+
+## Chapter 6 — YOUR DESK, THE APP *(WOW C — product revelation + proof)*
+
+- **Purpose:** Revelation: everything witnessed is a real Windows app. Map world → UI so understanding is instant; deliver proof chips with safe numbers; name the product.
+- **User emotion:** "Oh — I understand." The reaction chain's hinge.
+- **Visual composition:** Full morning. **PULL-WIDE (full):** camera rises and pulls back; as it moves, a plane of light tilts up from the desk surface — the real light-theme dashboard (first-party screenshot texture). Thin leader lines snap world objects to their UI counterparts: constellation → **7-day plan** panel · envelope stack → **Sequences** row ("stopped — replied ✓") · drawer → **Do-not-send list** · clock → **schedule times** · lamp-lit meter zone → **Today's Usage**. A card flips up last: **"Ready for takeoff"** (the app's real pre-flight verdict, FEATURES §7). The physical room dims one stop to backdrop.
+- **Camera position:** Rising from Ch5's settle to a high 3/4 wide; ends LOCKED with desk + UI plane sharing frame.
+- **Camera movement:** **PULL-WIDE** (second of three), scrubbed; then LOCKED.
+- **Objects:** UI plane (emissive quad, real app screenshot — first-party asset, light theme only per FEATURES Appendix A "no dark mode") · 5 leader lines (procedural, 2px world-space ribbons) · pre-flight card (quad + screenshot crop) · the whole Ch1–5 set as backdrop.
+- **Animation:** UI plane rises/tilts (700ms scrub) · leader lines draw one at a time (120ms each, staggered — never all at once) · each mapped world object re-lights briefly as its line lands · card flip 400ms with settle.
+- **Environmental effects:** Room dims (exposure −1 stop) as UI light becomes key — **the site's single authored register break**: physical world = photoreal, product = made of light (ART-DIRECTION "Real Under the Lamp" strategy, D-06).
+- **Lighting:** `qwantani_sunrise_puresky` warm hold; UI emissive contributes a cool-white bounce onto the desk (one fake fill light, no extra shadow).
+- **Materials/Textures:** UI screenshot at 2K KTX2 (UASTC — text must stay crisp); leader lines unlit.
+- **Typography:** Product wordmark appears here first (DOM): **"Email Pilots."** Mapping labels: mono, small, attached to line ends. Proof chips: DOM cards, Inter.
+- **3D text:** Mapping labels in-world; everything else DOM.
+- **On-screen copy:** (18%) **"Meet Email Pilots."** (30%) **"Everything you just watched is a Windows app, doing its actual job."** (55–85%, chips, staggered, each traceable:) **"Follow-ups stop the moment they reply"** *(§4)* · **"Replies checked every 15 minutes"** *(§8)* · **"Your mailbox + up to 5 more, sending in parallel"** *(§1)* · **"One do-not-send list across every account"** *(§6)* · **"No open or click tracking — replies are the honest metric"** *(§13)* · **"Optional AI that never phones home"** *(§9 — generic phrasing per Appendix A).* (92%, privacy close:) **"All of it on your PC. Gmail, Microsoft, or your own server. No cloud account. No telemetry."** *(§1, §10.)*
+- **Interaction:** Hover/tap a chip or label → its world object re-lights and its leader line pulses (bidirectional map — the understanding toy; also the creator-video moment for slow exploration).
+- **Scroll behavior (beats):** 0–22%: PULL-WIDE + plane rises. 22–50%: five leader lines land one by one (each with its object re-light — five small payoffs). 50–58%: "Ready for takeoff" card flips (the product's own voice gets the accent beat). 58–90%: chips stagger in; camera LOCKED. 90–100%: privacy close line; room settles into balanced light.
+- **Transition in:** Continuous from dawn.
+- **Transition out:** UI plane eases down to a small floating badge (stays visible in Ch7 as the "app is real" anchor); room re-brightens.
+- **Sound opportunity:** none. Silent.
+- **Performance risk:** LOW-MED. One 2K UASTC texture (heaviest single texture — budget it); lines/chips trivial; DOM chips off the GPU entirely. Screenshot must be retina-clean at final framing — verify at 2× zoom in review.
+- **Mobile adaptation:** UI plane presented *frontal* (no tilt — small screens need legible UI); mapping reduced to **3** lines (7-day plan, Sequences-stopped, Do-not-send) — chosen because they are the three behaviors the visitor just watched; chips become a swipeable horizontal stack of 4 (drop AI + parallel-accounts chips to Ch7 footer links); wordmark top-center.
+- **Reduced-motion:** Single composed still: desk + risen UI plane + all leader lines already drawn + labels; chips appear as a static list. Crossfade in. Nothing moves; hover re-light becomes plain focus/underline states.
+
+---
+
+## Chapter 7 — READY WHEN YOU ARE
+
+- **Purpose:** Conversion. The real product action, honestly: free Windows download, SmartScreen expectation-setting, founder-window note. Close the loop — the desk is yours now.
+- **User emotion:** Resolve, invitation. No pressure; the room is calm and the next step is obvious.
+- **Visual composition:** Morning room at rest. On the desk where Maya's letter began: a **fresh blank sheet** and the pen — the site's last image is Ch1's first image, offered to the visitor. UI badge floats small at frame edge. DOM conversion block owns the upper half.
+- **Camera position:** From Ch6 wide.
+- **Camera movement:** Final **PULL-WIDE** (third of three): a slow rise to a high corner — the desk small, sunlit, complete — then LOCKED for the CTA hold. *(Motif complete: paper → app → the whole quiet room, i.e. "this fits inside your life.")*
+- **Objects:** Existing set; fresh sheet (the Ch1 procedural plane, unwritten); pen from `stationery_supplies`.
+- **Animation:** Only light: soft morning stabilization; the blank sheet's corner lifts once in a faint draft (2s, single, subtle — the page inviting).
+- **Environmental effects:** None new.
+- **Lighting:** `qwantani_noon_puresky` (CC0, URL-verified) fully arrived — the cleanest, most truthful light of the site for the moment of decision.
+- **Materials/Textures:** Unchanged.
+- **Typography:** DOM conversion block: Fraunces headline, Inter body, mono for the honest fine print. Footer: colophon link ("Credits & licenses") — **the CC-BY attribution surface planned from day one (D-07)** — plus concise product info link.
+- **3D text:** None.
+- **On-screen copy:** H2: **"Your follow-ups, off your mind."** CTA primary: **"Download for Windows — free"**. Sub: **"Free to start. No credit card."** *(§12.)* Honesty note (expandable paper-slip styled): **"Windows will double-check a new app — here's the screen you'll see, and why."** *(PITFALLS #10: show the real SmartScreen screenshot + More info → Run anyway; never claim "safe/verified".)* Founder line (small): **"Founder window: early signups fly First Class free."** *(Final wording fixed in Phase 5 against `src/licensing/entitlement.ts`; **no Buy button, no purchase claims** — D-18.)* Secondary: **"See everything it does →"** (concise product section). Footer: credits/colophon · privacy stance line.
+- **Interaction:** CTA click = real download flow; SmartScreen expander; footer links. Keyboard-reachable, visible focus (this block is plain accessible HTML).
+- **Scroll behavior (beats):** 0–30%: PULL-WIDE rise; conversion block fades in. 30–100%: LOCKED hold — the page ends *stopped*, not scrolled-past; overscroll gives a gentle resistance (no trap: normal scroll still exits to footer).
+- **Transition in:** UI plane minimizes to badge.
+- **Transition out:** Page end. Footer (DOM) below the canvas: colophon, license credits, product info.
+- **Sound opportunity:** none. The site never made a sound; the silence was the brand.
+- **Performance risk:** NONE new. Canvas can drop to on-demand rendering here (static hold) — battery courtesy.
+- **Mobile adaptation:** CTA block bottom-anchored (thumb zone); high-corner shot recomposed to keep desk visible above the block; download button full-width; SmartScreen expander becomes a bottom sheet.
+- **Reduced-motion:** One still (morning room + blank sheet) with the full DOM conversion block. Identical function.
+
+---
+
+## Wow Moments — the shareable three
+
+Each emerges from product behavior, none bolted on. Each is composed to read inside a 9:16 crop (desk low, window high — the site's master composition is natively vertical).
+
+- **WOW A — "Six days over one desk" (Ch4).** *15-second recording shows:* morning light wheels to noon to dusk to lamp-lit night and around again, shadows sweeping the floor like clock hands; envelopes lift into the dark at scattered minutes leaving a growing constellation of timestamps; a paper day-tag flips MON→SAT; one envelope comes back wrong-way, takes a red mark, and files itself into a drawer. Caption practically writes itself: "this site shows a week of follow-ups as a sundial."
+- **WOW B — "She answered." (Ch5).** *15-second recording shows:* a near-dark room, one envelope drifting in through the window against everything we've watched leave, landing in lamplight; the words "She answered."; a waiting follow-up envelope lying down flat and sliding away; dawn flooding the room; the lamp clicking off. The product's entire ethic in fifteen silent seconds.
+- **WOW C — "The desk was software" (Ch6).** *15-second recording shows:* the camera pulling wide as a pane of light rises off the desk showing a real app; five thin lines snapping stars→schedule, envelopes→sequence, drawer→blocklist; a card flipping to "Ready for takeoff"; the words "Everything you just watched is a Windows app, doing its actual job."
+
+*(The "wait, what just happened?" beats the brief demands: Ch1's self-resolving `{{ name }}`, Ch3's first unmanned departure, Ch4's wrong-way bounce, Ch6's world→UI snap — each explained within seconds of landing.)*
+
+---
+
+## Shell & Fallback Story Parity (STATIC-ENHANCED path)
+
+The story is a photo-essay before it is WebGL. The DOM/CSS shell carries the complete arc with one authored still + the same copy per chapter (stills are art-directed renders exported from the real scenes; also reused as the reduced-motion keyframes and OG/social images — never canvas-dependent, PITFALLS checklist):
+
+| Chapter | Still | Copy carried |
+|---|---|---|
+| 1 First Light | Written letter ECU, "Hi Maya," | "You write it once." + sub |
+| 2 The Handoff | Armed stack + tags under lamplight at dusk | "Then the part you always mean to do: the follow-ups." + sub |
+| 3 Night Shift | Night desk, three timestamped light-points | "While you're anywhere else, it sends." + wobble/caps sub |
+| 4 Six Days | Night 5 frame: full constellation, red-marked envelope at open drawer | Warm-up + never-again lines |
+| 5 The Reply | Envelope in lamp pool, dawn edge | "She answered." + stand-down line |
+| 6 Your Desk, The App | Desk + risen UI with drawn leader lines | "Meet Email Pilots." + chips + privacy close |
+| 7 Ready When You Are | Morning room, blank sheet | Full conversion block |
+
+Rules: semantic HTML sections in story order (h1→h2 hierarchy); stills as `<img>` with real alt text narrating the beat; the conversion block is plain HTML always (WebGL or not); crossfade-on-scroll is the only motion, and even that respects `prefers-reduced-motion`. If WebGL is unavailable, this path IS the site — designed, not apologized for (PITFALLS #8). LCP candidate = Ch1 headline + still, served eagerly.
