@@ -13,7 +13,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DIR-02**: Art direction + asset plan exists in which every 3D asset is matched to a verified licensed source (Poly Haven CC0 first; Sketchfab CC0/CC-BY with attribution plan; ambientCG) — direction adapts where assets don't exist (research: no aviation/mail assets on Poly Haven; desks + sky/clouds are the strong CC0 territories)
 - [x] **DIR-03**: Stack decision is recorded with per-dependency justification (R3F island vs vanilla three call made against research criteria; WebGL2 floor, WebGPU enhancement-only)
 - [x] **DIR-04**: Performance budgets are written as numbers per device class (draw calls, tris, texture memory, JS/frame, DPR clamp, total transfer) with the adaptive-quality strategy that enforces them
-- [ ] **DIR-05**: Conversion strategy + copy plan exists, every product claim traced to `docs/product/FEATURES.md` (Appendix A items excluded; Appendix B wording respected)
+- [x] **DIR-05**: Conversion strategy + copy plan exists, every product claim traced to `docs/product/FEATURES.md` (Appendix A items excluded; Appendix B wording respected)
 
 ### Foundation (shell, loading, systems)
 
@@ -98,7 +98,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DIR-02 | Phase 1 | Complete |
 | DIR-03 | Phase 1 | Complete |
 | DIR-04 | Phase 1 | Complete |
-| DIR-05 | Phase 1 | Pending |
+| DIR-05 | Phase 1 | Complete |
 | FND-01 | Phase 2 | Pending |
 | FND-02 | Phase 2 | Pending |
 | FND-03 | Phase 2 | Pending |
