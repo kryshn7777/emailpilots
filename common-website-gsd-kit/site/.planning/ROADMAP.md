@@ -44,7 +44,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Author .planning/BUDGETS.md (part-06 numbers per tier, two-regime payload split) + .planning/STACK-DECISION.md (vanilla three call, dependency justification, D-11/D-12 locks)
+- [x] 01-02-PLAN.md — Author .planning/BUDGETS.md (part-06 numbers per tier, two-regime payload split) + .planning/STACK-DECISION.md (vanilla three call, dependency justification, D-11/D-12 locks)
 - [ ] 01-03-PLAN.md — Author .planning/COPY-PLAN.md (register, per-chapter copy, claims table traced to FEATURES.md, conversion block, banned register, Appendix-A exclusions)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -137,7 +137,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Creative Blueprint & Budgets | 1/4 | In Progress|  |
+| 1. Creative Blueprint & Budgets | 2/4 | In Progress|  |
 | 2. Foundation & Architecture | 0/TBD | Not started | - |
 | 3. Core Experience | 0/TBD | Not started | - |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |
