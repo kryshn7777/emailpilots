@@ -1,0 +1,39 @@
+/*
+ * Design tokens — ART-DIRECTION.md §Color system + §Typography.
+ * Two temperatures tell the whole story: the world's cool time vs the desk's warm work.
+ * @font-face rules live in Base.astro (URLs must be BASE_URL-prefixed at build time —
+ * bundled CSS cannot base-prefix public/ URLs, D2-06); this file owns names and stacks.
+ */
+:root {
+  /* Palette (anchor hexes are canon — ART-DIRECTION.md) */
+  --paper: #f2ead9;
+  --ink: #232630;
+  --lamplight: #e8a45c;
+  --nightblue: #16213a;
+  --dawnrose: #d98e73;
+  --dayclear: #bfd3de;
+  --verdict-go: #3e7c4f;
+  --stamp-red: #b23a2e;
+
+  /* Voices (deliberate split): Fraunces = narrator, Inter = explanation, Plex Mono = the system's log */
+  --font-display: 'Fraunces', georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', system-ui, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, consolas, monospace;
+
+  /* Type scale — display never below 28px; body 16-18px; mono fine print never below 12px */
+  --text-display-xl: clamp(2.5rem, 6.5vw, 4.25rem);
+  --text-display: clamp(1.75rem, 4vw, 2.75rem);
+  --text-body: 1.0625rem;
+  --text-small: 0.875rem;
+  --text-mono: 0.9375rem;
+  --text-fine: 0.75rem;
+  --leading-body: 1.5;
+  --leading-display: 1.12;
+
+  /* Rhythm */
+  --space-chapter: clamp(6rem, 18vh, 11rem);
+  --measure: 34rem;
+
+  /* House motion curve — everything decelerates ("settle") */
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+}

@@ -1,0 +1,322 @@
+/*
+ * Shell layout + data-mode variants (D2-19/D2-20 first-paint contract).
+ * The STATIC-ENHANCED path IS the site when WebGL is unavailable — designed, not apologized for.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: var(--leading-display);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+h1.display {
+  font-size: var(--text-display-xl);
+}
+
+h2.display {
+  font-size: var(--text-display);
+  font-weight: 500;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+}
+
+/* ---- Masthead — the H1 is the LCP element (D2-19, BUDGETS.md) ---- */
+
+.masthead {
+  padding: clamp(3rem, 12vh, 7rem) clamp(1.25rem, 6vw, 5rem) 2.5rem;
+  max-width: 52rem;
+}
+
+/* ---- Stage — canvas box reserved in CSS so island mount causes zero layout shift (CLS 0) ---- */
+
+.stage-wrap {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  background: var(--nightblue);
+  overflow: hidden;
+}
+
+#stage {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---- Loader — desk-lamp motif (D2-20): a warm lamp pool that brightens with progress.
+       No generic spinner, no "Enter experience" gate. --progress is set 0..1 by the boot script. ---- */
+
+#loader {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--nightblue);
+  transition: opacity 0.5s var(--ease-settle);
+}
+
+#loader.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-pool {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 46% 34% at 50% 62%,
+    var(--lamplight) 0%,
+    rgb(232 164 92 / 35%) 42%,
+    transparent 72%
+  );
+  opacity: calc(0.2 + var(--progress, 0) * 0.8);
+  transition: opacity 0.3s var(--ease-settle);
+}
+
+.loader-pct {
+  position: relative;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  color: var(--paper);
+  letter-spacing: 0.08em;
+}
+
+/* ---- Chapters — the photo-essay flow (STORYBOARD §Shell & Fallback Story Parity) ---- */
+
+.chapter {
+  padding: var(--space-chapter) clamp(1.25rem, 6vw, 5rem);
+  max-width: 52rem;
+}
+
+.chapter .sub {
+  max-width: var(--measure);
+  margin: 1.25rem 0 0;
+}
+
+.chapter .sub.small {
+  font-size: var(--text-small);
+}
+
+.beat {
+  display: block;
+}
+
+.worldtype {
+  color: var(--ink);
+  opacity: 0.72;
+  letter-spacing: 0.12em;
+  margin: 1.5rem 0 0;
+}
+
+/* ---- Still slots — placeholders until the Phase-3 renders land ---- */
+
+.still {
+  margin: 2.5rem 0 0;
+}
+
+.still-frame {
+  aspect-ratio: 4 / 5;
+  max-width: 26rem;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--nightblue);
+  background-image: radial-gradient(
+      ellipse 42% 30% at 34% 74%,
+      rgb(232 164 92 / 55%) 0%,
+      transparent 70%
+    ),
+    radial-gradient(ellipse 34% 26% at 76% 22%, rgb(191 211 222 / 30%) 0%, transparent 75%),
+    linear-gradient(to top, rgb(35 38 48 / 85%) 0%, rgb(35 38 48 / 85%) 30%, transparent 31%);
+}
+
+.keyart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---- Ch6 proof chips + verdict card ---- */
+
+.chips {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  max-width: 40rem;
+}
+
+.chips li {
+  border: 1px solid rgb(35 38 48 / 25%);
+  border-radius: 999px;
+  padding: 0.375rem 0.875rem;
+  font-size: var(--text-small);
+}
+
+.verdict-card {
+  display: inline-block;
+  margin: 2rem 0 0;
+  padding: 0.625rem 1.125rem;
+  border-radius: 4px;
+  border: 1px solid var(--verdict-go);
+  color: var(--verdict-go);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  letter-spacing: 0.06em;
+}
+
+.privacy {
+  max-width: var(--measure);
+  margin: 2rem 0 0;
+  font-weight: 600;
+}
+
+/* ---- Ch7 conversion block — plain HTML in every render path ---- */
+
+.cta-primary {
+  display: inline-block;
+  margin: 2rem 0 0;
+  padding: 0.875rem 1.75rem;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.cta-primary:hover,
+.cta-primary:focus-visible {
+  background: var(--verdict-go);
+}
+
+.cta-sub {
+  margin: 0.875rem 0 0;
+  font-size: var(--text-small);
+}
+
+.smartscreen {
+  max-width: var(--measure);
+  margin: 2rem 0 0;
+  border: 1px dashed rgb(35 38 48 / 35%);
+  border-radius: 4px;
+  padding: 0.875rem 1.125rem;
+  background: rgb(242 234 217 / 60%);
+}
+
+.smartscreen summary {
+  cursor: pointer;
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.smartscreen p {
+  font-size: var(--text-small);
+  margin: 0.875rem 0 0;
+}
+
+.founder-line {
+  margin: 2rem 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-fine);
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+
+.cta-secondary {
+  display: inline-block;
+  margin: 1.25rem 0 0;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---- Footer ---- */
+
+.site-foot {
+  padding: 3rem clamp(1.25rem, 6vw, 5rem) 4rem;
+  border-top: 1px solid rgb(35 38 48 / 15%);
+  font-size: var(--text-small);
+}
+
+.site-foot a {
+  color: var(--ink);
+}
+
+.site-foot .stance {
+  margin: 0.625rem 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-fine);
+  opacity: 0.8;
+}
+
+/* ---- Boot-path variants (D2-08): fallback paths hide the loader instantly and load nothing ---- */
+
+html[data-mode='static'] #loader,
+html[data-mode='reduced'] #loader {
+  display: none;
+}
+
+html[data-mode='static'] .stage-wrap,
+html[data-mode='reduced'] .stage-wrap {
+  /* No canvas on these paths — the stage collapses to a slim night-band divider. */
+  height: 16vh;
+  background: linear-gradient(to bottom, var(--nightblue), var(--ink));
+}
+
+/* Crossfade-on-scroll is the only motion on the static path, and only where motion is allowed. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    html[data-mode='static'] .still-frame {
+      animation: still-in linear both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 60%;
+    }
+  }
+}
+
+@keyframes still-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Reduced motion respected in CSS too (parity rules) — kills smooth scroll + transitions. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  #loader,
+  .loader-pool,
+  .still-frame {
+    transition: none;
+    animation: none;
+  }
+}

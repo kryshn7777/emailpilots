@@ -1,0 +1,78 @@
+---
+import '../styles/tokens.css';
+import '../styles/shell.css';
+
+export interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+
+/**
+ * D2-06: the single join point for every internal URL. Astro does NOT auto-prefix
+ * links with `base` — zero hardcoded root-absolute paths anywhere; always go through this.
+ */
+const base = import.meta.env.BASE_URL;
+const withBase = (path: string): string => `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+
+const canonical = new URL(base, Astro.site ?? 'https://kryshn7777.github.io').href;
+
+/*
+ * Self-hosted fonts (D2-09: no third-party runtime requests; files + OFL texts in public/fonts/).
+ * @font-face is emitted here — not in tokens.css — because bundled CSS cannot carry
+ * BASE_URL-prefixed URLs to public/ files; this template computes them at build time.
+ */
+const fontFaces = [
+  { family: 'Fraunces', weight: 500, file: 'fraunces-latin-500.woff2' },
+  { family: 'Fraunces', weight: 600, file: 'fraunces-latin-600.woff2' },
+  { family: 'Inter', weight: 400, file: 'inter-latin-400.woff2' },
+  { family: 'Inter', weight: 600, file: 'inter-latin-600.woff2' },
+  { family: 'IBM Plex Mono', weight: 400, file: 'ibm-plex-mono-latin-400.woff2' },
+]
+  .map(
+    (f) =>
+      `@font-face{font-family:'${f.family}';font-style:normal;font-weight:${f.weight};` +
+      `font-display:swap;src:url('${withBase(`fonts/${f.file}`)}') format('woff2')}`
+  )
+  .join('');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <!-- og:image deliberately deferred: Phase 5 CNV-04 owns share cards with the real striking frame (WOW B render). -->
+    <meta name="theme-color" content="#f2ead9" />
+    <!-- Preload the headline (Fraunces 600) weight — the H1 is the LCP element (D2-19). -->
+    <link
+      rel="preload"
+      href={withBase('fonts/fraunces-latin-600.woff2')}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <Fragment set:html={`<style>${fontFaces}</style>`} />
+    <noscript>
+      <style is:inline>
+        /* With JS disabled the boot gate never runs: the photo-essay IS the site. */
+        #loader,
+        .stage-wrap {
+          display: none;
+        }
+      </style>
+    </noscript>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

@@ -1,20 +1,185 @@
 ---
-// Placeholder shell — plan 02-02 replaces this with the real prerendered shell.
+import Base from '../layouts/Base.astro';
+
+// Copy is placed VERBATIM from .planning/COPY-PLAN.md §Per-chapter copy (D-16/D-17 —
+// the storyboard is locked). Never invent or rephrase a claim; new copy = new claims-table row first.
+const title = 'Email Pilots — While you were away';
+const description =
+  'You write it once. One personal email, to one person you actually want to reach — ' +
+  'and Email Pilots remembers the follow-ups. A Windows app that runs on your PC. ' +
+  'Free to start. No credit card.';
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Email Pilots — Your follow-ups, flown overnight</title>
-    <meta
-      name="description"
-      content="Email Pilots is the Windows desktop copilot for personal outreach and follow-up email."
-    />
-  </head>
-  <body>
-    <h1>Email Pilots — your follow-ups, flown overnight</h1>
-    <p>Personal outreach and follow-up email, sent from your own address while you sleep.</p>
-  </body>
-</html>
+<Base title={title} description={description}>
+  <!-- The H1 is the LCP element (D2-19, BUDGETS.md §Core Web Vitals). -->
+  <header class="masthead">
+    <h1 class="display">You write it once.</h1>
+  </header>
+
+  <main>
+    <!-- Canvas box reserved in CSS (CLS 0 at island mount, D2-19). The island renders into #stage. -->
+    <div class="stage-wrap">
+      <div id="stage"></div>
+      <!-- Authored loader (D2-20): desk-lamp pool that brightens with honest progress. -->
+      <div id="loader" aria-hidden="true">
+        <div class="loader-pool"></div>
+        <p class="loader-pct"><span id="loader-pct">0</span>%</p>
+      </div>
+    </div>
+
+    <section id="ch1" class="chapter">
+      <p class="sub">One personal email, to one person you actually want to reach.</p>
+      <!-- Ch1 key art: pure-SVG placeholder of the master framing (desk plane lower third,
+           window upper right, lamp frame left — ART-DIRECTION §Composition). Token colors only.
+           The real rendered still is a Phase 3 deliverable (STORYBOARD §Shell & Fallback Story Parity). -->
+      <figure class="still keyart">
+        <svg
+          viewBox="0 0 800 1000"
+          role="img"
+          aria-label="The room where it happens: a desk in lamplight, a written letter in the lamp pool, morning light through the window."
+        >
+          <rect width="800" height="1000" fill="var(--nightblue)"></rect>
+          <ellipse cx="600" cy="240" rx="260" ry="230" fill="var(--dawnrose)" opacity="0.22"
+          ></ellipse>
+          <rect x="480" y="100" width="230" height="310" rx="6" fill="var(--dayclear)" opacity="0.9"
+          ></rect>
+          <rect x="480" y="100" width="230" height="310" rx="6" fill="none" stroke="var(--ink)"
+            stroke-width="10"></rect>
+          <line x1="595" y1="100" x2="595" y2="410" stroke="var(--ink)" stroke-width="8"></line>
+          <line x1="480" y1="255" x2="710" y2="255" stroke="var(--ink)" stroke-width="8"></line>
+          <rect y="660" width="800" height="340" fill="var(--ink)"></rect>
+          <ellipse cx="330" cy="690" rx="250" ry="64" fill="var(--lamplight)" opacity="0.5"
+          ></ellipse>
+          <rect x="290" y="668" width="140" height="16" rx="2" fill="var(--paper)"
+            transform="rotate(-4 290 668)"></rect>
+          <rect x="110" y="646" width="70" height="16" rx="5" fill="var(--ink)"></rect>
+          <path d="M145 650 L160 470 L245 415" stroke="var(--ink)" stroke-width="14" fill="none"
+            stroke-linecap="round"></path>
+          <path d="M215 392 L296 372 L330 452 Z" fill="var(--ink)"></path>
+        </svg>
+      </figure>
+    </section>
+
+    <section id="ch2" class="chapter">
+      <h2 class="display">
+        Then the part you always mean to do: <span class="beat">the follow-ups.</span>
+      </h2>
+      <p class="sub">
+        A first email, the follow-ups, and the wait between each. You choose; it remembers.
+      </p>
+      <!-- Ch2–Ch7 still slots: placeholder frames until the Phase 3 renders of the real scenes land
+           (STORYBOARD §Shell & Fallback Story Parity — alt text narrates each beat). -->
+      <figure class="still">
+        <div
+          class="still-frame"
+          role="img"
+          aria-label="An armed stack of follow-up envelopes with their wait tags, under lamplight at dusk."
+        >
+        </div>
+      </figure>
+    </section>
+
+    <section id="ch3" class="chapter">
+      <h2 class="display">While you're anywhere else, it sends.</h2>
+      <p class="worldtype mono">9:14 pm · 9:41 pm · 10:07 pm</p>
+      <p class="sub">
+        Never at 9:00:00 sharp. Human pauses between sends, a daily cap per mailbox, at most 3 a day
+        to the same person.
+      </p>
+      <figure class="still">
+        <div
+          class="still-frame"
+          role="img"
+          aria-label="The desk at night: three timestamped points of light where sends departed."
+        >
+        </div>
+      </figure>
+    </section>
+
+    <section id="ch4" class="chapter">
+      <h2 class="display">Days pass. It keeps your pace.</h2>
+      <p class="sub">New mailboxes ease in — about 5 a day at first, toward about 50.</p>
+      <p class="sub small">A dead address comes back once — and is never emailed again.</p>
+      <figure class="still">
+        <div
+          class="still-frame"
+          role="img"
+          aria-label="Night five: a constellation of send timestamps over the desk, one red-marked envelope filed at an open drawer."
+        >
+        </div>
+      </figure>
+    </section>
+
+    <section id="ch5" class="chapter">
+      <h2 class="display">She answered.</h2>
+      <p class="sub">
+        So the rest stands down. Before every follow-up, it checks for a reply — any of your inboxes
+        counts.
+      </p>
+      <figure class="still">
+        <div
+          class="still-frame"
+          role="img"
+          aria-label="A reply envelope resting in the lamp pool, dawn at the window's edge."
+        >
+        </div>
+      </figure>
+    </section>
+
+    <section id="ch6" class="chapter">
+      <h2 class="display">Meet Email Pilots.</h2>
+      <p class="sub">Everything you just watched is a Windows app, doing its actual job.</p>
+      <ul class="chips">
+        <li>Follow-ups stop the moment they reply</li>
+        <li>Replies checked every 15 minutes</li>
+        <li>Your mailbox + up to 5 more, sending in parallel</li>
+        <li>One do-not-send list across every account</li>
+        <li>No open or click tracking — replies are the honest metric</li>
+        <li>Optional AI that never phones home</li>
+      </ul>
+      <p class="verdict-card">Ready for takeoff</p>
+      <p class="privacy">
+        All of it on your PC. Gmail, Microsoft, or your own server. No cloud account. No telemetry.
+      </p>
+      <figure class="still">
+        <div
+          class="still-frame"
+          role="img"
+          aria-label="The desk with the real app risen above it as a pane of light, thin lines mapping world to interface."
+        >
+        </div>
+      </figure>
+    </section>
+
+    <section id="ch7" class="chapter">
+      <h2 class="display">Your follow-ups, off your mind.</h2>
+      <!-- The conversion block is plain HTML in every render path (WebGL or not).
+           Phase 5 (CNV-01) wires the real download flow into this anchor. -->
+      <a class="cta-primary" href="#">Download for Windows — free</a>
+      <p class="cta-sub">Free to start. No credit card.</p>
+      <details class="smartscreen">
+        <summary>Windows will double-check a new app — here's the screen you'll see, and why.</summary>
+        <p>
+          Windows shows a "Windows protected your PC" screen for any new app it hasn't seen before.
+          If it appears, choose <span class="mono">More info</span>, then
+          <span class="mono">Run anyway</span>.
+        </p>
+        <!-- The real SmartScreen screenshot (first-party OS capture) lands in Phase 5 (ASSETS.md §First-party). -->
+      </details>
+      <!-- Founder line is PROVISIONAL until Phase 5 verifies wording against src/licensing/entitlement.ts
+           (COPY-PLAN §Conversion block — the single sanctioned plan-name mention). -->
+      <p class="founder-line">Founder window: early signups fly First Class free.</p>
+      <p><a class="cta-secondary" href="#">See everything it does →</a></p>
+      <figure class="still">
+        <div class="still-frame" role="img" aria-label="The morning room, a blank sheet on the desk.">
+        </div>
+      </figure>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <!-- Colophon placeholder: the credits page reads public/assets/manifest.json (D2-18); it ships with the asset pipeline. -->
+    <p><a href="#">Credits &amp; colophon</a></p>
+    <p class="stance">Email Pilots runs on your PC. No cloud account. No telemetry.</p>
+  </footer>
+</Base>
