@@ -1,0 +1,114 @@
+name: Deploy site (Email Pilots experience + /flight/)
+
+# The ONE Pages workflow for this repository (a repo has exactly one Pages site).
+# It publishes:
+#
+#   /            common-website-gsd-kit/site/   (the Email Pilots experience site)
+#   /flight/     New Website/                   (The Overnight Flight — preserved deliberately;
+#                                               retiring it later = delete the flight block below
+#                                               and the /flight/ copy in the assemble step)
+#
+# Replaces deploy-landing.yml (stale — landing/ is deleted; it would fail red on merge)
+# and deploy-flight.yml (would overwrite this site if ever dispatched). Both were removed
+# in the same commit that added this file. Reuses the historical `pages` concurrency
+# group so no orphan run can race it onto the same site.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag to build and publish
+        required: false
+        default: main
+  push:
+    branches: [main]
+    paths:
+      - 'common-website-gsd-kit/site/**'
+      - '.github/workflows/deploy-site.yml'
+
+# Least privilege — ambient GITHUB_TOKEN only, nothing more.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Project site lives at /<repo>/ — derived, never hardcoded, so renaming the
+      # repository does not silently break every asset path (D2-06).
+      ROOT_BASE: /${{ github.event.repository.name }}/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: common-website-gsd-kit/site/package-lock.json
+
+      # ---- experience site → site root ----
+      - name: Install site
+        working-directory: common-website-gsd-kit/site
+        run: npm ci
+      # npm run build = astro check + tsc --noEmit + astro build + budget gates (D2-03):
+      # eager JS ≤ 10 KB gz, island boundary, base safety all fail the build on breach.
+      - name: Build site
+        working-directory: common-website-gsd-kit/site
+        run: npm run build
+        env:
+          SITE_BASE: ${{ env.ROOT_BASE }}
+          SITE_ORIGIN: https://${{ github.repository_owner }}.github.io
+
+      # ---- Overnight Flight → /flight/ (deliberate + reversible preservation) ----
+      # The peer flag is required, not cosmetic: the flight lockfile only resolves with
+      # it (vite-plugin-glsl peerOptional vs microbundle's transitive pin — see the
+      # deploy-flight.yml comment in git history), so CI must install it the same way.
+      - name: Install flight
+        working-directory: New Website
+        run: npm ci --legacy-peer-deps
+      # The HDRI is fetched, not committed; the engine falls back to RoomEnvironment
+      # when missing — a fetch failure degrades lighting, never the deploy.
+      - name: Fetch flight assets
+        working-directory: New Website
+        run: npm run setup:assets
+        continue-on-error: true
+      - name: Build flight
+        working-directory: New Website
+        run: npm run build
+        env:
+          PAGES_BASE: ${{ env.ROOT_BASE }}flight/
+          PAGES_SITE: https://${{ github.repository_owner }}.github.io
+
+      - name: Assemble one artifact
+        run: |
+          mkdir -p _site
+          cp -r common-website-gsd-kit/site/dist/. _site/
+          mkdir -p _site/flight
+          cp -r "New Website/dist/." _site/flight/
+          # Pages runs Jekyll over the artifact unless told not to, and Jekyll drops
+          # every underscore directory — exactly where Astro puts its bundles (_astro/).
+          touch _site/.nojekyll
+          echo "--- published tree (top level) ---"
+          ls -la _site
+          ls -la _site/flight
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
