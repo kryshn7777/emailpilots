@@ -9,6 +9,7 @@
 export type QualityTier = 'floor-mobile' | 'high-mobile' | 'desktop';
 
 export function mapTier(t: { tier: number; isMobile: boolean; type: string }): QualityTier {
-  void t;
-  throw new Error('not implemented');
+  if (t.type !== 'BENCHMARK') return 'floor-mobile'; // fail-safe floor
+  if (t.isMobile) return t.tier >= 2 ? 'high-mobile' : 'floor-mobile';
+  return t.tier >= 2 ? 'desktop' : 'floor-mobile'; // weak desktop = floor caps
 }

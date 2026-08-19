@@ -26,10 +26,49 @@ export interface Ladder {
 }
 
 export function createLadder(cfg: { budgetMs: number }): Ladder {
-  void cfg;
+  let rungIndex = 0;
+  // Step-down window accounting.
+  let windowStart: number | null = null;
+  let framesInWindow = 0;
+  let overInWindow = 0;
+  // Recovery accounting: start of the current run of continuously under-budget frames.
+  let underStreakStart: number | null = null;
+
   return {
-    sample(): Rung {
-      throw new Error('not implemented');
+    sample(nowMs: number, frameMs: number): Rung {
+      const over = frameMs > cfg.budgetMs;
+
+      if (windowStart === null) windowStart = nowMs;
+      framesInWindow++;
+      if (over) {
+        overInWindow++;
+        underStreakStart = null; // any over-budget frame resets the recovery streak
+      } else if (underStreakStart === null) {
+        underStreakStart = nowMs;
+      }
+
+      // Close the 3 s window: > 20% over steps exactly one rung down (never jumps —
+      // a second bad window is the only way to a second rung).
+      if (nowMs - windowStart >= WINDOW_MS) {
+        if (overInWindow / framesInWindow > OVER_RATIO) {
+          if (rungIndex < RUNGS.length - 1) rungIndex++;
+          // A regression restarts the recovery clock: 10 s clean counts from the
+          // step-down, not from a lucky under-budget tail inside the bad window.
+          underStreakStart = null;
+        }
+        windowStart = nowMs;
+        framesInWindow = 0;
+        overInWindow = 0;
+      }
+
+      // 10 s continuously under budget: one rung back up; the clock restarts so the
+      // next recovery needs its own clean 10 s.
+      if (underStreakStart !== null && nowMs - underStreakStart >= RECOVERY_MS && rungIndex > 0) {
+        rungIndex--;
+        underStreakStart = nowMs;
+      }
+
+      return RUNGS[rungIndex];
     },
   };
 }

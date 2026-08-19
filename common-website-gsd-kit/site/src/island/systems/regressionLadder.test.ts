@@ -95,5 +95,6 @@ test('an over-budget frame resets the recovery streak', () => {
   const at = (ms: number): Rung => rungs[(ms - 3100) / 100];
   assert.equal(at(12000), 'dpr-down', 'still down just before the spike');
   assert.equal(at(13100), 'dpr-down', '10 s after the ORIGINAL streak start — spike reset it');
-  assert.equal(at(22100), 'full', 'recovers 10 s after the spike');
+  assert.equal(at(22100), 'dpr-down', 'streak restarts at the first under frame AFTER the spike');
+  assert.equal(at(22200), 'full', 'recovers after 10 s of under-budget frames post-spike');
 });
