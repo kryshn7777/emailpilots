@@ -11,7 +11,7 @@
  */
 
 import { gsap } from 'gsap';
-import { Color, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
+import { ACESFilmicToneMapping, Color, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
 import type { QualityManager } from './QualityManager.ts';
 
 export class Stage {
@@ -21,10 +21,14 @@ export class Stage {
   readonly renderer: WebGLRenderer;
   readonly canvas: HTMLCanvasElement;
 
+  /** '?hud=1' extra column: index wires this to envCrossfade.targetCount() (Q1 instrumentation). */
+  hudTargetCount: (() => number) | null = null;
+
   private readonly el: HTMLElement;
   private readonly quality: QualityManager;
   private dirty = false;
   private hidden = false;
+  private hud: HTMLElement | null = null;
   private readonly restoreHooks = new Set<() => void>();
   private readonly disposers: Array<() => void> = [];
 
@@ -34,6 +38,9 @@ export class Stage {
 
     this.renderer = new WebGLRenderer({ antialias: true });
     this.renderer.setClearColor(new Color('#16213a')); // --nightblue: the stage backdrop
+    // Filmic tone mapping for the HDR environment light (Q1 crossfade reads as light,
+    // not clipped white); output color space stays three's sRGB default.
+    this.renderer.toneMapping = ACESFilmicToneMapping;
     this.canvas = this.renderer.domElement;
     this.el.appendChild(this.canvas);
 
@@ -77,16 +84,50 @@ export class Stage {
     const tick = (time: number, deltaTime: number): void => {
       if (this.hidden || !this.dirty) return;
       this.dirty = false;
-      this.renderer.render(this.scene, this.camera);
+      if (this.hud === null) {
+        this.renderer.render(this.scene, this.camera);
+      } else {
+        // Instrumented render ('?hud=1', Q1 protocol): manual info reset because
+        // autoReset wipes the counters at the end of every render() call.
+        this.renderer.info.reset();
+        const t0 = performance.now();
+        this.renderer.render(this.scene, this.camera);
+        const ms = performance.now() - t0;
+        const targets = this.hudTargetCount === null ? '-' : String(this.hudTargetCount());
+        this.hud.textContent =
+          `calls ${this.renderer.info.render.calls} | ${ms.toFixed(2)} ms | pmrem-RT ${targets}`;
+      }
       this.quality.frame(time * 1000, deltaTime);
     };
     gsap.ticker.add(tick);
     this.disposers.push(() => gsap.ticker.remove(tick));
 
+    const params = new URLSearchParams(window.location.search);
+
+    // Dev instrumentation overlay ('?hud=1', Q1 protocol): scene draw calls, render
+    // ms (performance.now deltas), live PMREM-class target count. Numbers only via
+    // textContent — no query string ever reaches the DOM (T-02-08). The crossfade
+    // blend pass is structurally +1 call on transition frames, outside this counter.
+    if (params.get('hud') === '1') {
+      const hud = document.createElement('div');
+      hud.style.cssText =
+        'position:fixed;top:8px;left:8px;z-index:9999;pointer-events:none;' +
+        'font:11px/1.4 monospace;color:#9fe8a4;background:rgba(0,0,0,0.65);' +
+        'padding:4px 8px;border-radius:4px;';
+      document.body.appendChild(hud);
+      this.hud = hud;
+      this.renderer.info.autoReset = false;
+      this.disposers.push(() => {
+        this.renderer.info.autoReset = true;
+        hud.remove();
+        this.hud = null;
+      });
+    }
+
     // Dev QA lever (MOB-05 verification): '?ctxloss=1' exposes a window-scoped hook
     // that forces a loss/restore via three's WEBGL_lose_context wrappers. The param
     // only toggles this hook — no string ever reaches DOM/HTML (T-02-08).
-    if (new URLSearchParams(window.location.search).get('ctxloss') === '1') {
+    if (params.get('ctxloss') === '1') {
       (window as unknown as Record<string, unknown>).__eptCtxLoss = {
         lose: (): void => {
           this.renderer.forceContextLoss();

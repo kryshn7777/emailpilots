@@ -5,15 +5,21 @@
  * 10 KB line (pipeline/check-budgets.mjs fails the build on any breach).
  *
  * mount() wires the five single-owner systems (D2-11): QualityManager → Stage →
- * Timeline → ResponsiveBranch → AssetQueue, registers the proof chapter (D2-12),
- * and crossfades the canvas in over the Ch1 still once the critical batch lands.
+ * Timeline → ResponsiveBranch → AssetQueue, PMREMs the two Qwantani HDRIs into the
+ * Q1 env crossfade, parses the three ingested props (meshopt + KTX2, self-hosted
+ * basis transcoder — D2-09 rule), registers the proof chapter (D2-12), and
+ * crossfades the canvas in over the Ch1 still once the critical batch lands.
  */
 
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { QualityManager } from './systems/QualityManager.ts';
 import { Stage } from './systems/Stage.ts';
 import { Timeline } from './systems/Timeline.ts';
 import { ResponsiveBranch } from './systems/ResponsiveBranch.ts';
 import { AssetQueue } from './systems/AssetQueue.ts';
+import { createEnvCrossfade } from './systems/envCrossfade.ts';
 import { ProofChapter } from './chapters/ProofChapter.ts';
 
 /** Chunk-identification marker — check-budgets.mjs locates the island chunk by this literal. */
@@ -31,12 +37,25 @@ export interface MountOptions {
 }
 
 /**
+ * The critical batch (D2-20): the two Qwantani HDRIs feeding the Q1 crossfade plus
+ * the three ingested props. Byte weights mirror public/assets/manifest.json — they
+ * only weight the loader percent (AssetQueue clamps streams and snaps to 1 on
+ * completion, so a stale weight can never break progress).
+ */
+const CRITICAL_ASSETS = {
+  sunrise: { url: 'assets/qwantani_sunrise_puresky/qwantani_sunrise_puresky.hdr', bytes: 1_033_946 },
+  dusk: { url: 'assets/qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr', bytes: 1_166_018 },
+  table: { url: 'assets/WoodenTable_02/WoodenTable_02.glb', bytes: 2_241_096 },
+  lamp: { url: 'assets/desk_lamp_arm_01/desk_lamp_arm_01.glb', bytes: 1_211_992 },
+  clock: { url: 'assets/alarm_clock_01/alarm_clock_01.glb', bytes: 996_468 },
+} as const;
+
+/**
  * Self-hosted detect-gpu data files (public/benchmarks — D2-09), pinned with
- * @pmndrs/detect-gpu 6.0.18. This wave's critical batch is a warm-cache prefetch
- * of these: getGPUTier fetches its own GPU-specific file internally from
- * benchmarksURL, so the queue's role is warm-cache only and the files carry
- * weight 0 — EXCLUDED from the progress percent (02-05 adds the two HDRIs as
- * the first real progress-weighted items).
+ * @pmndrs/detect-gpu 6.0.18. Warm-cache prefetch only: getGPUTier fetches its own
+ * GPU-specific file internally from benchmarksURL, so these ride the 'soon' batch
+ * at weight 0 — best-effort, isolated from the now-required critical batch, and
+ * still excluded from the loader percent.
  */
 const BENCHMARK_FILES = [
   'd-adreno.json',
@@ -72,15 +91,14 @@ export async function mount(opts: MountOptions): Promise<void> {
   if (el === null) throw new Error(`island: mount element ${opts.el} not found`);
 
   // AssetQueue is the loader's single truth source (D2-20): the shell loader's
-  // glow/percent follows queue progress and nothing else.
+  // glow/percent follows queue progress and nothing else — real bytes now.
   const queue = new AssetQueue({ fetchFn: window.fetch.bind(window), baseUrl: opts.baseUrl });
   queue.onProgress(opts.onProgress);
-  for (const file of BENCHMARK_FILES) queue.add(`benchmarks/${file}`, 'critical', 0);
-  const critical = queue.load('critical').catch(() => {
-    // Warm-cache is best-effort: a miss must never strand the loader —
-    // getGPUTier does its own fetch and fails safe to floor tier. The island
-    // still enters, so close the loader out honestly.
-    opts.onProgress(1);
+  for (const a of Object.values(CRITICAL_ASSETS)) queue.add(a.url, 'critical', a.bytes);
+  for (const file of BENCHMARK_FILES) queue.add(`benchmarks/${file}`, 'soon', 0);
+  const critical = queue.load('critical'); // streaming starts NOW; failure handled at the await
+  void queue.load('soon').catch(() => {
+    // Warm-cache is best-effort — getGPUTier does its own fetch and fails safe to floor.
   });
 
   const quality = new QualityManager({ baseUrl: opts.baseUrl, tierOverride: opts.tierOverride });
@@ -92,21 +110,72 @@ export async function mount(opts: MountOptions): Promise<void> {
   stage.canvas.style.opacity = '0';
   stage.canvas.style.transition = 'opacity 0.6s ease';
 
+  // Q1 crossfade system — created here so the PMREM equirect shader compiles
+  // WHILE the .hdr bytes stream (research prewarm trick).
+  const crossfade = createEnvCrossfade(stage.renderer);
+  stage.hudTargetCount = () => crossfade.targetCount();
+
   const timeline = new Timeline({ invalidate: () => stage.invalidate() });
   const branch = new ResponsiveBranch();
+  systems = { quality, stage, timeline, branch, queue };
+
+  let buffers: Map<string, ArrayBuffer>;
+  try {
+    buffers = await critical;
+  } catch (e) {
+    // The shell narrative stays fully readable without the island; leave the
+    // canvas transparent rather than stranding the loader (FND-02 spirit).
+    console.error('island: critical asset batch failed', e);
+    document.querySelector('#loader')?.remove();
+    return;
+  }
+
+  // PMREM both HDRIs from the fetched bytes; sources are disposed inside.
+  const rtA = crossfade.pmremFromHDR(buffers.get(CRITICAL_ASSETS.sunrise.url)!);
+  const rtB = crossfade.pmremFromHDR(buffers.get(CRITICAL_ASSETS.dusk.url)!);
+  crossfade.setPair(rtA, rtB);
+  stage.scene.environment = crossfade.texture;
+
+  // meshopt + KTX2 GLBs (D2-18 pipeline output). The basis transcoder is
+  // self-hosted from public/basis/ — never a CDN (same rule as D2-09).
+  const ktx2 = new KTX2Loader()
+    .setTranscoderPath(`${opts.baseUrl}${opts.baseUrl.endsWith('/') ? '' : '/'}basis/`)
+    .detectSupport(stage.renderer);
+  const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(ktx2);
+  const [table, lamp, clock] = await Promise.all(
+    ([CRITICAL_ASSETS.table, CRITICAL_ASSETS.lamp, CRITICAL_ASSETS.clock] as const).map(
+      async (a) => (await gltfLoader.parseAsync(buffers.get(a.url)!, '')).scene
+    )
+  );
+  ktx2.dispose(); // transcoder workers released; decoded textures stay live
 
   // Proof chapter scrubbed 1:1 by native scroll across the whole story column
   // (D2-12); Phase 3 replaces this single registration with the seven chapters.
-  const proof = new ProofChapter();
+  const proof = new ProofChapter({ crossfade, props: { table, lamp, clock } });
   await proof.mount(stage);
   const story = document.querySelector<HTMLElement>('main');
   timeline.register({ id: 'proof', element: story ?? document.body }, proof);
 
-  systems = { quality, stage, timeline, branch, queue };
+  // Context restore (research Pattern 4): render targets — every PMREM and the
+  // blend RT — are NOT restored by the browser. Re-fetch both .hdr via AssetQueue
+  // (HTTP cache makes it cheap), regenerate, re-adopt, invalidate.
+  stage.onRestore(() => {
+    queue.add(CRITICAL_ASSETS.sunrise.url, 'critical', CRITICAL_ASSETS.sunrise.bytes);
+    queue.add(CRITICAL_ASSETS.dusk.url, 'critical', CRITICAL_ASSETS.dusk.bytes);
+    queue
+      .load('critical')
+      .then((again) => {
+        const a = crossfade.pmremFromHDR(again.get(CRITICAL_ASSETS.sunrise.url)!);
+        const b = crossfade.pmremFromHDR(again.get(CRITICAL_ASSETS.dusk.url)!);
+        crossfade.setPair(a, b); // re-renders the blend at the current mix
+        stage.scene.environment = crossfade.texture;
+        stage.invalidate();
+      })
+      .catch((e) => console.error('island: context-restore re-PMREM failed', e));
+  });
 
-  // Honest handoff: crossfade only once the critical batch has landed (D2-20).
+  // Honest handoff: crossfade in only once the critical batch has landed (D2-20).
   // The queue's onProgress already drove the loader to 1 at batch completion.
-  await critical;
   stage.invalidate();
   requestAnimationFrame(() => {
     stage.canvas.style.opacity = '1';
