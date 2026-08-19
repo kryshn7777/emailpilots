@@ -64,7 +64,25 @@ Plans:
   4. Quality tiers, responsive branching, and timeline state each have exactly one owner module, and the asset pipeline (gltf-transform/meshopt/KTX2) enforces per-file weight gates plus a licensing/attribution manifest so raw downloads can never ship
   5. First paint is an authored loader with honest progress — never a blank page or generic spinner — and a forced WebGL context loss does not break the page
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Toolchain + scaffold: toktx install, exact-pinned audited deps, type-gated build (D2-03), node --test infra, STACK-DECISION amendments (TS 5.9.3, @pmndrs/detect-gpu 6.0.18)
+
+**Wave 2** *(blocked on 02-01)*
+
+- [ ] 02-02-PLAN.md — Static shell (7 chapters prerendered copy, authored loader + key-art placeholder, fonts), three-path boot gate + eager/boundary/base budget gates, consolidated deploy-site.yml (+ /flight/ preserved, both stale workflows deleted)
+
+**Wave 3** *(blocked on Wave 2; 02-04 needs only 02-01)*
+
+- [ ] 02-03-PLAN.md — Five single-owner systems (Stage/Timeline/QualityManager/ResponsiveBranch/AssetQueue), Lenis+ScrollTrigger wiring, Chapter contract + proof chapter, self-hosted detect-gpu, honest loader progress
+- [ ] 02-04-PLAN.md — Asset pipeline (ingest gates fail closed, licensing manifest from ASSETS.md) + first real ingest = spike Q3 (rig survival) + Q1's two HDRIs
+
+**Wave 4** *(blocked on 02-03 + 02-04)*
+
+- [ ] 02-05-PLAN.md — Spike Q1 PMREM crossfade on real assets, budget actuals ratified into BUDGETS.md, Q1/Q4 amendments, phase gate + live deploy smoke
 **UI hint**: yes
 
 ### Phase 3: Core Experience
@@ -138,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Creative Blueprint & Budgets | 4/4 | Complete    | 2026-08-18 |
-| 2. Foundation & Architecture | 0/TBD | Not started | - |
+| 2. Foundation & Architecture | 0/5 | Not started | - |
 | 3. Core Experience | 0/TBD | Not started | - |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |
 | 5. Conversion, Copy & Share | 0/TBD | Not started | - |
