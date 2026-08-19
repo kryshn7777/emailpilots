@@ -33,7 +33,7 @@ One justification row per major dependency (brief 05: what it does / why this on
 | lenis | 1.3.26 | Inertial feel over native scroll; native scrollbar/a11y preserved |
 | @gltf-transform/cli | 4.4.2 | Ingest pipeline: `optimize --compress meshopt --texture-compress ktx2` PLUS `simplify` — 4 assets exceed their tri targets at source (see ASSETS.md decimation plan) |
 | gltfpack (meshoptimizer) | 1.2 | Alternative simplify/compress path (`-si`) if gltf-transform's simplifier underperforms on the 67K-tri book set |
-| detect-gpu | 5.x | Boot-time quality-tiering input (Phase 2 boot module, feeds the BUDGETS.md tier gate) |
+| @pmndrs/detect-gpu | 6.0.18 (see Amendments A2) | Boot-time quality-tiering input (Phase 2 boot module, feeds the BUDGETS.md tier gate) |
 
 ## Rejected
 
@@ -91,3 +91,16 @@ Questions recorded, not answered (RESEARCH Pitfall 6 — no design-by-doc for un
 ## Conventions carry-over
 
 For Phase 2+ code (from the site CLAUDE.md): 2-space indent · strict TS · named exports · DI over module mocks.
+
+## Amendments
+
+Dated entries per the amendment protocol: the original calls stand — these update versions with rationale, verified against the npm registry in Phase-2 research (02-RESEARCH.md).
+
+- **A1 (2026-08-18) — typescript pinned 5.9.3.** npm `latest` is now 7.0.2 (native-compiler line); `@astrojs/check@0.9.10` peers `typescript ^5 || ^6` — TS 7 is incompatible. The D2-03 check gate requires the explicit 5.9.3 pin; never install typescript untagged.
+- **A2 (2026-08-18) — detect-gpu 5.x → @pmndrs/detect-gpu@6.0.18.** The project moved to the scoped name; unscoped `detect-gpu@5.0.70` last published 2025-02-23 with correspondingly frozen GPU benchmark data (misclassifies newer devices). Same `getGPUTier` API, same pmndrs maintainers, slopcheck OK. Benchmarks self-hosted per D2-09.
+
+Pending-outcome slots (filled by later plans):
+
+- Q4 Astro 7 skeleton outcome (plan 02-05) — first data point 2026-08-19: Astro 7.2.2 scaffolded, checked, and built green on this machine; no fallback pin needed so far.
+- Q3 rig-survival outcome (plan 02-04)
+- Q1 crossfade winner (plan 02-05)
