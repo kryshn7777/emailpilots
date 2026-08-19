@@ -22,7 +22,20 @@ export function progressMap(
   scrollY: number,
   sections: readonly SectionRange[]
 ): ChapterProgress {
-  void scrollY;
-  void sections;
-  throw new Error('not implemented');
+  if (sections.length === 0) return { chapterIndex: 0, progress: 0 };
+  if (scrollY < sections[0].top) return { chapterIndex: 0, progress: 0 };
+
+  // The last section whose top has been reached; a gap between sections therefore
+  // holds the previous chapter (clamped to progress 1) until the next top arrives.
+  let index = 0;
+  for (let i = 0; i < sections.length; i++) {
+    if (sections[i].top <= scrollY) index = i;
+    else break;
+  }
+
+  const { top, bottom } = sections[index];
+  const span = bottom - top;
+  const progress =
+    span <= 0 ? (scrollY >= top ? 1 : 0) : Math.min(1, Math.max(0, (scrollY - top) / span));
+  return { chapterIndex: index, progress };
 }
