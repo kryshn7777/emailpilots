@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 02-05-PLAN.md — phase 2 gate done; live smoke deferred to user merge
+status: ready-for-phase-3
+stopped_at: Phase 2 closed (verification human_needed → 02-HUMAN-UAT.md tracked debt); Phase 3 discuss next
 last_updated: "2026-08-19T17:19:49.262Z"
 last_activity: 2026-08-19
 progress:
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-18)
 
 **Core value:** The creative quality **is** the distribution mechanism: a visitor who arrives curious leaves understanding Email Pilots and wanting to try it, and the experience is remarkable enough that they send it to someone.
-**Current focus:** Phase 2 — foundation & architecture
+**Current focus:** Phase 3 — Core Experience
 
 ## Current Position
 
-Phase: 2
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-08-19
+Phase: 3
+Plan: 0 of TBD
+Status: Not started — discuss-phase next
+Last activity: 2026-08-20
 
 Progress: [██████████] 100%
 
@@ -94,6 +94,7 @@ None yet.
 
 ### Blockers/Concerns
 
+- Phase 2 verification = human_needed: 7 browser/deploy UAT items tracked in phases/02-foundation-architecture/02-HUMAN-UAT.md (incl. FND-03 scroll-affordance check + live-Pages smoke blocked on user merging feat/founder-month-promo → main). Phase closed with this as tracked debt; local preview served for testing.
 - REQUIREMENTS.md header previously said 27 v1 requirements; actual count is 32 — corrected during roadmap creation
 - Commits currently ride the outer repo's `feat/founder-month-promo` branch (PROJECT.md Key Decisions: revisit)
 
