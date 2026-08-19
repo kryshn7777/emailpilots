@@ -73,7 +73,7 @@ Plans:
 
 **Wave 2** *(blocked on 02-01)*
 
-- [ ] 02-02-PLAN.md — Static shell (7 chapters prerendered copy, authored loader + key-art placeholder, fonts), three-path boot gate + eager/boundary/base budget gates, consolidated deploy-site.yml (+ /flight/ preserved, both stale workflows deleted)
+- [x] 02-02-PLAN.md — Static shell (7 chapters prerendered copy, authored loader + key-art placeholder, fonts), three-path boot gate + eager/boundary/base budget gates, consolidated deploy-site.yml (+ /flight/ preserved, both stale workflows deleted)
 
 **Wave 3** *(blocked on Wave 2; 02-04 needs only 02-01)*
 
@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Creative Blueprint & Budgets | 4/4 | Complete    | 2026-08-18 |
-| 2. Foundation & Architecture | 1/5 | In Progress|  |
+| 2. Foundation & Architecture | 2/5 | In Progress|  |
 | 3. Core Experience | 0/TBD | Not started | - |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |
 | 5. Conversion, Copy & Share | 0/TBD | Not started | - |
