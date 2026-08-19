@@ -43,8 +43,8 @@ This section resolves the ~36 MB ceilings-sum vs ~20–26 MB estimate conflict (
 |---|---|---|---|
 | Ch1 critical path (to interactive) | ≤ 9 MB | ≤ 5 MB | build gate — ASSETS.md estimates Ch1 ≈ 8 MB; at ceilings it sums ~11 MB, which is why the regimes are split |
 | Total streamed asset weight (full journey) | ≤ 30 MB | ≤ 18 MB | build gate |
-| Eager JS (initial JS: shell + boot gate) | ≤ 10 KB gz | ≤ 10 KB gz | build gate |
-| Island JS (3D JS bundle) | ≤ 300 KB gz | ≤ 300 KB gz | `[PROVISIONAL — ratify Phase 2 build output]` — three ~155–170 KB gz + GSAP core+ScrollTrigger ~40 KB + Lenis ~4 KB + app code |
+| Eager JS (initial JS: shell + boot gate) | ≤ 10 KB gz | ≤ 10 KB gz | build gate — measured 2026-08-19: 1.25 KB gz (Phase 2 build: 1,241 B at base=/, 1,253 B at /MailAutomation/) |
+| Island JS (3D JS bundle) | ≤ 300 KB gz | ≤ 300 KB gz | `[PROVISIONAL — ratified Phase 2: 241,282 B gz (236 KB) measured 2026-08-19, incl. three + GSAP/ScrollTrigger + Lenis + GLTF/KTX2/HDR loaders + meshopt decoder; re-verify Phase 6]` |
 | Network requests (first view) | ≤ 45 | ≤ 45 | `[PROVISIONAL — ratify Phase 6]` |
 | TTI on the shell (time to interactive) | ≤ 3.5 s (throttled 4G / mid-mobile) | ≤ 3.5 s | `[PROVISIONAL — ratify Phase 6]` |
 
