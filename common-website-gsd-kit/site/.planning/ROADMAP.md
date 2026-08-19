@@ -14,7 +14,7 @@ Six phases, fixed by the kit's runbook, take the project from a locked creative 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Creative Blueprint & Budgets** - Docs-only: storyboard, art direction + licensed asset plan, stack decision, numeric performance budgets (completed 2026-08-18)
-- [ ] **Phase 2: Foundation & Architecture** - Deployed walking skeleton: static shell, three-path boot gate, scroll sync, centralized systems, asset pipeline, authored loader
+- [x] **Phase 2: Foundation & Architecture** - Deployed walking skeleton: static shell, three-path boot gate, scroll sync, centralized systems, asset pipeline, authored loader (completed 2026-08-19)
 - [ ] **Phase 3: Core Experience** - The storyboarded one-take journey: pinned set-pieces, signature transitions, scene preloading, kinetic typography, product story
 - [ ] **Phase 4: Mobile, Fallbacks & Accessibility** - Authored mobile and reduced-motion cuts, no-WebGL story parity, device-floor frame-rate, lifecycle robustness
 - [ ] **Phase 5: Conversion, Copy & Share** - Escape hatch, real SmartScreen-aware download flow, entitlement-accurate copy, OG/Twitter cards, SEO
@@ -82,7 +82,7 @@ Plans:
 
 **Wave 4** *(blocked on 02-03 + 02-04)*
 
-- [ ] 02-05-PLAN.md — Spike Q1 PMREM crossfade on real assets, budget actuals ratified into BUDGETS.md, Q1/Q4 amendments, phase gate + live deploy smoke
+- [x] 02-05-PLAN.md — Spike Q1 PMREM crossfade on real assets, budget actuals ratified into BUDGETS.md, Q1/Q4 amendments, phase gate + live deploy smoke
 **UI hint**: yes
 
 ### Phase 3: Core Experience
@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Creative Blueprint & Budgets | 4/4 | Complete    | 2026-08-18 |
-| 2. Foundation & Architecture | 4/5 | In Progress|  |
+| 2. Foundation & Architecture | 5/5 | Complete   | 2026-08-19 |
 | 3. Core Experience | 0/TBD | Not started | - |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |
 | 5. Conversion, Copy & Share | 0/TBD | Not started | - |

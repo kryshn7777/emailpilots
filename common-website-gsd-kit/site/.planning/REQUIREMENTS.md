@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **FND-01**: A deployed walking skeleton exists — static shell with all copy/meta/CTAs in prerendered HTML, live on the hosting target with base-path-safe asset URLs
 - [x] **FND-02**: Visitor gets one of three boot paths at the same URL — FULL / STATIC-ENHANCED / REDUCED-MOTION — chosen by a capability + preference gate; fallback = not loading the island (zero wasted bytes)
 - [ ] **FND-03**: Lenis + ScrollTrigger foundation is in place — native scroll preserved, single ticker, resize/orientation-safe refresh; back button, anchors, keyboard scroll, find-in-page all keep working
-- [ ] **FND-04**: Centralized systems exist for quality tiers (boot detect + runtime regress), responsive branching (single `gsap.matchMedia()` point), and timeline/choreography state — no scene reaches into another's internals
+- [x] **FND-04**: Centralized systems exist for quality tiers (boot detect + runtime regress), responsive branching (single `gsap.matchMedia()` point), and timeline/choreography state — no scene reaches into another's internals
 - [x] **FND-05**: Asset pipeline runs gltf-transform/KTX2-class optimization with per-file weight gates and a licensing/attribution manifest — raw library downloads can never ship
 - [x] **FND-06**: Visitor sees a meaningful, authored first paint immediately — designed loader with honest progress, never a blank page or generic spinner blocking on the WebGL bundle
 
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-01 | Phase 2 | Complete |
 | FND-02 | Phase 2 | Complete |
 | FND-03 | Phase 2 | Pending |
-| FND-04 | Phase 2 | Pending |
+| FND-04 | Phase 2 | Complete |
 | FND-05 | Phase 2 | Complete |
 | FND-06 | Phase 2 | Complete |
 | EXP-01 | Phase 3 | Pending |
