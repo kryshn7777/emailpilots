@@ -69,7 +69,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Toolchain + scaffold: toktx install, exact-pinned audited deps, type-gated build (D2-03), node --test infra, STACK-DECISION amendments (TS 5.9.3, @pmndrs/detect-gpu 6.0.18)
+- [x] 02-01-PLAN.md — Toolchain + scaffold: toktx install, exact-pinned audited deps, type-gated build (D2-03), node --test infra, STACK-DECISION amendments (TS 5.9.3, @pmndrs/detect-gpu 6.0.18)
 
 **Wave 2** *(blocked on 02-01)*
 
@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Creative Blueprint & Budgets | 4/4 | Complete    | 2026-08-18 |
-| 2. Foundation & Architecture | 0/5 | Not started | - |
+| 2. Foundation & Architecture | 1/5 | In Progress|  |
 | 3. Core Experience | 0/TBD | Not started | - |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |
 | 5. Conversion, Copy & Share | 0/TBD | Not started | - |

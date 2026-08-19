@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-08-19T00:07:09.661Z"
-last_activity: 2026-08-19 -- Phase 2 planning complete
+last_updated: "2026-08-19T00:33:45.640Z"
+last_activity: 2026-08-19
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 9
-  completed_plans: 4
+  completed_plans: 5
   percent: 17
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 2
-Plan: Not started
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-08-19 -- Phase 2 planning complete
+Last activity: 2026-08-19
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 56%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 | Phase 1 P02 | 8min | 2 tasks | 2 files |
 | Phase 1 P03 | 5min | 1 tasks | 1 files |
 | Phase 1 P04 | 9min | 1 tasks | 0 files |
+| Phase 2 P01 | 25min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Recent decisions affecting current work:
 - [Phase 1]: Discretionary budget lines (island JS, requests, TTI, regression trigger) tagged PROVISIONAL for Phase 2/6 ratification
 - [Phase 1]: No price in v1 copy: store not live + plan naming inconsistent, so Ch7 carries only free-to-start wording (COPY-PLAN)
 - [Phase 1]: Phase-1 gate green: full V1-V8 + DIR loops re-run live in one pass; brief-00 def-of-ready counts 24 items, all covered
+- [Phase 2]: toktx v4.4.2 installed by extracting the official NSIS payload with portable 7-Zip (elevation unavailable); bin at C:/Users/CLAWR/KTX-Software, user PATH persisted
+- [Phase 2]: STACK-DECISION amendments A1/A2 recorded — typescript pinned 5.9.3 (npm latest 7.0.2 breaks @astrojs/check), detect-gpu adopted as @pmndrs/detect-gpu 6.0.18
+- [Phase 2]: sharp transitive CVEs under @gltf-transform/cli accepted — local-only build tool, never ships or runs in CI; npm fix is a breaking gltf-transform 2.x downgrade
 
 ### Pending Todos
 
@@ -94,6 +98,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-18T18:47:27.909Z
+Last session: 2026-08-19T00:33:22.417Z
 Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-foundation-architecture/02-CONTEXT.md
+Resume file: None
