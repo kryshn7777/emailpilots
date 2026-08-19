@@ -9,7 +9,7 @@
     "dev": "astro dev",
     "check": "astro check && tsc --noEmit",
     "test": "node --test \"src/**/*.test.ts\" \"pipeline/**/*.test.mjs\"",
-    "build": "npm run check && astro build"
+    "build": "npm run check && astro build && node pipeline/check-budgets.mjs"
   },
   "dependencies": {
     "astro": "7.2.2",

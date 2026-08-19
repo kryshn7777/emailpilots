@@ -182,4 +182,39 @@ const description =
     <p><a href="#">Credits &amp; colophon</a></p>
     <p class="stance">Email Pilots runs on your PC. No cloud account. No telemetry.</p>
   </footer>
+
+  <script>
+    // Boot gate (D2-08) — the ONLY eager JS. Three paths at the same URL, no redirects.
+    // Fallback paths never import the island: zero wasted bytes.
+    import { decidePath } from '../boot/gate';
+
+    const params = new URLSearchParams(location.search);
+    const mode = decidePath({
+      reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      // Probe context is throwaway — the island creates its own on #stage.
+      webgl2: !!document.createElement('canvas').getContext('webgl2'),
+      saveData: (navigator as { connection?: { saveData?: boolean } }).connection?.saveData === true,
+      override: params.get('path'),
+    });
+    document.documentElement.dataset.mode = mode;
+
+    if (mode === 'full') {
+      const loader = document.getElementById('loader');
+      const pct = document.getElementById('loader-pct');
+      const onProgress = (fraction: number): void => {
+        if (loader) loader.style.setProperty('--progress', String(fraction));
+        if (pct) pct.textContent = String(Math.round(fraction * 100));
+      };
+      // '?tier=' QA override, validated against a literal allowlist — never reflected (D2-10).
+      const TIERS = ['floor', 'high', 'desktop'];
+      const rawTier = params.get('tier');
+      const tierOverride = rawTier !== null && TIERS.includes(rawTier) ? rawTier : null;
+
+      const { mount } = await import('../island/index');
+      await mount({ el: '#stage', baseUrl: import.meta.env.BASE_URL, onProgress, tierOverride });
+    } else {
+      // STATIC-ENHANCED / REDUCED-MOTION: hide the loader instantly, load nothing more.
+      document.getElementById('loader')?.remove();
+    }
+  </script>
 </Base>
