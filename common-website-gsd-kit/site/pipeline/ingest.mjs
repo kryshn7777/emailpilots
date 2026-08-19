@@ -20,7 +20,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NodeIO } from '@gltf-transform/core';
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { ALL_EXTENSIONS, KHRTextureBasisu } from '@gltf-transform/extensions';
+import { listTextureSlots } from '@gltf-transform/functions';
 import { parseLedger, emitManifest } from './manifest.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -37,6 +38,20 @@ const GLTF_CLI = fileURLToPath(new URL('../node_modules/@gltf-transform/cli/bin/
 // defaults collapse the node graph and merge named meshes, which destroys rigs
 // (research Pattern 5 / Pitfall 3). They take the per-command rig-safe chain.
 const RIGGED = new Set(['desk_lamp_arm_01', 'alarm_clock_01']);
+
+// D-15 downward iterations (never relaxes a ceiling): per-asset input tightening
+// applied after a bytes-gate failure, recorded in the ASSETS.md ledger actuals.
+// WoodenTable_02: 2K UASTC normal+metallicRoughness alone cost ~6.9 MB vs the
+// 2.5 MB ceiling — UASTC slots drop to 1K (color stays 2K ETC1S per the row).
+// desk_lamp_arm_01: 1K UASTC metallicRoughness cost 973 KB of a 1.5 MB ceiling —
+// mr/occlusion drops to 512 (low-frequency data), normal keeps the row's 1K.
+// alarm_clock_01: post-dedup 1K textures still summed ~1.42 MB vs the 1.2 MB
+// ceiling — same mr→512 move (flat metal body, roughness is low-frequency).
+const ROW_TUNING = {
+  WoodenTable_02: { uastcMax: 1024 },
+  desk_lamp_arm_01: { mrMax: 512 },
+  alarm_clock_01: { mrMax: 512 },
+};
 
 /** Spawn one gltf-transform CLI command; any non-zero exit aborts the ingest. */
 function run(args) {
@@ -114,57 +129,109 @@ function hasSource(row) {
   return findSource(row, exts) != null || (row.category === 'pbr' && fs.existsSync(path.join(SOURCE_DIR, row.id)));
 }
 
+/** Slots that take UASTC (data textures); everything else is ETC1S color (D2-18). */
+const UASTC_SLOT_RE = /normalTexture|occlusionTexture|metallicRoughnessTexture/;
+
 /**
- * Per-slot KTX2 passes shared by both model chains (D2-18 slot rules):
- * UASTC level 2 for normal/occlusion/metallicRoughness, ETC1S quality 128 for
- * the remaining color slots. Both commands spawn toktx (installed by 02-01).
+ * Per-slot KTX2 pass shared by both model chains (D2-18 slot rules): UASTC
+ * quality 2 + RDO + zstd for normal/occlusion/metallicRoughness, ETC1S quality
+ * 128 for the remaining color slots. Spawns toktx per texture (02-01 installed
+ * it). Programmatic rather than the `uastc`/`etc1s` CLI commands because (a)
+ * this @gltf-transform/cli install's sharp/libvips resize path is broken
+ * ("colourspace: parameter space not set") and (b) those commands expose no
+ * per-slot sizing — toktx --resize does both without touching sharp.
+ * Runs BEFORE meshopt so every intermediate stays decoder-free for the gates.
  */
-function texturePasses(input, work, resizeTo) {
-  let cur = input;
-  if (resizeTo) {
-    const resized = path.join(work, 'resized.glb');
-    run(['resize', cur, resized, '--width', String(resizeTo), '--height', String(resizeTo)]);
-    cur = resized;
+async function encodeTextures(input, output, work, { colorMax, uastcMax, mrMax }) {
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+  const doc = await io.read(input);
+  const textures = doc.getRoot().listTextures();
+  let converted = 0;
+  for (const [i, tex] of textures.entries()) {
+    const mime = tex.getMimeType();
+    if (mime !== 'image/jpeg' && mime !== 'image/png') continue;
+    const slots = listTextureSlots(tex);
+    if (!slots.length) continue;
+    const uastc = slots.some((s) => UASTC_SLOT_RE.test(s));
+    const isMr = slots.some((s) => /occlusionTexture|metallicRoughnessTexture/.test(s)) && !slots.some((s) => /normalTexture/.test(s));
+    const maxSize = uastc ? (isMr ? mrMax : uastcMax) : colorMax;
+    const src = path.join(work, `tex-${i}${mime === 'image/png' ? '.png' : '.jpg'}`);
+    const dst = path.join(work, `tex-${i}.ktx2`);
+    fs.writeFileSync(src, Buffer.from(tex.getImage()));
+    const [w, h] = tex.getSize() ?? [0, 0];
+    const args = ['--genmipmap', '--t2'];
+    if (maxSize && Math.max(w, h) > maxSize) {
+      const scale = maxSize / Math.max(w, h);
+      args.push('--resize', `${Math.round(w * scale)}x${Math.round(h * scale)}`);
+    }
+    if (uastc) {
+      // data textures: assign linear (JPEG container mislabels them sRGB)
+      args.push('--encode', 'uastc', '--uastc_quality', '2', '--uastc_rdo_l', '1', '--zcmp', '18', '--assign_oetf', 'linear', '--assign_primaries', 'none');
+    } else {
+      args.push('--encode', 'etc1s', '--qlevel', '128', '--clevel', '1', '--assign_oetf', 'srgb');
+    }
+    args.push(dst, src);
+    const r = spawnSync('toktx', args, { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
+    if (r.status !== 0) throw new Error(`toktx failed on texture ${i} [${slots.join(',')}] (exit ${r.status}):\n${r.stderr}`);
+    console.log(`[ktx2] tex ${i} [${slots.join(',')}] ${w}x${h} → ${uastc ? 'UASTC' : 'ETC1S'}${maxSize && Math.max(w, h) > maxSize ? ` @${maxSize}` : ''} (${fs.statSync(dst).size} B)`);
+    tex.setImage(fs.readFileSync(dst)).setMimeType('image/ktx2');
+    if (tex.getURI()) tex.setURI(tex.getURI().replace(/\.(png|jpe?g)$/i, '.ktx2'));
+    converted++;
   }
-  const u = path.join(work, 'uastc.glb');
-  run(['uastc', cur, u, '--slots', '{normalTexture,occlusionTexture,metallicRoughnessTexture}', '--level', '2']);
-  const out = path.join(work, 'final.glb');
-  run(['etc1s', u, out, '--quality', '128']);
-  return out;
+  if (converted) doc.createExtension(KHRTextureBasisu).setRequired(true);
+  await io.write(output, doc);
+  return output;
+}
+
+/** Per-slot max texture sizes for a row: ledger "NK KTX2" note, tightened by ROW_TUNING (D-15, downward only). */
+function sizesFor(row) {
+  const tuning = ROW_TUNING[row.id] ?? {};
+  const uastcMax = tuning.uastcMax ?? row.texture_size ?? null;
+  return {
+    colorMax: row.texture_size ?? null,
+    uastcMax,
+    mrMax: tuning.mrMax ?? uastcMax, // occlusion/metallicRoughness (low-frequency) may sit below normal
+  };
 }
 
 /**
  * Static-prop chain: the one-shot command IS safe here (join/flatten/palette
  * reduce draw calls on unrigged props). Geometry compression is split out
- * (--compress false + explicit meshopt) so gate (b) reads a decoder-free
- * pre-meshopt intermediate. Texture sizing rides --texture-size (max-fit).
+ * (--compress false + meshopt last) so gate (b) reads a decoder-free
+ * pre-meshopt intermediate; KTX2 images pass through meshopt as opaque blobs.
  */
-function ingestStaticRow(row, srcFile, work, ratio) {
+async function ingestStaticRow(row, srcFile, work, ratio) {
   const pre = path.join(work, 'pre.glb');
   run(["optimize", srcFile, pre,
     "--compress", "false",
     "--texture-compress", "false",
-    "--texture-size", String(row.texture_size ?? 2048),
     "--simplify-ratio", String(ratio),
     "--simplify-error", "0.01"]);
-  const packed = path.join(work, 'packed.glb');
-  run(['meshopt', pre, packed]);
-  return { intermediate: pre, final: texturePasses(packed, work, null) };
+  const textured = await encodeTextures(pre, path.join(work, 'textured.glb'), work, sizesFor(row));
+  const final = path.join(work, 'final.glb');
+  run(['meshopt', textured, final]);
+  return { intermediate: pre, final };
 }
 
 /**
  * Rig-safe chain (research Pattern 5): weld -> simplify --ratio --error 0.01 ->
- * meshopt -> per-slot KTX2. No join/flatten/palette anywhere on this path, so
+ * per-slot KTX2 -> meshopt. No join/flatten/palette anywhere on this path, so
  * skins and named nodes survive structurally; gate (c) then proves it.
  */
-function ingestRiggedRow(row, srcFile, work, ratio) {
+async function ingestRiggedRow(row, srcFile, work, ratio) {
+  // dedup is rig-safe (merges identical textures/accessors, never touches the
+  // node graph) and prevents double-encoding duplicate texture entries — the
+  // alarm clock's two materials reference the same three JPGs twice.
+  const deduped = path.join(work, 'deduped.glb');
+  run(['dedup', srcFile, deduped]);
   const welded = path.join(work, 'welded.glb');
-  run(['weld', srcFile, welded]);
+  run(['weld', deduped, welded]);
   const simplified = path.join(work, 'simplified.glb');
   run(['simplify', welded, simplified, '--ratio', String(ratio), '--error', '0.01']);
-  const packed = path.join(work, 'packed.glb');
-  run(['meshopt', simplified, packed]);
-  return { intermediate: simplified, final: texturePasses(packed, work, row.texture_size) };
+  const textured = await encodeTextures(simplified, path.join(work, 'textured.glb'), work, sizesFor(row));
+  const final = path.join(work, 'final.glb');
+  run(['meshopt', textured, final]);
+  return { intermediate: simplified, final };
 }
 
 async function ingestModelRow(row) {
@@ -176,8 +243,8 @@ async function ingestModelRow(row) {
   const work = makeWork(row.id);
   const rigged = RIGGED.has(row.id);
   const { intermediate, final } = rigged
-    ? ingestRiggedRow(row, srcFile, work, ratio)
-    : ingestStaticRow(row, srcFile, work, ratio);
+    ? await ingestRiggedRow(row, srcFile, work, ratio)
+    : await ingestStaticRow(row, srcFile, work, ratio);
 
   // Gates — all mechanical, on the pre-meshopt intermediate ((b),(c)) and final bytes (a).
   const mid = await readStats(intermediate);
@@ -255,9 +322,9 @@ async function ingestPbrRow(row) {
     const uastcSlot = /normal|rough|metal|ao|ambient|occlusion/i.test(img);
     const out = path.join(work, img.replace(/\.(png|jpe?g)$/i, '.ktx2'));
     const args = uastcSlot
-      ? ['--t2', '--genmipmap', '--encode', 'uastc', '--uastc_quality', '2', out, path.join(dir, img)]
-      : ['--t2', '--genmipmap', '--encode', 'etc1s', '--qlevel', '128', out, path.join(dir, img)];
-    const r = spawnSync('toktx', args, { stdio: ['ignore', 'inherit', 'inherit'], shell: process.platform === 'win32' });
+      ? ['--t2', '--genmipmap', '--encode', 'uastc', '--uastc_quality', '2', '--uastc_rdo_l', '1', '--zcmp', '18', '--assign_oetf', 'linear', '--assign_primaries', 'none', out, path.join(dir, img)]
+      : ['--t2', '--genmipmap', '--encode', 'etc1s', '--qlevel', '128', '--clevel', '1', '--assign_oetf', 'srgb', out, path.join(dir, img)];
+    const r = spawnSync('toktx', args, { stdio: ['ignore', 'inherit', 'inherit'] });
     if (r.status !== 0) throw new Error(`toktx failed on ${img} (exit ${r.status})`);
     outputs.push(out);
   }

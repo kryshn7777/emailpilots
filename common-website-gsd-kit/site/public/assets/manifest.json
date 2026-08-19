@@ -1,0 +1,57 @@
+[
+  {
+    "id": "alarm_clock_01",
+    "file": "alarm_clock_01/alarm_clock_01.glb",
+    "source_url": "https://polyhaven.com/a/alarm_clock_01",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 4688271,
+    "bytes_optimized": 996468,
+    "ceiling_bytes": 1200000,
+    "ingested": "2026-08-19"
+  },
+  {
+    "id": "desk_lamp_arm_01",
+    "file": "desk_lamp_arm_01/desk_lamp_arm_01.glb",
+    "source_url": "https://polyhaven.com/a/desk_lamp_arm_01",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 8473020,
+    "bytes_optimized": 1211992,
+    "ceiling_bytes": 1500000,
+    "ingested": "2026-08-19"
+  },
+  {
+    "id": "qwantani_dusk_2_puresky",
+    "file": "qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr",
+    "source_url": "https://polyhaven.com/a/qwantani_dusk_2_puresky",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 1166018,
+    "bytes_optimized": 1166018,
+    "ceiling_bytes": 2000000,
+    "ingested": "2026-08-19"
+  },
+  {
+    "id": "qwantani_sunrise_puresky",
+    "file": "qwantani_sunrise_puresky/qwantani_sunrise_puresky.hdr",
+    "source_url": "https://polyhaven.com/a/qwantani_sunrise_puresky",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 1033946,
+    "bytes_optimized": 1033946,
+    "ceiling_bytes": 2000000,
+    "ingested": "2026-08-19"
+  },
+  {
+    "id": "WoodenTable_02",
+    "file": "WoodenTable_02/WoodenTable_02.glb",
+    "source_url": "https://polyhaven.com/a/WoodenTable_02",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 1555944,
+    "bytes_optimized": 2241096,
+    "ceiling_bytes": 2500000,
+    "ingested": "2026-08-19"
+  }
+]

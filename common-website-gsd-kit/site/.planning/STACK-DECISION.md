@@ -98,9 +98,15 @@ Dated entries per the amendment protocol: the original calls stand — these upd
 
 - **A1 (2026-08-18) — typescript pinned 5.9.3.** npm `latest` is now 7.0.2 (native-compiler line); `@astrojs/check@0.9.10` peers `typescript ^5 || ^6` — TS 7 is incompatible. The D2-03 check gate requires the explicit 5.9.3 pin; never install typescript untagged.
 - **A2 (2026-08-18) — detect-gpu 5.x → @pmndrs/detect-gpu@6.0.18.** The project moved to the scoped name; unscoped `detect-gpu@5.0.70` last published 2025-02-23 with correspondingly frozen GPU benchmark data (misclassifies newer devices). Same `getGPUTier` API, same pmndrs maintainers, slopcheck OK. Benchmarks self-hosted per D2-09.
+- **A3 (2026-08-19) — Q3 rig-survival outcome (plan 02-04, D2-16).** The rig-safe per-command chain (dedup → weld → simplify --error 0.01 → per-slot KTX2 → meshopt) won for both rigged rows; the gltfpack `-si -kn` fallback was **never needed**. Facts, all mechanically gated at ingest:
+  - **desk_lamp_arm_01:** the 2K glTF export carries **no skin** (0 skins at source — Poly Haven's "rigged" categorization refers to the .blend; the glTF ships a single mesh under one named node). Simplify at ratio 0.4149 → **9,997 tris** (ceiling 10K), named-node set unchanged (1→1). Consequence for Phase 3: lamp articulation is procedural posing (or a re-export from the .blend), not glTF skinning — the "simplify vs skin weights" half of Q3 is moot on this asset.
+  - **alarm_clock_01:** hand articulation **confirmed** — named nodes `houd_hand` (Poly Haven's spelling), `minute_hand`, `second_hand` on separate meshes, all preserved through the chain (namedNodes 4→4, skins 0→0). 8,985 tris at source — already under the 10K ceiling, ratio 1 (no decimation). Hands are tickable by node rotation in Phase 3.
+  - **WoodenTable_02 drawer verdict:** single node/mesh, **no separate drawer geometry** — the pre-sanctioned procedural drawer box (brief 04 carve-out) is ACTIVE.
+  - **Final sizes vs ceilings:** table 2.24/2.5 MB · lamp 1.21/1.5 MB · clock 1.00/1.2 MB · sunrise HDRI 1.03/2 MB · dusk HDRI 1.17/2 MB — all under, none relaxed (D-15 iterations were input-side: UASTC slots 1K on the table, metallicRoughness 512 on lamp+clock, duplicate-texture dedup on the clock).
+  - **Toolchain note:** this @gltf-transform/cli 4.4.2 install's sharp/libvips resize path is broken ("colourspace: parameter space not set") and `optimize --texture-size` is a no-op when `--texture-compress false`; per-slot KTX2 encoding therefore runs programmatically via toktx (`--resize`, `--uastc_rdo_l 1 --zcmp 18`, ETC1S `--qlevel 128`) driven by @gltf-transform/core slot detection — same D2-18 slot rules, no sharp involvement.
+  - Visual deformation sanity (posing the lamp, ticking the hands) rides the 02-05 dev-server human check — structural survival is proven mechanically here.
 
 Pending-outcome slots (filled by later plans):
 
 - Q4 Astro 7 skeleton outcome (plan 02-05) — first data point 2026-08-19: Astro 7.2.2 scaffolded, checked, and built green on this machine; no fallback pin needed so far.
-- Q3 rig-survival outcome (plan 02-04)
 - Q1 crossfade winner (plan 02-05)

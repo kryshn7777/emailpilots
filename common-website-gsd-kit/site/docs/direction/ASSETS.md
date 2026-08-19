@@ -9,10 +9,10 @@
 
 | Scene(s) | Asset | Source URL | License | Attribution | Est. original | Optimized target |
 |---|---|---|---|---|---|---|
-| 1–7 (hero desk) | Wooden Table 02 [V] | https://polyhaven.com/a/WoodenTable_02 | CC0 | None (courtesy credit in colophon) | ~30–60 MB (2K glTF) | ≤ 2.5 MB GLB, ≤ 30K tris, 2K→KTX2 (1K mobile) |
+| 1–7 (hero desk) | Wooden Table 02 [V] | https://polyhaven.com/a/WoodenTable_02 | CC0 | None (courtesy credit in colophon) | ~30–60 MB (2K glTF) | ≤ 2.5 MB GLB, ≤ 30K tris, 2K→KTX2 (1K mobile) — actual: 2.24 MB · 1,514 tris · ingested 2026-08-19 (UASTC nor/mr slots at 1K to hold the ceiling; color 2K ETC1S) |
 | 1–7 (dressing) | Wooden Chair 01 [V] | https://polyhaven.com/a/WoodenChair_01 | CC0 | None (courtesy) | ~20–40 MB | ≤ 1.5 MB, ≤ 12K tris, 1K KTX2 |
-| 2–7 (hero lamp) | Desk Lamp Arm 01 [V] | https://polyhaven.com/a/desk_lamp_arm_01 | CC0 | None (courtesy) | ~15–30 MB | ≤ 1.5 MB, ≤ 10K tris, 1K KTX2 |
-| 3–6 (clock, rigged) | Alarm Clock 01 [V] | https://polyhaven.com/a/alarm_clock_01 | CC0 | None (courtesy) | ~10–25 MB | ≤ 1.2 MB, ≤ 10K tris, keep hand rig, 1K KTX2 |
+| 2–7 (hero lamp) | Desk Lamp Arm 01 [V] | https://polyhaven.com/a/desk_lamp_arm_01 | CC0 | None (courtesy) | ~15–30 MB | ≤ 1.5 MB, ≤ 10K tris, 1K KTX2 — actual: 1.21 MB · 9,997 tris · ingested 2026-08-19 (mr slot at 512; NOTE: the glTF export carries no skin — articulation needs procedural posing or the .blend, see STACK-DECISION Q3) |
+| 3–6 (clock, rigged) | Alarm Clock 01 [V] | https://polyhaven.com/a/alarm_clock_01 | CC0 | None (courtesy) | ~10–25 MB | ≤ 1.2 MB, ≤ 10K tris, keep hand rig, 1K KTX2 — actual: 1.00 MB · 8,985 tris · ingested 2026-08-19 (hand nodes houd_hand/minute_hand/second_hand preserved; mr slot at 512) |
 | 1–7 (dressing) | Office Notepads [I] | https://polyhaven.com/a/office_notepads | CC0 | None (courtesy) | ~10–25 MB | ≤ 1 MB, 1K KTX2 |
 | 1–7 (dressing) | Stationery Supplies (pen hero in Ch7) [I] | https://polyhaven.com/a/stationery_supplies | CC0 | None (courtesy) | ~15–30 MB | ≤ 1.5 MB, 1K KTX2 |
 | 2–6 (stack base) | Clipboard [I] | https://polyhaven.com/a/clipboard | CC0 | None (courtesy) | ~10–20 MB | ≤ 0.8 MB, 1K KTX2 |
@@ -29,10 +29,10 @@ Procedural (no source, no license): letter/blank sheet (subdivided plane + 2-bon
 
 | Asset | Source tris (API) | Ledger target | Action |
 |---|---|---|---|
-| WoodenTable_02 | 1,514 | ≤30K | none — already under; the 30–60 MB original is texture weight. Drawer geometry unconfirmed: verify at first ingest; sanctioned fallback = procedural drawer box (brief 04 procedural carve-out) |
+| WoodenTable_02 | 1,514 | ≤30K | none — already under; the 30–60 MB original is texture weight. Drawer VERDICT (ingest 2026-08-19): single node/mesh, no separate drawer geometry — sanctioned procedural drawer box is ACTIVE (brief 04 procedural carve-out, D2-16) |
 | WoodenChair_01 | 19,992 | ≤12K | decimate ~40% |
-| desk_lamp_arm_01 | 25,710 | ≤10K | decimate ~61% — asset is RIGGED (API category); simplification must preserve skinning |
-| alarm_clock_01 | 13,006 | ≤10K | decimate ~23% — hand articulation unconfirmed, verify at ingest |
+| desk_lamp_arm_01 | 25,710 | ≤10K | decimate ~61% — asset is RIGGED (API category); simplification must preserve skinning. VERDICT (ingest 2026-08-19): 2K glTF export is 24,102 tris and carries NO skin (rig lives in the .blend only); simplified 0.4149 → 9,997 tris, single named node preserved |
+| alarm_clock_01 | 13,006 | ≤10K | decimate ~23% — hand articulation unconfirmed, verify at ingest. VERDICT (ingest 2026-08-19): 2K glTF is 8,985 tris (already under — no decimation); named hand nodes houd_hand/minute_hand/second_hand on separate meshes CONFIRMED and preserved |
 | binder_notebook | 18,077 | ≤12K | decimate ~34% |
 | book_encyclopedia_set_01 | 67,306 | ≤20K | decimate ~70% — the big simplification job |
 
@@ -43,9 +43,9 @@ Procedural (no source, no license): letter/blank sheet (subdivided plane + 2-bon
 
 | Scene(s) | Asset | Source URL | License | Attribution | Est. original | Optimized target |
 |---|---|---|---|---|---|---|
-| 1, 4, 5, 6 | Qwantani Sunrise (Pure Sky) [V] | https://polyhaven.com/a/qwantani_sunrise_puresky | CC0 | None (courtesy) | 1K .hdr ~1–2 MB (never download 4K+) | 1K .hdr ≤ 2 MB; PMREM once at load |
+| 1, 4, 5, 6 | Qwantani Sunrise (Pure Sky) [V] | https://polyhaven.com/a/qwantani_sunrise_puresky | CC0 | None (courtesy) | 1K .hdr ~1–2 MB (never download 4K+) | 1K .hdr ≤ 2 MB; PMREM once at load — actual: 1.03 MB · 1024×512 · ingested 2026-08-19 |
 | 4, 7 | Qwantani Noon (Pure Sky) [V] | https://polyhaven.com/a/qwantani_noon_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB |
-| 2, 4 | Qwantani Dusk 2 (Pure Sky) [V] | https://polyhaven.com/a/qwantani_dusk_2_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB |
+| 2, 4 | Qwantani Dusk 2 (Pure Sky) [V] | https://polyhaven.com/a/qwantani_dusk_2_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB — actual: 1.17 MB · 1024×512 · ingested 2026-08-19 |
 | 3, 4 | Qwantani Night (Pure Sky) [V] | https://polyhaven.com/a/qwantani_night_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB |
 | 4, 5 (desktop; mobile drops it) | Qwantani Moonrise (Pure Sky) [V] | https://polyhaven.com/a/qwantani_moonrise_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB — mobile uses Night in its place |
 
