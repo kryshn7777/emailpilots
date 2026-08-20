@@ -302,3 +302,109 @@ The story is a photo-essay before it is WebGL. The DOM/CSS shell carries the com
 | 7 Ready When You Are | Morning room, blank sheet | Full conversion block |
 
 Rules: semantic HTML sections in story order (h1→h2 hierarchy); stills as `<img>` with real alt text narrating the beat; the conversion block is plain HTML always (WebGL or not); crossfade-on-scroll is the only motion, and even that respects `prefers-reduced-motion`. If WebGL is unavailable, this path IS the site — designed, not apologized for (PITFALLS #8). LCP candidate = Ch1 headline + still, served eagerly.
+
+---
+
+## Amendments
+
+> Append-only. Original scene text above is never rewritten — an amendment supersedes the lines it
+> names, and the scene reads as "original, as amended". Each entry is dated and carries its reason.
+> Authored by `scene-director`; rulings and their full reasoning live in `REVIEWS.md`.
+
+### A1 — 2026-08-20 · Ch4's orbit is one-way; Ch5 opens on Ch4's held frame
+
+*Supersedes: Ch4 "Camera movement" and Ch5 "Camera position".*
+*Reason: Ch4's start pose is Ch3's end pose (one-take invariant), so a one-way 30° arc cannot also
+end near Ch3's frame. The two lines could not both be literally true. Ruled at the Phase-3 plan
+review (REVIEWS.md §Ruling 1).*
+
+Ch4's **ORBIT-HOLD is a single one-way 30° arc across 0–66%**, decelerating over 56–66% so the camera
+*settles* to rest rather than stopping. From 66% the camera is LOCKED through the ritenuto, the
+bounce, the day-6 dawn and the seam. The camera's arrival at rest and the wheel's hard ritenuto land
+together: everything that has moved for two-thirds of the chapter arrests at once, and *then* one
+envelope comes back the wrong way. That double arrest is the bounce's anticipation.
+
+Ch5's camera position becomes: **"Opens on Ch4's held frame — the vantage the visitor has been
+sitting at, dead still, through the ritenuto and the dawn."** Recognition is delivered by the
+immediately preceding long hold. The departure/arrival reversal stays legible because it is carried
+by direction of travel relative to the window, and the window is composed upper-frame in every
+master shot.
+
+Rejected: an out-and-back arc returning during 82–100%. It puts camera motion inside the one stretch
+reserved for stillness ("the wheel decelerates to a stop… the stillness IS the transition"), runs the
+return leg ~3.7× the outbound rate — making the camera co-dominant in a chapter whose dominant mover
+is light — and an arc that returns to its origin is a wasted move.
+
+Phase-4 consequence: the mobile cut's reduced orbit makes Ch4's end pose tier-dependent. Ch5–Ch7
+poses re-anchor from Ch4's actual end pose via one tier-aware offset — never per-tier pose literals.
+
+### A2 — 2026-08-20 · Ch1's headline is a pre-roll title; the masthead is not restyled into the overlay
+
+*Supersedes: Ch1 "On-screen copy" H1 timing and the "headline+sub fade in staggered" clause of Ch1's
+48–95% beat.*
+*Reason: `H1 (0–20%)` and `48–95%: headline+sub fade in staggered` describe different things and
+conflict; and an `opacity: 0` element cannot be the LCP candidate the budgets require.
+(REVIEWS.md §Rulings 2–3.)*
+
+**Chapter 1 has no in-journey headline.** "You write it once." is the masthead H1: painted at first
+paint, on screen from load, over a canvas already composed on the paper ECU — a title over an image
+— and it leaves by scroll as the journey begins. FULL mode leaves the masthead in normal flow; the
+only permitted FULL-mode treatment is a fade-and-rise as it scrolls out (transform/opacity only).
+
+Ch1's chapter-local copy is the **sub alone**, revealed as a staggered SplitText across 48–95% with
+its lines landing at 55%, during the pull-wide. The camera reveals the desk and the sentence names
+what was just watched: show, then title. Setting a headline over the macro paper before the token
+resolves would explain the hook before it lands, on a field with no reserved negative space.
+
+### A3 — 2026-08-20 · Ch7's overscroll resistance is struck; the ending is carried by stillness
+
+*Supersedes: the clause "overscroll gives a gentle resistance (no trap: normal scroll still exits to
+footer)" in Ch7's 30–100% beat. Adds a beat percentage to Ch7's draft lift.*
+*Reason: `overscroll-behavior` cannot produce mid-page resistance; the only implementation is
+`preventDefault` on wheel/touch, which is scroll-jacking and is prohibited. A beat whose spec must
+promise "no trap" is a beat to cut. (REVIEWS.md §Ruling 4.)*
+
+"The page ends *stopped*" is delivered by three authored things and nothing that touches scroll
+input: (1) the LOCKED hold across 30–100% — ~49vh in which the frame does not change, the longest
+hold on the site; (2) the renderer genuinely idling, so the image stops being redrawn — nothing else
+on the site does that; (3) the one-shot draft lift, the site's final motion and its closing
+invitation.
+
+The draft lift fires **once on the rising crossing of Ch7 progress 0.55** — after the conversion
+block has arrived and settled, deep inside the locked hold, so it reads as the room breathing once
+rather than as part of the copy reveal. Reversing past 0.55 resets it.
+
+### A4 — 2026-08-20 · FULL-mode DOM copy zones (new canon)
+
+*Adds to: every chapter's "Typography" / "Visual composition" fields, which name copy placement in
+prose. This table is the canonical extraction, and FULL mode must honour it.*
+*Reason: on the FULL path the copy would otherwise flow at the top of a 90–140vh section and scroll
+through the frame, so the composed placements never happen and beat-timed reveals play off-screen.
+(REVIEWS.md §B-2.)*
+
+In FULL mode each chapter section is a pure scroll span; its copy lives in a sticky 100svh overlay
+zone that holds its composed screen position for the whole chapter, and only the reveal animates.
+
+| Chapter | Copy zone |
+|---|---|
+| 1 First Light | upper-left |
+| 2 The Handoff | upper-left |
+| 3 Night Shift | lower-left (the window owns the upper frame) |
+| 4 Six Days | upper-left, two short lines maximum |
+| 5 The Reply | centred, lower half |
+| 6 Your Desk, The App | wordmark top-centre · headlines upper-left · chips lower band |
+| 7 Ready When You Are | upper half |
+
+### A5 — 2026-08-20 · ORBIT-HOLD may rise ≤10% when the scene needs floor
+
+*Supersedes: the ORBIT-HOLD row of §Camera Language ("constant height").*
+*Reason: Ch4 is specified "slightly higher than Ch3 (sees more floor shadow — the sweep needs
+floor)", but Ch4's start pose is forced equal to Ch3's end by the one-take invariant, so the rise
+had nowhere to live without either dropping the floor or smuggling in a seam cut.
+(REVIEWS.md §B-7.)*
+
+**ORBIT-HOLD** — *Arc around the desk anchor, ≤30°, height constant **or a single monotonic rise of
+≤10% of camera height across the arc when the scene needs floor**, ends stationary.*
+
+Ch4 takes the rise, delivered progressively across its arc (better than a pop at the seam). Ch2's
+20° orbit stays exactly constant-height.
