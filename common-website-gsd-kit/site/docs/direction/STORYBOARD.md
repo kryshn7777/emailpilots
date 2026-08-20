@@ -408,3 +408,57 @@ had nowhere to live without either dropping the floor or smuggling in a seam cut
 
 Ch4 takes the rise, delivered progressively across its arc (better than a pop at the seam). Ch2's
 20° orbit stays exactly constant-height.
+
+### A6 — 2026-08-20 · Ch4's wheel spans 4.20 cycles; day tags flip at midnight
+
+*Supersedes: the W1 beat label in Ch4 §Scroll behavior ("0–8%: dawn 2 breaks"). Adds the wheel's
+phase chain as canon. Supersedes the "4.0 cycles" figure in REVIEWS.md §B-3.*
+*Reason: Ch4 enters mid-night (inherited from Ch3, one-take invariant) and must exit on moonrise —
+Ch4 §Transition out ("decelerates to a stop in pre-dawn dark") and Ch5 §Visual composition
+("deepest blue of the site, `qwantani_moonrise_puresky` low"). Entry and exit are therefore different
+segments, so a whole-number cycle span is impossible. B-3's dawn-to-dawn anchor was the error.
+(REVIEWS.md §Ruling 5.)*
+
+**The day-tag flips at midnight — phase ≡ 0.8, the start of the moonrise segment — never at dawn.**
+This is what lets Ch4 show MON→SAT while stopping short of dawn 6. MON is Ch1–Ch3; TUE begins at
+0.8, WED 1.8, THU 2.8, FRI 3.8, SAT 4.8.
+
+**Ch4 runs from phase 0.60 (pure night, inherited) to 4.80 (pure moonrise = SAT's midnight,
+pre-dawn dark): a span of 4.20 cycles.** Both endpoints sit exactly on segment starts, so the
+crossfade mix is 0 at both seams and no blend ever straddles a chapter boundary. Four dawns are
+crossed (φ 1, 2, 3, 4); dawn 6 belongs to Ch5.
+
+Authored key table — `p` = chapter progress, `φ` = cumulative wheel phase:
+
+| p | φ | what lands here |
+|---|---|---|
+| 0.00 | 0.60 | pure night, MON — inherited from Ch3's hold |
+| 0.08 | 0.80 | TUE tag flips; the first hint of dawn at the window |
+| 0.30 | 1.80 | WED tag flips; day 2 lived boundary to boundary (dawn 2 at p ≈ 0.124) |
+| 0.48 | 2.80 | THU tag flips; day 3 lived; Maya's FOLLOW-UP 2 departs WED night |
+| 0.66 | 4.55 | the ×4 blur ends at FRI dusk (FRI tag flipped at φ 3.80, p ≈ 0.583) |
+| 0.82 | 4.72 | ritenuto: FRI night arrives p ≈ 0.707, five departures, then the bounce |
+| 1.00 | 4.80 | coast to a stop; SAT tag flips; exit on pure moonrise |
+
+**W1's beat label changes.** "0–8%: dawn 2 breaks" becomes **"0–8%: the calendar turns to TUE; the
+first hint of dawn at the window"** — which is Ch3 §Transition out's own wording. Dawn 2 breaks at
+p ≈ 0.124, early inside W2 ("day 2 full cycle"); a day cycle opening with its own dawn is not a
+contradiction. Forcing dawn 2 into W1 would make the chapter's first window its fastest, collapsing
+the ×4:×1 escalation the wheel exists for. **No beat boundary percentage moves** — 0.08 / 0.30 /
+0.48 / 0.66 / 0.82 are untouched, and the bounce still lands on day 5's night inside 66–82%.
+
+**The site's wheel phase chain** (one continuous monotonic timeline; `skyId` is derived from phase,
+never stored independently):
+
+| Chapter | phase in → out |
+|---|---|
+| 1 First Light | 0.00 → 0.10 (never leaves the sunrise segment) |
+| 2 The Handoff | 0.10 → 0.56 (dusk2 pure at the 70% beat) |
+| 3 Night Shift | 0.56 → 0.60 across 0–5%, then **held** — the sky is deliberately static |
+| 4 Six Days | 0.60 → 4.80 |
+| 5 The Reply | 4.80 held to 75%, → 5.00 (dawn floods) |
+| 6 Your Desk, The App | 5.00 → 5.00 (sunrise warm hold) |
+| 7 Ready When You Are | 5.00 → 5.20 (noon fully arrived) |
+
+Staging: the SAT tag flip fires as a threshold accent at p = 0.94 so the card is fully visible before
+the seam; the phase still arrives at 4.80 at p = 1.00.

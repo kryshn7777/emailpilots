@@ -382,3 +382,163 @@ keeps "only what light touches exists" true in every chapter.
   to the risk.
 - **No banned aesthetics anywhere.** One particle system, inside a sunbeam, desktop only. One shadow
   map. One post pass. No bloom, no glass, no floating cards outside Ch6's authored reveal.
+
+---
+
+## Ruling 5 — Ch4 wheel entry offset — 2026-08-20
+
+**Ruling: candidate (b), span 4.20 — plus the piece neither candidate had.** The day-tag flips at
+**midnight (phase ≡ 0.8, the start of the moonrise segment), not at dawn.** That is what lets Ch4
+show MON→SAT while exiting *before* dawn 6, which is what Ch4's own transition-out and Ch5's opening
+composition both require.
+
+**Candidate (a) is rejected on the storyboard's own text.** Entry 0.6 + a 4.0 span exits at 4.60 —
+the *start of FRI night*. That is not pre-dawn dark and not moonrise, so Ch5 would open on night
+instead of "the deepest blue of the site", and Ch4's exit would land in the middle of the bounce beat
+it is supposed to follow. No entry offset rescues it: a 4.0 span always exits on the same segment it
+enters, and entry and exit are required to be different segments.
+
+**My B-3 number was wrong; B-3's claims were right.** B-3 said "4.0 cycles" on a dawn-to-dawn anchor.
+The anchor is wrong — Ch4 enters mid-night, not at a dawn — so the span is 4.20. Everything B-3 was
+load-bearing *for* survives untouched: four dawn crossings, five day tags TUE→SAT, the bounce on day
+5's night. **4.20 supersedes 4.0 in B-3.**
+
+**Ch4 inherits `'night'` from Ch3 — confirmed. No Ch3 amendment.** The reason matters, because the
+conflict came from a conflation: `skyId` names the segment you are *in*; it does not fix a phase. The
+step "Ch3 ends on `'night'`, therefore phase 0.6" is only sound because Ch3 *holds* a pure night —
+its §Transition in completes dusk→night in the first 5%, and its dominant mover is objects, so the
+sky is deliberately static for the other 95%. Pure night **is** 0.6. Two independent checks agree on
+0.6 rather than some later night value: (1) the ×4:×1 slope ratio only closes if W1 carries ≈0.2 of a
+cycle, which forces entry ≈0.60; (2) Ch3 never loads `moonrise` (ASSETS lists it for scenes 4–5
+only), so Ch3 cannot end past 0.8 without a new row in its asset manifest.
+
+**Root-cause fix so this class of conflict cannot recur: `SET_STATE` carries `wheelPhase` (a number),
+and `skyId` is *derived* from it.** Seam equality is asserted on `wheelPhase`. Storing a segment id
+and inferring a phase is what produced this contradiction, and it would produce another at Ch2→Ch3.
+
+### The arithmetic
+
+Cycle layout: `sunrise [X.0,X.2) · noon [X.2,X.4) · dusk2 [X.4,X.6) · night [X.6,X.8) · moonrise [X.8,X+1.0)`.
+Tags flip at `≡0.8`. MON is Ch1–Ch3, so TUE begins 0.8, WED 1.8, THU 2.8, FRI 3.8, SAT 4.8.
+
+> **Entry 0.60** (pure night, inherited) **→ exit 4.80** (pure moonrise = SAT's midnight = pre-dawn
+> dark) **= span 4.20.** Both endpoints land exactly on segment starts, so `mix = 0` at both seams —
+> no crossfade ever straddles a chapter boundary, and the seam assertion needs no float tolerance.
+
+Authored key table (`p` = chapter progress, `φ` = cumulative wheel phase):
+
+| p | φ | Δφ | slope | what lands here |
+|---|---|---|---|---|
+| 0.00 | 0.60 | — | — | pure night, MON — inherited from Ch3's hold |
+| 0.08 | 0.80 | 0.20 | 2.50 | **TUE tag flips**; first hint of dawn at the window (moonrise) |
+| 0.30 | 1.80 | 1.00 | 4.55 | **WED tag flips**; day 2 lived boundary-to-boundary (dawn 2 at p≈0.124) |
+| 0.48 | 2.80 | 1.00 | 5.56 | **THU tag flips**; day 3 lived; Maya's FOLLOW-UP 2 departs WED night (p 0.444–0.480) |
+| 0.66 | 4.55 | 1.75 | 9.72 | ×4 blur ends at FRI dusk (**FRI tag flipped** at φ 3.80, p≈0.583) |
+| 0.82 | 4.72 | 0.17 | 1.06 | ritenuto: FRI night arrives p≈0.707, five departures, then the bounce |
+| 1.00 | 4.80 | 0.08 | 0.44 | coast to a stop; **SAT tag flips**; exit on pure moonrise |
+
+Σ Δφ = 0.20 + 1.00 + 1.00 + 1.75 + 0.17 + 0.08 = **4.20** ✓ (= 4.80 − 0.60)
+
+Slope checks 03-07's test asserts: `m1 < m2 < m3 < m4` ✓ · `m4/m1 = 3.89` ≈ ×4 ✓ ·
+`m5/m1 = 0.42 < 1`, the ritenuto ✓ · `m6 < m5`, coasting to a stop ✓.
+Assertable tolerances: `3.5 ≤ m4/m1 ≤ 4.5`, `m5 < m1`, `m6 < m5`, strictly increasing m1→m4.
+
+Dawn crossings (`φ ≡ 0`): **four** — p ≈ 0.124, 0.336, 0.501, 0.603. Dawn 6 (φ 5.0) is never reached;
+it belongs to Ch5's final 20%. Tags shown in Ch4: **TUE, WED, THU, FRI, SAT** — five flips, giving
+MON→SAT with Ch1's MON. ✓
+
+### What did not move
+
+- **The bounce still lands on day 5's night.** FRI night (φ 4.6) arrives at p ≈ 0.707, inside the
+  66–82% window, exactly as written. It is better staged than before: the brake begins at FRI dusk
+  and decelerates *through* that night's five departures into the bounce — a true ritenuto, the tempo
+  pulling back across a passage, so the wrong-way envelope enters against traffic that is visibly
+  slowing. The blur resolving is what snaps attention.
+- **Day 6's dawn still "begins slowly" at 82–100%.** φ 4.72 → 4.80 is FRI's small hours into SAT's
+  midnight — the gathering pre-dawn. Ch4 approaches dawn 6 and stops short of it, which is precisely
+  "decelerates to a stop in pre-dawn dark."
+- **F-6's constellation schedule is unchanged.** Ch4 contains exactly four nights — TUE (p 0.256–0.300),
+  WED (0.444–0.480), THU (0.562–0.583), FRI (0.707–1.000) — so F-6's four Ch4 nights placing 3, 4, 4,
+  5 map one-to-one. With Ch3's 3 that is **19** at the 82% beat: reads as "~18", holds the ≤20 cap and
+  the ≤24 instance capacity.
+- **No beat boundary percentage moves.** 0.08 / 0.30 / 0.48 / 0.66 / 0.82 are untouched.
+- **The camera is unaffected.** Amendment A1's one-way arc (0–66%, LOCKED thereafter) is independent
+  of the wheel phase.
+
+**One beat label moves.** W1 (0–8%) was labelled "dawn 2 breaks". At entry 0.60 the wheel reaches
+0.80 by 8%, so what lands in W1 is **the calendar turning to TUE and the first pale hint of dawn at
+the window** — which is Ch3's own transition-out wording ("Ch4 begins with the first hint of dawn at
+the window"). Dawn 2 itself breaks at p ≈ 0.124, early inside W2, whose label is "day 2 full cycle";
+a day cycle opening with its own dawn is not a contradiction.
+
+I took that deliberately rather than keeping dawn-2-at-8%. Forcing 0.60 → 1.00 into W1 makes W1 carry
+0.4 cycles at slope 5.0, which collapses `m4/m1` to 1.94: the chapter would *start* nearly as fast as
+it ever gets and the entire escalation the wheel exists for would be gone. Rhythm outranks
+bookkeeping. The trade is also a gain — SIX DAYS now opens with the calendar turning over in the
+dark, a better first image than a dawn the chapter has three more of.
+
+**Staging note for 03-15:** fire the SAT tag flip as a threshold accent at **p = 0.94** (φ ≈ 4.773),
+not at p = 1.00. The card flipping is a physical event and must be fully visible before the seam; the
+phase still arrives at 4.80 at p = 1.00, and Ch5 inherits the tag already reading SAT.
+
+### Constants to transcribe (do not re-derive)
+
+`03-07-PLAN.md` — `dayWheel.ts`:
+
+```
+WHEEL_ENTRY_PHASE_CH4 = 0.60      // pure night, inherited from Ch3's hold
+WHEEL_EXIT_PHASE_CH4  = 4.80      // pure moonrise — SAT's midnight, pre-dawn dark
+CH4_WHEEL_SPAN        = 4.20      // exit − entry
+DAY_FLIP_PHASE_OFFSET = 0.8       // tags flip at midnight (moonrise start), never at dawn
+CH4_WHEEL_KEYS = [                // [chapterProgress, cumulativePhase]
+  [0.00, 0.60], [0.08, 0.80], [0.30, 1.80], [0.48, 2.80],
+  [0.66, 4.55], [0.82, 4.72], [1.00, 4.80],
+]
+```
+
+`wheelPhaseForCh4(p)` interpolates `CH4_WHEEL_KEYS`, monotonic, with eased joins so slope changes are
+not corners — the ×4 → ritenuto transition at p = 0.66 is the one the eye will see.
+
+`03-01-PLAN.md` — `setState.ts`: `SetState` gains `wheelPhase: number`; `skyId` becomes derived, not
+stored; the `SET_STATE[n].end === SET_STATE[n+1].start` assertion runs on `wheelPhase`. The site-wide
+chain, authored once so no chapter re-derives it:
+
+| Chapter | phase in → out | note |
+|---|---|---|
+| Ch1 | 0.00 → 0.10 | never leaves the sunrise segment; the +0.2 stop is exposure, not a sky change |
+| Ch2 | 0.10 → 0.56 | dusk2 pure (0.40) lands exactly on the 70% beat; 95–100% carries 0.52→0.56 |
+| Ch3 | 0.56 → 0.60 across 0–5%, then **held** | pure night for 95% of the chapter — objects are the mover |
+| Ch4 | 0.60 → 4.80 | span 4.20, table above |
+| Ch5 | 4.80 held to 75%, → 5.00 | moonrise → sunrise = "dawn floods" in the final 20% |
+| Ch6 | 5.00 → 5.00 | sunrise warm hold |
+| Ch7 | 5.00 → 5.20 | sunrise → noon "fully arrived" across the pull-wide |
+
+Mobile (moonrise substituted by night) is unaffected: the substitution applies identically on both
+sides of every seam, and 4.80 still renders dark. PMREM residency is unchanged — Ch4 still visits all
+five skies, so the 03-02 amendment (≤6 desktop) still governs.
+
+### Wave-ordering defect: the sky-reconciliation assertion
+
+**Confirmed — move it to 03-07, and my ruling makes that the correct home rather than a workaround.**
+
+03-01 is wave 1 and owns pure, zero-import constants; `wheelSegment()` is created by 03-07 in wave 2.
+A wave-1 test importing it fails 03-01's own `npm test` gate and blocks the first wave. That is the
+symptom. The cause is that the assertion was written against a *stored* `skyId`, which made it look
+like a `setState` property.
+
+Under this ruling `skyId` is **derived** from `wheelPhase`, and `dayWheel` owns the derivation. So:
+
+- **03-01 keeps** the seam assertions, expressed purely on `wheelPhase` numbers:
+  `SET_STATE[n].end.wheelPhase === SET_STATE[n+1].start.wheelPhase` for n = 0..5, plus monotonicity
+  across the whole chain and the endpoint values from the table above. Zero imports, still leaf-pure,
+  still wave 1.
+- **03-07 owns** the single reconciliation assertion, because it owns the mapping:
+  `wheelSegment(SET_STATE[n].start.wheelPhase).a` equals the segment the storyboard names for that
+  chapter, and `mix === 0` at every one of the seven chapter starts and ends. 03-07 already declares
+  `depends_on: [03-01, 03-02]`, so both constants exist there.
+
+That split is the root-cause placement: the phase chain is a `setState` fact and belongs to 03-01;
+phase→segment is a `dayWheel` fact and belongs to 03-07. Neither module needs the other's import in
+the wave it ships.
+
+**Canon:** STORYBOARD §Amendments **A6** (2026-08-20).
