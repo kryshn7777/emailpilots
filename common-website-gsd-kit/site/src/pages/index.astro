@@ -42,6 +42,14 @@ const description =
     document.documentElement.dataset.mode = mode;
   </script>
 
+  <!-- Quiet nav (D3-12, STORYBOARD §Concept G) — the fast path for busy visitors. Real
+       focusable HTML on every path; on the FULL path it is revealed at Ch3 entry. Fixed,
+       and outside <main> so the sticky stage context can never affect it. -->
+  <nav id="quiet-nav">
+    <span class="mono">Email Pilots</span>
+    <a href="#ch7">Download</a>
+  </nav>
+
   <!-- The H1 is the LCP element (D2-19, BUDGETS.md §Core Web Vitals). -->
   <header class="masthead">
     <h1 class="display">You write it once.</h1>
@@ -227,6 +235,14 @@ const description =
     <p><a href="#">Credits &amp; colophon</a></p>
     <p class="stance">Email Pilots runs on your PC. No cloud account. No telemetry.</p>
   </footer>
+
+  <!-- Scroll-progress affordance (EXP-07) — "where am I / how much more", answered from
+       the one master scrub. The label is deliberately EMPTY in the prerendered HTML: only
+       the FULL path has a scrub to fill it, so the static and reduced markup stays honest. -->
+  <div id="progress-rule" role="presentation">
+    <i></i>
+    <span class="mono" id="progress-label"></span>
+  </div>
 
   <script>
     // Boot gate (D2-08) — the ONLY eager JS. Three paths at the same URL, no redirects.

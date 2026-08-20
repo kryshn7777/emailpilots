@@ -33,6 +33,14 @@ export class Timeline {
   private readonly registered: Registered[] = [];
   private ranges: SectionRange[] = [];
   private last: { chapterIndex: number; progress: number } | null = null;
+  /**
+   * The ONE sanctioned extension point, exposed as `onDrive()` (03-RESEARCH §Code
+   * Examples). Nav, the progress
+   * affordance and chapter-ahead prefetch all read the master scrub from here rather than
+   * creating a second ScrollTrigger or an IntersectionObserver — there is exactly one
+   * scroll driver on the site and `affordance.test.ts` asserts it.
+   */
+  private readonly driveListeners = new Set<(chapterIndex: number, progress: number) => void>();
 
   constructor(deps: { invalidate: () => void }) {
     this.invalidate = deps.invalidate;
@@ -71,12 +79,25 @@ export class Timeline {
     this.drive();
   }
 
+  /**
+   * Observe the master scrub. The listener is called with the same `(chapterIndex,
+   * progress)` the chapter itself received, once per drive. Returns the disposer
+   * (project convention: subscriptions hand back an unsubscribe function).
+   */
+  onDrive(fn: (chapterIndex: number, progress: number) => void): () => void {
+    this.driveListeners.add(fn);
+    return () => {
+      this.driveListeners.delete(fn);
+    };
+  }
+
   dispose(): void {
     this.trigger.kill();
     gsap.ticker.remove(this.tickerCb);
     this.lenis.destroy();
     this.registered.length = 0;
     this.ranges = [];
+    this.driveListeners.clear();
   }
 
   /** Re-measure section pixel ranges (runs at every ScrollTrigger refresh). */
@@ -100,6 +121,7 @@ export class Timeline {
     }
     this.last = { chapterIndex, progress };
     this.registered[chapterIndex].chapter.update(progress);
+    for (const fn of this.driveListeners) fn(chapterIndex, progress);
     this.invalidate();
   }
 }

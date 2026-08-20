@@ -492,3 +492,99 @@ html[data-mode='full'] #ch7 > .copy {
     transform: translateY(-1.5rem);
   }
 }
+
+/* ============================================================================
+ * Quiet nav + scroll-progress affordance (EXP-07, D3-12).
+ *
+ * Contrast (ART-DIRECTION quality gate 3: DOM text ≥ AA against its ACTUAL backdrop at
+ * every scroll position): both sit on an opaque `--paper` plate carrying `--ink` text.
+ * That is the site's canonical AA pair, and being opaque it holds over the dawn scenes and
+ * over the deepest night alike — by construction, with no text-shadow and nothing to
+ * re-check per chapter.
+ * ========================================================================== */
+
+#quiet-nav {
+  position: fixed;
+  top: clamp(0.75rem, 2.5vh, 1.5rem);
+  right: clamp(0.75rem, 3vw, 2rem);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.375rem 0.875rem;
+  border: 1px solid rgb(35 38 48 / 15%);
+  border-radius: 999px;
+  background: var(--paper);
+}
+
+#quiet-nav .mono,
+#quiet-nav a {
+  font-family: var(--font-mono);
+  font-size: var(--text-fine);
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+/* On the FULL path the nav ARRIVES at Ch3 entry (STORYBOARD §Concept G) and never leaves.
+   `visibility` rides along with the fade so the Download link is not a focusable target
+   while it is invisible; layout and source order are untouched, which is what "no
+   display toggling" was protecting. Everywhere else — static, reduced, and JS-disabled,
+   where no script ever writes data-mode — the nav is simply always there. */
+html[data-mode='full'] #quiet-nav {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.6s var(--ease-settle),
+    visibility 0.6s;
+}
+
+html[data-mode='full'] #quiet-nav.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* The rule is FULL-only: it is driven by the master scrub, and a bar frozen at zero on a
+   path that has no scrub would be a lie rather than an affordance.
+   Track and fill share one grid cell — `::before` is the 22%-ink hairline the whole
+   journey long, `<i>` is the ink fill the island scales. scaleX only: transform-driven,
+   so advancing the bar never costs layout. */
+#progress-rule {
+  display: none;
+  position: fixed;
+  left: clamp(0.75rem, 3vw, 2rem);
+  bottom: clamp(0.75rem, 2.5vh, 1.5rem);
+  z-index: 2;
+  grid-template-columns: clamp(72px, 12vw, 148px) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid rgb(35 38 48 / 15%);
+  border-radius: 999px;
+  background: var(--paper);
+}
+
+html[data-mode='full'] #progress-rule {
+  display: grid;
+}
+
+#progress-rule::before {
+  content: '';
+  grid-area: 1 / 1;
+  height: 1px;
+  background: rgb(35 38 48 / 22%);
+}
+
+#progress-rule i {
+  grid-area: 1 / 1;
+  height: 1px;
+  background: var(--ink);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+#progress-label {
+  font-size: var(--text-fine);
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  white-space: nowrap;
+}

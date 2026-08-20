@@ -3,10 +3,15 @@
  * affordance depends on: `Timeline` is still the only scroll driver on the site.
  *
  * The math half is pure and runs anywhere. The Timeline half is a source contract: the
- * class constructs `new Lenis` and `ScrollTrigger.create` in its constructor and cannot be
- * instantiated under `node --test`, but "there is exactly one scroll driver" is a
- * source-level fact and belongs in `npm test` rather than in a grep somebody runs once
+ * class builds its smooth-scroll instance and its master trigger in the constructor, so it
+ * cannot be instantiated under `node --test` — but "there is exactly one scroll driver" is
+ * a source-level fact and belongs in `npm test` rather than in a grep somebody runs once
  * (the 03-02 precedent).
+ *
+ * Grep-gate hygiene: the two driver patterns are assembled from fragments below and never
+ * written as literals, because this file lives under the tree the scan walks — an embedded
+ * literal would make the gate match its own source (the 03-01 copyParity lesson) and would
+ * break the plan's own `grep -rc` over src/ as well.
  */
 
 import { test } from 'node:test';
@@ -118,14 +123,15 @@ test('onDrive fires from inside drive(), after the chapter got the same values',
 test('EXP-01: exactly one scroll driver in src/, and it is Timeline.ts', () => {
   const files = walk(path.join(ROOT, 'src'));
   assert.ok(files.length > 20, 'the walk actually found the source tree');
+  const TRIGGER = 'Scroll' + 'Trigger.create';
+  const LENIS = 'new ' + 'Lenis(';
   const triggers: string[] = [];
   const lenis: string[] = [];
   for (const file of files) {
     const body = fs.readFileSync(file, 'utf8');
     const rel = path.relative(ROOT, file).replace(/\\/g, '/');
-    if (rel.endsWith('affordance.test.ts')) continue; // this file names both patterns
-    if (body.includes('ScrollTrigger.create')) triggers.push(rel);
-    if (/new Lenis\(/.test(body)) lenis.push(rel);
+    if (body.includes(TRIGGER)) triggers.push(rel);
+    if (body.includes(LENIS)) lenis.push(rel);
   }
   assert.deepEqual(triggers, ['src/island/systems/Timeline.ts'], 'one master scrub, no second');
   assert.deepEqual(lenis, ['src/island/systems/Timeline.ts'], 'one smooth-scroll instance');

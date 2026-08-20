@@ -20,6 +20,7 @@ import { Timeline } from './systems/Timeline.ts';
 import { ResponsiveBranch } from './systems/ResponsiveBranch.ts';
 import { AssetQueue } from './systems/AssetQueue.ts';
 import { createEnvCrossfade } from './systems/envCrossfade.ts';
+import { barFraction, labelFor, navVisible } from './choreo/affordance.ts';
 import { ProofChapter } from './chapters/ProofChapter.ts';
 
 /** Chunk-identification marker — check-budgets.mjs locates the island chunk by this literal. */
@@ -83,6 +84,7 @@ let systems: {
   timeline: Timeline;
   branch: ResponsiveBranch;
   queue: AssetQueue;
+  offDrive: () => void;
 } | null = null;
 
 /** Mount the experience: five systems, one proof chapter, honest loader handoff. */
@@ -117,7 +119,25 @@ export async function mount(opts: MountOptions): Promise<void> {
 
   const timeline = new Timeline({ invalidate: () => stage.invalidate() });
   const branch = new ResponsiveBranch();
-  systems = { quality, stage, timeline, branch, queue };
+
+  // EXP-07 / D3-12 — the progress rule and the quiet nav ride the ONE master scrub via
+  // Timeline.onDrive. No second ScrollTrigger, no IntersectionObserver: the affordance
+  // sees exactly the (chapterIndex, progress) pair the chapter itself was driven with.
+  const bar = document.querySelector<HTMLElement>('#progress-rule i');
+  const label = document.querySelector<HTMLElement>('#progress-label');
+  const nav = document.querySelector<HTMLElement>('#quiet-nav');
+  let lastIndex = -1;
+  const offDrive = timeline.onDrive((chapterIndex, progress) => {
+    // Transform only — advancing the bar never triggers layout.
+    if (bar !== null) bar.style.transform = `scaleX(${barFraction(chapterIndex, progress)})`;
+    if (chapterIndex !== lastIndex) {
+      if (label !== null) label.textContent = labelFor(chapterIndex);
+      if (nav !== null) nav.classList.toggle('is-visible', navVisible(chapterIndex));
+      lastIndex = chapterIndex;
+    }
+  });
+
+  systems = { quality, stage, timeline, branch, queue, offDrive };
 
   let buffers: Map<string, ArrayBuffer>;
   try {
@@ -149,12 +169,18 @@ export async function mount(opts: MountOptions): Promise<void> {
   );
   ktx2.dispose(); // transcoder workers released; decoded textures stay live
 
-  // Proof chapter scrubbed 1:1 by native scroll across the whole story column
-  // (D2-12); Phase 3 replaces this single registration with the seven chapters.
+  // Proof chapter scrubbed 1:1 by native scroll (D2-12), registered against the seven
+  // shell sections so the master scrub emits real per-chapter (index, progress) pairs and
+  // the EXP-07 affordance is verifiable in wave 1. One instance, seven ranges: the proof
+  // scene therefore replays its dolly + sunrise→dusk crossfade once per chapter, which is
+  // the visible signature of the chapter mapping working. Waves 4-10 swap this single
+  // instance for the seven storyboard chapters against these same sections.
   const proof = new ProofChapter({ crossfade, props: { table, lamp, clock } });
   await proof.mount(stage);
-  const story = document.querySelector<HTMLElement>('main');
-  timeline.register({ id: 'proof', element: story ?? document.body }, proof);
+  for (const id of ['ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7']) {
+    const section = document.querySelector<HTMLElement>(`#${id}`);
+    if (section !== null) timeline.register({ id, element: section }, proof);
+  }
 
   // Context restore (research Pattern 4): render targets — every PMREM and the
   // blend RT — are NOT restored by the browser. Re-fetch both .hdr via AssetQueue
