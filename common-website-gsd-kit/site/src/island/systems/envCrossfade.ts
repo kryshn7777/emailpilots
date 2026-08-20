@@ -13,8 +13,18 @@
  *
  * Budget accounting (the ≤2-actives ruling, recorded in the Q1 amendment):
  * "crossfade actives ≤ 2" counts SOURCE environments (A + B); the blend RT is
- * machinery, counted against the PMREM residency line (≤ 4/5) — 3 PMREM-class
- * targets live during a transition, never more.
+ * machinery, counted against the PMREM residency line — 3 PMREM-class targets live
+ * during a transition in every chapter except Ch4 (BUDGETS.md §Amendments B1).
+ *
+ * The Ch4 day-wheel contract (STACK-DECISION A6, the one sanctioned use of the seam's
+ * second mode): the wheel OWNS its five `qwantani_*` PMREM targets. It calls
+ * `setPair(next.a, next.b, { disposePrevious: false })` at every segment boundary — so a
+ * sky handed back two segments later is still alive — and disposes all five itself in its
+ * own `dispose()`. This module disposes nothing it was not given ownership of, and
+ * `dispose()` releases only the blend RT in that mode.
+ *
+ * Rejected: a separate `adoptExternal(a, b)` method. It doubles the seam surface and
+ * splits blend-RT recreation across two entry points for no behavioural gain.
  */
 
 import {
@@ -44,14 +54,36 @@ export interface EnvCrossfade {
    * context restore re-fetches via AssetQueue instead of retaining CPU copies).
    */
   pmremFromHDR(buffer: ArrayBuffer): WebGLRenderTarget;
-  /** Adopt a new A/B pair; disposes the previously held pair and re-renders the blend. */
-  setPair(a: WebGLRenderTarget, b: WebGLRenderTarget): void;
+  /**
+   * Adopt a new A/B pair and re-render the blend at the current mix.
+   *
+   * Default (`disposePrevious: true`) — this module owns the sources: the previously held
+   * pair is disposed, reuse-aware, so a target carried into the new pair survives. That is
+   * A4's two-sky contract and what both existing callers rely on (island mount at
+   * `src/island/index.ts`, and the `Stage.onRestore` re-PMREM path).
+   *
+   * `{ disposePrevious: false }` — the CALLER owns the sources: nothing is disposed here,
+   * at this swap or at `dispose()`. Required by the Ch4 day-wheel, which cycles five skies
+   * and hands one back two segments after releasing it (03-RESEARCH Pitfall 3).
+   *
+   * The flag applies to the pair held at the time, so a caller that mixes modes gets the
+   * mode of its most recent call — mixing them on one instance is not a supported pattern.
+   */
+  setPair(a: WebGLRenderTarget, b: WebGLRenderTarget, opts?: { disposePrevious?: boolean }): void;
   /** Scrub the mix 0 (A) → 1 (B); renders the blend pass only when t changes. */
   setMix(t: number): void;
   /** The blended environment (CubeUVReflectionMapping) — assign to scene.environment. */
   readonly texture: Texture;
-  /** Live PMREM-class render targets held (hud instrumentation): A + B + blend. */
+  /**
+   * Live PMREM-class render targets held BY THIS MODULE: A + B + blend.
+   *
+   * Not the whole residency number when the sources are externally owned. The Ch4 day-wheel
+   * holds five, so this reads **3** while the amended budget line gates **6** (the A/B pair
+   * is two of the wheel's five, not two more). `?hud=1` prints this as `pmrem-RT`; a chapter
+   * SUMMARY records the wheel's own source count beside it. See BUDGETS.md §Amendments B1.
+   */
   targetCount(): number;
+  /** Release the blend RT, the quad and the PMREM generator — plus the source pair iff this module owns it. */
   dispose(): void;
 }
 
@@ -103,6 +135,8 @@ export function createEnvCrossfade(renderer: WebGLRenderer): EnvCrossfade {
   let rtB: WebGLRenderTarget | null = null;
   let blendRT: WebGLRenderTarget | null = null;
   let mix = 0;
+  /** Whether this module may dispose rtA/rtB — set by each setPair's `disposePrevious`. */
+  let ownsSources = true;
 
   function renderBlend(): void {
     if (rtA === null || rtB === null || blendRT === null) return;
@@ -140,9 +174,15 @@ export function createEnvCrossfade(renderer: WebGLRenderer): EnvCrossfade {
       return rt;
     },
 
-    setPair(a: WebGLRenderTarget, b: WebGLRenderTarget): void {
-      if (rtA !== null && rtA !== a && rtA !== b) rtA.dispose();
-      if (rtB !== null && rtB !== a && rtB !== b) rtB.dispose();
+    setPair(a: WebGLRenderTarget, b: WebGLRenderTarget, opts?: { disposePrevious?: boolean }): void {
+      // Default true keeps A4's disposal semantics byte-identical for the two existing
+      // callers; false hands source lifetime to the caller (day-wheel, A6). The reuse
+      // guard below is what keeps a carried-over sky alive under the default.
+      ownsSources = opts?.disposePrevious ?? true;
+      if (ownsSources) {
+        if (rtA !== null && rtA !== a && rtA !== b) rtA.dispose();
+        if (rtB !== null && rtB !== a && rtB !== b) rtB.dispose();
+      }
       rtA = a;
       rtB = b;
       // (Re)create the blend RT to match the PMREM atlas exactly — identical
@@ -181,8 +221,13 @@ export function createEnvCrossfade(renderer: WebGLRenderer): EnvCrossfade {
     },
 
     dispose(): void {
-      rtA?.dispose();
-      rtB?.dispose();
+      // Externally-owned sources outlive this module — releasing them here would make
+      // "the caller owns the lifetime" false at exactly the moment it matters, and would
+      // double-dispose the three the wheel still holds.
+      if (ownsSources) {
+        rtA?.dispose();
+        rtB?.dispose();
+      }
       blendRT?.dispose();
       rtA = rtB = blendRT = null;
       quad.geometry.dispose();

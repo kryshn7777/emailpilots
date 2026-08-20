@@ -27,7 +27,7 @@ One row per part-06 checklist item; columns are the three tiers.
 | Particle count | 0 | 0 | ≤ 40 dust sprites | Ch1 sunbeam — the site's ONLY particle system, desktop only (storyboard) |
 | JS per frame | ≤ 5 ms | ≤ 5 ms | ≤ 5 ms | Lane A (D-13) |
 | Frame-rate target | ≥ 45 fps | ≥ 60 fps target (45 fps floor) | 60 fps locked | Lane A (D-13); Ch5's locked 60 fps is a ship-blocker (D-15) |
-| PMREM residency (HDRI env maps) | ≤ 4 | ≤ 4 | ≤ 5 | Mobile drops qwantani_moonrise and reuses night (ASSETS.md); HDRI crossfade actives ≤ 2 all tiers |
+| PMREM residency (HDRI env maps) | ≤ 4 | ≤ 4 | ≤ 5 | Mobile drops qwantani_moonrise and reuses night (ASSETS.md); HDRI crossfade actives ≤ 2 all tiers. **Amended for Ch4's day-wheel only — ≤ 5 mobile / ≤ 6 desktop there, ≤ 3 everywhere else: see §Amendments B1 (2026-08-20)** |
 | Model files (sourced) | ≤ 13 | ≤ 13 | ≤ 13 | ASSETS.md ledger row count (10 Poly Haven + 3 Sketchfab) |
 | Shipped KTX2 texture files (number + size) | ≤ 24 — 1K everywhere except the two sanctioned exceptions | ≤ 24 — same 1K policy | ≤ 24 — 2K limited to Paper001 ECU + Ch6 UI screenshot; everything else 1K | Storyboard/ASSETS.md. Mobile exceptions: Ch1 Paper001 2K; Ch5 hero 2K conditional on memory headroom, else 1K |
 
@@ -63,7 +63,7 @@ Measured at p75 under mobile CPU/network throttle (Phase 6 traces). Restated as 
 Ch4 is the budget chapter — the first scene Phase 3 profiles. Its worst frame must hold:
 
 - Draw calls ≤ 75 (expected 35–45)
-- Resident PMREMs = 2 max during crossfade
+- Resident PMREM-class targets: **≤ 6 desktop / ≤ 5 mobile during the day-wheel**, ≤ 3 in every other chapter — the wheel holds all five `qwantani_*` skies plus the blend RT. This bullet's original two-target reading is superseded by §Amendments B1 (2026-08-20); HDRI crossfade **actives** (source environments participating in a blend) are unchanged at ≤ 2, because the wheel blends one adjacent pair at a time
 - Shadow maps = 1 (animated light *direction*, never extra maps)
 - JS ≤ 5 ms/frame
 - Zero per-frame allocations (uniform updates only)
@@ -99,3 +99,41 @@ From STORYBOARD.md per-chapter Performance-risk fields (D-15: budget violations 
 ## Sources
 
 Every number above traces to Lane A (D-13), to RESEARCH Finding 2 arithmetic (live polycount + transfer sums, verified 2026-08-18), or is explicitly tagged `[PROVISIONAL]` for Phase 2/6 ratification. Invented numbers are forbidden (RESEARCH Don't Hand-Roll).
+
+## Amendments
+
+> Append-only, dated. The tables above are never rewritten in place — an amendment supersedes the line it names, and the affected row is annotated to point here. D-15: a budget is redirected in the open or not at all; nothing is silently exceeded. Same protocol as STACK-DECISION.md §Amendments and STORYBOARD.md §Amendments.
+
+### B1 (2026-08-20) — PMREM-class residency rises to ≤ 6 desktop / ≤ 5 mobile, during Ch4's day-wheel only
+
+*Supersedes: the **PMREM residency (HDRI env maps)** row of §Per-frame budgets and the residency bullet of §Ch4 worst-frame budget — for Ch4 only. Both are annotated in place rather than rewritten.*
+*Owner: plan 03-02 Task 2, closing 03-RESEARCH §Open Question 1.*
+
+**The conflict, stated.** Ch4's day-wheel — WOW A — sweeps six days across 4.20 wheel cycles (STORYBOARD A6). To do that without generating a PMREM mid-scrub it must hold all five `qwantani_*` skies resident: sunrise · noon · dusk2 · night · moonrise. STACK-DECISION A4 ruled that the crossfade's blend RT counts against the PMREM residency line. Five sources plus the blend is **6 PMREM-class targets on desktop against a ≤ 5 line**; mobile drops moonrise and reuses night, giving four sources plus the blend = **5 against a ≤ 4 line**. Both are over. Either the number moved or the scene did.
+
+**The arithmetic, shown.** A4 measured **~6 MB per 768×1024 half-float CubeUV target** (1024×512 equirect → cubeSize 256 → 768×1024, all three targets identical). Six of them:
+
+```
+6 targets × ~6 MB ≈ 36 MB
+```
+
+against the **≤ 128 MB texture-memory** line — **28% of it**, leaving ~92 MB for every shipped model/PBR texture. The ≤ 24-file KTX2 line at 1K ETC1S/UASTC is projected comfortably inside that remainder, and that projection is an assertion this phase must earn: Phase 3 ships all of those files. 03-19 Task 2 audits the summed bytes against the real `public/assets/manifest.json`, and `?hud=1`'s `tex` column (added 03-02 Task 1) reads the live GPU-resident count on the way there.
+
+**The ruling.**
+
+| Line | Ch4 day-wheel | Every other chapter |
+|---|---|---|
+| PMREM-class targets, desktop | ≤ 6 | ≤ 3 (A + B + blend) |
+| PMREM-class targets, mobile | ≤ 5 | ≤ 3 |
+| HDRI crossfade **actives** (source environments in a blend) | ≤ 2 — unchanged | ≤ 2 — unchanged |
+
+A4's ≤2-actives reading survives intact. The wheel blends exactly one *adjacent* pair at a time — STORYBOARD A7 makes the canonical light state the triple `(skyA, skyB, mix)` — so only ever two source environments participate in a blend. The other three sources are **resident, not active**. This amendment moves the residency line and nothing else. ASSETS.md's original intent ("≤ 5 HDRIs resident as PMREMs desktop") is satisfied exactly, not stretched: five HDRIs, plus the machinery A4 chose.
+
+**The rejected alternative, and why.** LRU keep-3 plus re-PMREM at each segment boundary, regenerating from retained `.hdr` ArrayBuffers, keeps the ≤ 5 line. It also puts GPU PMREM generation *on the scrub path* at the moments Ch4 scrubs fastest — the ×4 wheel section across 0–66%. That is 03-RESEARCH Pitfall 4's named failure mode, bought with VRAM the budget demonstrably already has, and it would re-introduce the CPU-side HDR buffers A4 deliberately disposed. Rejected: it trades a measured 36 MB for an unmeasurable hitch in the chapter whose whole job is speed.
+
+**Enforcement.** Two numbers are recorded per chapter in each chapter plan's SUMMARY (D3-15), because neither is the whole story alone:
+
+- `?hud=1`'s **`pmrem-RT`** column is `envCrossfade.targetCount()` — the targets that module holds, A + B + blend. During Ch4 it reads **3**, legitimately, while the gated number is **6**.
+- the **day-wheel's own source count** (5 desktop / 4 mobile). Residency = wheel sources + 1 blend; the A/B pair is two of the wheel's five, never two more.
+
+A breach redirects the scene (D-15). It never relaxes the line.
