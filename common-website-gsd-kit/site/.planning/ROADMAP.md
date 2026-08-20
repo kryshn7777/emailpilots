@@ -98,7 +98,60 @@ Plans:
   4. By the end of the core journey the visitor can say what Email Pilots does, with every claim sourced from `docs/product/FEATURES.md`
   5. Scenes lazy-load one-ahead of scroll with no visible pop-in at boundaries, and a scroll-progress affordance always signals where the visitor is and how much remains
 
-**Plans**: TBD
+**Plans**: 19 plans
+
+Plans:
+**Wave 1** *(vocabulary, seams and the big ingest — no cross-file overlap)*
+
+- [ ] 03-01-PLAN.md — Choreography constants & the one-take contract (beat tables, camera grammar + pose table, set-state, world-type strings, copy-parity gate)
+- [ ] 03-02-PLAN.md — Instrumentation & budget rulings (HUD tris/frame-ms before Ch4, envCrossfade ownership seam, PMREM-residency amendment)
+- [ ] 03-03-PLAN.md — Sticky FULL-mode stage + 740vh spans + pre-paint mode gate, Timeline.onDrive, quiet nav + progress affordance, SplitText helper
+- [ ] 03-04-PLAN.md — Room & dressing ingest (7 Poly Haven models incl. the 70% book-set decimation, Paper001, WoodFloor051)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 03-05-PLAN.md — Asset registry, chapter-ahead prefetch, and the `?still=` capture utility
+- [ ] 03-06-PLAN.md — Motion vocabulary: envelope flight grammar, letter fold rig, lamp light-state
+- [ ] 03-07-PLAN.md — Light & world-type vocabulary: day-wheel, canvas label atlas (Q6 verdict), constellation
+- [ ] 03-08-PLAN.md — Ink stroke-ramp bake (the reserved Q2 pipeline slot) + the authored handwriting
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 03-09-PLAN.md — The Room: procedural shell, prop placement, light rig, tier knobs; Ch1 skeleton; ProofChapter retired; wall material decided on a combined render
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 03-10-PLAN.md — Envelope ingest: texture-strip extension + the two CC-BY sets with attribution + Cardboard004
+- [ ] 03-11-PLAN.md — Ch1 FIRST LIGHT complete: material family, ink reveal shader, PULL-WIDE micro, dust, copy
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 03-12-PLAN.md — Ch6 UI capture session (blocking human) + `bake-ui.mjs` → 2K UASTC
+- [ ] 03-13-PLAN.md — Ch2 THE HANDOFF: envelope set, fold-to-envelope, stack + wait tags, dusk, lamp click, orbit
+
+**Wave 6** *(blocked on Wave 5)*
+
+- [ ] 03-14-PLAN.md — Ch3 NIGHT SHIFT: night HDRI, three seeded departures, constellation, clock, hover probe
+
+**Wave 7** *(blocked on Wave 6)*
+
+- [ ] 03-15-PLAN.md — Ch4 SIX DAYS (WOW A): noon + moonrise HDRIs, day-wheel, ramp, bounce decal, drawer — measured first among the WOWs
+
+**Wave 8** *(blocked on Wave 7)*
+
+- [ ] 03-16-PLAN.md — Ch5 THE REPLY (WOW B): reversed arrival, stand-down, dawn, locked-60fps ship-blocker check
+
+**Wave 9** *(blocked on Wave 8)*
+
+- [ ] 03-17-PLAN.md — Ch6 YOUR DESK, THE APP (WOW C): UI plane, five staggered leader lines, card flip, one-stop dim
+
+**Wave 10** *(blocked on Wave 9)*
+
+- [ ] 03-18-PLAN.md — Ch7 READY WHEN YOU ARE: final PULL-WIDE, fresh sheet, conversion block revealed
+
+**Wave 11** *(blocked on Wave 10)*
+
+- [ ] 03-19-PLAN.md — Parity stills + real key art, consolidated budget table, six-seam one-take check, scene-director review (D3-04b)
 **UI hint**: yes
 
 ### Phase 4: Mobile, Fallbacks & Accessibility
@@ -157,7 +210,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Creative Blueprint & Budgets | 4/4 | Complete    | 2026-08-18 |
 | 2. Foundation & Architecture | 5/5 | Complete   | 2026-08-19 |
-| 3. Core Experience | 0/TBD | Not started | - |
+| 3. Core Experience | 0/19 | Planned | - |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |
 | 5. Conversion, Copy & Share | 0/TBD | Not started | - |
 | 6. Performance, QA & Polish | 0/TBD | Not started | - |
