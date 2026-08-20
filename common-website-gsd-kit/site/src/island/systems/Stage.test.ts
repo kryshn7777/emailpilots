@@ -27,7 +27,10 @@ const occurrences = (haystack: string, needle: string): number =>
 test('the hud overlay reports every axis BUDGETS.md gates (D3-15)', () => {
   const m = SOURCE.match(/this\.hud\.textContent\s*=([\s\S]*?);\n/);
   assert.ok(m !== null, 'Stage.ts assigns the overlay line through textContent');
-  const line = m[1];
+  // The template is concatenated across source lines to stay inside the column limit,
+  // so the seams are re-joined before the labels are read — the assertion is about the
+  // string the visitor sees, not about where the author pressed Enter.
+  const line = m[1].replace(/\s*\n\s*/g, ' ').replace(/` \+ `/g, '');
 
   // Draw calls (≤75) and triangles resident (≤200K) — the two render counters.
   // `autoReset` is already false and `info.reset()` already runs before the render,

@@ -87,15 +87,21 @@ export class Stage {
       if (this.hud === null) {
         this.renderer.render(this.scene, this.camera);
       } else {
-        // Instrumented render ('?hud=1', Q1 protocol): manual info reset because
+        // Instrumented render ('?hud=1', D3-15 protocol): manual info reset because
         // autoReset wipes the counters at the end of every render() call.
         this.renderer.info.reset();
         const t0 = performance.now();
         this.renderer.render(this.scene, this.camera);
-        const ms = performance.now() - t0;
+        const draw = performance.now() - t0;
+        const info = this.renderer.info;
         const targets = this.hudTargetCount === null ? '-' : String(this.hudTargetCount());
+        // frame ms is the TICKER delta (JS per frame, the gated axis); draw ms is the
+        // render() delta alone. A slow scene update is invisible in the second number,
+        // which is the whole reason both columns exist.
         this.hud.textContent =
-          `calls ${this.renderer.info.render.calls} | ${ms.toFixed(2)} ms | pmrem-RT ${targets}`;
+          `calls ${info.render.calls} | tris ${info.render.triangles} | ` +
+          `frame ${deltaTime.toFixed(2)} ms | draw ${draw.toFixed(2)} ms | ` +
+          `tex ${info.memory.textures} | geo ${info.memory.geometries} | pmrem-RT ${targets}`;
       }
       this.quality.frame(time * 1000, deltaTime);
     };
@@ -104,10 +110,19 @@ export class Stage {
 
     const params = new URLSearchParams(window.location.search);
 
-    // Dev instrumentation overlay ('?hud=1', Q1 protocol): scene draw calls, render
-    // ms (performance.now deltas), live PMREM-class target count. Numbers only via
-    // textContent — no query string ever reaches the DOM (T-02-08). The crossfade
-    // blend pass is structurally +1 call on transition frames, outside this counter.
+    // Dev instrumentation overlay ('?hud=1', D3-15): the four numbers BUDGETS.md gates
+    // per frame — draw calls ≤ 75, triangles resident ≤ 200K, JS per frame ≤ 5 ms, and
+    // texture memory ≤ 128 MB (read as the live GPU-resident texture/geometry counts,
+    // the only instrument that axis has) — plus draw ms and the PMREM-class target
+    // count. It exists in wave 1 because Ch4 is the budget chapter and is measured
+    // FIRST among the WOW chapters: an unmeasured axis in the phase that fills it is
+    // the one place a budget gets blown with nobody noticing.
+    //
+    // Numbers only, via textContent — no query string ever reaches the DOM (T-02-08 /
+    // T-03-01). The crossfade blend pass is structurally +1 call on transition frames,
+    // outside this counter. pmrem-RT counts only the targets envCrossfade itself holds
+    // (A + B + blend); a day-wheel owning five sources externally reads 3 here while
+    // BUDGETS' amended residency line gates 6 — see BUDGETS.md §Amendments B1.
     if (params.get('hud') === '1') {
       const hud = document.createElement('div');
       hud.style.cssText =
