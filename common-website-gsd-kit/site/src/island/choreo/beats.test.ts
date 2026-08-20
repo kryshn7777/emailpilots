@@ -90,14 +90,26 @@ const COPY_TABLES: Record<string, Readonly<Record<string, CopyBeat>>> = {
   CH7_COPY_AT,
 };
 
+/**
+ * Interior fractions carry IEEE-754 error the inputs already have — `0.25 - 0.2` is
+ * `0.04999999999999999` before `span` sees it, so `span(0.25, 0.2, 0.4)` is
+ * `0.24999999999999994`. The clamped *edges* are exact and are asserted exactly; only
+ * the linear interior is compared within tolerance. Widening this beyond 1e-12 would
+ * stop catching a real drift.
+ */
+const closeTo = (actual: number, expected: number, message: string): void => {
+  assert.ok(Math.abs(actual - expected) < 1e-12, `${message} (got ${actual})`);
+};
+
 test('span clamps below, clamps above, and is exactly linear inside', () => {
   assert.equal(span(0.1, 0.2, 0.4), 0, 'below the window is 0');
-  assert.equal(span(0.2, 0.2, 0.4), 0, 'the opening edge is 0');
-  assert.equal(span(0.25, 0.2, 0.4), 0.25, 'a quarter of the way in is 0.25');
-  assert.equal(span(0.3, 0.2, 0.4), 0.5, 'the midpoint is 0.5');
-  assert.equal(span(0.4, 0.2, 0.4), 1, 'the closing edge is 1');
+  assert.equal(span(0.2, 0.2, 0.4), 0, 'the opening edge is exactly 0');
+  closeTo(span(0.25, 0.2, 0.4), 0.25, 'a quarter of the way in is 0.25');
+  closeTo(span(0.3, 0.2, 0.4), 0.5, 'the midpoint is 0.5');
+  assert.equal(span(0.4, 0.2, 0.4), 1, 'the closing edge is exactly 1');
   assert.equal(span(0.9, 0.2, 0.4), 1, 'above the window is 1');
   assert.equal(span(0, 0, 1), 0, 'a whole-chapter window passes progress through');
+  assert.equal(span(0.5, 0, 1), 0.5, 'a whole-chapter window passes progress through');
   assert.equal(span(1, 0, 1), 1, 'a whole-chapter window passes progress through');
 });
 
