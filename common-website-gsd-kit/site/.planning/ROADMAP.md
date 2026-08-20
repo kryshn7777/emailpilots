@@ -104,7 +104,7 @@ Plans:
 **Wave 1** *(vocabulary, seams and the big ingest — no cross-file overlap)*
 
 - [x] 03-01-PLAN.md — Choreography constants & the one-take contract (beat tables, camera grammar + pose table, set-state, world-type strings, copy-parity gate)
-- [ ] 03-02-PLAN.md — Instrumentation & budget rulings (HUD tris/frame-ms before Ch4, envCrossfade ownership seam, PMREM-residency amendment)
+- [x] 03-02-PLAN.md — Instrumentation & budget rulings (HUD tris/frame-ms before Ch4, envCrossfade ownership seam, PMREM-residency amendment)
 - [ ] 03-03-PLAN.md — Sticky FULL-mode stage + 740vh spans + pre-paint mode gate, Timeline.onDrive, quiet nav + progress affordance, SplitText helper
 - [ ] 03-04-PLAN.md — Room & dressing ingest (7 Poly Haven models incl. the 70% book-set decimation, Paper001, WoodFloor051)
 
@@ -210,7 +210,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Creative Blueprint & Budgets | 4/4 | Complete    | 2026-08-18 |
 | 2. Foundation & Architecture | 5/5 | Complete   | 2026-08-19 |
-| 3. Core Experience | 1/19 | In Progress|  |
+| 3. Core Experience | 2/19 | In Progress|  |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |
 | 5. Conversion, Copy & Share | 0/TBD | Not started | - |
 | 6. Performance, QA & Polish | 0/TBD | Not started | - |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-08-20T15:12:00.000Z"
-last_activity: 2026-08-20 -- Completed 03-01 (choreography vocabulary)
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-08-20T15:37:57.611Z"
+last_activity: 2026-08-20 -- Completed 03-02 (HUD instrumentation + PMREM seam)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 28
-  completed_plans: 10
-  percent: 36
+  completed_plans: 11
+  percent: 39
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Core Experience) — EXECUTING
-Plan: 2 of 19
+Plan: 3 of 19
 Status: Executing Phase 3
-Last activity: 2026-08-20 -- Completed 03-01 (choreography vocabulary)
+Last activity: 2026-08-20 -- Completed 03-02 (HUD instrumentation + PMREM seam)
 
-Progress: [████░░░░░░] 36%
+Progress: [████░░░░░░] 39%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [████░░░░░░] 36%
 | Phase 02 P04 | 57min | 2 tasks | 14 files |
 | Phase 2 P05 | 19min | 2 tasks | 9 files |
 | Phase 3 P01 | 40min | 3 tasks | 8 files |
+| Phase 3 P02 | 18min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,8 @@ Recent decisions affecting current work:
 - [Phase 2]: Q1 winner: candidate (a) RT blend — ≤2 crossfade actives = SOURCE envs; blend RT counts on the ≤4/5 residency line (STACK-DECISION A4)
 - [Phase 2]: Q4 closed — Astro 7.2.2 + Vite 8 stands, zero bundler plugins, no fallback pin; island ratified 241,282 B gz of 307,200 (A5, BUDGETS actuals)
 - [Phase 2]: Live-URL smoke deferred-to-user — Pages 404s pre-merge, deploy-site.yml only on feat/founder-month-promo; exact merge+dispatch+smoke steps in 02-05-SUMMARY
+- [Phase 3]: PMREM-class residency amended to <=6 desktop / <=5 mobile during Ch4's day-wheel only (<=3 elsewhere) — 6 x ~6 MB ~= 36 MB of the 128 MB texture line; LRU re-PMREM rejected (puts GPU generation on the x4 scrub path). BUDGETS §Amendments B1 + STACK-DECISION A6
+- [Phase 3]: envCrossfade seam = setPair(a, b, { disposePrevious }) default true — both existing call sites unchanged; false suppresses disposal at the swap AND at dispose(), so the day-wheel owns its five skies. adoptExternal rejected
 
 ### Pending Todos
 
@@ -97,7 +100,7 @@ None yet.
 
 - Phase 2 verification = human_needed: 7 browser/deploy UAT items tracked in phases/02-foundation-architecture/02-HUMAN-UAT.md (incl. FND-03 scroll-affordance check + live-Pages smoke blocked on user merging feat/founder-month-promo → main). Phase closed with this as tracked debt; local preview served for testing.
 - REQUIREMENTS.md header previously said 27 v1 requirements; actual count is 32 — corrected during roadmap creation
-- **03-VALIDATION.md in the working tree is a STALE pre-A6/A7 copy, older than HEAD (commit cd9eba5).** Not touched or staged by 03-01. The working copy still says "four cycles ending at 4.0 (B-3)" and asserts a stored `skyId` reconciliation, both superseded by STORYBOARD Amendments A6/A7 and by REVIEWS.md Rulings 5-6 — the canon 03-01 was actually built against. Same clobber signature as the STATE.md regression during this plan's `gsd-sdk query state.*` batch. **Restore with `git checkout -- .planning/phases/03-core-experience/03-VALIDATION.md` before any later Phase-3 plan reads it**; 03-01 deliberately did not, since reverting a file it did not create is outside its staging remit.
+- **RESOLVED 2026-08-20 (03-02): 03-VALIDATION.md is no longer stale.** The working copy was restored to the A6/A7-aware HEAD version before this plan ran, and 03-02 then edited exactly four status cells it owns (the D3-15 instrument row, 03-02-T1, 03-02-T2, and the wave-1 HUD checklist item). **Do NOT run `git checkout -- .planning/phases/03-core-experience/03-VALIDATION.md`** — that instruction is now stale and would discard them. The original clobber signature (a `gsd-sdk query state.*` batch regressing files to older snapshots) is still worth watching: diff STATE.md after any `state.*` call. 03-02's batch did not regress the file wholesale, but it did emit `percent: 33` against a recalculated 39, blank `last_activity`, a `[Phase ?]` prefix on every decision, and `Status: Ready to execute` mid-phase — all hand-repaired.
 - Commits currently ride the outer repo's `feat/founder-month-promo` branch (PROJECT.md Key Decisions: revisit)
 
 ## Deferred Items
@@ -110,6 +113,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-20T15:12:00.000Z
-Stopped at: Completed 03-01-PLAN.md
-Resume file: .planning/phases/03-core-experience/03-02-PLAN.md
+Last session: 2026-08-20T15:37:25.952Z
+Stopped at: Completed 03-02-PLAN.md
+Resume file: .planning/phases/03-core-experience/03-03-PLAN.md
