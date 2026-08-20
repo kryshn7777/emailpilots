@@ -36,20 +36,22 @@ Progress: [████░░░░░░] 39%
 
 **Velocity:**
 
-- Total plans completed: 4
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 11 (Phase 1: 4, Phase 2: 5, Phase 3: 2)
+- Average duration: ~22 min across the 10 plans with a recorded metric row
+- Total execution time: ~3.6 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 4 | - | - |
+| 1 | 4 | 28 min | 7 min |
+| 2 | 5 | 131 min + P03 unrecorded | ~33 min |
+| 3 | 2 of 19 | 58 min | 29 min |
 
 **Recent Trend:**
 
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 57 / 19 / 40 / 18 min (P2-04, P2-05, P3-01, P3-02) — the fifth, P2-03, has no recorded row
+- Trend: Phase-3 source plans are landing faster than the Phase-2 average; the ingest plans are the long ones
 
 *Updated after each plan completion*
 | Phase 1 P01 | 6min | 2 tasks | 1 files |
