@@ -31,6 +31,7 @@ const SOURCE_DIR = path.join(ROOT, 'assets-source');
 const WORK_DIR = path.join(SOURCE_DIR, '.work'); // gitignored with its parent
 const MANIFEST_PATH = path.join(ASSETS_DIR, 'manifest.json');
 const GLTF_CLI = fileURLToPath(new URL('../node_modules/@gltf-transform/cli/bin/cli.js', import.meta.url));
+const GLTFPACK_CLI = fileURLToPath(new URL('../node_modules/gltfpack/cli.js', import.meta.url));
 
 // Rigged/articulated rows (ASSETS.md §Source polycounts & decimation plan):
 // desk_lamp_arm_01 is skinned; alarm_clock_01 carries named hand nodes. These
@@ -38,6 +39,17 @@ const GLTF_CLI = fileURLToPath(new URL('../node_modules/@gltf-transform/cli/bin/
 // defaults collapse the node graph and merge named meshes, which destroys rigs
 // (research Pattern 5 / Pitfall 3). They take the per-command rig-safe chain.
 const RIGGED = new Set(['desk_lamp_arm_01', 'alarm_clock_01']);
+
+// Rows whose geometry stage runs gltfpack `-si` instead of gltf-transform's
+// simplifier — the fallback STACK-DECISION sanctions "if gltf-transform's
+// simplifier underperforms on the 67K-tri book set" (Dependencies row). It did:
+// at the shared --error 0.01 bound BOTH tools wall out at ~32.5K tris (48% of
+// source, vs the 20K ceiling) because the 20 book meshes are dense with UV /
+// normal seams the simplifier refuses to collapse across. gltfpack's `-sp`
+// (permissive: allow collapse across attribute discontinuities) reaches 19,997.
+// Seam-crossing collapses are invisible at the ~2 m shelf viewing distance; the
+// ceiling itself never moved (D-12/D-15 — inputs iterate, ceilings do not).
+const GLTFPACK_SIMPLIFY = new Set(['book_encyclopedia_set_01']);
 
 // D-15 downward iterations (never relaxes a ceiling): per-asset input tightening
 // applied after a bytes-gate failure, recorded in the ASSETS.md ledger actuals.
@@ -51,12 +63,23 @@ const ROW_TUNING = {
   WoodenTable_02: { uastcMax: 1024 },
   desk_lamp_arm_01: { mrMax: 512 },
   alarm_clock_01: { mrMax: 512 },
+  clipboard: { mrMax: 512 },
+  stationery_supplies: { mrMax: 512 },
+  Shelf_01: { uastcMax: 512 },
+  WoodenChair_01: { mrMax: 512 },
+  binder_notebook: { mrMax: 512 },
 };
 
 /** Spawn one gltf-transform CLI command; any non-zero exit aborts the ingest. */
 function run(args) {
   const r = spawnSync(process.execPath, [GLTF_CLI, ...args], { stdio: ['ignore', 'inherit', 'inherit'], cwd: ROOT });
   if (r.status !== 0) throw new Error(`gltf-transform ${args[0]} failed (exit ${r.status})`);
+}
+
+/** Spawn gltfpack; any non-zero exit aborts the ingest (same fail-closed contract as run()). */
+function runGltfpack(args) {
+  const r = spawnSync(process.execPath, [GLTFPACK_CLI, ...args], { stdio: ['ignore', 'inherit', 'inherit'], cwd: ROOT });
+  if (r.status !== 0) throw new Error(`gltfpack failed (exit ${r.status})`);
 }
 
 /** Read tri count, skin count, and sorted named-node list via NodeIO (pre-meshopt/pre-KTX2 files only). */
@@ -202,11 +225,18 @@ function sizesFor(row) {
  */
 async function ingestStaticRow(row, srcFile, work, ratio) {
   const pre = path.join(work, 'pre.glb');
-  run(["optimize", srcFile, pre,
-    "--compress", "false",
-    "--texture-compress", "false",
-    "--simplify-ratio", String(ratio),
-    "--simplify-error", "0.01"]);
+  if (GLTFPACK_SIMPLIFY.has(row.id)) {
+    // -noq leaves the intermediate unquantized and decoder-free, so the tris /
+    // bytes gates read it exactly as they read every other static row; textures
+    // are embedded untouched (no -tc) and meshopt still runs last.
+    runGltfpack(['-i', srcFile, '-o', pre, '-si', String(ratio), '-sp', '-noq']);
+  } else {
+    run(["optimize", srcFile, pre,
+      "--compress", "false",
+      "--texture-compress", "false",
+      "--simplify-ratio", String(ratio),
+      "--simplify-error", "0.01"]);
+  }
   const textured = await encodeTextures(pre, path.join(work, 'textured.glb'), work, sizesFor(row));
   const final = path.join(work, 'final.glb');
   run(['meshopt', textured, final]);

@@ -11,6 +11,39 @@
     "ingested": "2026-08-19"
   },
   {
+    "id": "binder_notebook",
+    "file": "binder_notebook/binder_notebook.glb",
+    "source_url": "https://polyhaven.com/a/binder_notebook",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 5138446,
+    "bytes_optimized": 876464,
+    "ceiling_bytes": 1200000,
+    "ingested": "2026-08-20"
+  },
+  {
+    "id": "book_encyclopedia_set_01",
+    "file": "book_encyclopedia_set_01/book_encyclopedia_set_01.glb",
+    "source_url": "https://polyhaven.com/a/book_encyclopedia_set_01",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 4682980,
+    "bytes_optimized": 1510768,
+    "ceiling_bytes": 1800000,
+    "ingested": "2026-08-20"
+  },
+  {
+    "id": "clipboard",
+    "file": "clipboard/clipboard.glb",
+    "source_url": "https://polyhaven.com/a/clipboard",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 6768714,
+    "bytes_optimized": 740456,
+    "ceiling_bytes": 800000,
+    "ingested": "2026-08-20"
+  },
+  {
     "id": "desk_lamp_arm_01",
     "file": "desk_lamp_arm_01/desk_lamp_arm_01.glb",
     "source_url": "https://polyhaven.com/a/desk_lamp_arm_01",
@@ -20,6 +53,17 @@
     "bytes_optimized": 1211992,
     "ceiling_bytes": 1500000,
     "ingested": "2026-08-19"
+  },
+  {
+    "id": "office_notepads",
+    "file": "office_notepads/office_notepads.glb",
+    "source_url": "https://polyhaven.com/a/office_notepads",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 5724234,
+    "bytes_optimized": 911116,
+    "ceiling_bytes": 1000000,
+    "ingested": "2026-08-20"
   },
   {
     "id": "qwantani_dusk_2_puresky",
@@ -42,6 +86,39 @@
     "bytes_optimized": 1033946,
     "ceiling_bytes": 2000000,
     "ingested": "2026-08-19"
+  },
+  {
+    "id": "Shelf_01",
+    "file": "Shelf_01/Shelf_01.glb",
+    "source_url": "https://polyhaven.com/a/Shelf_01",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 2497976,
+    "bytes_optimized": 666104,
+    "ceiling_bytes": 1200000,
+    "ingested": "2026-08-20"
+  },
+  {
+    "id": "stationery_supplies",
+    "file": "stationery_supplies/stationery_supplies.glb",
+    "source_url": "https://polyhaven.com/a/stationery_supplies",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 7254223,
+    "bytes_optimized": 955904,
+    "ceiling_bytes": 1500000,
+    "ingested": "2026-08-20"
+  },
+  {
+    "id": "WoodenChair_01",
+    "file": "WoodenChair_01/WoodenChair_01.glb",
+    "source_url": "https://polyhaven.com/a/WoodenChair_01",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 2290293,
+    "bytes_optimized": 1317352,
+    "ceiling_bytes": 1500000,
+    "ingested": "2026-08-20"
   },
   {
     "id": "WoodenTable_02",
