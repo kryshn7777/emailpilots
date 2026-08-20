@@ -15,9 +15,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { WAIT_TAGS, SEND_TIMESTAMPS, DAY_TAGS, MAP_LABELS } from './worldType.ts';
 
-const ROOT = path.resolve(import.meta.dirname, '../../..');
+// `import.meta.dirname` is real on Node 22+ but untyped under `moduleResolution: Bundler`,
+// so the site root is derived from the standard `import.meta.url` instead.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const COPY_PLAN = fs.readFileSync(path.join(ROOT, '.planning/COPY-PLAN.md'), 'utf8');
 const SHELL = fs.readFileSync(path.join(ROOT, 'src/pages/index.astro'), 'utf8');
 
@@ -26,13 +29,19 @@ const BINARY = new Set(['.ktx2', '.hdr', '.glb', '.woff2', '.png', '.webp', '.wa
 
 const flatten = (s: string): string => s.replace(/\s+/g, ' ').trim();
 
-/** The body of a `## Heading` section, up to the next `## `. */
+/**
+ * The body of a `## Heading` section, up to the next `## `. Matched on whole lines: the
+ * document also *mentions* its own section names inline (`` `## Banned register` ``), and a
+ * substring search silently returns the wrong block — a fixture that parses to nothing and
+ * a gate that asserts nothing.
+ */
 function section(markdown: string, heading: string): string {
-  const start = markdown.indexOf(`## ${heading}`);
+  const lines = markdown.split('\n');
+  const start = lines.findIndex((l) => l.trim() === `## ${heading}`);
   assert.notEqual(start, -1, `COPY-PLAN carries a "${heading}" section`);
-  const rest = markdown.slice(start + heading.length + 3);
-  const end = rest.indexOf('\n## ');
-  return end === -1 ? rest : rest.slice(0, end);
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((l) => l.startsWith('## '));
+  return (end === -1 ? rest : rest.slice(0, end)).join('\n');
 }
 
 /**
