@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-08-20T15:37:57.611Z"
-last_activity: 2026-08-20 -- Completed 03-02 (HUD instrumentation + PMREM seam)
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-08-20T19:58:15.852Z"
+last_activity: 2026-08-20 -- Completed 03-04 (room & dressing ingest: 9 rows shipped under ceiling)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 28
-  completed_plans: 11
-  percent: 39
+  completed_plans: 12
+  percent: 43
 ---
 
 # Project State
@@ -28,17 +28,17 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 Phase: 3 (Core Experience) — EXECUTING
 Plan: 3 of 19
 Status: Executing Phase 3
-Last activity: 2026-08-20 -- Completed 03-02 (HUD instrumentation + PMREM seam)
+Last activity: 2026-08-20 -- Completed 03-04 (room & dressing ingest: 9 rows shipped under ceiling)
 
-Progress: [████░░░░░░] 39%
+Progress: [████░░░░░░] 43%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 11 (Phase 1: 4, Phase 2: 5, Phase 3: 2)
-- Average duration: ~22 min across the 10 plans with a recorded metric row
-- Total execution time: ~3.6 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
+- Total plans completed: 12 (Phase 1: 4, Phase 2: 5, Phase 3: 3)
+- Average duration: ~28 min across the 11 plans with a recorded metric row
+- Total execution time: ~5.2 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
 
 **By Phase:**
 
@@ -46,12 +46,12 @@ Progress: [████░░░░░░] 39%
 |-------|-------|-------|----------|
 | 1 | 4 | 28 min | 7 min |
 | 2 | 5 | 131 min + P03 unrecorded | ~33 min |
-| 3 | 2 of 19 | 58 min | 29 min |
+| 3 | 3 of 19 | 153 min | 51 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 57 / 19 / 40 / 18 min (P2-04, P2-05, P3-01, P3-02) — the fifth, P2-03, has no recorded row
-- Trend: Phase-3 source plans are landing faster than the Phase-2 average; the ingest plans are the long ones
+- Last 6 plans: 30 / 57 / 19 / 40 / 18 / 95 min (P2-02, P2-04, P2-05, P3-01, P3-02, P3-04) — P2-03 still has no recorded row
+- Trend: Phase-3 source plans land faster than the Phase-2 average; the ingest plans are the long ones — P3-04 at ~95 min is the phase's longest so far, as predicted
 
 *Updated after each plan completion*
 | Phase 1 P01 | 6min | 2 tasks | 1 files |
@@ -64,6 +64,7 @@ Progress: [████░░░░░░] 39%
 | Phase 2 P05 | 19min | 2 tasks | 9 files |
 | Phase 3 P01 | 40min | 3 tasks | 8 files |
 | Phase 3 P02 | 18min | 2 tasks | 7 files |
+| Phase 3 P04 | 95min | 2 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,9 @@ Recent decisions affecting current work:
 - [Phase 2]: Q1 winner: candidate (a) RT blend — ≤2 crossfade actives = SOURCE envs; blend RT counts on the ≤4/5 residency line (STACK-DECISION A4)
 - [Phase 2]: Q4 closed — Astro 7.2.2 + Vite 8 stands, zero bundler plugins, no fallback pin; island ratified 241,282 B gz of 307,200 (A5, BUDGETS actuals)
 - [Phase 2]: Live-URL smoke deferred-to-user — Pages 404s pre-merge, deploy-site.yml only on feat/founder-month-promo; exact merge+dispatch+smoke steps in 02-05-SUMMARY
+- [Phase 3]: book_encyclopedia_set_01 ships via gltfpack `-si -sp` — at the shared --error 0.01 bound BOTH simplifiers wall out at ~32.5K tris on its UV/normal seams; permissive mode reaches 19,994 of a 20K ceiling (first use of the STACK-DECISION fallback, no ceiling moved)
+- [Phase 3]: Paper001 ships colour 2K ETC1S + normal/roughness 1K UASTC — colour+normal at 2K alone is 3.06 MB against a 3 MB ceiling, so 2K UASTC is unreachable by arithmetic; Ch1 ECU sharpness is a scene-director item on the normal channel only, not a whole-row 1K redirect
+- [Phase 3]: multi-part Poly Haven props ship as ONE merged mesh and their sources are kit flat-lays, not compositions — Ch7's pen and the binder's closed variant cannot currently be placed individually; remedy is a join-disabled re-ingest, a 03-09/03-16 composition call
 - [Phase 3]: PMREM-class residency amended to <=6 desktop / <=5 mobile during Ch4's day-wheel only (<=3 elsewhere) — 6 x ~6 MB ~= 36 MB of the 128 MB texture line; LRU re-PMREM rejected (puts GPU generation on the x4 scrub path). BUDGETS §Amendments B1 + STACK-DECISION A6
 - [Phase 3]: envCrossfade seam = setPair(a, b, { disposePrevious }) default true — both existing call sites unchanged; false suppresses disposal at the swap AND at dispose(), so the day-wheel owns its five skies. adoptExternal rejected
 
@@ -103,6 +107,7 @@ None yet.
 - Phase 2 verification = human_needed: 7 browser/deploy UAT items tracked in phases/02-foundation-architecture/02-HUMAN-UAT.md (incl. FND-03 scroll-affordance check + live-Pages smoke blocked on user merging feat/founder-month-promo → main). Phase closed with this as tracked debt; local preview served for testing.
 - REQUIREMENTS.md header previously said 27 v1 requirements; actual count is 32 — corrected during roadmap creation
 - **RESOLVED 2026-08-20 (03-02): 03-VALIDATION.md is no longer stale.** The working copy was restored to the A6/A7-aware HEAD version before this plan ran, and 03-02 then edited exactly four status cells it owns (the D3-15 instrument row, 03-02-T1, 03-02-T2, and the wave-1 HUD checklist item). **Do NOT run `git checkout -- .planning/phases/03-core-experience/03-VALIDATION.md`** — that instruction is now stale and would discard them. The original clobber signature (a `gsd-sdk query state.*` batch regressing files to older snapshots) is still worth watching: diff STATE.md after any `state.*` call. 03-02's batch did not regress the file wholesale, but it did emit `percent: 33` against a recalculated 39, blank `last_activity`, a `[Phase ?]` prefix on every decision, and `Status: Ready to execute` mid-phase — all hand-repaired.
+- Model ingest is NOT byte-reproducible (the geometry stage: optimize/meshopt/gltfpack); PBR ingest is. A bare `node pipeline/ingest.mjs` rewrites already-shipped unrelated assets with different bytes — always name rows explicitly (CHK-W3, proven 03-04)
 - Commits currently ride the outer repo's `feat/founder-month-promo` branch (PROJECT.md Key Decisions: revisit)
 
 ## Deferred Items
@@ -115,6 +120,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-20T15:37:25.952Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-08-20T19:58:15.852Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: .planning/phases/03-core-experience/03-03-PLAN.md
