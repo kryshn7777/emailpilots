@@ -11,6 +11,37 @@ const description =
 ---
 
 <Base title={title} description={description}>
+  <script is:inline slot="head">
+    /*
+     * Pre-paint boot gate (D2-08) — the CLS guard (03-RESEARCH §Pitfall 1).
+     * `data-mode` must be on <html> BEFORE first paint, or the FULL-mode restyle (sticky
+     * stage, vh section spans, hidden stills) lands after render as a layout shift.
+     *
+     * Astro does not process an inline-declared script, so this copy cannot import
+     * anything: it is a LITERAL transcription of the boot decision in src/boot/gate.ts,
+     * whose docblock carries the other half of this cross-reference and which stays the
+     * tested source of the rule set. `src/boot/gateInline.test.ts` evaluates THIS body
+     * against gate.test.ts's own case matrix, so the two copies cannot drift silently.
+     */
+    var override = new URLSearchParams(location.search).get('path');
+    var mode;
+    if (override !== null && ['full', 'static', 'reduced'].includes(override)) {
+      // Allowlist is literal and the value only ever reaches dataset.mode — never
+      // concatenated into markup (D2-10 / T-03-01).
+      mode = override;
+    } else if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      mode = 'reduced';
+    } else if (
+      !document.createElement('canvas').getContext('webgl2') ||
+      navigator.connection?.saveData === true
+    ) {
+      mode = 'static';
+    } else {
+      mode = 'full';
+    }
+    document.documentElement.dataset.mode = mode;
+  </script>
+
   <!-- The H1 is the LCP element (D2-19, BUDGETS.md §Core Web Vitals). -->
   <header class="masthead">
     <h1 class="display">You write it once.</h1>
@@ -28,7 +59,9 @@ const description =
     </div>
 
     <section id="ch1" class="chapter">
-      <p class="sub">One personal email, to one person you actually want to reach.</p>
+      <div class="copy">
+        <p class="sub">One personal email, to one person you actually want to reach.</p>
+      </div>
       <!-- Ch1 key art: pure-SVG placeholder of the master framing (desk plane lower third,
            window upper right, lamp frame left — ART-DIRECTION §Composition). Token colors only.
            The real rendered still is a Phase 3 deliverable (STORYBOARD §Shell & Fallback Story Parity). -->
@@ -61,12 +94,14 @@ const description =
     </section>
 
     <section id="ch2" class="chapter">
-      <h2 class="display">
-        Then the part you always mean to do: <span class="beat">the follow-ups.</span>
-      </h2>
-      <p class="sub">
-        A first email, the follow-ups, and the wait between each. You choose; it remembers.
-      </p>
+      <div class="copy">
+        <h2 class="display">
+          Then the part you always mean to do: <span class="beat">the follow-ups.</span>
+        </h2>
+        <p class="sub">
+          A first email, the follow-ups, and the wait between each. You choose; it remembers.
+        </p>
+      </div>
       <!-- Ch2–Ch7 still slots: placeholder frames until the Phase 3 renders of the real scenes land
            (STORYBOARD §Shell & Fallback Story Parity — alt text narrates each beat). -->
       <figure class="still">
@@ -80,12 +115,14 @@ const description =
     </section>
 
     <section id="ch3" class="chapter">
-      <h2 class="display">While you're anywhere else, it sends.</h2>
-      <p class="worldtype mono">9:14 pm · 9:41 pm · 10:07 pm</p>
-      <p class="sub">
-        Never at 9:00:00 sharp. Human pauses between sends, a daily cap per mailbox, at most 3 a day
-        to the same person.
-      </p>
+      <div class="copy">
+        <h2 class="display">While you're anywhere else, it sends.</h2>
+        <p class="worldtype mono">9:14 pm · 9:41 pm · 10:07 pm</p>
+        <p class="sub">
+          Never at 9:00:00 sharp. Human pauses between sends, a daily cap per mailbox, at most 3 a day
+          to the same person.
+        </p>
+      </div>
       <figure class="still">
         <div
           class="still-frame"
@@ -97,9 +134,11 @@ const description =
     </section>
 
     <section id="ch4" class="chapter">
-      <h2 class="display">Days pass. It keeps your pace.</h2>
-      <p class="sub">New mailboxes ease in — about 5 a day at first, toward about 50.</p>
-      <p class="sub small">A dead address comes back once — and is never emailed again.</p>
+      <div class="copy">
+        <h2 class="display">Days pass. It keeps your pace.</h2>
+        <p class="sub">New mailboxes ease in — about 5 a day at first, toward about 50.</p>
+        <p class="sub small">A dead address comes back once — and is never emailed again.</p>
+      </div>
       <figure class="still">
         <div
           class="still-frame"
@@ -111,11 +150,13 @@ const description =
     </section>
 
     <section id="ch5" class="chapter">
-      <h2 class="display">She answered.</h2>
-      <p class="sub">
-        So the rest stands down. Before every follow-up, it checks for a reply — any of your inboxes
-        counts.
-      </p>
+      <div class="copy">
+        <h2 class="display">She answered.</h2>
+        <p class="sub">
+          So the rest stands down. Before every follow-up, it checks for a reply — any of your inboxes
+          counts.
+        </p>
+      </div>
       <figure class="still">
         <div
           class="still-frame"
@@ -127,20 +168,22 @@ const description =
     </section>
 
     <section id="ch6" class="chapter">
-      <h2 class="display">Meet Email Pilots.</h2>
-      <p class="sub">Everything you just watched is a Windows app, doing its actual job.</p>
-      <ul class="chips">
-        <li>Follow-ups stop the moment they reply</li>
-        <li>Replies checked every 15 minutes</li>
-        <li>Your mailbox + up to 5 more, sending in parallel</li>
-        <li>One do-not-send list across every account</li>
-        <li>No open or click tracking — replies are the honest metric</li>
-        <li>Optional AI that never phones home</li>
-      </ul>
-      <p class="verdict-card">Ready for takeoff</p>
-      <p class="privacy">
-        All of it on your PC. Gmail, Microsoft, or your own server. No cloud account. No telemetry.
-      </p>
+      <div class="copy">
+        <h2 class="display">Meet Email Pilots.</h2>
+        <p class="sub">Everything you just watched is a Windows app, doing its actual job.</p>
+        <ul class="chips">
+          <li>Follow-ups stop the moment they reply</li>
+          <li>Replies checked every 15 minutes</li>
+          <li>Your mailbox + up to 5 more, sending in parallel</li>
+          <li>One do-not-send list across every account</li>
+          <li>No open or click tracking — replies are the honest metric</li>
+          <li>Optional AI that never phones home</li>
+        </ul>
+        <p class="verdict-card">Ready for takeoff</p>
+        <p class="privacy">
+          All of it on your PC. Gmail, Microsoft, or your own server. No cloud account. No telemetry.
+        </p>
+      </div>
       <figure class="still">
         <div
           class="still-frame"
@@ -152,24 +195,26 @@ const description =
     </section>
 
     <section id="ch7" class="chapter">
-      <h2 class="display">Your follow-ups, off your mind.</h2>
-      <!-- The conversion block is plain HTML in every render path (WebGL or not).
-           Phase 5 (CNV-01) wires the real download flow into this anchor. -->
-      <a class="cta-primary" href="#">Download for Windows — free</a>
-      <p class="cta-sub">Free to start. No credit card.</p>
-      <details class="smartscreen">
-        <summary>Windows will double-check a new app — here's the screen you'll see, and why.</summary>
-        <p>
-          Windows shows a "Windows protected your PC" screen for any new app it hasn't seen before.
-          If it appears, choose <span class="mono">More info</span>, then
-          <span class="mono">Run anyway</span>.
-        </p>
-        <!-- The real SmartScreen screenshot (first-party OS capture) lands in Phase 5 (ASSETS.md §First-party). -->
-      </details>
-      <!-- Founder line is PROVISIONAL until Phase 5 verifies wording against src/licensing/entitlement.ts
-           (COPY-PLAN §Conversion block — the single sanctioned plan-name mention). -->
-      <p class="founder-line">Founder window: early signups fly First Class free.</p>
-      <p><a class="cta-secondary" href="#">See everything it does →</a></p>
+      <div class="copy">
+        <h2 class="display">Your follow-ups, off your mind.</h2>
+        <!-- The conversion block is plain HTML in every render path (WebGL or not).
+             Phase 5 (CNV-01) wires the real download flow into this anchor. -->
+        <a class="cta-primary" href="#">Download for Windows — free</a>
+        <p class="cta-sub">Free to start. No credit card.</p>
+        <details class="smartscreen">
+          <summary>Windows will double-check a new app — here's the screen you'll see, and why.</summary>
+          <p>
+            Windows shows a "Windows protected your PC" screen for any new app it hasn't seen before.
+            If it appears, choose <span class="mono">More info</span>, then
+            <span class="mono">Run anyway</span>.
+          </p>
+          <!-- The real SmartScreen screenshot (first-party OS capture) lands in Phase 5 (ASSETS.md §First-party). -->
+        </details>
+        <!-- Founder line is PROVISIONAL until Phase 5 verifies wording against src/licensing/entitlement.ts
+             (COPY-PLAN §Conversion block — the single sanctioned plan-name mention). -->
+        <p class="founder-line">Founder window: early signups fly First Class free.</p>
+        <p><a class="cta-secondary" href="#">See everything it does →</a></p>
+      </div>
       <figure class="still">
         <div class="still-frame" role="img" aria-label="The morning room, a blank sheet on the desk.">
         </div>
@@ -185,18 +230,11 @@ const description =
 
   <script>
     // Boot gate (D2-08) — the ONLY eager JS. Three paths at the same URL, no redirects.
+    // The path was already decided and written to <html data-mode> by the inline head
+    // script above, before first paint; this module only reads the verdict.
     // Fallback paths never import the island: zero wasted bytes.
-    import { decidePath } from '../boot/gate';
-
     const params = new URLSearchParams(location.search);
-    const mode = decidePath({
-      reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
-      // Probe context is throwaway — the island creates its own on #stage.
-      webgl2: !!document.createElement('canvas').getContext('webgl2'),
-      saveData: (navigator as { connection?: { saveData?: boolean } }).connection?.saveData === true,
-      override: params.get('path'),
-    });
-    document.documentElement.dataset.mode = mode;
+    const mode = document.documentElement.dataset.mode;
 
     if (mode === 'full') {
       const loader = document.getElementById('loader');

@@ -71,6 +71,9 @@ const fontFaces = [
         }
       </style>
     </noscript>
+    <!-- Head slot: the pre-paint boot gate lives here (index.astro). It must run before
+         first paint or the FULL-mode restyle is charged to CLS (03-RESEARCH Pitfall 1). -->
+    <slot name="head" />
   </head>
   <body>
     <slot />

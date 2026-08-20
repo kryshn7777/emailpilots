@@ -320,3 +320,175 @@ html[data-mode='reduced'] .stage-wrap {
     animation: none;
   }
 }
+
+/* ============================================================================
+ * FULL mode — the pinned one-take stage (EXP-01, EXP-03).
+ *
+ * The pinning mechanism is deliberately boring: CSS sticky positioning. Lenis animates
+ * the browser's real scroll position, so sticky just works, `Timeline.measure()`'s
+ * getBoundingClientRect math needs no change, and no pin-spacer is inserted between the
+ * sections it measures. There is no ScrollTrigger pin and no scroll-jacking anywhere.
+ *
+ * `data-mode` is written by the is:inline head script in index.astro BEFORE first paint,
+ * so every rule below is part of the first render and costs no CLS.
+ * The STATIC-ENHANCED and REDUCED-MOTION blocks above are untouched — the photo-essay
+ * keeps its normal flow and its 16vh night band.
+ * ========================================================================== */
+
+/* The stage pins for the whole journey and is pulled OUT of flow (REVIEWS.md §B-1).
+   The 100svh box is still reserved, so CLS is unaffected — but its height no longer sits
+   above #ch1. Without the negative margin the seven sections start a full viewport below
+   <main>'s top; because progressMap keys off each section's document top, Ch1 would sit
+   frozen at progress 0 for an entire viewport of scrolling — the ECU held still and the
+   ink not moving, at exactly the moment the site has to hook the visitor — and the journey
+   would measure ~840vh instead of the authored 740vh. One declaration fixes both. */
+html[data-mode='full'] .stage-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  margin-bottom: -100vh;
+  margin-bottom: -100svh;
+}
+
+/* Chapters are transparent overlay layers above the canvas. Pointer events are off so the
+   canvas hover probes stay reachable (03-RESEARCH §Pitfall 9), restored on anything
+   interactive. The still is the static path's content — here the canvas replaces it. */
+html[data-mode='full'] .chapter {
+  position: relative;
+  z-index: 1;
+  max-width: none;
+  padding: 0;
+  pointer-events: none;
+}
+
+html[data-mode='full'] .chapter :is(a, button, summary, details) {
+  pointer-events: auto;
+}
+
+html[data-mode='full'] .chapter .still {
+  display: none;
+}
+
+/* STORYBOARD §Global Choreography Map as real layout. These seven values mirror
+   CHAPTER_SPANS_VH in src/island/choreo/beats.ts (90+100+120+140+110+110+70 = 740vh);
+   that array is the source, and a change there changes these. */
+html[data-mode='full'] #ch1 {
+  min-height: 90vh;
+}
+
+html[data-mode='full'] #ch2 {
+  min-height: 100vh;
+}
+
+html[data-mode='full'] #ch3 {
+  min-height: 120vh;
+}
+
+html[data-mode='full'] #ch4 {
+  min-height: 140vh;
+}
+
+html[data-mode='full'] #ch5 {
+  min-height: 110vh;
+}
+
+html[data-mode='full'] #ch6 {
+  min-height: 110vh;
+}
+
+html[data-mode='full'] #ch7 {
+  min-height: 70vh;
+}
+
+/* ---- FULL-mode copy zones (STORYBOARD Amendment A4 — canon; REVIEWS.md §B-2) ----
+   Left in normal flow, chapter copy sits at the top of a 90–140vh section and scrolls up
+   out of the frame, so a reveal authored to land at 55% plays on a node that left the
+   viewport at 20%; content height also fights min-height, so the authored spans stop being
+   the real spans. Instead the section becomes a pure scroll span and its copy holds its
+   composed screen position for the chapter's whole length inside a sticky 100svh zone —
+   only the reveal animates. The second -100svh pull takes the zone out of flow, so a
+   section's height is exactly its min-height.
+
+   A4 zones: Ch1 upper-left · Ch2 upper-left · Ch3 lower-left · Ch4 upper-left ·
+   Ch5 centred lower-half · Ch6 headlines upper-left + chips lower band · Ch7 upper half.
+   Upper-left is the default below; only the others need a rule. */
+html[data-mode='full'] .chapter > .copy {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  margin-bottom: -100vh;
+  margin-bottom: -100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 42rem);
+  align-content: start;
+  padding: clamp(1.5rem, 8vh, 5rem) clamp(1.25rem, 6vw, 5rem);
+}
+
+/* Ch3 — the window owns the upper frame (STORYBOARD Ch3 §Typography). */
+html[data-mode='full'] #ch3 > .copy {
+  align-content: end;
+}
+
+/* Ch5 — "DOM only, minimal, centered-low": the zone starts at the vertical midpoint, so
+   centring inside it centres the copy in the lower half. */
+html[data-mode='full'] #ch5 > .copy {
+  padding-top: 50svh;
+  align-content: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Ch6 — headlines upper-left, proof chips + verdict + privacy as a lower band; the 1fr
+   track between them absorbs the slack. A4 also names a wordmark top-centre: Ch6's
+   wordmark lives inside its own H2 ("Meet Email Pilots.", STORYBOARD Ch6 §Typography) and
+   there is no separate node to place — adding one would add copy, which D3-11 forbids.
+   If the copy plan ever gains that row, 03-17 owns placing it. */
+html[data-mode='full'] #ch6 > .copy {
+  grid-template-rows: auto auto 1fr auto auto auto;
+}
+
+html[data-mode='full'] #ch6 .chips {
+  grid-row: 4;
+}
+
+html[data-mode='full'] #ch6 .verdict-card {
+  grid-row: 5;
+}
+
+html[data-mode='full'] #ch6 .privacy {
+  grid-row: 6;
+}
+
+/* Ch7 — "DOM conversion block owns the upper half". */
+html[data-mode='full'] #ch7 > .copy {
+  padding-bottom: 50svh;
+}
+
+/* ---- Masthead (STORYBOARD Amendment A2 / REVIEWS.md §Ruling 3) ----
+   The H1 stays a normal, in-flow, eagerly painted element on ALL THREE paths. FULL mode
+   does NOT reposition it into the overlay stack: no position: fixed, no opacity gating, no
+   un-fixing later. LCP is intact by construction rather than by care, D3-11's
+   single-copy-source rule is satisfied trivially, and the question of when a fixed masthead
+   would leave never arises. The one permitted FULL-mode treatment is an EXIT — as it
+   scrolls out it may fade and rise on the house ease-out, transform and opacity only.
+   Driven by the element's own scroll-out rather than by JS, so it costs no listener and no
+   per-drive DOM write; where animation-timeline is unsupported the masthead simply scrolls
+   away, which is also correct. `both` holds the from-state (opacity 1) until the exit range
+   begins, so the LCP candidate is never painted transparent. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    html[data-mode='full'] .masthead h1.display {
+      animation: masthead-exit linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 100%;
+    }
+  }
+}
+
+@keyframes masthead-exit {
+  to {
+    opacity: 0;
+    transform: translateY(-1.5rem);
+  }
+}
