@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-08-20T14:32:58.283Z"
-last_activity: 2026-08-20 -- Phase 3 planning complete
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-08-20T15:12:00.000Z"
+last_activity: 2026-08-20 -- Completed 03-01 (choreography vocabulary)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 28
-  completed_plans: 9
-  percent: 32
+  completed_plans: 10
+  percent: 36
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 
 ## Current Position
 
-Phase: 3
-Plan: 0 of TBD
-Status: Ready to execute
-Last activity: 2026-08-20 -- Phase 3 planning complete
+Phase: 3 (Core Experience) — EXECUTING
+Plan: 2 of 19
+Status: Executing Phase 3
+Last activity: 2026-08-20 -- Completed 03-01 (choreography vocabulary)
 
-Progress: [██████████] 100%
+Progress: [████░░░░░░] 36%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [██████████] 100%
 | Phase 2 P02 | 30min | 3 tasks | 19 files |
 | Phase 02 P04 | 57min | 2 tasks | 14 files |
 | Phase 2 P05 | 19min | 2 tasks | 9 files |
+| Phase 3 P01 | 40min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,7 @@ None yet.
 
 - Phase 2 verification = human_needed: 7 browser/deploy UAT items tracked in phases/02-foundation-architecture/02-HUMAN-UAT.md (incl. FND-03 scroll-affordance check + live-Pages smoke blocked on user merging feat/founder-month-promo → main). Phase closed with this as tracked debt; local preview served for testing.
 - REQUIREMENTS.md header previously said 27 v1 requirements; actual count is 32 — corrected during roadmap creation
+- **03-VALIDATION.md in the working tree is a STALE pre-A6/A7 copy, older than HEAD (commit cd9eba5).** Not touched or staged by 03-01. The working copy still says "four cycles ending at 4.0 (B-3)" and asserts a stored `skyId` reconciliation, both superseded by STORYBOARD Amendments A6/A7 and by REVIEWS.md Rulings 5-6 — the canon 03-01 was actually built against. Same clobber signature as the STATE.md regression during this plan's `gsd-sdk query state.*` batch. **Restore with `git checkout -- .planning/phases/03-core-experience/03-VALIDATION.md` before any later Phase-3 plan reads it**; 03-01 deliberately did not, since reverting a file it did not create is outside its staging remit.
 - Commits currently ride the outer repo's `feat/founder-month-promo` branch (PROJECT.md Key Decisions: revisit)
 
 ## Deferred Items
@@ -108,6 +110,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-19T22:28:50.023Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-core-experience/03-CONTEXT.md
+Last session: 2026-08-20T15:12:00.000Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: .planning/phases/03-core-experience/03-02-PLAN.md
