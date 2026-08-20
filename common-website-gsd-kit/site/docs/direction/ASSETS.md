@@ -43,7 +43,7 @@ Procedural (no source, no license): letter/blank sheet (subdivided plane + 2-bon
 
 | Scene(s) | Asset | Source URL | License | Attribution | Est. original | Optimized target |
 |---|---|---|---|---|---|---|
-| 1, 4, 5, 6 | Qwantani Sunrise (Pure Sky) [V] | https://polyhaven.com/a/qwantani_sunrise_puresky | CC0 | None (courtesy) | 1K .hdr ~1–2 MB (never download 4K+) | 1K .hdr ≤ 2 MB; PMREM once at load — actual: 1.03 MB · 1024×512 · ingested 2026-08-19 |
+| 1, 4, 5, 6, 7 | Qwantani Sunrise (Pure Sky) [V] | https://polyhaven.com/a/qwantani_sunrise_puresky | CC0 | None (courtesy) | 1K .hdr ~1–2 MB (never download 4K+) | 1K .hdr ≤ 2 MB; PMREM once at load — actual: 1.03 MB · 1024×512 · ingested 2026-08-19 |
 | 4, 7 | Qwantani Noon (Pure Sky) [V] | https://polyhaven.com/a/qwantani_noon_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB |
 | 2, 4 | Qwantani Dusk 2 (Pure Sky) [V] | https://polyhaven.com/a/qwantani_dusk_2_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB — actual: 1.17 MB · 1024×512 · ingested 2026-08-19 |
 | 3, 4 | Qwantani Night (Pure Sky) [V] | https://polyhaven.com/a/qwantani_night_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB |
