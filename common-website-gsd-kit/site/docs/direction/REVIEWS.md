@@ -534,7 +534,11 @@ Under this ruling `skyId` is **derived** from `wheelPhase`, and `dayWheel` owns 
   still wave 1.
 - **03-07 owns** the single reconciliation assertion, because it owns the mapping:
   `wheelSegment(SET_STATE[n].start.wheelPhase).a` equals the segment the storyboard names for that
-  chapter, and `mix === 0` at every one of the seven chapter starts and ends. 03-07 already declares
+  chapter, and `mix === 0` at the five boundaries that genuinely land on a pure sky — **0.00, 0.60,
+  4.80, 5.00, 5.20**. It is NOT 0 at every chapter start and end: boundaries that sit mid-blend by
+  design (Ch1→Ch2, Ch2→Ch3) carry a non-zero mix, and asserting otherwise would fail correct
+  seams. Seam *equality* is asserted separately, on the normalised triple, and holds at all six
+  seams — see Ruling 6. 03-07 already declares
   `depends_on: [03-01, 03-02]`, so both constants exist there.
 
 That split is the root-cause placement: the phase chain is a `setState` fact and belongs to 03-01;
@@ -542,3 +546,102 @@ phase→segment is a `dayWheel` fact and belongs to 03-07. Neither module needs 
 the wave it ships.
 
 **Canon:** STORYBOARD §Amendments **A6** (2026-08-20).
+
+---
+
+## Ruling 6 — Ch1/Ch2 phase chain vs the noon segment — 2026-08-20
+
+**The objection is upheld, and it is my error.** A6's Ch1/Ch2 rows route the `noon` sky through the
+site's two quietest chapters, which Ch2 §Lighting forbids by name, ASSETS forbids by scene list, and
+the 03-02 residency amendment forbids by budget. Applying my own Ch3 argument to Ch2 disqualifies the
+chain as written.
+
+**But none of the three offered options is right, because the defect is one level below the values.**
+Fixing the numbers cannot work: `wheelSegment` walks **adjacent** members of
+`['sunrise','noon','dusk2','night','moonrise']`, and Ch2 §Lighting names a **non-adjacent** crossfade
+— *"`qwantani_sunrise_puresky` → `qwantani_dusk_2_puresky` across 0–70%"*, skipping noon. **There is
+no scalar phase that encodes a sunrise→dusk2 blend.** Option (b) is arithmetically impossible, not
+merely hard.
+
+So the scalar `wheelPhase` I introduced in Ruling 5 is a **lossy encoding of the thing that actually
+matters**. What `envCrossfade` consumes — and what a seam must preserve — is the triple
+`(skyA, skyB, mix)`. A scalar can only express adjacent pairs. I compressed the canonical unit into
+something that cannot represent the storyboard, then wrote a chain that satisfied the encoding
+instead of the film. That is the same class of error as the `skyId`→phase conflation Ruling 5 was
+written to kill; I fixed it one level too shallow.
+
+### Ruling: (d) — the canonical unit is the triple; the scalar is derived, and scoped to Ch4
+
+> **`SetState` carries `env: { a: SkyId; b: SkyId; mix: number }` — the exact triple `envCrossfade`
+> consumes. Seam equality asserts on the normalised triple. `wheelPhaseForCh4` survives untouched as
+> the wheel's own parameter; Ch4's `setPhase` *produces* a triple like every other chapter.**
+
+This is a deletion, not an addition. One authority for every chapter including Ch4, so there is no
+exemption and no second source of truth — option (c)'s failure mode never arises. Ch2 can declare the
+crossfade the storyboard names. No new asset, no wave move, no budget amendment.
+
+**Normalisation (one helper, one line):** mix is canonically in `[0, 1)`; `(x, y, 1.0)` normalises to
+`(y, next(y), 0.0)`. Without it, Ch3 exits `(dusk2, night, 1.00)` while Ch4 enters
+`(night, moonrise, 0.00)` — the same rendered light, two spellings, and a naive equality assertion
+fails a seam that is actually perfect. With it, every seam is exact by construction.
+
+**`sunDirectionAt` collapses into the same path.** Give each `SkyId` an authored sun direction and
+colour (`dayWheel` already needs the colour for `skyColorAt`), then the celestial direction is
+`slerp(dir[a], dir[b], mix)` for every chapter. Ch4's full arc is reproduced exactly, because its
+pairs are always adjacent and the five directions sit around the arc. `sunDirectionAt(phase)` becomes
+a thin wrapper: phase → triple → direction. One implementation, no special case for the non-wheel
+chapters — which is what makes Ch1's transition-out land literally: Ch1's blend target is **dusk2**,
+so the moment mix leaves 0 the hue moves toward dusk and the sun is past its peak and falling, exactly
+as §Transition out says. Under A6's chain the target was noon and the sun was *climbing*.
+
+### Corrected chain — Ch1, Ch2, Ch3 (transcribe, do not interpret)
+
+| Chapter | env in → out | beats |
+|---|---|---|
+| **Ch1** | `(sunrise, dusk2, 0.00)` → `(sunrise, dusk2, 0.05)` | mix held at 0.00 for 0–95% (pure sunrise — Ch1 §Lighting names one sky); 95–100% ramps to 0.05, the hue shift toward dusk and the sun beginning to fall |
+| **Ch2** | `(sunrise, dusk2, 0.05)` → `(dusk2, night, 0.20)` | mix 0.05 → 1.00 across 0–70%, **normalising at the 70% lamp beat to `(dusk2, night, 0.00)`** = dusk2 pure; held 70–95%; 95–100% ramps mix to 0.20 (the dusk→night crossfade beginning) |
+| **Ch3** | `(dusk2, night, 0.20)` → `(dusk2, night, 1.00)` ≡ `(night, moonrise, 0.00)` | 0–5% completes to pure night; **held** for 5–100% — the sky is static, objects are the mover |
+
+Ch3's exit normalises to `(night, moonrise, 0.00)`, which is **φ 0.60**.
+
+**Ch4 and everything after are unaffected.** A6's Ch4 key table (0.60 → 4.80, span 4.20, the five day
+tags, the bounce at p ≈ 0.707) stands exactly as written; Ch3 still hands Ch4 a pure night at 0.60.
+Ch5 4.80 → 5.00, Ch6 hold, Ch7 5.00 → 5.20 stand too: their pairs are wheel-adjacent, so the scalar
+remains a valid encoding there and the triples derive from it.
+
+### Cost: none
+
+- **Assets — no change.** Ch1 renders pure sunrise until 95%; `dusk2` lives in `CHAPTER_ASSETS[1]`
+  where it already is, primed by the one-ahead prefetch during Ch1. Nothing is added to Ch1's
+  critical path, which matters — ASSETS estimates Ch1 ≈ 8 MB against a ≤9 MB desktop / ≤5 MB mobile
+  gate, so an extra 2 MB HDRI there would blow mobile outright. That alone disqualifies option (a).
+  (Ledger nit to verify while nearby: the sunrise row's scene list should include 7, since Ch7's pair
+  is `(sunrise, noon)`. It is already resident either way — an accuracy fix, not a load.)
+- **Budget — no change.** Ch2 holds `(sunrise, dusk2)` to 70%, then `setPair(dusk2, night)` with the
+  default `disposePrevious: true`, whose reuse-aware guard keeps `dusk2` and releases `sunrise`. Two
+  sources + one blend = **3 targets**, exactly the ≤3 line for a non-Ch4 chapter, and BUDGETS §Ch2's
+  "2 resident PMREMs during crossfade" holds. 03-02's ≤6 amendment stays scoped to Ch4. Option (a)
+  would have needed three successive pairs in a LOW-MED chapter — either a residency breach or PMREM
+  regeneration mid-scrub, which is Pitfall 4 in the chapter least able to absorb it.
+- **Waves — no change.** `noon` stays ingested by 03-15 in wave 7.
+
+**One shared guard, not per-chapter code.** Both pair swaps (Ch1 at 95% wanting `dusk2`, Ch2 at 70%
+wanting `night`) target a sky the one-ahead prefetch supplies, so a fast scroll could reach the swap
+before the prime completes. Put a single "swap when the registry `has()` it, else hold the current
+pair" guard in the env driver, with a `ponytail:` comment naming the ceiling: the visual loss on a
+miss is a 5% hue shift nobody will see, and the next chapter opens correctly regardless.
+
+### Correction to Ruling 5's `mix === 0` claim
+
+The objection is right that the prose overstated the arithmetic, and the planner's scoping is
+correct. Restated: **seam equality asserts the normalised triple, which is exact at all six seams.**
+Mix is 0 only at boundaries that land on a pure sky — under this corrected chain those are the page
+start and Ch3→Ch4, Ch4→Ch5, Ch5→Ch6, Ch6→Ch7, plus Ch7's end. Ch1→Ch2 (mix 0.05) and Ch2→Ch3
+(mix 0.20) are deliberately mid-blend and always were.
+
+**No number the planner scoped changes.** The five pure values — **0.00, 0.60, 4.80, 5.00, 5.20** —
+are all still pure under this ruling: page start pure sunrise, Ch4 entry pure night, Ch4 exit pure
+moonrise, Ch5 exit pure sunrise, Ch7 exit pure noon. 03-07's assertion stands as scoped. The Ruling 5
+sentence has been corrected in place.
+
+**Canon:** STORYBOARD §Amendments **A7** (2026-08-20).

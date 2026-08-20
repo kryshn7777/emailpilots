@@ -462,3 +462,40 @@ never stored independently):
 
 Staging: the SAT tag flip fires as a threshold accent at p = 0.94 so the card is fully visible before
 the seam; the phase still arrives at 4.80 at p = 1.00.
+
+### A7 — 2026-08-20 · The light state is a sky pair plus a mix; Ch1/Ch2 never pass through noon
+
+*Supersedes: the Ch1, Ch2 and Ch3 rows of A6's phase-chain table. A6's Ch4 key table and the Ch4–Ch7
+rows stand unchanged.*
+*Reason: A6 encoded the light state as a single scalar phase. `wheelSegment` walks **adjacent**
+members of `sunrise · noon · dusk2 · night · moonrise`, but Ch2 §Lighting names a **non-adjacent**
+crossfade — sunrise → dusk2, skipping noon — so no scalar can express it. A6's Ch1/Ch2 values
+therefore routed the noon sky through the site's two quietest chapters, which Ch2 §Lighting forbids
+by name, ASSETS forbids by scene list (Noon is scenes 4 and 7), and the 03-02 residency amendment
+forbids by budget. (REVIEWS.md §Ruling 6.)*
+
+**The canonical light state is the triple `(skyA, skyB, mix)`** — exactly what `envCrossfade`
+consumes. Seam continuity is the equality of that triple across a boundary. `mix` is canonically in
+`[0, 1)`; `(x, y, 1.0)` normalises to `(y, next(y), 0.0)`, so a pure sky has one spelling. The scalar
+wheel phase survives as **Ch4's own parameter** and derives a triple like every other chapter — one
+authority, no exemption.
+
+The celestial direction follows the same path: each sky carries an authored sun direction, and the
+light is `slerp(dir[a], dir[b], mix)` everywhere. Ch4's full arc is unchanged, because its pairs are
+always adjacent. This is what makes Ch1 §Transition out land literally — Ch1's blend target is
+**dusk2**, so the instant mix leaves 0 the hue moves toward dusk and the sun is falling. Under A6 the
+target was noon and the sun was climbing, which said the opposite of the scene.
+
+**Corrected chain for Ch1–Ch3:**
+
+| Chapter | env in → out | how it moves |
+|---|---|---|
+| 1 First Light | `(sunrise, dusk2, 0.00)` → `(sunrise, dusk2, 0.05)` | mix held at 0.00 through 0–95% — pure sunrise, the one sky Ch1 §Lighting names; 95–100% ramps to 0.05, the hue shift toward dusk and the sun beginning to fall |
+| 2 The Handoff | `(sunrise, dusk2, 0.05)` → `(dusk2, night, 0.20)` | mix 0.05 → 1.00 across 0–70%, normalising at the 70% lamp beat to `(dusk2, night, 0.00)` = dusk2 pure; held 70–95%; 95–100% ramps mix to 0.20 |
+| 3 Night Shift | `(dusk2, night, 0.20)` → `(dusk2, night, 1.00)` | 0–5% completes to pure night; **held** 5–100% — the sky is static, the objects are the mover |
+
+Ch3's exit normalises to `(night, moonrise, 0.00)` = **phase 0.60**, so **Ch4's entry and A6's whole
+Ch4 table are unaffected**, as are Ch5 (4.80 → 5.00), Ch6 (hold) and Ch7 (5.00 → 5.20).
+
+Cost: none. No sky is added to any chapter's manifest, no ingest moves wave, and Ch2 holds two
+sources plus one blend — three targets, inside the ≤3 line for a non-Ch4 chapter.
