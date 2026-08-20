@@ -68,6 +68,12 @@ const ROW_TUNING = {
   Shelf_01: { uastcMax: 512 },
   WoodenChair_01: { mrMax: 512 },
   binder_notebook: { mrMax: 512 },
+  // Paper001 (PBR): the 2K set summed 5.36 MB vs a 3 MB ceiling, and colour+normal
+  // at 2K alone is 3.06 MB — 2K UASTC is unreachable under this ceiling by
+  // arithmetic, not by tuning. Colour (the channel the Ch1 ECU actually reads as
+  // paper grain) keeps its 2K ETC1S; normal + roughness drop to 1K, exactly the
+  // WoodenTable_02 move. Ledger row annotated; ceiling untouched.
+  Paper001: { uastcMax: 1024 },
 };
 
 /** Spawn one gltf-transform CLI command; any non-zero exit aborts the ingest. */
@@ -336,26 +342,52 @@ async function ingestHdriRow(row) {
 }
 
 /**
- * PBR texture-set rows: drop displacement/height maps (ASSETS.md rule — never
- * sampled), toktx-encode per slot rules (color → ETC1S, normal/rough/AO/metal →
- * UASTC), gate on the SUMMED bytes of the set.
- * ponytail: unexercised until Phase 3 ingests the first ambientCG set — any toktx
- * flag drift fails the run non-zero (fail-closed), which is the safe direction.
+ * PBR texture-set rows: keep only the sampled slots (PBR_MAP_RE), toktx-encode
+ * per the D2-18 slot rules (color -> ETC1S, normal/rough/AO/metal -> UASTC) at
+ * the per-slot sizes sizesFor() derives from the ledger row + ROW_TUNING, and
+ * gate on the SUMMED bytes of the set.
+ *
+ * Exercised for real 2026-08-20 by Paper001 + WoodFloor051 (03-04). What that
+ * first run cost, so the next PBR row can be budgeted instead of guessed: UASTC
+ * is ~1 byte/texel before zstd, so a 2K data slot lands at 2.3-2.7 MB. Paper001's
+ * colour+normal at 2K summed 3.06 MB against a 3 MB ceiling BEFORE its roughness
+ * map was counted — 2K is affordable for ETC1S colour only, and UASTC slots ride
+ * at 1K via ROW_TUNING (the WoodenTable_02 precedent). Rule of thumb per row:
+ * colour ~0.31 MB @2K / ~0.08 MB @1K, plus ~0.6-0.7 MB per UASTC slot @1K.
  */
+// ambientCG zips carry more than the slots this project samples: a preview
+// thumbnail (`<id>.png`), Displacement/Height (never sampled — ASSETS.md rule),
+// and BOTH normal conventions. Only NormalGL is correct for three.js (NormalDX
+// has an inverted green channel). Allowlist, not denylist: an unrecognised file
+// cannot ride into public/assets and spend ceiling budget on junk.
+const PBR_MAP_RE = /_(Color|NormalGL|Roughness|Metalness|AmbientOcclusion)\.(png|jpe?g)$/i;
+
 async function ingestPbrRow(row) {
   const dir = path.join(SOURCE_DIR, row.id);
-  const images = fs.readdirSync(dir).filter((f) => /\.(png|jpe?g)$/i.test(f) && !/displacement|height/i.test(f));
+  const images = fs.readdirSync(dir).filter((f) => PBR_MAP_RE.test(f));
   if (!images.length) throw new Error(`${row.id}: no usable maps under assets-source/${row.id}/`);
   const work = makeWork(row.id);
+  const { colorMax, uastcMax, mrMax } = sizesFor(row);
   const outputs = [];
   for (const img of images) {
     const uastcSlot = /normal|rough|metal|ao|ambient|occlusion/i.test(img);
+    // normal keeps the row's UASTC size; roughness/AO/metalness are low-frequency
+    // and may sit lower still — the same split encodeTextures() applies to models.
+    const maxSize = !uastcSlot ? colorMax : /normal/i.test(img) ? uastcMax : mrMax;
+    // ponytail: source resolution is read from ambientCG's own filename token
+    // (`_2K-JPG_`) and assumed square — true of every tileable surface set they
+    // publish. A set that breaks the convention just encodes at native size and
+    // the summed-bytes gate below catches it; swap in a JPEG SOF probe only if a
+    // real row ever needs one.
+    const srcPx = Number((img.match(/_(\d+)K-/) ?? [])[1]) * 1024;
+    const resize = maxSize && srcPx > maxSize ? ['--resize', `${maxSize}x${maxSize}`] : [];
     const out = path.join(work, img.replace(/\.(png|jpe?g)$/i, '.ktx2'));
     const args = uastcSlot
-      ? ['--t2', '--genmipmap', '--encode', 'uastc', '--uastc_quality', '2', '--uastc_rdo_l', '1', '--zcmp', '18', '--assign_oetf', 'linear', '--assign_primaries', 'none', out, path.join(dir, img)]
-      : ['--t2', '--genmipmap', '--encode', 'etc1s', '--qlevel', '128', '--clevel', '1', '--assign_oetf', 'srgb', out, path.join(dir, img)];
-    const r = spawnSync('toktx', args, { stdio: ['ignore', 'inherit', 'inherit'] });
-    if (r.status !== 0) throw new Error(`toktx failed on ${img} (exit ${r.status})`);
+      ? ['--t2', '--genmipmap', ...resize, '--encode', 'uastc', '--uastc_quality', '2', '--uastc_rdo_l', '1', '--zcmp', '18', '--assign_oetf', 'linear', '--assign_primaries', 'none', out, path.join(dir, img)]
+      : ['--t2', '--genmipmap', ...resize, '--encode', 'etc1s', '--qlevel', '128', '--clevel', '1', '--assign_oetf', 'srgb', out, path.join(dir, img)];
+    const r = spawnSync('toktx', args, { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
+    if (r.status !== 0) throw new Error(`toktx failed on ${img} (exit ${r.status}):\n${r.stderr}`);
+    console.log(`[ktx2] ${img} ${srcPx || '?'}px → ${uastcSlot ? 'UASTC' : 'ETC1S'}${resize.length ? ` @${maxSize}` : ''} (${fs.statSync(out).size} B)`);
     outputs.push(out);
   }
   const total = outputs.reduce((s, f) => s + fs.statSync(f).size, 0);

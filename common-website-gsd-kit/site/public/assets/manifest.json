@@ -66,6 +66,17 @@
     "ingested": "2026-08-20"
   },
   {
+    "id": "Paper001",
+    "file": "Paper001",
+    "source_url": "https://ambientcg.com/a/Paper001",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 16199706,
+    "bytes_optimized": 2548279,
+    "ceiling_bytes": 3000000,
+    "ingested": "2026-08-20"
+  },
+  {
     "id": "qwantani_dusk_2_puresky",
     "file": "qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr",
     "source_url": "https://polyhaven.com/a/qwantani_dusk_2_puresky",
@@ -130,5 +141,16 @@
     "bytes_optimized": 2241096,
     "ceiling_bytes": 2500000,
     "ingested": "2026-08-19"
+  },
+  {
+    "id": "WoodFloor051",
+    "file": "WoodFloor051",
+    "source_url": "https://ambientcg.com/a/WoodFloor051",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 5101961,
+    "bytes_optimized": 1265322,
+    "ceiling_bytes": 1500000,
+    "ingested": "2026-08-20"
   }
 ]
