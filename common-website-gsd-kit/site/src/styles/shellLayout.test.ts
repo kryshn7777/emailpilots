@@ -230,3 +230,35 @@ test('the release is exactly one copy-zone height — the A8 cancellation', () =
       "until <main> ends instead of releasing with its own 70vh section (A4's Ch7 exception)",
   );
 });
+
+/** A `<n>svh` length declared for `prop` in a rule body, as a number. */
+function svh(body: string, prop: string, where: string): number {
+  const m = body.match(new RegExp(`${prop}:\\s*(-?\\d+)svh`));
+  assert.ok(m, `${where} must declare ${prop} in svh`);
+  return Number(m[1]);
+}
+
+test("Ch7's copy zone holds until <main> ends, not until its own section", () => {
+  const base = ruleBody("html[data-mode='full'] .chapter > .copy");
+  const ch7 = ruleBody("html[data-mode='full'] #ch7 > .copy");
+  const release = ruleBody("html[data-mode='full'] .tail-release");
+  assert.equal(svh(base, 'margin-bottom', 'the A4 copy zone'), -100, "A4's out-of-flow pull");
+  assert.equal(
+    svh(ch7, 'margin-bottom', "Ch7's copy zone"),
+    svh(base, 'margin-bottom', 'the A4 copy zone') - svh(release, 'height', 'the tail release'),
+    'Ch7 buys exactly one tail release of extra sticky travel. A sticky box travels its ' +
+      'containing block INSET BY ITS OWN MARGINS — measured in Chromium at 1440x900, not read ' +
+      'off spec prose — so -100svh (the A4 pull) minus 100svh (TAIL_RELEASE_VH) holds the zone ' +
+      'at top: 0 until <main> ends. Without it the zone released with #ch7 at scrollY 764.9vh ' +
+      'and then slid by the footer 180px: at document bottom the H2 sat at -108px and the CTA ' +
+      'was cut in half at -27..27px. With it, document bottom reads zone top 0px, H2 72px, ' +
+      'CTA 153-207px — the composed ending, held. Padding #ch7 instead is NOT an alternative: ' +
+      'padding grows the border box, so progressMap would read Ch7 as a 170vh span and every ' +
+      'A3 beat would move.',
+  );
+  assert.equal(
+    svh(ch7, 'padding-bottom', "Ch7's copy zone"),
+    50,
+    "A4's Ch7 zone is still the upper half — the hold changes when it releases, never where it sits",
+  );
+});
