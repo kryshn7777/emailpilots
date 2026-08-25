@@ -111,7 +111,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1)*
 
 - [ ] 03-05-PLAN.md — Asset registry, chapter-ahead prefetch, and the `?still=` capture utility
-- [ ] 03-06-PLAN.md — Motion vocabulary: envelope flight grammar, letter fold rig, lamp light-state
+- [x] 03-06-PLAN.md — Motion vocabulary: envelope flight grammar, letter fold rig, lamp light-state
 - [ ] 03-07-PLAN.md — Light & world-type vocabulary: day-wheel, canvas label atlas (Q6 verdict), constellation
 - [ ] 03-08-PLAN.md — Ink stroke-ramp bake (the reserved Q2 pipeline slot) + the authored handwriting
 
@@ -210,7 +210,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Creative Blueprint & Budgets | 4/4 | Complete    | 2026-08-18 |
 | 2. Foundation & Architecture | 5/5 | Complete   | 2026-08-19 |
-| 3. Core Experience | 3/19 | In Progress|  |
+| 3. Core Experience | 4/19 | In Progress|  |
 | 4. Mobile, Fallbacks & Accessibility | 0/TBD | Not started | - |
 | 5. Conversion, Copy & Share | 0/TBD | Not started | - |
 | 6. Performance, QA & Polish | 0/TBD | Not started | - |

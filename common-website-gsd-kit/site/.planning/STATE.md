@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-08-20T19:58:15.852Z"
-last_activity: 2026-08-20 -- Completed 03-04 (room & dressing ingest: 9 rows shipped under ceiling)
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-08-25T23:15:00.000Z"
+last_activity: 2026-08-25 -- Completed 03-06 (motion vocabulary: flight grammar, fold rig, lamp accent)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 28
-  completed_plans: 12
-  percent: 43
+  completed_plans: 13
+  percent: 46
 ---
 
 # Project State
@@ -26,19 +26,19 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Core Experience) — EXECUTING
-Plan: 3 of 19
+Plan: 4 of 19
 Status: Executing Phase 3
-Last activity: 2026-08-20 -- Completed 03-04 (room & dressing ingest: 9 rows shipped under ceiling)
+Last activity: 2026-08-25 -- Completed 03-06 (motion vocabulary: flight grammar, fold rig, lamp accent)
 
-Progress: [████░░░░░░] 43%
+Progress: [████░░░░░░] 46%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 12 (Phase 1: 4, Phase 2: 5, Phase 3: 3)
-- Average duration: ~28 min across the 11 plans with a recorded metric row
-- Total execution time: ~5.2 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
+- Total plans completed: 13 (Phase 1: 4, Phase 2: 5, Phase 3: 4)
+- Average duration: ~29 min across the 12 plans with a recorded metric row
+- Total execution time: ~5.7 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
 
 **By Phase:**
 
@@ -46,12 +46,12 @@ Progress: [████░░░░░░] 43%
 |-------|-------|-------|----------|
 | 1 | 4 | 28 min | 7 min |
 | 2 | 5 | 131 min + P03 unrecorded | ~33 min |
-| 3 | 3 of 19 | 153 min | 51 min |
+| 3 | 4 of 19 | 183 min | 46 min |
 
 **Recent Trend:**
 
-- Last 6 plans: 30 / 57 / 19 / 40 / 18 / 95 min (P2-02, P2-04, P2-05, P3-01, P3-02, P3-04) — P2-03 still has no recorded row
-- Trend: Phase-3 source plans land faster than the Phase-2 average; the ingest plans are the long ones — P3-04 at ~95 min is the phase's longest so far, as predicted
+- Last 6 plans: 57 / 19 / 40 / 18 / 95 / 30 min (P2-04, P2-05, P3-01, P3-02, P3-04, P3-06) — P2-03 still has no recorded row
+- Trend: Phase-3 source plans land faster than the Phase-2 average; the ingest plans are the long ones — P3-04 at ~95 min is the phase's longest so far, as predicted. P3-06 at ~30 min is a pure-vocabulary plan: 4 modules, 3 suites, no assets, no browser
 
 *Updated after each plan completion*
 | Phase 1 P01 | 6min | 2 tasks | 1 files |
@@ -65,6 +65,7 @@ Progress: [████░░░░░░] 43%
 | Phase 3 P01 | 40min | 3 tasks | 8 files |
 | Phase 3 P02 | 18min | 2 tasks | 7 files |
 | Phase 3 P04 | 95min | 2 tasks | 17 files |
+| Phase 3 P06 | 30min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,11 @@ Recent decisions affecting current work:
 - [Phase 3]: multi-part Poly Haven props ship as ONE merged mesh and their sources are kit flat-lays, not compositions — Ch7's pen and the binder's closed variant cannot currently be placed individually; remedy is a join-disabled re-ingest, a 03-09/03-16 composition call
 - [Phase 3]: PMREM-class residency amended to <=6 desktop / <=5 mobile during Ch4's day-wheel only (<=3 elsewhere) — 6 x ~6 MB ~= 36 MB of the 128 MB texture line; LRU re-PMREM rejected (puts GPU generation on the x4 scrub path). BUDGETS §Amendments B1 + STACK-DECISION A6
 - [Phase 3]: envCrossfade seam = setPair(a, b, { disposePrevious }) default true — both existing call sites unchanged; false suppresses disposal at the swap AND at dispose(), so the day-wheel owns its five skies. adoptExternal rejected
+- [Phase 3]: FLIGHT_PHASES = 0.25 / 0.125 / 0.5 / 0.125 from a 1200 ms nominal departure — the storyboard's 300 ms lift and 150 ms pause are exact, only the 750 ms remainder is split (600 glide / 150 crossing); chapters buy a slower Ch5 with a WIDER span, never a different curve
+- [Phase 3]: flightPose 'arrive' is implemented as `1 - t` before anything else, so REVIEWS.md F-12's scale reversal holds by construction for every field of FlightPose, present and future — not as a separately re-derived mirror curve
+- [Phase 3]: flightPose position is mixed-unit by design — [lateral m, height m, 0..1 fraction of the chapter's desk->window vector] — so the one law never has to know where a given chapter's window is
+- [Phase 3]: the letter fold rig is built at runtime (Bone/Skeleton/SkinnedMesh) and never enters the gltf-transform chain (STACK-DECISION A3); the only interesting maths lives in a zero-import weights module that node --test drives
+- [Phase 3]: a grep gate that proves only a token exists gets a runtime twin when the threat register lists the file as a mitigation — T-03-09 is now an assertion that lampState reaches invalidate, not that `onUpdate` is spelled
 
 ### Pending Todos
 
@@ -120,6 +126,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-20T19:58:15.852Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-08-25T23:15:00.000Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: .planning/phases/03-core-experience/03-03-PLAN.md
