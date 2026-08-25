@@ -499,3 +499,41 @@ Ch4 table are unaffected**, as are Ch5 (4.80 → 5.00), Ch6 (hold) and Ch7 (5.00
 
 Cost: none. No sky is added to any chapter's manifest, no ingest moves wave, and Ch2 holds two
 sources plus one blend — three targets, inside the ≤3 line for a non-Ch4 chapter.
+
+### A8 — 2026-08-20 · "The page ends stopped" gets a mechanical definition; Ch7's copy holds to the end
+
+*Extends A3 (Ch7's ending) and adds a Ch7 exception to A4's copy-zone rule. No scene text, no beat
+percentage, no span, and no camera value changes.*
+*Reason: DIR-B1's `margin-bottom: -100svh` on the sticky stage removes one viewport from the document
+tail as well as fixing the head. Ch7 is 70vh — shorter than the viewport it lost — so it measured
+zero scrub range: A3's PULL-WIDE, its LOCKED hold and its 0.55 draft lift could never play, and the
+progress affordance capped at 0.857 with the seventh chapter title never shown.
+(REVIEWS.md §Ruling 7.)*
+
+**The section box is not the picture.** Every chapter reaches progress 1.0 at the moment its box's
+bottom edge crosses the viewport top — Ch1–Ch6 are all off-screen at their own progress 1.0, which is
+invisible because the next chapter takes over. What the visitor sees is the pinned canvas and the
+pinned copy zone. So Ch7's box sitting above the viewport at document bottom is how the last beat is
+reached, not a violation of "ends stopped".
+
+**The tail release.** A `100svh` element is the last child of `<main>` in FULL mode — the head's
+negative margin paid back at the tail, same number, opposite end, so the two cancel and the document
+is the length the layout always intended. It sits inside `<main>` so the sticky stage stays pinned
+across it and the canvas keeps holding Ch7's composed frame. It is **not choreography**: it carries
+no beats, it is excluded from the chapter list the scrub maps against, and it is excluded from the
+740vh gate.
+
+**`CHAPTER_SPANS_VH` is unchanged** — `[90, 100, 120, 140, 110, 110, 70]`, total **740vh**. Widening
+Ch7 to swallow a viewport was rejected: Ch7 is the shortest chapter by design ("quiet, resolved", the
+CTA arriving promptly after the reveal), and the extra length would be dead scroll after the
+conversion block has already landed — the defect that was removed from the start of the journey.
+
+**Ch7's copy zone holds past its own section.** A4's zones are per-chapter sticky overlays that hand
+off to the next chapter's zone; Ch7 has no successor, so its zone stays pinned until `<main>` ends.
+Without this the ending is the morning room with the CTA sliding away, which is worse than the bug.
+This is the ending's real requirement: the canvas holds *and* the copy holds.
+
+**The progress affordance reaches 100% at Ch7's scrub end, not at document bottom.** The meter
+measures the journey; the footer is site chrome, not story. The bar fills as the room settles and
+stays full through the held rest and the footer. Parking it short of full through the entire authored
+ending would tell the visitor the film is unfinished while it is over.

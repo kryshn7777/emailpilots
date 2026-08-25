@@ -645,3 +645,110 @@ moonrise, Ch5 exit pure sunrise, Ch7 exit pure noon. 03-07's assertion stands as
 sentence has been corrected in place.
 
 **Canon:** STORYBOARD §Amendments **A7** (2026-08-20).
+
+---
+
+## Ruling 7 — Ch7's scroll tail — 2026-08-20
+
+Measured at 1440×900 (Chromium, dev server): section tops 24.9 / 114.9 / 214.9 / 334.9 / 474.9 /
+584.9 / 694.9 vh, heights `[90,100,120,140,110,110,70]`, journey 740.0vh, max scrollY 694.9vh.
+`#ch7` spans 694.9 → 764.9. So at document bottom Ch7's progress is `(694.9 − 694.9)/70 = 0` — the
+last chapter has no scrub range at all.
+
+**The finding is correct and the cause is mine.** DIR-B1's `margin-bottom: -100svh` does one job at
+the head (chapters start at `<main>`'s top) and an unwanted second job at the tail (the document is a
+viewport shorter). Ch7 is 70vh — less than the viewport it lost — so it absorbs the entire deficit.
+A3's beats cannot play: no PULL-WIDE across 0–30%, no LOCKED hold, and the draft lift authored at
+0.55 never fires.
+
+### The premise to correct first: the section box is not the picture
+
+The tested remedy was rejected because Ch7's box ends at −90…−20vh at document bottom, read as the
+journey scrolling "past" Ch7. It isn't. **Every chapter reaches progress 1.0 at the moment its box's
+bottom edge crosses the viewport top** — that is `progressMap`'s definition, and Ch1–Ch6 are all
+already off-screen at their own progress 1.0. It is invisible for them because the next chapter takes
+over.
+
+What the visitor sees is the **pinned canvas** plus the **pinned copy zone**, neither of which is the
+section box. So "Ch7's box is above the viewport" is not a contradiction of A3 — it is how the last
+beat is reached. The real requirement hiding inside the objection is narrower and worth stating
+plainly: *the copy must not slide away while the canvas holds.*
+
+### Ruling
+
+**1 · Pay the head's debt back at the tail: a `100svh` release, last child of `<main>`, FULL mode only.**
+
+Restore exactly what the negative margin removed — same number, opposite end, so the two cancel and
+the document is the length the layout always intended. Inside `<main>`, so the sticky stage stays
+pinned across it and the canvas keeps holding Ch7's final frame. Class it `.tail-release` so nobody
+mistakes it for a scene.
+
+It is **not choreography**: it carries no beats, it is excluded from `progressMap`'s section list, and
+it is excluded from the 740vh regression gate. It is layout paying back layout.
+
+**2 · `CHAPTER_SPANS_VH` does not change. There is no A8-worthy span edit.**
+
+`[90, 100, 120, 140, 110, 110, 70]`, total **740vh**, stands. I considered widening Ch7 to 100vh so
+its box would end exactly at document bottom; rejected. Ch7 is the shortest chapter *by design* —
+"quiet, resolved", the CTA arriving promptly after the reveal. Stretching it to 100vh buys 30vh of
+nothing after the conversion block has already landed, which is dead scroll at the end: the exact
+defect B-1 removed from the start. The journey's length is authored; the tail release is plumbing.
+
+**3 · The rest is authored: Ch7's copy zone holds past its own section.**
+
+This is the one real requirement the objection surfaced. From Ch7 progress 1.0 to document bottom, the
+canvas holds the composed morning-room frame — and **Ch7's copy zone must stay pinned until `<main>`
+ends**, not release with its section. Without that, the ending is the room with the CTA sliding off,
+which is worse than the bug being fixed.
+
+A4's copy zones are per-chapter sticky overlays that hand off to the next chapter's zone. Ch7 has no
+successor, so its zone holds to the end of `<main>`. That is a Ch7 exception to A4, not a new
+mechanism.
+
+**4 · The affordance reaches 100% at Ch7's scrub end, not at document bottom.**
+
+EXP-07 promises "where am I in the *journey* / how much more". The footer is site chrome, not story,
+so the meter measures the film. `barFraction(6, 1, 7) = 1.0` already does this — **no change to
+`affordance.ts`**. The bar fills at scrollY 764.9vh and stays full through the held rest.
+
+The alternative — full only at true document bottom — would park the bar at ~0.96 through the entire
+authored ending, telling the visitor the film is unfinished while it is over. That is the worse lie.
+A bar that fills while a held frame and a footer remain is not a lie at all: there is no journey left,
+and the fill landing as the room settles is a small free satisfaction.
+
+### The numbers after the fix
+
+| | before | after |
+|---|---|---|
+| max scrollY | 694.9vh | ≥ 764.9vh (Ch7 bottom reachable) |
+| Ch7 progress at document bottom | 0 | 1.0 (clamped) |
+| PULL-WIDE 0–30% | never plays | scrollY 694.9 → 715.9vh |
+| draft lift at p 0.55 (A3) | never fires | scrollY 733.4vh |
+| LOCKED hold 30–100% | never plays | scrollY 715.9 → 764.9vh (49vh of stillness) |
+| bar scaleX | caps 0.857 | 1.0 from scrollY 764.9vh |
+| chapter label | 6 of 7 titles | all 7; "Ready When You Are" from 694.9vh |
+
+### Constants to transcribe
+
+```
+TAIL_RELEASE_VH = 100        // svh; last child of <main>, FULL mode only, class .tail-release
+                             // pays back DIR-B1's head margin; carries no beats
+CHAPTER_SPANS_VH = [90, 100, 120, 140, 110, 110, 70]   // unchanged, sums to 740
+```
+
+`.tail-release` is excluded from `progressMap`'s section list and from the 740vh gate.
+`affordance.ts` is untouched.
+
+### Assertions for the browser checkpoint (1440×900)
+
+- max scrollY ≥ 764.9vh; Ch7 progress at max scrollY === 1.0
+- bar scaleX === 1.0 for scrollY ≥ 764.9vh; label reads the seventh title for scrollY ≥ 694.9vh
+- Ch7's copy block is inside the viewport at max scrollY *and* at scrollY 764.9vh
+- the canvas still fills the viewport at max scrollY (the sticky stage has not released)
+- the footer is reachable by continued scrolling
+- `#ch7`'s box bottom ≤ 0 at max scrollY is **expected**, not a defect — see the premise above
+- the 740vh gate still passes with `.tail-release` present (proving it is excluded)
+
+**Canon:** STORYBOARD §Amendments **A8** (2026-08-20) — A3 gains a mechanical definition of "ends
+stopped"; A4 gains the Ch7 hold-to-end exception. No span, no beat percentage, and no camera value
+changes.
