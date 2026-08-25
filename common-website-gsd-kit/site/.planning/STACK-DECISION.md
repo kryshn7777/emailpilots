@@ -71,9 +71,24 @@ Restated here so later phases never renegotiate them:
 
 ## Conditional dependencies
 
-| Dependency | Condition |
-|---|---|
-| troika-three-text | ONLY if canvas-texture sprite tags blur at mobile DPR — decided by a Phase 3 render test (Q6; RESEARCH Alternatives row) |
+| Dependency | Condition | Status |
+|---|---|---|
+| troika-three-text | ONLY if canvas-texture sprite tags blur at mobile DPR — decided by a Phase 3 render test (Q6; RESEARCH Alternatives row) | **OPEN — 2026-08-26**, awaiting the wave-2 measurement (see below) |
+
+**Q6 — 2026-08-26 (plan 03-07, D3-07).** The canvas-atlas path shipped in
+`src/island/choreo/labels.ts` with every 03-RESEARCH Pitfall-6 rule applied: the Plex Mono face
+awaited before measurement, a **512x512** power-of-2 atlas asserted at build time, 32 px draw
+size (>= 2x the >= 14 px effective target ART-DIRECTION §Typography sets for mobile),
+`generateMipmaps` with the trilinear filter pair, max anisotropy for the grazing desk tags, and
+`SRGBColorSpace`. The judgement it exists to answer is a **measurement, not an impression** — the
+on-screen height in px of the smallest tag at a 390x844 viewport under `?path=full&tier=floor` —
+and it is collected at 03-07's blocking wave-2 checkpoint. This line is amended in place with the
+measured number and the verdict the moment that sitting happens.
+
+Whatever the verdict, **nothing is installed from this plan**. `grep -c troika package.json`
+stays 0. A *blurred* outcome records the failure and the measurement; adopting troika-three-text
+then requires the Package Legitimacy Gate plus slopcheck first (03-RESEARCH flags the package
+`[ASSUMED]`), which is a plan-level decision and never a code-time `npm install`.
 
 ## Open questions → Phase 2 spikes
 
