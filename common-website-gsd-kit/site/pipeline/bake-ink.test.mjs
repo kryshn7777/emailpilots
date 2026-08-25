@@ -216,9 +216,18 @@ test('the bake fails closed on malformed input rather than shipping a silent bla
   assert.throws(() => bakeInk([], {}), /at least one stroke/i);
   assert.throws(() => bakeInk([{ region: 'body', points: [[0.1, 0.1]] }], {}), /two points/i);
   assert.throws(() => bakeInk([{ region: 'heading', points: [[0, 0], [1, 1]] }], {}), /region/i);
-  assert.throws(
-    () => bakeInk([{ region: 'body', points: [[0, 0], [1, 1]] }], {}),
-    /token/i,
-    'a bake with no token region cannot publish boundaries'
+});
+
+test('a bake with no salutation order reports null boundaries for the CLI to fail closed on', () => {
+  const noToken = bakeInk([{ region: 'body', points: [[0.1, 0.1], [0.9, 0.9]] }], { width: 32, height: 32 });
+  assert.strictEqual(noToken.hiEnd, null, 'nothing to publish without a token region');
+  assert.strictEqual(noToken.tokenEnd, null);
+  const bodyLast = bakeInk(
+    [
+      { region: 'token', points: [[0.1, 0.1], [0.5, 0.1]] },
+      { region: 'body', points: [[0.1, 0.5], [0.9, 0.5]] },
+    ],
+    { width: 32, height: 32 }
   );
+  assert.strictEqual(bodyLast.hiEnd, null, 'body-after-token alone is not a salutation (REVIEWS.md B-4)');
 });
