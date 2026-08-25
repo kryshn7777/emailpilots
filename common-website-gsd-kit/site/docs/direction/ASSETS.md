@@ -81,6 +81,7 @@ Sizing fact measured at the first real PBR ingest (2026-08-20, Paper001 + WoodFl
 | 6 | Sequences view crop ("stopped — replied ✓") + Do-not-send list crop | Email Pilots build | First-party | — | ~2 MB | packed into the same UI atlas where possible |
 | 7 | SmartScreen expectation screenshot ("Windows protected your PC" → More info → Run anyway) | Real OS capture | First-party capture of OS UI (honest expectation-setting only — never "verified safe" claims) | — | ~1 MB | WebP ≤ 120 KB (DOM image) |
 | Shell/social | 7 chapter stills + OG/Twitter cards (renders of the real scenes; WOW B frame = primary OG) | Rendered from this project (Phases 3/5) | First-party | — | — | WebP/AVIF ≤ 150 KB each; OG 1200×630 static files (never canvas-dependent) |
+| 1 | Ch1 handwriting stroke-progress texture (`public/assets/ink/ink-ramp.png`) — R stroke order, G region mask, B nib coverage | Authored for this project: `assets-source/ink/strokes.json`, baked by `pipeline/bake-ink.mjs`, re-author with `tools/ink-trace.html` | First-party | — | — | 1024×512 PNG, colour type 2, **50,541 B** (ingested 2026-08-26). PNG **not** KTX2: the shader thresholds this ramp and block compression steps the reveal edge |
 
 Screenshot rule: demo data only ("Maya" thread), light theme only, no real addresses, no tier/upgrade UI visible (FEATURES Appendix A).
 

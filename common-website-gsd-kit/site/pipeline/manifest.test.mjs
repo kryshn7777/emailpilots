@@ -93,14 +93,30 @@ test('emitManifest refuses a CC BY result whose ledger row lacks attribution tex
 // Post-Task-2 invariant: everything shipped under public/assets is manifest-covered,
 // and every CC BY manifest row carries non-empty attribution. Skips cleanly before
 // the first real ingest (public/assets absent).
+/**
+ * Directories under public/assets that ASSETS.md's §First-party table claims by path. These
+ * deliberately carry NO manifest row: manifest.json is the licensing/attribution surface the Ch7
+ * colophon and the Phase-6 audit read, and a first-party output has no attribution obligation
+ * (03-08 T-03-04). The exemption is granted by the ledger, never by this test — an orphaned
+ * *licensed* asset still fails the invariant below.
+ */
+function firstPartyDirs(assetsMdPath) {
+  const section = fs.readFileSync(assetsMdPath, 'utf8').split(/^## /m).find((s) => s.startsWith('First-party assets')) ?? '';
+  return new Set([...section.matchAll(/public\/assets\/([A-Za-z0-9._-]+)\//g)].map((m) => m[1]));
+}
+
 test('every file under public/assets has a manifest row (post-ingest invariant)', (t) => {
   const assetsDir = 'public/assets';
   if (!fs.existsSync(assetsDir)) { t.skip('public/assets not created yet (pre-Task-2)'); return; }
   const manifest = JSON.parse(fs.readFileSync(path.join(assetsDir, 'manifest.json'), 'utf8'));
   const ids = new Set(manifest.map((r) => r.id));
+  const firstParty = firstPartyDirs(LEDGER);
+  for (const dir of firstParty) {
+    assert.ok(fs.existsSync(path.join(assetsDir, dir)), `ASSETS.md exempts public/assets/${dir}/ but it does not exist`);
+  }
   const entries = fs.readdirSync(assetsDir, { withFileTypes: true });
   for (const e of entries) {
-    if (e.name === 'manifest.json') continue;
+    if (e.name === 'manifest.json' || firstParty.has(e.name)) continue;
     assert.ok(ids.has(e.name), `public/assets/${e.name} has no manifest row`);
   }
   for (const row of manifest) {
