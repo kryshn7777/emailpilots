@@ -469,11 +469,26 @@ html[data-mode='full'] #ch6 .privacy {
   grid-row: 6;
 }
 
-/* Ch7 — "DOM conversion block owns the upper half". Its zone is also the only one that
-   holds past its own section, because it has no successor to hand off to; the tail release
-   below is what delivers that (STORYBOARD Amendment A8). */
+/* Ch7 — "DOM conversion block owns the upper half", and the one zone that HOLDS past its
+   own section (STORYBOARD Amendment A8 — the Ch7 exception to A4). A4's zones hand off to
+   the next chapter's zone; Ch7 has no successor, so without this the ending is the morning
+   room with the CTA sliding away, which A8 calls worse than the bug it fixes.
+
+   A sticky box travels its containing block INSET BY ITS OWN MARGINS — measured in Chromium
+   at 1440x900, not read off spec prose — so one extra -100svh (exactly TAIL_RELEASE_VH)
+   buys the zone one tail release of extra travel and it stays at top: 0 until <main> ends.
+   With the base -100svh alone the zone released with #ch7 at scrollY 764.9vh and then slid
+   by the footer's 180px: at document bottom the H2 sat at -108px and the CTA was cut in
+   half at -27..27px. With this it reads zone top 0px, H2 72px, CTA 153-207px — held.
+
+   The margin is the only sanctioned mechanism here. Padding #ch7 would grow its BORDER box,
+   so progressMap would measure Ch7 as a 170vh span and every A3 beat percentage would move;
+   `.chapter { display: flow-root }` contains this margin exactly as it contains the base
+   one, so #ch7's height is still its min-height and the journey is still 740vh. */
 html[data-mode='full'] #ch7 > .copy {
   padding-bottom: 50svh;
+  margin-bottom: -200vh;
+  margin-bottom: -200svh;
 }
 
 /* ---- Tail release (STORYBOARD Amendment A8 / REVIEWS.md §Ruling 7) ----
