@@ -302,11 +302,30 @@ test('sunDirectionAt is a thin wrapper over the triple — one implementation, n
   for (const phase of [0, 0.13, 0.6, 2.37, 4.8, 5.2]) {
     assert.deepEqual(sunDirectionAt(phase), sunDirectionForEnv(wheelSegment(phase)), `phase ${phase}`);
   }
-  // The same slerp serves a directly-declared triple — which is what makes Ch1 §Transition
-  // out literal: the blend target is dusk2, so the instant mix leaves 0 the sun is falling.
+});
+
+test('Ch1 §Transition out is literal: blending toward dusk2 makes the sun angle FALL', () => {
+  // The same slerp serves a directly-declared triple, so Ch1/Ch2's non-adjacent pair takes
+  // the same path a derived one does — and A7's whole argument for retargeting Ch1 at dusk2
+  // is that the sun then falls where under A6 (target noon) it climbed. Both halves of that
+  // contrast are asserted, because only asserting the first would pass on a broken rig too.
+  let prev = Infinity;
+  for (let i = 0; i <= 100; i++) {
+    const y = sunDirectionForEnv({ a: 'sunrise', b: 'dusk2', mix: i / 100 }).y;
+    assert.ok(y <= prev + 1e-12, `the sun climbed at mix ${i / 100} — Ch1 says it falls`);
+    prev = y;
+  }
   const pure = sunDirectionForEnv({ a: 'sunrise', b: 'dusk2', mix: 0 });
-  const leaving = sunDirectionForEnv({ a: 'sunrise', b: 'dusk2', mix: 0.05 });
-  assert.ok(leaving.y < pure.y, 'Ch1 blending toward dusk2 lowers the sun, it does not climb it');
+  assert.ok(sunDirectionForEnv({ a: 'sunrise', b: 'dusk2', mix: 0.05 }).y < pure.y, 'at Ch1 95-100%');
+  assert.ok(
+    sunDirectionForEnv({ a: 'sunrise', b: 'noon', mix: 0.05 }).y > pure.y,
+    "A6's rejected chain targeted noon, and the sun climbed — the reading A7 supersedes"
+  );
+  assert.ok(
+    sunDirectionForEnv({ a: 'moonrise', b: 'sunrise', mix: 1 }).y >
+      sunDirectionForEnv({ a: 'moonrise', b: 'sunrise', mix: 0 }).y,
+    'and Ch5 §Environmental effects: the sun directional rises during the final 20%'
+  );
 });
 
 test('the celestial direction is unit, NaN-free, peaks at noon and sits below the horizon at night', () => {
