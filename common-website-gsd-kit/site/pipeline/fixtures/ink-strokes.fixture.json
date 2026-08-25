@@ -1,0 +1,10 @@
+{
+  "_note": "Gate fixture for bake-ink.test.mjs — four deliberately trivial strokes in salutation order (REVIEWS.md B-4): a pre-token body stroke, the token, the name that mirrors it, then a continuation body stroke. The shipping handwriting lives in assets-source/ink/strokes.json.",
+  "brushRadius": 3,
+  "strokes": [
+    { "region": "body", "points": [[0.05, 0.2], [0.2, 0.2]] },
+    { "region": "token", "points": [[0.3, 0.2], [0.55, 0.2]] },
+    { "region": "name", "points": [[0.3, 0.3], [0.45, 0.3]] },
+    { "region": "body", "points": [[0.05, 0.6], [0.9, 0.6]] }
+  ]
+}
