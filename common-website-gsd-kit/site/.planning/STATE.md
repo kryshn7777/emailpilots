@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-08-25T23:15:00.000Z"
-last_activity: 2026-08-25 -- Completed 03-06 (motion vocabulary: flight grammar, fold rig, lamp accent)
+stopped_at: Completed 03-08-PLAN.md
+last_updated: "2026-08-26T01:20:00.000Z"
+last_activity: 2026-08-26 -- Completed 03-08 (Ch1 ink stroke-ramp bake: deterministic PNG, hiEnd=0.050980 / tokenEnd=0.290196)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 28
-  completed_plans: 13
-  percent: 46
+  completed_plans: 14
+  percent: 50
 ---
 
 # Project State
@@ -26,19 +26,19 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Core Experience) — EXECUTING
-Plan: 4 of 19
+Plan: 5 of 19
 Status: Executing Phase 3
-Last activity: 2026-08-25 -- Completed 03-06 (motion vocabulary: flight grammar, fold rig, lamp accent)
+Last activity: 2026-08-26 -- Completed 03-08 (Ch1 ink stroke-ramp bake: deterministic PNG, hiEnd=0.050980 / tokenEnd=0.290196)
 
-Progress: [████░░░░░░] 46%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 13 (Phase 1: 4, Phase 2: 5, Phase 3: 4)
-- Average duration: ~29 min across the 12 plans with a recorded metric row
-- Total execution time: ~5.7 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
+- Total plans completed: 14 (Phase 1: 4, Phase 2: 5, Phase 3: 5)
+- Average duration: ~30 min across the 13 plans with a recorded metric row
+- Total execution time: ~6.9 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
 
 **By Phase:**
 
@@ -46,12 +46,12 @@ Progress: [████░░░░░░] 46%
 |-------|-------|-------|----------|
 | 1 | 4 | 28 min | 7 min |
 | 2 | 5 | 131 min + P03 unrecorded | ~33 min |
-| 3 | 4 of 19 | 183 min | 46 min |
+| 3 | 5 of 19 | 253 min | 51 min |
 
 **Recent Trend:**
 
-- Last 6 plans: 57 / 19 / 40 / 18 / 95 / 30 min (P2-04, P2-05, P3-01, P3-02, P3-04, P3-06) — P2-03 still has no recorded row
-- Trend: Phase-3 source plans land faster than the Phase-2 average; the ingest plans are the long ones — P3-04 at ~95 min is the phase's longest so far, as predicted. P3-06 at ~30 min is a pure-vocabulary plan: 4 modules, 3 suites, no assets, no browser
+- Last 6 plans: 19 / 40 / 18 / 95 / 30 / 70 min (P2-05, P3-01, P3-02, P3-04, P3-06, P3-08) — P2-03 still has no recorded row
+- Trend: Phase-3 source plans land faster than the Phase-2 average; the ingest plans are the long ones — P3-04 at ~95 min is the phase's longest so far, as predicted. P3-06 at ~30 min is a pure-vocabulary plan: 4 modules, 3 suites, no assets, no browser. P3-08 at ~70 min sits between the two: one script plus an authoring pass that needed four bakes to converge
 
 *Updated after each plan completion*
 | Phase 1 P01 | 6min | 2 tasks | 1 files |
@@ -66,6 +66,7 @@ Progress: [████░░░░░░] 46%
 | Phase 3 P02 | 18min | 2 tasks | 7 files |
 | Phase 3 P04 | 95min | 2 tasks | 17 files |
 | Phase 3 P06 | 30min | 3 tasks | 7 files |
+| Phase 3 P08 | 70min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,8 @@ None yet.
 - REQUIREMENTS.md header previously said 27 v1 requirements; actual count is 32 — corrected during roadmap creation
 - **RESOLVED 2026-08-20 (03-02): 03-VALIDATION.md is no longer stale.** The working copy was restored to the A6/A7-aware HEAD version before this plan ran, and 03-02 then edited exactly four status cells it owns (the D3-15 instrument row, 03-02-T1, 03-02-T2, and the wave-1 HUD checklist item). **Do NOT run `git checkout -- .planning/phases/03-core-experience/03-VALIDATION.md`** — that instruction is now stale and would discard them. The original clobber signature (a `gsd-sdk query state.*` batch regressing files to older snapshots) is still worth watching: diff STATE.md after any `state.*` call. 03-02's batch did not regress the file wholesale, but it did emit `percent: 33` against a recalculated 39, blank `last_activity`, a `[Phase ?]` prefix on every decision, and `Status: Ready to execute` mid-phase — all hand-repaired.
 - Model ingest is NOT byte-reproducible (the geometry stage: optimize/meshopt/gltfpack); PBR ingest is. A bare `node pipeline/ingest.mjs` rewrites already-shipped unrelated assets with different bytes — always name rows explicitly (CHK-W3, proven 03-04)
+- **The ink ramp IS byte-reproducible** (03-08) — pure float math + `zlib.deflateSync(level:9)`, no subprocess, no clock. Re-running `node pipeline/bake-ink.mjs` produces zero git churn, unlike `ingest.mjs`. Ch1 reads `hiEnd=0.050980` (13/255) and `tokenEnd=0.290196` (74/255) from it; ~17 texels per ramp level sets the shader's BLEED width
+- First-party assets under `public/assets/` are exempted from the manifest-row invariant **by a path in ASSETS.md §First-party**, never by a hardcoded list (03-08) — 03-12's UI capture and Phase-5's stills ship the same way
 - Commits currently ride the outer repo's `feat/founder-month-promo` branch (PROJECT.md Key Decisions: revisit)
 
 ## Deferred Items
@@ -126,6 +129,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-25T23:15:00.000Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-08-26T01:20:00.000Z
+Stopped at: Completed 03-08-PLAN.md
 Resume file: .planning/phases/03-core-experience/03-03-PLAN.md
