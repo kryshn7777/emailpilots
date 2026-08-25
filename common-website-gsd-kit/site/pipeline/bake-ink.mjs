@@ -9,14 +9,15 @@
  * Input JSON: { brushRadius?: <texels>, strokes: [{ region, points: [[x,y], …] }] } with
  * points in normalised 0..1 texture space, strokes in AUTHORED WRITING ORDER.
  *
- * Output channels (8-bit RGB, colour type 2 — not 4: the shader samples `.rg` from a plain
+ * Output channels (8-bit RGB, colour type 2 — not 6: the shader samples `.rgb` from a plain
  * colour texture and an alpha channel invites premultiply surprises):
  *   R — normalised GLOBAL arc-length position of the nearest stroke point. The paper
  *       fragment shader reveals every texel where R ≤ uProgress, so R encodes stroke ORDER
  *       across the whole page, never progress within one stroke (REVIEWS.md B-4).
  *   G — region mask: body 0 / token 128 / name 255. The token ("{{ name }},") and the name
  *       ("Maya,") occupy the same footprint, so the 200 ms resolve is a region blend rather
- *       than a second texture.
+ *       than a second texture. `body` reads as "ink present regardless of the token/name
+ *       state": the letter body, AND every texel where the token and name strokes coincide.
  *   B — nib coverage, 255 on the centreline feathered to 0 at the brush edge. R alone cannot
  *       answer "is there ink here": the pen-down texel is legitimately R=0 and so is bare
  *       paper, so a shader thresholding R alone would flood the whole sheet at any progress.
@@ -177,37 +178,56 @@ export function bakeInk(strokes, opts = {}) {
   // ever grows past a few hundred, bucket segments into a uniform grid and query neighbours.
   const rgb = new Uint8Array(width * height * 3);
   const best = new Float64Array(width * height).fill(Infinity);
+  const bestName = new Float64Array(width * height).fill(Infinity);
   const reach = brushRadius;
 
-  for (const s of segments) {
-    const x0 = Math.max(0, Math.floor(Math.min(s.ax, s.bx) - reach));
-    const x1 = Math.min(width - 1, Math.ceil(Math.max(s.ax, s.bx) + reach));
-    const y0 = Math.max(0, Math.floor(Math.min(s.ay, s.by) - reach));
-    const y1 = Math.min(height - 1, Math.ceil(Math.max(s.ay, s.by) + reach));
-    const dx = s.bx - s.ax;
-    const dy = s.by - s.ay;
-    const l2 = dx * dx + dy * dy;
+  const scatter = (segs, distBuf, write) => {
+    for (const s of segs) {
+      const x0 = Math.max(0, Math.floor(Math.min(s.ax, s.bx) - reach));
+      const x1 = Math.min(width - 1, Math.ceil(Math.max(s.ax, s.bx) + reach));
+      const y0 = Math.max(0, Math.floor(Math.min(s.ay, s.by) - reach));
+      const y1 = Math.min(height - 1, Math.ceil(Math.max(s.ay, s.by) + reach));
+      const dx = s.bx - s.ax;
+      const dy = s.by - s.ay;
+      const l2 = dx * dx + dy * dy;
 
-    for (let py = y0; py <= y1; py++) {
-      const cy = py + 0.5;
-      for (let px = x0; px <= x1; px++) {
-        const cx = px + 0.5;
-        const t = l2 > 0 ? Math.min(1, Math.max(0, ((cx - s.ax) * dx + (cy - s.ay) * dy) / l2)) : 0;
-        const d = Math.hypot(cx - (s.ax + t * dx), cy - (s.ay + t * dy));
-        if (d > reach) continue;
-        const i = py * width + px;
-        if (d >= best[i]) continue; // strictly nearer wins, so ties go to the earlier stroke
-        best[i] = d;
-        const a = s.a0 + t * (s.a1 - s.a0);
-        const v = s.isName
-          ? hiRaw + (nameArc > 0 ? a / nameArc : 0) * (tokenRaw - hiRaw)
-          : a / total;
-        rgb[i * 3] = Math.round(255 * v);
-        rgb[i * 3 + 1] = s.code;
-        rgb[i * 3 + 2] = Math.round(255 * Math.min(1, (reach - d) / FEATHER));
+      for (let py = y0; py <= y1; py++) {
+        const cy = py + 0.5;
+        for (let px = x0; px <= x1; px++) {
+          const cx = px + 0.5;
+          const t = l2 > 0 ? Math.min(1, Math.max(0, ((cx - s.ax) * dx + (cy - s.ay) * dy) / l2)) : 0;
+          const d = Math.hypot(cx - (s.ax + t * dx), cy - (s.ay + t * dy));
+          if (d > reach) continue;
+          const i = py * width + px;
+          if (d >= distBuf[i]) continue; // strictly nearer wins, so ties go to the earlier stroke
+          distBuf[i] = d;
+          write(i, s.a0 + t * (s.a1 - s.a0), s.code, Math.round(255 * Math.min(1, (reach - d) / FEATHER)));
+        }
       }
     }
-  }
+  };
+
+  // The body and the token never overlap (adjacent glyphs on one baseline), so they share one
+  // nearest-point pass. The NAME deliberately sits on top of the token, so it gets its own pass
+  // and merges: a texel inside both words is ink common to both states, and is tagged `body` —
+  // "present regardless of the token/name state" — instead of being fought over. Letting the
+  // nearer stroke simply win punches the loser's glyphs full of holes at one end of the resolve.
+  scatter(segments.filter((s) => !s.isName), best, (i, a, code, cov) => {
+    rgb[i * 3] = Math.round((255 * a) / total);
+    rgb[i * 3 + 1] = code;
+    rgb[i * 3 + 2] = cov;
+  });
+  scatter(segments.filter((s) => s.isName), bestName, (i, a, _code, cov) => {
+    if (best[i] === Infinity) {
+      rgb[i * 3] = Math.round(255 * (hiRaw + (nameArc > 0 ? a / nameArc : 0) * (tokenRaw - hiRaw)));
+      rgb[i * 3 + 1] = REGION_CODE.name;
+      rgb[i * 3 + 2] = cov;
+    } else if (rgb[i * 3 + 1] === REGION_CODE.token) {
+      rgb[i * 3 + 1] = REGION_CODE.body; // shared ink — visible at both ends of the crossfade
+      rgb[i * 3 + 2] = Math.max(rgb[i * 3 + 2], cov);
+    }
+    // Already body ink: permanent ink is on this texel in every state, nothing to add.
+  });
 
   return {
     rgb,

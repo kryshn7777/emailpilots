@@ -231,3 +231,29 @@ test('a bake with no salutation order reports null boundaries for the CLI to fai
   );
   assert.strictEqual(bodyLast.hiEnd, null, 'body-after-token alone is not a salutation (REVIEWS.md B-4)');
 });
+
+test('where the name crosses the token the ink is shared, not fought over (no holes)', () => {
+  const w = 128;
+  const h = 128;
+  const { rgb } = bakeInk(
+    [
+      { region: 'body', points: [[0.05, 0.5], [0.15, 0.5]] },
+      { region: 'token', points: [[0.2, 0.5], [0.8, 0.5]] },
+      { region: 'name', points: [[0.5, 0.3], [0.5, 0.7]] },
+    ],
+    { width: w, height: h, brushRadius: 2 }
+  );
+  // Straight through the token's baseline: every inked texel must stay inked in BOTH states,
+  // i.e. never carry the name code, or the token would show a gash where "Maya," crossed it.
+  let crossing = 0;
+  for (let x = 26; x < 102; x++) {
+    const t = at(rgb, w, x, 64);
+    assert.ok(t.b > 0, `token stroke lost coverage at x=${x}`);
+    assert.notStrictEqual(t.g, 255, `token stroke was overwritten by the name at x=${x}`);
+    if (t.g === 0) crossing++;
+  }
+  assert.ok(crossing > 0, 'the crossing should be tagged as shared (body) ink');
+  const nameOnly = at(rgb, w, 64, 44);
+  assert.strictEqual(nameOnly.g, 255, 'name-only texels keep the name code');
+  assert.ok(nameOnly.b > 0, 'name-only texels keep their coverage');
+});
