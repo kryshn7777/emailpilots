@@ -469,9 +469,42 @@ html[data-mode='full'] #ch6 .privacy {
   grid-row: 6;
 }
 
-/* Ch7 — "DOM conversion block owns the upper half". */
+/* Ch7 — "DOM conversion block owns the upper half". Its zone is also the only one that
+   holds past its own section, because it has no successor to hand off to; the tail release
+   below is what delivers that (STORYBOARD Amendment A8). */
 html[data-mode='full'] #ch7 > .copy {
   padding-bottom: 50svh;
+}
+
+/* ---- Tail release (STORYBOARD Amendment A8 / REVIEWS.md §Ruling 7) ----
+   The head's negative margin paid back at the tail — same number, opposite end, so the two
+   cancel and the document is the length the layout always intended. `.stage-wrap`'s
+   `margin-bottom: -100svh` fixes the head and does an unwanted second job at the tail: one
+   viewport goes missing from the document. Ch7 is 70vh, less than the viewport it lost, so
+   it absorbed the whole deficit and measured ZERO scrub range at 1440x900 — max scrollY
+   694.9vh against #ch7 spanning 694.9->764.9vh. The bar capped at scaleX 0.857, the label
+   showed 6 of 7 titles, and A3's Ch7 beats (PULL-WIDE 0-30%, the LOCKED hold, the draft
+   lift at progress 0.55) could never play (03-03-T4 checkpoint finding).
+
+   It is layout paying back layout, not a scene: no beats, not a `.chapter`, excluded from
+   progressMap's section list (Timeline registers the literal ids ch1..ch7) and from the
+   740vh gate (which reads the seven #chN min-heights — this declares height).
+   CHAPTER_SPANS_VH is unchanged; widening Ch7 instead was rejected, because vh after the
+   CTA has landed is dead scroll at the end — the defect the head fix removed from the start.
+
+   Being the LAST CHILD OF <main> is load-bearing twice. The sticky stage's own travel ends
+   at <main>'s bottom, so the canvas keeps holding Ch7's composed frame across the release.
+   And a sticky box's travel is its containing block inset by its own margins, so #ch7's
+   100svh copy zone (margin-bottom -100svh) holds at top: 0 until its bottom edge reaches
+   the end of <main> — exactly one release past #ch7's box. That IS A8's Ch7 exception to
+   A4: A4's zones hand off to the next chapter's zone, Ch7 has no successor, and this holds
+   it instead. Move the div out of <main>, or shorten it, and the ending un-pins.
+
+   FULL mode only — an empty div is 0-height on the other paths, which never had a head
+   margin to repay. Pinned by shellLayout.test.ts. */
+html[data-mode='full'] .tail-release {
+  height: 100vh;
+  height: 100svh;
 }
 
 /* ---- Masthead (STORYBOARD Amendment A2 / REVIEWS.md §Ruling 3) ----
