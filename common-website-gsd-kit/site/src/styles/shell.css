@@ -359,6 +359,15 @@ html[data-mode='full'] .chapter {
   max-width: none;
   padding: 0;
   pointer-events: none;
+  /* Contain the copy zone's -100svh bottom margin. A `.copy` is its section's last in-flow
+     child and `padding: 0` above leaves nothing to stop margin collapsing, so without a BFC
+     that margin escapes the section and drags the NEXT chapter up by a viewport: measured
+     in Chromium, Ch1/Ch2/Ch3 all began at 24.9vh — three chapters on one scroll range — and
+     the journey read 580vh against the authored 740vh (03-03-T4 checkpoint finding).
+     `flow-root` establishes the BFC WITHOUT creating a scrollport, so descendant
+     `position: sticky` keeps working; `overflow: hidden/clip` would contain the margin but
+     break every sticky copy zone and the sticky stage. Pinned by shellLayout.test.ts. */
+  display: flow-root;
 }
 
 html[data-mode='full'] .chapter :is(a, button, summary, details) {
