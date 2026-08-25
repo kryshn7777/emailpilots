@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-08-PLAN.md
-last_updated: "2026-08-26T01:20:00.000Z"
-last_activity: 2026-08-26 -- Completed 03-08 (Ch1 ink stroke-ramp bake: deterministic PNG, hiEnd=0.050980 / tokenEnd=0.290196)
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-08-26T02:00:00.000Z"
+last_activity: 2026-08-26 -- Completed 03-03 (pinned 740.0vh stage + A4 copy zones + STORYBOARD Amendment A8: tail release gives Ch7 its scrub range back)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 28
-  completed_plans: 14
-  percent: 50
+  completed_plans: 15
+  percent: 54
 ---
 
 # Project State
@@ -26,19 +26,19 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Core Experience) — EXECUTING
-Plan: 5 of 19
+Plan: 6 of 19
 Status: Executing Phase 3
-Last activity: 2026-08-26 -- Completed 03-08 (Ch1 ink stroke-ramp bake: deterministic PNG, hiEnd=0.050980 / tokenEnd=0.290196)
+Last activity: 2026-08-26 -- Completed 03-03 (pinned 740.0vh stage + A4 copy zones + STORYBOARD Amendment A8: tail release gives Ch7 its scrub range back)
 
-Progress: [█████░░░░░] 50%
+Progress: [█████░░░░░] 54%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 14 (Phase 1: 4, Phase 2: 5, Phase 3: 5)
-- Average duration: ~30 min across the 13 plans with a recorded metric row
-- Total execution time: ~6.9 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
+- Total plans completed: 15 (Phase 1: 4, Phase 2: 5, Phase 3: 6)
+- Average duration: ~36 min across the 14 plans with a recorded metric row
+- Total execution time: ~8.4 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
 
 **By Phase:**
 
@@ -46,12 +46,12 @@ Progress: [█████░░░░░] 50%
 |-------|-------|-------|----------|
 | 1 | 4 | 28 min | 7 min |
 | 2 | 5 | 131 min + P03 unrecorded | ~33 min |
-| 3 | 5 of 19 | 253 min | 51 min |
+| 3 | 6 of 19 | 344 min | 57 min |
 
 **Recent Trend:**
 
-- Last 6 plans: 19 / 40 / 18 / 95 / 30 / 70 min (P2-05, P3-01, P3-02, P3-04, P3-06, P3-08) — P2-03 still has no recorded row
-- Trend: Phase-3 source plans land faster than the Phase-2 average; the ingest plans are the long ones — P3-04 at ~95 min is the phase's longest so far, as predicted. P3-06 at ~30 min is a pure-vocabulary plan: 4 modules, 3 suites, no assets, no browser. P3-08 at ~70 min sits between the two: one script plus an authoring pass that needed four bakes to converge
+- Last 6 plans: 18 / 95 / 30 / 70 / 91 min (P3-02, P3-04, P3-06, P3-08, P3-03) — P2-03 still has no recorded row
+- Trend: Phase-3 source plans land faster than the Phase-2 average; the ingest plans are the long ones — P3-04 at ~95 min is the phase's longest so far, as predicted. P3-06 at ~30 min is a pure-vocabulary plan. P3-03 at 91 min is the phase's second-longest and the only one spread over three sessions: 29 min of source, then two browser sittings that each found a real layout defect the source gates could not see
 
 *Updated after each plan completion*
 | Phase 1 P01 | 6min | 2 tasks | 1 files |
@@ -67,6 +67,7 @@ Progress: [█████░░░░░] 50%
 | Phase 3 P04 | 95min | 2 tasks | 17 files |
 | Phase 3 P06 | 30min | 3 tasks | 7 files |
 | Phase 3 P08 | 70min | 2 tasks | 8 files |
+| Phase 3 P03 | 91min | 4 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,10 @@ Recent decisions affecting current work:
 - [Phase 3]: flightPose position is mixed-unit by design — [lateral m, height m, 0..1 fraction of the chapter's desk->window vector] — so the one law never has to know where a given chapter's window is
 - [Phase 3]: the letter fold rig is built at runtime (Bone/Skeleton/SkinnedMesh) and never enters the gltf-transform chain (STACK-DECISION A3); the only interesting maths lives in a zero-import weights module that node --test drives
 - [Phase 3]: a grep gate that proves only a token exists gets a runtime twin when the threat register lists the file as a mitigation — T-03-09 is now an assertion that lampState reaches invalidate, not that `onUpdate` is spelled
+- [Phase 3]: STORYBOARD Amendment A8 — a 100svh `.tail-release` as `<main>`'s LAST child (FULL only) pays the sticky stage's head margin back at the tail; CHAPTER_SPANS_VH stays [90,100,120,140,110,110,70] and affordance.ts is untouched, because widening Ch7 would be dead scroll after the CTA has landed and barFraction(6,1,7) already returns exactly 1.0
+- [Phase 3]: a sticky box travels its containing block INSET BY ITS OWN MARGINS — settled by browser measurement, not by spec prose. One extra -100svh on #ch7's copy zone holds it at top:0 until <main> ends without touching any box progressMap measures; padding #ch7 was rejected because padding grows the BORDER box and would move every A3 beat percentage
+- [Phase 3]: FULL-mode chapters use `display: flow-root` and never an overflow rule to contain the copy zones' -100svh margins — a BFC with no scrollport, so every descendant position:sticky survives (overflow would kill all seven zones and the stage)
+- [Phase 3]: browser sittings earn their cost — both 03-03 layout defects (chapters stacking 3-to-a-range at 580vh; Ch7 at zero scrub range) were invisible to a green 195-test suite and a 4/4 build, and each is now pinned by a source gate carrying the measured numbers in its docblock
 
 ### Pending Todos
 
@@ -117,6 +122,9 @@ None yet.
 - Model ingest is NOT byte-reproducible (the geometry stage: optimize/meshopt/gltfpack); PBR ingest is. A bare `node pipeline/ingest.mjs` rewrites already-shipped unrelated assets with different bytes — always name rows explicitly (CHK-W3, proven 03-04)
 - **The ink ramp IS byte-reproducible** (03-08) — pure float math + `zlib.deflateSync(level:9)`, no subprocess, no clock. Re-running `node pipeline/bake-ink.mjs` produces zero git churn, unlike `ingest.mjs`. Ch1 reads `hiEnd=0.050980` (13/255) and `tokenEnd=0.290196` (74/255) from it; ~17 texels per ramp level sets the shader's BLEED width
 - First-party assets under `public/assets/` are exempted from the manifest-row invariant **by a path in ASSETS.md §First-party**, never by a hardcoded list (03-08) — 03-12's UI capture and Phase-5's stills ship the same way
+- 03-03's T4 §F (runtime `aria-label`/`aria-hidden` after SplitText) is **deferred, not passed** — `domCopy.ts` is the helper chapters call and nothing drives it until a chapter lands in wave 4, so the criterion was premature. Collected at 03-11-T3 / 03-19-T3; do not read 03-03's EXP-06 line as a runtime a11y proof
+- 03-03's T4 CLS measured **0.0000944**, not literally 0 as the criterion words it — three orders inside the 0.1 budget. 03-19-T3's re-trace after the parity stills swap should be read against the measured number
+- 03-VALIDATION.md now carries status cells from 03-02, 03-03, 03-04, 03-06, 03-07 and 03-08. 03-03 edited exactly one (03-03-T4). Still never `git checkout --` it
 - Commits currently ride the outer repo's `feat/founder-month-promo` branch (PROJECT.md Key Decisions: revisit)
 
 ## Deferred Items
@@ -129,6 +137,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-26T01:20:00.000Z
-Stopped at: Completed 03-08-PLAN.md
-Resume file: .planning/phases/03-core-experience/03-03-PLAN.md
+Last session: 2026-08-26T02:00:00.000Z
+Stopped at: Completed 03-03-PLAN.md (wave 1 closed — 03-01, 03-02, 03-03, 03-04 all have SUMMARYs)
+Resume file: .planning/phases/03-core-experience/03-05-PLAN.md
