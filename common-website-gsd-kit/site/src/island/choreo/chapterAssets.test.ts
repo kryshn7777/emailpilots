@@ -36,7 +36,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CHAPTER_ASSETS, nextPrefetch } from './chapterAssets.ts';
+import { CH1_STREAMED, CHAPTER_ASSETS, nextPrefetch } from './chapterAssets.ts';
+import { PROP_SOURCES } from '../set/props.ts';
 import { CHAPTER_SPANS_VH } from './beats.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -87,7 +88,13 @@ function licenceRowFor(url: string): ManifestRow | null {
   return row;
 }
 
-const ALL_DECLARED = CHAPTER_ASSETS.flat();
+/**
+ * Every url any batch declares. `CH1_STREAMED` is not a chapter manifest — it is the half of
+ * Ch1's object list that arrives BEHIND the handoff (see the Regime-B block below) — but its
+ * bytes are fetched, licensed and shipped exactly like a manifest row, so it is held to the
+ * same disk / licence / byte checks. Only the Regime-B critical sum tells them apart.
+ */
+const ALL_DECLARED = [...CHAPTER_ASSETS.flat(), ...CH1_STREAMED];
 
 /* ---------------------------------------------------------------- prefetch decision --- */
 
@@ -213,6 +220,15 @@ test("Ch1's manifest IS the critical batch declared in the island entry", () => 
   assert.ok(batch.length > 0, 'the critical batch must still be readable from the entry');
 
   const byUrl = new Map(batch.map((a) => [a.url, a.bytes]));
+  // Equality, not containment. Containment alone leaves the hole the other way round: an
+  // asset the entry streams as `critical` but Ch1's manifest never declares is on the
+  // critical path AND invisible to the Regime-B gate below, which is the one number that
+  // gate exists to measure.
+  assert.deepEqual(
+    [...byUrl.keys()].sort(),
+    CHAPTER_ASSETS[0].map((a) => a.url).sort(),
+    "the loader's critical batch and Ch1's manifest are two spellings of one set",
+  );
   for (const asset of CHAPTER_ASSETS[0]) {
     assert.ok(
       byUrl.has(asset.url),
@@ -231,29 +247,56 @@ test("Ch1's manifest IS the critical batch declared in the island entry", () => 
 /* ------------------------------------------------------- Regime-B build gates (CHK-W1) --- */
 
 /**
- * `.planning/BUDGETS.md` §Payload budgets, Regime B — "Ch1 critical path (to interactive):
- * ≤ 9 MB desktop / ≤ 5 MB mobile", both marked *build gate*. Decimal MB, the stricter
- * reading of the two.
+ * `.planning/BUDGETS.md` §Payload budgets, Regime B — "Ch1 critical path (to interactive)".
+ * Decimal MB, the stricter reading of the two.
  *
- * **Desktop is a live gate.** It passes today with real headroom, and it is a ratchet: every
- * later plan that appends a Ch1 row (03-09's chair, Paper001 and the desk dressing) spends
- * against it here, in a failing test, rather than in a slow first load nobody attributes.
+ * ## The split this gate forced (03-09)
  *
- * **Mobile is a live gate on a RECORDED DEBT, not on the budget line**, and that is a
- * deliberate, escalated decision rather than a shrug. STORYBOARD §Ch1 Textures authors the
- * mobile path as "prop sets at 2K KTX2 (desktop) / 1K (mobile)" — i.e. a *second, smaller
- * variant of each asset*. 03-04 ingested exactly one variant of each, and no Phase-3 plan
- * owns a 1K-variant chain, so the mobile tier streams the desktop bytes byte-for-byte: the
- * two sums below are the same number, and Ch1 is over the 5 MB line before it has even
- * acquired its chair. Asserting 5,000,000 today would paint the build red describing work
- * that has no owner; asserting nothing would let the overage grow in silence. So the mobile
- * sum is pinned at the figure measured here — it may not get worse — with the real line
- * written down beside it. Escalated in 03-05-SUMMARY.md; closing it is either a 1K-variant
- * ingest chain or a BUDGETS amendment, and it is a Phase-4/6 decision, not a code-time one.
+ * The desktop line is a **ratchet**, and it did its job. Ch1's storyboard object list is the
+ * desk, the chair, the lamp, the clock, five pieces of dressing, the floor set and Paper001.
+ * Declared as one pre-handoff batch that is **16,700,829 B** against a 9,000,000 B line —
+ * `WoodenChair_01` + `Paper001` alone (3,865,631 B) already exceed the headroom that existed
+ * before this plan. So Ch1's objects are split by what the OPENING FRAME needs, which is what
+ * "to interactive" means and what the line actually measures:
+ *
+ * - **`CHAPTER_ASSETS[0]` — the critical path.** Both Qwantani skies (Ch1 holds the pair
+ *   `(sunrise, dusk2)` at mix 0.00 until 95%, so both are PMREM'd at mount), `WoodenTable_02`
+ *   (the desk IS the origin — every prop anchor and every authored camera pose is measured
+ *   off its top face, so the Room cannot be built without it) and `desk_lamp_arm_01` (the
+ *   light rig is constructed once, and the lamp's key and its pool are posed on its head).
+ * - **`CH1_STREAMED` — behind the handoff.** Ch1 opens on an ECU 8 cm above the letter
+ *   (`cameraRig.ts` ECU_LETTER) and the pull-wide does not start until 48% of a 90vh chapter.
+ *   The chair, the clock, the four dressing props, the shelf and the floor's KTX2 set are
+ *   none of them in that frame, and they have most of a chapter to arrive. They ride
+ *   `AssetQueue`'s existing `'lazy'` priority, which no other caller uses and which — like
+ *   `'soon'` — is excluded from the loader percent by weight.
+ *
+ * Paper001 is in neither: 03-11 builds the letter sheet, and this file's growth rule is that
+ * a plan declares what its own code fetches.
+ *
+ * ## The mobile line is retired (BUDGETS §Amendments B2, 2026-08-26)
+ *
+ * The mobile column of this row was **retired by the project owner** on the escalation 03-05
+ * raised: the island has no per-tier asset selection, the 1K prop-set variants STORYBOARD
+ * authors were never ingested, and the product is a Windows desktop application a phone
+ * visitor cannot install. B2 states outright that "the zero-headroom gate 03-05 recorded
+ * against it is superseded" and that the desktop line is "the one to gate against".
+ *
+ * The assertion below is therefore **kept as a ratchet, not as a budget line** — the number
+ * stays recorded so it cannot grow unnoticed, and B2's own retirement figure (6,649,520 B)
+ * stays legible beside the smaller one this split produced. Deleting it would lose the only
+ * live record of what mobile actually costs; asserting 5,000,000 would paint the build red
+ * describing work B2 explicitly told executors to stop attempting.
  */
 const CH1_DESKTOP_LIMIT = 9_000_000;
+/** Retired by B2. Kept so the ratchet below can say what it is a ratchet against. */
 const CH1_MOBILE_LIMIT = 5_000_000;
-const CH1_MOBILE_DEBT = 6_649_520;
+/** B2's recorded-at-retirement figure — Ch1's critical path before 03-09 split it. */
+const CH1_MOBILE_AT_RETIREMENT = 6_649_520;
+/** What the same sum measures after the split. Mobile streams the same bytes desktop does. */
+const CH1_MOBILE_RATCHET = 5_653_052;
+/** BUDGETS §Regime B, "Total streamed asset weight (full journey)" — desktop, live. */
+const JOURNEY_DESKTOP_LIMIT = 30_000_000;
 
 test('Ch1 critical path holds the Regime-B desktop line (CHK-W1)', () => {
   const bytes = CHAPTER_ASSETS[0].reduce((sum, a) => sum + a.bytes, 0);
@@ -261,27 +304,66 @@ test('Ch1 critical path holds the Regime-B desktop line (CHK-W1)', () => {
     bytes <= CH1_DESKTOP_LIMIT,
     `Ch1 critical path is ${bytes} B against the ${CH1_DESKTOP_LIMIT} B desktop build gate ` +
       `(${CH1_DESKTOP_LIMIT - bytes} B of headroom before this run). Adding a Ch1 asset that ` +
-      'breaks this is a plan decision — split the row to a streamed chapter batch, cut it, ' +
-      'or amend BUDGETS. It is never a code-time shrug (D-15).',
+      'breaks this is a plan decision — move the row to CH1_STREAMED, cut it, or amend ' +
+      'BUDGETS. It is never a code-time shrug (D-15).',
   );
 });
 
-test('Ch1 mobile payload does not grow past the recorded overage (CHK-W1)', () => {
-  // "Counting only the assets the mobile tier actually loads" — which today is all of them,
-  // because there is no per-tier asset selection anywhere in the island. When one lands,
-  // this filter is where it goes, and the assertion below is promoted to CH1_MOBILE_LIMIT.
+test('the streamed batch is behind the handoff, not a second critical path', () => {
+  const critical = new Set(CHAPTER_ASSETS[0].map((a) => a.url));
+  for (const asset of CH1_STREAMED) {
+    assert.equal(
+      critical.has(asset.url),
+      false,
+      `${asset.url} is in both batches. AssetQueue keeps the FIRST declaration's priority, ` +
+        'so a url in both is fetched at whichever the entry happened to add first — and the ' +
+        'Regime-B sum above would then measure a different set than the one actually loading.',
+    );
+  }
+  assert.ok(CH1_STREAMED.length > 0, 'the split is a real second batch, not an empty gesture');
+});
+
+test('the whole authored journey holds the Regime-B streamed-weight line', () => {
+  const bytes = ALL_DECLARED.reduce((sum, a) => sum + a.bytes, 0);
+  assert.ok(
+    bytes <= JOURNEY_DESKTOP_LIMIT,
+    `every declared asset sums ${bytes} B against the ${JOURNEY_DESKTOP_LIMIT} B full-journey ` +
+      `line (${JOURNEY_DESKTOP_LIMIT - bytes} B of headroom). Splitting Ch1 moves bytes off ` +
+      'the critical path — it does not make them free, and until this ran nothing measured ' +
+      'the total at all.',
+  );
+});
+
+test('Ch1 mobile payload does not grow past the recorded figure (superseded by B2)', () => {
+  // The same sum as desktop: there is no per-tier asset selection anywhere in the island,
+  // and B2 ruled that there will not be one in this phase. When one lands, this filter is
+  // where it goes — and by then this test is a candidate for deletion, not for promotion.
   const bytes = CHAPTER_ASSETS[0].reduce((sum, a) => sum + a.bytes, 0);
   assert.ok(
-    bytes <= CH1_MOBILE_DEBT,
-    `Ch1's mobile payload is ${bytes} B. It is already ${CH1_MOBILE_DEBT - CH1_MOBILE_LIMIT} B ` +
-      `over the ${CH1_MOBILE_LIMIT} B Regime-B mobile line and may not grow further until a ` +
-      '1K-variant path exists. See the block above before touching this number.',
+    bytes <= CH1_MOBILE_RATCHET,
+    `Ch1's mobile payload is ${bytes} B against a ratchet of ${CH1_MOBILE_RATCHET} B. The ` +
+      `${CH1_MOBILE_LIMIT} B Regime-B mobile line was retired by BUDGETS §Amendments B2 — ` +
+      'do not try to close it, and do not raise this number to make room for an asset the ' +
+      'desktop line would also have to pay for.',
   );
   assert.ok(
-    CH1_MOBILE_DEBT > CH1_MOBILE_LIMIT,
-    'the debt constant exists only because the budget line is unmet; if it ever drops to or ' +
-      'below the line, delete it and assert CH1_MOBILE_LIMIT directly',
+    CH1_MOBILE_RATCHET < CH1_MOBILE_AT_RETIREMENT,
+    'the split moved the clock off the critical path, so the ratchet must sit below B2’s ' +
+      'recorded-at-retirement figure; if it ever equals it again, the split was undone ' +
+      'rather than extended',
   );
+});
+
+test('every prop the set places is paid for by a declared batch', () => {
+  const declared = new Set(ALL_DECLARED.map((a) => a.url));
+  for (const [id, url] of Object.entries(PROP_SOURCES)) {
+    assert.ok(
+      declared.has(url),
+      `${id} (${url}) is placed by Room but declared by no batch. A prop nobody fetches is ` +
+        'a prop that is never in frame, and the byte cost of one that IS would be invisible ' +
+        'to every gate above.',
+    );
+  }
 });
 
 /* -------------------------------------------------------------- span mirror (CHK-W9) --- */
