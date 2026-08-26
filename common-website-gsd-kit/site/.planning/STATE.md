@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-08-26T02:00:00.000Z"
-last_activity: 2026-08-26 -- Completed 03-03 (pinned 740.0vh stage + A4 copy zones + STORYBOARD Amendment A8: tail release gives Ch7 its scrub range back)
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-08-26T08:53:10.000Z"
+last_activity: 2026-08-26 -- Completed 03-05 (asset registry + one-ahead prefetch + ?still= capture; BUDGETS Regime-B mobile Ch1 line found unreachable and escalated)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 28
-  completed_plans: 15
-  percent: 54
+  completed_plans: 16
+  percent: 57
 ---
 
 # Project State
@@ -26,19 +26,19 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Core Experience) — EXECUTING
-Plan: 6 of 19
+Plan: 7 of 19
 Status: Executing Phase 3
-Last activity: 2026-08-26 -- Completed 03-03 (pinned 740.0vh stage + A4 copy zones + STORYBOARD Amendment A8: tail release gives Ch7 its scrub range back)
+Last activity: 2026-08-26 -- Completed 03-05 (asset registry + one-ahead prefetch + ?still= capture; BUDGETS Regime-B mobile Ch1 line found unreachable and escalated)
 
-Progress: [█████░░░░░] 54%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 15 (Phase 1: 4, Phase 2: 5, Phase 3: 6)
-- Average duration: ~36 min across the 14 plans with a recorded metric row
-- Total execution time: ~8.4 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
+- Total plans completed: 16 (Phase 1: 4, Phase 2: 5, Phase 3: 7)
+- Average duration: ~36 min across the 15 plans with a recorded metric row
+- Total execution time: ~9.0 hours (Phase 2 P03's row was never recorded — its duration is unknown, not zero)
 
 **By Phase:**
 
@@ -46,12 +46,12 @@ Progress: [█████░░░░░] 54%
 |-------|-------|-------|----------|
 | 1 | 4 | 28 min | 7 min |
 | 2 | 5 | 131 min + P03 unrecorded | ~33 min |
-| 3 | 6 of 19 | 344 min | 57 min |
+| 3 | 7 of 19 | 379 min | 54 min |
 
 **Recent Trend:**
 
-- Last 6 plans: 18 / 95 / 30 / 70 / 91 min (P3-02, P3-04, P3-06, P3-08, P3-03) — P2-03 still has no recorded row
-- Trend: Phase-3 source plans land faster than the Phase-2 average; the ingest plans are the long ones — P3-04 at ~95 min is the phase's longest so far, as predicted. P3-06 at ~30 min is a pure-vocabulary plan. P3-03 at 91 min is the phase's second-longest and the only one spread over three sessions: 29 min of source, then two browser sittings that each found a real layout defect the source gates could not see
+- Last 6 plans: 95 / 30 / 70 / 91 / 35 min (P3-04, P3-06, P3-08, P3-03, P3-05) — P2-03 still has no recorded row
+- Trend: Phase-3 source plans land faster than the Phase-2 average; the ingest plans are the long ones — P3-04 at ~95 min is the phase's longest so far, as predicted. P3-06 at ~30 min is a pure-vocabulary plan. P3-03 at 91 min is the phase's second-longest and the only one spread over three sessions: 29 min of source, then two browser sittings that each found a real layout defect the source gates could not see. P3-05 at 35 min is the pattern's other end — three source tasks with every gate mutation-proved and no browser dependency, all of it in one sitting
 
 *Updated after each plan completion*
 | Phase 1 P01 | 6min | 2 tasks | 1 files |
@@ -68,6 +68,7 @@ Progress: [█████░░░░░] 54%
 | Phase 3 P06 | 30min | 3 tasks | 7 files |
 | Phase 3 P08 | 70min | 2 tasks | 8 files |
 | Phase 3 P03 | 91min | 4 tasks | 12 files |
+| Phase 3 P05 | 35min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,11 @@ Recent decisions affecting current work:
 - [Phase 3]: STORYBOARD Amendment A8 — a 100svh `.tail-release` as `<main>`'s LAST child (FULL only) pays the sticky stage's head margin back at the tail; CHAPTER_SPANS_VH stays [90,100,120,140,110,110,70] and affordance.ts is untouched, because widening Ch7 would be dead scroll after the CTA has landed and barFraction(6,1,7) already returns exactly 1.0
 - [Phase 3]: a sticky box travels its containing block INSET BY ITS OWN MARGINS — settled by browser measurement, not by spec prose. One extra -100svh on #ch7's copy zone holds it at top:0 until <main> ends without touching any box progressMap measures; padding #ch7 was rejected because padding grows the BORDER box and would move every A3 beat percentage
 - [Phase 3]: FULL-mode chapters use `display: flow-root` and never an overflow rule to contain the copy zones' -100svh margins — a BFC with no scrollport, so every descendant position:sticky survives (overflow would kill all seven zones and the stage)
+- [Phase 3]: BUDGETS Regime-B's mobile Ch1 line (≤5 MB) is gated as a RECORDED DEBT (6,649,520 B, zero headroom) rather than asserted as a pass or left unchecked — STORYBOARD authors the mobile path as 1K prop-set variants, 03-04 ingested one variant per asset, and the island has no per-tier asset selection, so mobile streams the desktop bytes. A red build describing ownerless work and a silent overage were both rejected; the real line sits beside the debt with the exit condition (03-05)
+- [Phase 3]: no `desktopOnly`/per-tier flag was added to `ChapterAsset` — a field describing a selection mechanism that does not exist anywhere in the island is worse than the honest sum, and QualityManager decides DPR/shadows/post/particles, never *which files load* (03-05)
+- [Phase 3]: the asset registry caches PROMISES, not values, so overlapping `prime()` calls share one parse and idempotency is free — which it must be, because the prefetch decision re-runs on every scroll drive (03-05)
+- [Phase 3]: `ktx2.dispose()` was DELETED from `mount()`, not relocated — the transcoder's workers decode every later standalone `.ktx2` and there is no island teardown to move it to (nothing unmounts the island); the comment at the deletion site names what belongs in one when it lands (03-05)
+- [Phase 3]: `?still=` exports the canvas alone and REVIEWS.md F-11 is recorded as unmet, not quietly satisfied — the composited full-viewport frames F-11 wants for WOW-beat review are a headless page screenshot at the same `?still=` position, owned by 03-19-T3 (03-05)
 - [Phase 3]: browser sittings earn their cost — both 03-03 layout defects (chapters stacking 3-to-a-range at 580vh; Ch7 at zero scrub range) were invisible to a green 195-test suite and a 4/4 build, and each is now pinned by a source gate carrying the measured numbers in its docblock
 
 ### Pending Todos
@@ -124,7 +130,9 @@ None yet.
 - First-party assets under `public/assets/` are exempted from the manifest-row invariant **by a path in ASSETS.md §First-party**, never by a hardcoded list (03-08) — 03-12's UI capture and Phase-5's stills ship the same way
 - 03-03's T4 §F (runtime `aria-label`/`aria-hidden` after SplitText) is **deferred, not passed** — `domCopy.ts` is the helper chapters call and nothing drives it until a chapter lands in wave 4, so the criterion was premature. Collected at 03-11-T3 / 03-19-T3; do not read 03-03's EXP-06 line as a runtime a11y proof
 - 03-03's T4 CLS measured **0.0000944**, not literally 0 as the criterion words it — three orders inside the 0.1 budget. 03-19-T3's re-trace after the parity stills swap should be read against the measured number
-- 03-VALIDATION.md now carries status cells from 03-02, 03-03, 03-04, 03-06, 03-07 and 03-08. 03-03 edited exactly one (03-03-T4). Still never `git checkout --` it
+- **ESCALATED 2026-08-26 (03-05): BUDGETS Regime-B Ch1 mobile ≤5 MB has no owner and cannot be met in Phase 3.** Ch1's critical path is 6,649,520 B on BOTH tiers (1,649,520 B over) because the 1K mobile prop-set variants STORYBOARD authors were never ingested and the island has no per-tier asset selection. Gated as a zero-headroom debt in `chapterAssets.test.ts`. Closing it is one of: a 1K-variant ingest chain (new pipeline capability + new island mechanism), a BUDGETS amendment (Phase 6 measures the real traces), or a Ch1 mobile scene cut (scene-director). **Immediate consequence: 03-09 inherits only 2,350,480 B of desktop headroom** — the chair + Paper001 alone are 3.87 MB — so it must split Ch1 into pre-handoff-critical vs streamed-behind rather than declaring the whole storyboard object list
+- 03-VALIDATION.md now carries status cells from 03-02, 03-03, 03-04, 03-05, 03-06, 03-07 and 03-08. 03-05 edited exactly seven (its three task rows, the EXP-03/EXP-05/D3-14 coverage rows, and the wave-0 checklist line). Still never `git checkout --` it
+- 03-05 did NOT invoke `gsd-sdk query state.*` — STATE.md was hand-edited additively instead, on the standing warning above that the SDK regresses this file while returning `{"updated": true}`. Prefer the same route until that is fixed
 - Commits currently ride the outer repo's `feat/founder-month-promo` branch (PROJECT.md Key Decisions: revisit)
 
 ## Deferred Items
@@ -137,6 +145,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-26T02:00:00.000Z
-Stopped at: Completed 03-03-PLAN.md (wave 1 closed — 03-01, 03-02, 03-03, 03-04 all have SUMMARYs)
-Resume file: .planning/phases/03-core-experience/03-05-PLAN.md
+Last session: 2026-08-26T08:53:10.000Z
+Stopped at: Completed 03-05-PLAN.md (wave 2: 03-05, 03-06 and 03-08 have SUMMARYs; 03-07 is the remaining wave-2 plan and carries the wave-2 browser checkpoint that 03-05's live claims are parked against)
+Resume file: .planning/phases/03-core-experience/03-07-PLAN.md
