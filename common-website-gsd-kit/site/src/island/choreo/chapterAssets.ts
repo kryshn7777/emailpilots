@@ -61,7 +61,7 @@ export const CHAPTER_ASSETS: readonly (readonly ChapterAsset[])[] = [
   [
     { url: 'assets/qwantani_sunrise_puresky/qwantani_sunrise_puresky.hdr', bytes: 1_033_946 },
     { url: 'assets/qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr', bytes: 1_166_018 },
-    { url: 'assets/WoodenTable_02/WoodenTable_02.glb', bytes: 2_241_096 },
+    { url: 'assets/wooden_table_02/wooden_table_02.glb', bytes: 2_021_652 },
     { url: 'assets/desk_lamp_arm_01/desk_lamp_arm_01.glb', bytes: 1_211_992 },
   ],
   [{ url: 'assets/clipboard/clipboard.glb', bytes: 740_456 }],
@@ -79,11 +79,16 @@ export const CHAPTER_ASSETS: readonly (readonly ChapterAsset[])[] = [
  * ## Why this list exists at all
  *
  * BUDGETS Regime B gives Ch1's critical path 9 MB on desktop. Ch1's full storyboard object
- * list — desk, chair, lamp, clock, five dressing props, the floor set and Paper001 — sums
- * **16,700,829 B**. `WoodenChair_01` + `Paper001` alone are 3,865,631 B against the
- * 2,350,480 B of headroom that existed before this plan, so "declare Ch1's objects" and
- * "hold the desktop line" could not both be done. The line is the live one (BUDGETS
- * §Amendments B2 retired its mobile twin), so the object list is what gave.
+ * list — desk, chair, lamp, clock, five dressing props, the floor set and Paper001 — summed
+ * **16,700,829 B** when this split was made. `WoodenChair_01` + `Paper001` alone were
+ * 3,865,631 B against the 2,350,480 B of headroom that existed then, so "declare Ch1's
+ * objects" and "hold the desktop line" could not both be done. The line is the live one
+ * (BUDGETS §Amendments B2 retired its mobile twin), so the object list is what gave.
+ *
+ * Ruling 9 made the whole list cheaper without changing that call: the desk fell
+ * 2,241,096 -> 2,021,652 B and the chair 1,317,352 -> 518,760 B, so the full object list is
+ * now 13,902,890 B. Still over 9 MB, and still resolved by frame order rather than by
+ * shrinking a texture — the split is about WHEN a byte arrives, not how big it is.
  *
  * ## How the cut was made
  *
@@ -94,16 +99,19 @@ export const CHAPTER_ASSETS: readonly (readonly ChapterAsset[])[] = [
  * | asset | why it can arrive late |
  * |---|---|
  * | `alarm_clock_01` | sits in the lamp pool at the desk medium; Ch3's hero, not Ch1's |
- * | `WoodenChair_01` | pushed back behind the desk — arrives with the pull-wide |
+ * | `painted_wooden_chair_01` | pushed back behind the desk — arrives with the pull-wide |
  * | `office_notepads`, `stationery_supplies`, `binder_notebook`, `book_encyclopedia_set_01` | dressing at the frame edges |
  * | `Shelf_01` | dressing against the wall, and the tier-cut one |
  * | `WoodFloor051` (4 slots) | the ECU sees no floor; the shell's floor plane carries a token albedo until the maps land |
  *
  * What stayed critical is what the opening frame and the set's own STRUCTURE need: both
- * skies (Ch1 holds the pair at mix 0.00, so both are PMREM'd at mount), `WoodenTable_02`
+ * skies (Ch1 holds the pair at mix 0.00, so both are PMREM'd at mount), `wooden_table_02`
  * (the desk IS the world origin — `Room` measures its top face and every prop anchor and
  * camera pose is relative to it) and `desk_lamp_arm_01` (the light rig is built once, and
  * the lamp's key and pool are posed on its head).
+ *
+ * `wooden_table_02` is lowercase and is NOT `WoodenTable_02`: two different Poly Haven
+ * assets, two authors, 1134.4 mm against 300.7 mm, urls differing only in case. Ruling 9 F1.
  *
  * ## The mechanism is the one that already existed
  *
@@ -119,10 +127,10 @@ export const CHAPTER_ASSETS: readonly (readonly ChapterAsset[])[] = [
  */
 export const CH1_STREAMED: readonly ChapterAsset[] = [
   { url: 'assets/alarm_clock_01/alarm_clock_01.glb', bytes: 996_468 },
-  { url: 'assets/WoodenChair_01/WoodenChair_01.glb', bytes: 1_317_352 },
-  { url: 'assets/office_notepads/office_notepads.glb', bytes: 911_116 },
-  { url: 'assets/stationery_supplies/stationery_supplies.glb', bytes: 955_904 },
-  { url: 'assets/binder_notebook/binder_notebook.glb', bytes: 876_464 },
+  { url: 'assets/painted_wooden_chair_01/painted_wooden_chair_01.glb', bytes: 518_760 },
+  { url: 'assets/office_notepads/office_notepads.glb', bytes: 920_680 },
+  { url: 'assets/stationery_supplies/stationery_supplies.glb', bytes: 969_736 },
+  { url: 'assets/binder_notebook/binder_notebook.glb', bytes: 880_988 },
   { url: 'assets/book_encyclopedia_set_01/book_encyclopedia_set_01.glb', bytes: 1_510_768 },
   { url: 'assets/Shelf_01/Shelf_01.glb', bytes: 666_104 },
   { url: 'assets/WoodFloor051/WoodFloor051_1K-JPG_Color.ktx2', bytes: 149_975 },

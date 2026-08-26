@@ -188,9 +188,10 @@ test('every prop is anchored to a real plane, and floor props are not floated on
   for (const id of DRESSING) {
     const a = PROP_ANCHORS[id];
     assert.ok(
-      a.plane === 'desk' || a.plane === 'floor',
+      a.plane === 'desk' || a.plane === 'floor' || a.plane === 'shelf',
       `${id}: an anchor names the plane it sits on — Room resolves it against the MEASURED ` +
-        'desk top and the measured floor, never a hard-coded Y (the table is re-ingestible)',
+        'desk top and the measured floor, never a hard-coded Y (the table is re-ingestible). ' +
+        "'shelf' is A10's one parented case and resolves in its host's own metres.",
     );
     assert.ok(
       Number.isFinite(a.position[0]) && Number.isFinite(a.position[1]) &&
@@ -264,16 +265,8 @@ const NORMALIZED_DIVISOR: Record<number, number> = {
   5123: 65535,
 };
 
-/** A named node's own size in mm: accessor bounds x the node's own dequantising scale. */
-function nodeSizeMm(url: string, name: string): [number, number, number] {
-  const gltf = glbJson(url);
-  const node = (gltf.nodes ?? []).find((n) => n.name === name && n.mesh != null);
-  assert.ok(
-    node,
-    `${url} has no mesh node named "${name}". Nodes are placed BY NAME, and an ingest that ` +
-      'joins them away is silent everywhere else in this project — which is exactly what ' +
-      'the 2026-08-20 run did to all ten of office_notepads.',
-  );
+/** One node's own size in mm: accessor bounds x the node's own dequantising scale. */
+function sizeOf(gltf: Glb, node: GlbNode): [number, number, number] {
   const scale = node.scale ?? [1, 1, 1];
   const lo = [Infinity, Infinity, Infinity];
   const hi = [-Infinity, -Infinity, -Infinity];
@@ -288,11 +281,30 @@ function nodeSizeMm(url: string, name: string): [number, number, number] {
   return [0, 1, 2].map((i) => (hi[i] - lo[i]) * scale[i] * 1000) as [number, number, number];
 }
 
-/** The whole asset's extent in mm — the union of its mesh nodes, as Room would place it. */
+/** A NAMED node's size in mm. Throws if the name is absent — that is the point of the gate. */
+function nodeSizeMm(url: string, name: string): [number, number, number] {
+  const gltf = glbJson(url);
+  const node = (gltf.nodes ?? []).find((n) => n.name === name && n.mesh != null);
+  assert.ok(
+    node,
+    `${url} has no mesh node named "${name}". Nodes are placed BY NAME, and an ingest that ` +
+      'joins them away is silent everywhere else in this project — which is exactly what ' +
+      'the 2026-08-20 run did to all ten of office_notepads.',
+  );
+  return sizeOf(gltf, node);
+}
+
+/**
+ * The whole asset's extent in mm — the largest extent across its mesh nodes, which is what
+ * Room places for a "(whole)" entry. By node INDEX, not by name: a joined row such as
+ * `book_encyclopedia_set_01` ships one anonymous node, and looking it up by `''` would throw
+ * inside the helper instead of measuring the thing the gate is about.
+ */
 function assetSizeMm(url: string): [number, number, number] {
-  const names = (glbJson(url).nodes ?? []).filter((n) => n.mesh != null).map((n) => n.name ?? '');
-  assert.ok(names.length > 0, `${url} has no mesh nodes`);
-  const per = names.map((n) => nodeSizeMm(url, n));
+  const gltf = glbJson(url);
+  const meshNodes = (gltf.nodes ?? []).filter((n) => n.mesh != null);
+  assert.ok(meshNodes.length > 0, `${url} has no mesh nodes`);
+  const per = meshNodes.map((node) => sizeOf(gltf, node));
   return [0, 1, 2].map((i) => Math.max(...per.map((p) => p[i]))) as [number, number, number];
 }
 
@@ -416,8 +428,13 @@ test('nothing placed on the desktop is desk-sized (Ruling 9 assertion list)', ()
   // "no dressing node placed on the desktop exceeds ~350 mm in its longest axis, except the
   // clipboard (337 mm) and the desk itself." The OPEN binder is 365 mm, which is exactly why
   // A10 places the closed one — so this gate separates the chosen node from the cut one.
+  // The rule is about DRESSING. Two desk-plane props are not dressing and Ruling 9's own
+  // audit table marks both correct at source: the desk itself, and `desk_lamp_arm_01`
+  // (617 x 408 x 879 mm — "plausible arm lamp"), which ART-DIRECTION §Composition names as
+  // the frame-left anchor of every master shot. An arm lamp IS that tall.
+  const NOT_DRESSING: readonly PropId[] = ['table', 'lamp'];
   for (const id of Object.keys(PROP_ANCHORS) as PropId[]) {
-    if (PROP_ANCHORS[id].plane !== 'desk' || id === 'table') continue;
+    if (PROP_ANCHORS[id].plane !== 'desk' || NOT_DRESSING.includes(id)) continue;
     const node = nodeOf(id);
     const mm = node === null ? assetSizeMm(PROP_SOURCES[id]) : nodeSizeMm(PROP_SOURCES[id], node);
     const longest = Math.max(...mm);

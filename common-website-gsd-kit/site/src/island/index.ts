@@ -65,7 +65,7 @@ export interface MountOptions {
 const CRITICAL_ASSETS = {
   sunrise: { url: 'assets/qwantani_sunrise_puresky/qwantani_sunrise_puresky.hdr', bytes: 1_033_946 },
   dusk: { url: 'assets/qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr', bytes: 1_166_018 },
-  table: { url: 'assets/WoodenTable_02/WoodenTable_02.glb', bytes: 2_241_096 },
+  table: { url: 'assets/wooden_table_02/wooden_table_02.glb', bytes: 2_021_652 },
   lamp: { url: 'assets/desk_lamp_arm_01/desk_lamp_arm_01.glb', bytes: 1_211_992 },
 } as const;
 

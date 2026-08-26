@@ -34,7 +34,7 @@
  * ## Ownership (T-03-12)
  *
  * Room disposes **only what Room constructed** — the shell geometry, the procedural window,
- * the drawer, the two gradient masks, its own materials. GLB prop scenes and the KTX2
+ * the two gradient masks, its own materials. GLB prop scenes and the KTX2
  * surface textures come from `assetRegistry`, are shared with whoever else asks for them,
  * and are released by the registry's single `dispose()`. Disposing them here would be a
  * double free the moment a second chapter holds the same prop.
@@ -83,8 +83,8 @@ import {
   PROP_ANCHORS,
   PROP_SOURCES,
   placeProps,
+  type PropDrop,
   type PropId,
-  type ScaleTarget,
 } from './props.ts';
 
 /* ------------------------------------------------------------------ authored numbers --- */
@@ -141,9 +141,6 @@ const LAMP_NOMINAL = { intensity: 2.6, poolOpacity: 0.55 } as const;
 /** The pool mask's radius on the desk — the rule-of-thirds home base of every chapter. */
 const LAMP_POOL_RADIUS = 0.5;
 
-/** How far the procedural drawer travels when Ch4 files a dead address into it. */
-const DRAWER_TRAVEL = 0.26;
-
 /** Token colours (ART-DIRECTION §Color system) used as placeholders and tints. */
 const TOKEN = {
   lamplight: '#E8A45C',
@@ -198,8 +195,6 @@ export interface Room {
   readonly floorY: number;
   readonly windowAnchor: Vector3;
   readonly lampPoolAnchor: Vector3;
-  /** The sanctioned procedural drawer (STACK-DECISION A3) — Ch4's do-not-send beat. */
-  readonly drawer: Object3D;
   /** The ONE celestial light. Sun by day, moon by night; the wheel moves it. */
   readonly sun: DirectionalLight;
   /** The lamp's warm key — `createLampState`'s `light`. */
@@ -222,7 +217,6 @@ export interface Room {
   setWindowGlow(opacity: number): void;
   /** ART-DIRECTION §Exposure discipline — the single owner of the renderer's exposure. */
   setExposureStops(stops: number): void;
-  setDrawerOpen(amount: number): void;
   setFogDensity(density: number): void;
   /** Adopt every prop the registry has primed. Idempotent — call after each batch lands. */
   adopt(): Promise<void>;
@@ -243,22 +237,25 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   const ownedTexture: Texture[] = [];
   const disposers: Array<() => void> = [];
 
-  // The desk is the origin. `WoodenTable_02` arrives with its origin at its base, so the
+  // The desk is the origin. `wooden_table_02` arrives with its origin at its base, so the
   // model is shifted down by its own measured height — putting the real top face on
-  // cameraRig's y = 0 plane rather than raising every camera pose to meet the model.
+  // cameraRig's y = 0 plane rather than raising every camera pose to meet the model. That
+  // shift is not applied here and then hoped for: it goes into `drop` below, which
+  // `placeProps` adds every time it runs, because `applyPlacement()` writes `position`
+  // outright and would otherwise silently undo it on the next asset batch or tier change.
   //
-  // It is also normalised first: at source it is a 301 x 301 x 418 mm plant stand (Poly
-  // Haven's own /info agrees), and every measurement below would otherwise be taken against
-  // that. See props.ts §Scale normalisation and 03-09-SUMMARY §Escalations.
+  // Nothing is normalised. `wooden_table_02` measures 1134.4 x 706.1 x 799.5 mm at source
+  // (Ruling 9 F1, three-way confirmed at ingest), which is a writing desk — so 799.5 mm IS
+  // the desk height `DESK_MEDIUM` is authored against, rather than a number to divide into.
   const table = await registry.get<Object3D>(PROP_SOURCES.table);
-  normaliseScale(table, PROP_ANCHORS.table.metres);
   const bounds = new Box3().setFromObject(table);
   const tableHeight = bounds.max.y - bounds.min.y;
   const deskTopY = 0;
   const floorY = -tableHeight;
-  table.position.y = -bounds.max.y;
   // Half-extents of the real top face — what a desk anchor's fractional u/v scale by, so a
   // different desk asset moves every prop with it instead of stranding them in mid-air.
+  // Ruling 9 exercised exactly that: a 300.7 mm table became a 1134.4 mm one and every
+  // lateral placement followed without a number being re-tuned.
   const deskHalfWidth = (bounds.max.x - bounds.min.x) / 2;
   const deskHalfDepth = (bounds.max.z - bounds.min.z) / 2;
 
@@ -353,19 +350,6 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   ownedMaterial.push(glowMaterial);
   ownedTexture.push(glowMask);
 
-  /* -- drawer ------------------------------------------------------------------------ */
-
-  // A3: WoodenTable_02 is a single node with no separate drawer geometry, so the drawer is
-  // the sanctioned procedural box (brief 04's carve-out) parented to the desk.
-  const drawerGeometry = new BoxGeometry(0.44, 0.1, 0.32);
-  const drawerMaterial = new MeshStandardMaterial({ color: TOKEN.wood, roughness: 0.7 });
-  const drawer = new Mesh(drawerGeometry, drawerMaterial);
-  const drawerRestZ = 0.14;
-  drawer.position.set(0, deskTopY - 0.11, drawerRestZ);
-  root.add(drawer);
-  ownedGeometry.push(drawerGeometry);
-  ownedMaterial.push(drawerMaterial);
-
   /* -- the whole light rig ----------------------------------------------------------- */
 
   const sun = new DirectionalLight(0xffffff, 1);
@@ -422,6 +406,8 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   disposers.push(quality.subscribe(applyQuality));
 
   const placed = new Map<PropId, Object3D>();
+  /** Per-prop Y correction, measured from each model's own bounds as it is adopted. */
+  const drop: PropDrop = {};
   let tier: string = quality.settings.tier;
 
   const applyPlacement = (): void => {
@@ -430,7 +416,7 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
       floor: floorY,
       halfWidth: deskHalfWidth,
       halfDepth: deskHalfDepth,
-    }, tier);
+    }, tier, drop);
   };
 
   // Every storyboard-named per-tier difference registers a context from day one, so Phase 4
@@ -482,14 +468,55 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   const clockHands: Partial<Record<'hour' | 'minute' | 'second', Object3D>> = {};
   let lampHead: Object3D | null = null;
 
+  /**
+   * Lift the object a prop actually places out of its loaded scene.
+   *
+   * For a "(whole)" entry that is the scene itself. For a node-level entry (STORYBOARD A10)
+   * it is one named child — `office_notepads_a4_stack` out of a ten-item catalogue spread —
+   * and the siblings are simply never added to the room, so a cut item costs no draw call.
+   * A missing name throws rather than degrading: nodes are addressed by name, an ingest that
+   * joins them away is silent everywhere else, and a room quietly missing its dressing is a
+   * worse failure than a loud one.
+   */
+  const pick = (id: PropId, scene: Object3D): Object3D => {
+    const name = PROP_ANCHORS[id].node;
+    if (name === null) return scene;
+    const node = scene.getObjectByName(name);
+    if (node === undefined) {
+      throw new Error(
+        `${PROP_SOURCES[id]} has no node "${name}" (STORYBOARD A10 places it). Nodes are ` +
+          'addressed by name; check the ingest kept the node graph (NODE_PRESERVING).',
+      );
+    }
+    return node;
+  };
+
   const adopt = async (): Promise<void> => {
-    for (const id of Object.keys(PROP_SOURCES) as PropId[]) {
+    // Parented props last, so their host is already in `placed` when they are read. One
+    // level deep is all A10 authors; a prop whose host has not arrived is skipped and taken
+    // by the next batch's adopt() rather than being stranded at the room origin.
+    const order = (Object.keys(PROP_SOURCES) as PropId[]).sort(
+      (a, b) => Number(PROP_ANCHORS[a].plane === 'shelf') - Number(PROP_ANCHORS[b].plane === 'shelf'),
+    );
+    for (const id of order) {
       if (placed.has(id)) continue;
       const url = PROP_SOURCES[id];
       if (!registry.has(url)) continue;
-      const object = await registry.get<Object3D>(url);
-      if (id !== 'table') normaliseScale(object, PROP_ANCHORS[id].metres);
-      root.add(object);
+      const anchor = PROP_ANCHORS[id];
+      const host = anchor.plane === 'shelf' ? placed.get('shelf') : root;
+      if (host === undefined) continue; // its host has not landed yet — next batch takes it
+      const object = pick(id, await registry.get<Object3D>(url));
+      // Measure the model's own bounds with its layout transform zeroed: a node lifted out
+      // of a catalogue sheet carries that sheet's offset, and `office_notepads_a4_stack` is
+      // centred on its own 10 mm thickness, so placing it at y = 0 buries half the pad.
+      object.position.set(0, 0, 0);
+      object.rotation.set(0, 0, 0);
+      object.updateMatrixWorld(true);
+      const box = new Box3().setFromObject(object);
+      // The table meets its plane by its TOP face — that plane IS the desk. Everything else
+      // meets it by its underside, which is what "standing on" means.
+      drop[id] = id === 'table' ? -box.max.y : -box.min.y;
+      host.add(object);
       placed.set(id, object);
     }
     applyPlacement();
@@ -523,7 +550,6 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
     floorY,
     windowAnchor: new Vector3(WINDOW.x, WINDOW.y, BACK_Z),
     lampPoolAnchor,
-    drawer,
     sun,
     lampKey,
     lampPool: poolMaterial,
@@ -556,11 +582,6 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
       invalidate();
     },
 
-    setDrawerOpen(amount: number): void {
-      drawer.position.z = drawerRestZ + Math.min(1, Math.max(0, amount)) * DRAWER_TRAVEL;
-      invalidate();
-    },
-
     setFogDensity(density: number): void {
       fog.density = Math.max(0, density);
       invalidate();
@@ -588,23 +609,6 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   };
 
   return room;
-}
-
-/**
- * Scale a model uniformly so its measured extent on the named axis is the declared real-world
- * size. Idempotent: the extent is re-measured from the model's CURRENT scale, so calling it
- * twice is a no-op rather than a second division — which matters, because `adopt()` runs once
- * per asset batch.
- *
- * `null` ships the model at source scale, which is the case for eight of the ten props.
- */
-function normaliseScale(object: Object3D, target: ScaleTarget | null): void {
-  if (target === null) return;
-  const size = new Box3().setFromObject(object).getSize(new Vector3());
-  const extent = size[target.axis];
-  if (!(extent > 0)) return; // an unmeasurable model is a broken model, not a scale of Infinity
-  object.scale.multiplyScalar(target.size / extent);
-  object.updateMatrixWorld(true);
 }
 
 /**
