@@ -41,8 +41,8 @@ This section resolves the ~36 MB ceilings-sum vs ~20–26 MB estimate conflict (
 
 | Item | desktop | mobile (1K tier) | Status |
 |---|---|---|---|
-| Ch1 critical path (to interactive) | ≤ 9 MB | ≤ 5 MB | build gate — ASSETS.md estimates Ch1 ≈ 8 MB; at ceilings it sums ~11 MB, which is why the regimes are split |
-| Total streamed asset weight (full journey) | ≤ 30 MB | ≤ 18 MB | build gate |
+| Ch1 critical path (to interactive) | ≤ 9 MB | ~~≤ 5 MB~~ **retired — see §Amendments B2** | build gate, **desktop only** — ASSETS.md estimates Ch1 ≈ 8 MB; at ceilings it sums ~11 MB, which is why the regimes were split |
+| Total streamed asset weight (full journey) | ≤ 30 MB | ~~≤ 18 MB~~ **retired — see §Amendments B2** | build gate, **desktop only** |
 | Eager JS (initial JS: shell + boot gate) | ≤ 10 KB gz | ≤ 10 KB gz | build gate — measured 2026-08-19: 1.25 KB gz (Phase 2 build: 1,241 B at base=/, 1,253 B at /MailAutomation/) |
 | Island JS (3D JS bundle) | ≤ 300 KB gz | ≤ 300 KB gz | `[PROVISIONAL — ratified Phase 2: 241,282 B gz (236 KB) measured 2026-08-19, incl. three + GSAP/ScrollTrigger + Lenis + GLTF/KTX2/HDR loaders + meshopt decoder; re-verify Phase 6]` |
 | Network requests (first view) | ≤ 45 | ≤ 45 | `[PROVISIONAL — ratify Phase 6]` |
@@ -137,3 +137,45 @@ A4's ≤2-actives reading survives intact. The wheel blends exactly one *adjacen
 - the **day-wheel's own source count** (5 desktop / 4 mobile). Residency = wheel sources + 1 blend; the A/B pair is two of the wheel's five, never two more.
 
 A breach redirects the scene (D-15). It never relaxes the line.
+
+### B2 (2026-08-26) — the mobile ASSET-WEIGHT gates are retired; mobile rendering is not
+
+*Supersedes: the **mobile (1K tier)** column of the **Ch1 critical path** and **Total streamed asset
+weight** rows of §Regime B — those two rows only. Both are annotated in place rather than rewritten.*
+*Owner: project owner, 2026-08-26, on the escalation 03-05 raised and 03-09's dispatch carried.*
+
+**The conflict, stated.** Ch1's mobile critical path measures **6,649,520 B** against the ≤ 5 MB line
+— **1,649,520 B over**, and structurally so: STORYBOARD authors the mobile path as 1K prop-set
+*variants*, 03-04 ingested **one** variant per asset, and the island has no per-tier asset
+*selection* at all (`QualityManager` decides DPR, shadows, post and particles — never which files
+load). Closing the line honestly required one of three things: a 1K-variant ingest chain, a BUDGETS
+amendment, or an authored Ch1 mobile scene cut. The owner chose the amendment.
+
+**Why it is defensible and not just convenient.** The product is a **Windows desktop application**. A
+phone visitor cannot install it. Mobile's job on this site is to be read, understood and remembered,
+then acted on later at a desktop — so what a phone visitor actually feels is frame pacing and time to
+first meaningful paint, not total transfer weight over a session they will not convert in. Those are
+governed by different lines, and every one of them stands.
+
+**What this does NOT retire.** Mobile still renders, and every mobile guarantee outside asset weight
+is untouched:
+
+- **§Regime A per-frame budgets** — the floor-mobile and high-mobile tiers, draw calls, triangles,
+  0 shadow maps, 0 post passes, 0 particles. Unchanged.
+- **The ≤ 128 MB texture-memory line** and PMREM residency (incl. B1). Unchanged — this is the line
+  that actually protects a phone from an OOM kill, and it is a *residency* budget, not a transfer one.
+- **TTI ≤ 3.5 s throttled 4G / mid-mobile.** Unchanged, and it is now the primary mobile guard: it
+  constrains what may sit on the critical path by the only measure a visitor experiences.
+- **The three-path boot gate**, ResponsiveBranch, reduced-motion, and every authored mobile cut in
+  STORYBOARD's mobile-adaptation column. Unchanged. Mobile is still a second authored cut.
+
+**Recorded at retirement**, so the number is never lost: Ch1 mobile critical path **6,649,520 B**;
+desktop the same 6,649,520 B against a live ≤ 9 MB line with **2,350,480 B** of headroom.
+
+**Exit condition.** If mobile ever becomes a conversion surface — a web-based product, an install
+path a phone can complete, or paid mobile traffic — this amendment is reversed by authoring the 1K
+variants and adding per-tier selection to the asset layer, not by re-adding the number alone.
+
+**Consequence for executors:** no plan should attempt to close the mobile asset-weight debt, and the
+zero-headroom gate 03-05 recorded against it is superseded. The **desktop** ≤ 9 MB line is live,
+tight, and the one to gate against.
