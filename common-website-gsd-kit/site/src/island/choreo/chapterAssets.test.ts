@@ -293,8 +293,15 @@ const CH1_DESKTOP_LIMIT = 9_000_000;
 const CH1_MOBILE_LIMIT = 5_000_000;
 /** B2's recorded-at-retirement figure — Ch1's critical path before 03-09 split it. */
 const CH1_MOBILE_AT_RETIREMENT = 6_649_520;
-/** What the same sum measures after the split. Mobile streams the same bytes desktop does. */
-const CH1_MOBILE_RATCHET = 5_653_052;
+/**
+ * What the same sum measures today. Mobile streams the same bytes desktop does.
+ *
+ * 5,653,052 -> **5,433,608** on 2026-08-26: Ruling 9 F1 swapped `WoodenTable_02` (2,241,096 B)
+ * for `wooden_table_02` (2,021,652 B), the only critical-path row either ruling touched.
+ * The ratchet records what mobile costs; it is not a target being closed. B2 retired the
+ * line, and no per-tier asset selection was invented here or anywhere else.
+ */
+const CH1_MOBILE_RATCHET = 5_433_608;
 /** BUDGETS §Regime B, "Total streamed asset weight (full journey)" — desktop, live. */
 const JOURNEY_DESKTOP_LIMIT = 30_000_000;
 
@@ -352,6 +359,56 @@ test('Ch1 mobile payload does not grow past the recorded figure (superseded by B
       'recorded-at-retirement figure; if it ever equals it again, the split was undone ' +
       'rather than extended',
   );
+});
+
+/**
+ * Ruling 9 F4: *"Ingest only — do not add it to `CHAPTER_ASSETS[0]`; it belongs to Ch4
+ * (plan 03-15) and must not spend Ch1's critical-path budget."* A10 makes the cabinet a
+ * room fixture from Ch2 onward, so the chapter that first shows it declares it — and until
+ * then no batch may, which is the half a growth rule cannot express on its own.
+ */
+test('the sourced do-not-send cabinet is ingested but declared by no batch yet (F4)', () => {
+  const url = 'assets/vintage_wooden_drawer_01/vintage_wooden_drawer_01.glb';
+  assert.ok(
+    fs.existsSync(path.join(ASSETS_DIR, url.slice('assets/'.length))),
+    'vintage_wooden_drawer_01 must be ingested — Ruling 9 F4 strikes the procedural box it ' +
+      'replaces, so Ch4 has nothing to open until this lands',
+  );
+  assert.ok(licenceRowFor(url), 'and covered by a licensing row like every shipped asset');
+  assert.equal(
+    ALL_DECLARED.some((a) => a.url === url),
+    false,
+    'but no batch declares it yet. Ch1 opens on an ECU 8 cm above the letter and never ' +
+      'shows a filing cabinet; 1,144,480 B on the critical path for an object outside the ' +
+      'frame is the exact trade the Regime-B split exists to refuse.',
+  );
+});
+
+test('the struck mis-cast assets are declared by no batch and gone from disk (F1/F2)', () => {
+  for (const struck of ['WoodenTable_02', 'WoodenChair_01']) {
+    assert.equal(
+      fs.existsSync(path.join(ASSETS_DIR, struck)),
+      false,
+      `public/assets/${struck} still ships. Ruling 9 replaced it; a shipped asset nothing ` +
+        'places is dead weight in the repo and a live invitation to re-declare it.',
+    );
+    assert.equal(
+      MANIFEST.some((r) => r.id === struck),
+      false,
+      `manifest.json still carries a row for ${struck}`,
+    );
+    assert.equal(
+      ALL_DECLARED.some((a) => a.url.includes(struck)),
+      false,
+      `a batch still declares ${struck}`,
+    );
+  }
+  // Non-vacuous: the replacements must be present by the same three measures.
+  for (const live of ['wooden_table_02', 'painted_wooden_chair_01']) {
+    assert.ok(fs.existsSync(path.join(ASSETS_DIR, live)), `${live} must ship`);
+    assert.ok(MANIFEST.some((r) => r.id === live), `${live} must have a manifest row`);
+    assert.ok(ALL_DECLARED.some((a) => a.url.includes(live)), `${live} must be declared`);
+  }
 });
 
 test('every prop the set places is paid for by a declared batch', () => {

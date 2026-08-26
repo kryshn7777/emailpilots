@@ -215,65 +215,300 @@ test('the desk is the origin anchor', () => {
   );
 });
 
-/* ------------------------------------------------------- scale normalisation (03-09) --- */
+/* --------------------------------------------- real-world size, at source (Ruling 9) --- */
 
 /**
- * Measured from the shipped GLBs and cross-checked against Poly Haven's own `/info`
- * metadata on 2026-08-26 (the two agree exactly, so the ingest is faithful and these are
- * SOURCE dimensions, not pipeline damage):
+ * Measured from the SHIPPED GLBs by `nodeSizeMm` below, and cross-checked against Poly
+ * Haven's own published `dimensions` at download (Ruling 9 §4 made that check the fourth
+ * component of the `[V]` mark). Every number here is a measurement, never a transcription:
  *
- * | prop | source W x D x H (mm) | verdict |
+ * | prop | shipped W x H x D (mm) | verdict |
  * |---|---|---|
- * | WoodenTable_02 | 301 x 301 x 418 | a 30 cm plant stand, not a writing desk |
- * | WoodenChair_01 | 688 x 658 x 2274 | a 2.27 m tall chair |
- * | desk_lamp_arm_01 | 617 x 408 x 879 | plausible arm lamp |
- * | alarm_clock_01 | 228 x 168 x 174 | plausible |
- * | office_notepads | 1103 x 660 x 22 | a kit flat-lay, correct at real scale |
- * | stationery_supplies | 302 x 84 x 164 | plausible |
- * | binder_notebook | 584 x 200 x 25 | open A4 binder |
- * | book_encyclopedia_set_01 | 551 x 163 x 237 | plausible |
- * | clipboard | 229 x 337 x 42 | A4 clipboard, exact |
- * | Shelf_01 | 1003 x 257 x 2080 | 2.08 m shelf unit |
+ * | wooden_table_02 | 1134.4 x 799.5 x 706.1 | a writing table — the size the camera plan already assumed |
+ * | painted_wooden_chair_01 | 431.7 x 956.5 x 539.8 | a chair |
+ * | desk_lamp_arm_01 | 617 x 879 x 408 | plausible arm lamp |
+ * | alarm_clock_01 | 228 x 174 x 168 | plausible |
+ * | clipboard | 229 x 42 x 337 | A4 clipboard, exact |
+ * | Shelf_01 | 1003 x 2080 x 257 | 2.08 m shelf unit |
  *
- * Eight of ten are real-world sane. Two are not, and not marginally: no writing desk is
- * 42 cm high and no chair is 2.27 m tall. Those two — and ONLY those two — carry a
- * normalisation target, because normalising a prop that is already right is an invented
- * number, and inventing numbers is what the ledger exists to prevent.
+ * The two that were NOT real-world sane — a 300 mm side table cast as the hero desk and a
+ * 2273 mm Gothic hall chair — are gone rather than rescaled. Ruling 9 F1/F2: "neither
+ * original is rescalable; per-axis stretching either into the right silhouette is the
+ * fabricated stand-in brief 04 bans." The scale-normalisation mechanism went with them.
  */
-const NEEDS_NORMALISING: readonly PropId[] = ['table', 'chair'];
 
-test('only the props that are objectively wrong at source declare a scale target', () => {
-  const declared = (Object.keys(PROP_ANCHORS) as PropId[])
-    .filter((id) => PROP_ANCHORS[id].metres !== null)
-    .sort();
-  assert.deepEqual(
-    declared,
-    [...NEEDS_NORMALISING].sort(),
-    'a normalisation target on a prop that already measures correctly is a number nobody ' +
-      'can defend from the ledger — and it would silently override a future re-ingest that ' +
-      'fixed the asset',
+/** A shipped GLB's JSON chunk. meshopt compresses buffer views; the node graph stays plain. */
+interface GlbNode {
+  name?: string;
+  mesh?: number;
+  scale?: number[];
+}
+interface Glb {
+  nodes?: GlbNode[];
+  meshes?: Array<{ primitives: Array<{ attributes: { POSITION: number } }> }>;
+  accessors?: Array<{ min: number[]; max: number[]; componentType: number; normalized?: boolean }>;
+}
+
+function glbJson(url: string): Glb {
+  const buf = fs.readFileSync(path.join(ISLAND, '../../public', url));
+  const len = buf.readUInt32LE(12);
+  assert.equal(buf.readUInt32LE(16), 0x4e4f534a, `${url}: the first GLB chunk is not JSON`);
+  return JSON.parse(buf.subarray(20, 20 + len).toString('utf8')) as Glb;
+}
+
+/** Divisors for glTF normalized integer POSITION — gltfpack writes min/max in RAW units. */
+const NORMALIZED_DIVISOR: Record<number, number> = {
+  5120: 127,
+  5121: 255,
+  5122: 32767,
+  5123: 65535,
+};
+
+/** A named node's own size in mm: accessor bounds x the node's own dequantising scale. */
+function nodeSizeMm(url: string, name: string): [number, number, number] {
+  const gltf = glbJson(url);
+  const node = (gltf.nodes ?? []).find((n) => n.name === name && n.mesh != null);
+  assert.ok(
+    node,
+    `${url} has no mesh node named "${name}". Nodes are placed BY NAME, and an ingest that ` +
+      'joins them away is silent everywhere else in this project — which is exactly what ' +
+      'the 2026-08-20 run did to all ten of office_notepads.',
+  );
+  const scale = node.scale ?? [1, 1, 1];
+  const lo = [Infinity, Infinity, Infinity];
+  const hi = [-Infinity, -Infinity, -Infinity];
+  for (const prim of gltf.meshes![node.mesh!].primitives) {
+    const a = gltf.accessors![prim.attributes.POSITION];
+    const d = a.normalized === true ? NORMALIZED_DIVISOR[a.componentType] : 1;
+    for (let i = 0; i < 3; i++) {
+      lo[i] = Math.min(lo[i], a.min[i] / d);
+      hi[i] = Math.max(hi[i], a.max[i] / d);
+    }
+  }
+  return [0, 1, 2].map((i) => (hi[i] - lo[i]) * scale[i] * 1000) as [number, number, number];
+}
+
+/** The whole asset's extent in mm — the union of its mesh nodes, as Room would place it. */
+function assetSizeMm(url: string): [number, number, number] {
+  const names = (glbJson(url).nodes ?? []).filter((n) => n.mesh != null).map((n) => n.name ?? '');
+  assert.ok(names.length > 0, `${url} has no mesh nodes`);
+  const per = names.map((n) => nodeSizeMm(url, n));
+  return [0, 1, 2].map((i) => Math.max(...per.map((p) => p[i]))) as [number, number, number];
+}
+
+/** What a prop declares it places: a named node, or `null` for A10's "(whole)". */
+const nodeOf = (id: PropId): string | null =>
+  (PROP_ANCHORS[id] as unknown as { node?: string | null }).node ?? null;
+
+test('no prop is rescaled — assets are cast at their real size (Ruling 9 F1/F2)', () => {
+  const table = PROP_ANCHORS as unknown as Record<string, Record<string, unknown>>;
+  for (const id of Object.keys(PROP_ANCHORS) as PropId[]) {
+    assert.equal(
+      'metres' in table[id],
+      false,
+      `${id} declares a scale target. A model whose real size contradicts the role it is ` +
+        'cast in is MIS-CAST, and the remedy is a different asset, never a divisor — ' +
+        'Ruling 9 struck both props that carried one, and the mechanism with them.',
+    );
+  }
+  assert.equal(
+    count(ROOM, /normaliseScale/g),
+    0,
+    'Room must not keep a rescaler either: an unused one is an invitation to re-cast by ' +
+      'arithmetic, which is the fabricated stand-in brief 04 bans',
+  );
+  assert.ok(count(ROOM, /setFromObject/g) > 0, 'positive control: Room still measures models');
+});
+
+test('the two mis-cast assets are gone from the source table, not merely superseded', () => {
+  for (const [id, url] of Object.entries(PROP_SOURCES)) {
+    assert.doesNotMatch(
+      url,
+      /WoodenTable_02|WoodenChair_01/,
+      `${id} still points at a struck asset (${url}). Note the case: the replacement desk ` +
+        'is `wooden_table_02`, lowercase — a DIFFERENT Poly Haven asset by a different ' +
+        'author, whose url differs from the struck one only in capitalisation (Ruling 9 F1).',
+    );
+  }
+  assert.match(PROP_SOURCES.table, /\/wooden_table_02\.glb$/);
+  assert.match(PROP_SOURCES.chair, /\/painted_wooden_chair_01\.glb$/);
+});
+
+test('the two replacement heroes measure what Poly Haven publishes (Ruling 9 F1/F2)', () => {
+  // Ruling 9's own assertion: "the desk's world bounding box measures ~1134 x 706 x 800 mm
+  // after ingest; the chair ~432 x 540 x 957." Tolerance is 1 mm because the ingest
+  // requantises POSITION — it is a measurement tolerance, not a fudge factor.
+  const cases: ReadonlyArray<readonly [string, [number, number, number], readonly number[]]> = [
+    ['desk', nodeSizeMm(PROP_SOURCES.table, 'wooden_table_02'), [1134.4, 799.5, 706.0]],
+    ['chair', nodeSizeMm(PROP_SOURCES.chair, 'painted_wooden_chair_01'), [431.8, 956.5, 539.8]],
+  ];
+  for (const [label, got, want] of cases) {
+    for (const i of [0, 1, 2]) {
+      assert.ok(
+        Math.abs(got[i] - want[i]) <= 1,
+        `${label} axis ${i}: shipped ${got[i].toFixed(1)} mm, published ${want[i]} mm. This ` +
+          'comparison is the one that catches a mis-cast asset, and it is the one that did ' +
+          'not run in Phase 1 (Ruling 9 §4).',
+      );
+    }
+  }
+});
+
+/* ------------------------------------------------- node-level dressing (Ruling 9 F3) --- */
+
+/**
+ * STORYBOARD A10's standing rule: *"a storyboard §Objects entry naming a multi-node source
+ * asset must name the node it places. Where a whole asset is intended, the entry says
+ * (whole)."* Three dressing sources are product-catalogue sheets — `office_notepads` is ten
+ * separate items spread across 1.10 x 0.66 m, `binder_notebook` carries an open AND a closed
+ * binder side by side — so placing the ASSET put the whole spread on the desk. That, not the
+ * desk's size, is what filled ~70% of Ch1's composited frame with a legal pad.
+ *
+ * These gates read the SHIPPED GLBs, so they also fail if a future re-ingest joins the node
+ * graph away again — which is what the 2026-08-20 `optimize` run silently did.
+ */
+test('every dressing entry that names a multi-node asset names its node (A10)', () => {
+  const expected: Partial<Record<PropId, string | null>> = {
+    notepads: 'office_notepads_a4_stack',
+    stationery: 'stationery_supplies_pencilcup',
+    binder: 'binder_notebook_closed',
+    clock: null, // A10: "(whole)"
+    clipboard: null, // A10: "(whole)"
+  };
+  for (const [id, node] of Object.entries(expected) as [PropId, string | null][]) {
+    assert.equal(
+      nodeOf(id),
+      node,
+      `${id}: A10 places ${node === null ? 'the whole asset' : node}. Naming the asset where ` +
+        'the source is a catalogue layout is what put a 1.10 m spread of ten items on a desk.',
+    );
+  }
+  for (const id of Object.keys(PROP_ANCHORS) as PropId[]) {
+    const node = nodeOf(id);
+    if (node !== null) nodeSizeMm(PROP_SOURCES[id], node); // asserts the node really ships
+  }
+});
+
+test('the nodes A10 cuts are placed by nothing', () => {
+  // "the yellow legal nodes are cut — a yellow pad fights the cream hero letter"; "the cup
+  // only; the loose-pencil spread is cut"; "closed and singular — nobody is working".
+  const cut = [
+    'office_notepads_yellow_sheet',
+    'office_notepads_yellow_pad',
+    'stationery_supplies_pencil_new_a',
+    'stationery_supplies_pencil_new_b',
+    'stationery_supplies_pencil_old',
+    'stationery_supplies_pencil_used',
+    'binder_notebook', // the OPEN variant; A10 places `binder_notebook_closed`
+  ];
+  const placed = (Object.keys(PROP_ANCHORS) as PropId[])
+    .map(nodeOf)
+    .filter((n): n is string => n !== null);
+  for (const name of cut) {
+    assert.equal(placed.includes(name), false, `${name} is cut by A10 but the table places it`);
+  }
+  // Non-vacuous: every cut name must be a node that really ships, or this checks nothing.
+  assert.equal(nodeSizeMm(PROP_SOURCES.notepads, 'office_notepads_yellow_pad').length, 3);
+  assert.equal(nodeSizeMm(PROP_SOURCES.binder, 'binder_notebook').length, 3);
+});
+
+test('nothing placed on the desktop is desk-sized (Ruling 9 assertion list)', () => {
+  // "no dressing node placed on the desktop exceeds ~350 mm in its longest axis, except the
+  // clipboard (337 mm) and the desk itself." The OPEN binder is 365 mm, which is exactly why
+  // A10 places the closed one — so this gate separates the chosen node from the cut one.
+  for (const id of Object.keys(PROP_ANCHORS) as PropId[]) {
+    if (PROP_ANCHORS[id].plane !== 'desk' || id === 'table') continue;
+    const node = nodeOf(id);
+    const mm = node === null ? assetSizeMm(PROP_SOURCES[id]) : nodeSizeMm(PROP_SOURCES[id], node);
+    const longest = Math.max(...mm);
+    const cap = id === 'clipboard' ? 340 : 350;
+    assert.ok(
+      longest <= cap,
+      `${id} measures ${longest.toFixed(1)} mm on its longest axis, over the ${cap} mm the ` +
+        'ruling allows on the desktop. A prop that reads as furniture beside the letter is ' +
+        'what wrecked the Ch1 frames.',
+    );
+  }
+  assert.ok(
+    Math.max(...nodeSizeMm(PROP_SOURCES.binder, 'binder_notebook')) > 350,
+    'positive control: the OPEN binder must fail this rule, or the 350 mm line is measuring ' +
+      'nothing — it is the node A10 cut, and the reason it cut it',
   );
 });
 
-test('each scale target is a real-world dimension, not a fudge factor', () => {
-  for (const id of NEEDS_NORMALISING) {
-    const target = PROP_ANCHORS[id].metres;
-    assert.ok(target !== null, `${id} must declare one`);
-    assert.match(target.axis, /^[xyz]$/, `${id}: names the axis the size is measured on`);
+test('the encyclopedia set stands on the shelf, never on the desktop (A10)', () => {
+  assert.equal(
+    PROP_ANCHORS.encyclopedia.plane,
+    'shelf',
+    'A10: "book_encyclopedia_set_01 (whole) parented to Shelf_01, not to the desktop — at ' +
+      '551 mm it is half the desk." Parenting also carries the authored mobile cut for ' +
+      'free, because three.js visibility is hierarchical: the books go when the shelf goes, ' +
+      'with no second tier gate the budget does not sanction.',
+  );
+  assert.equal(
+    (Object.keys(PROP_ANCHORS) as PropId[]).filter((id) => PROP_ANCHORS[id].plane === 'shelf')
+      .length,
+    1,
+    'exactly one parented prop — one enum value, not a scene-graph system',
+  );
+  assert.ok(
+    Math.max(...assetSizeMm(PROP_SOURCES.encyclopedia)) > 500,
+    'positive control: the book set really is half a desk wide',
+  );
+});
+
+/* ------------------------------------------- the do-not-send drawer is sourced (F4) --- */
+
+/**
+ * Ruling 9 F4 **strikes** D2-16's sanctioned procedural drawer box. The old desk was a
+ * single node with no drawer geometry, so a box was faked into its apron; `wooden_table_02`
+ * has no apron at all, and a drawer front materialising out of a tabletop reads as a bug.
+ * `vintage_wooden_drawer_01` replaces it — a six-drawer filing cabinet whose six named
+ * drawer nodes survive ingest, so Ch4 opens real geometry.
+ *
+ * It is **ingested, not placed here**: A10 makes it a room fixture from Ch2, and Ruling 9
+ * says outright it must not join Ch1's critical path. Plan 03-15 places it. What this gate
+ * enforces is only that the struck mechanism is gone — comments explaining the strike are
+ * stripped first, so the record can be written without satisfying its own gate.
+ */
+test('the procedural drawer box is gone from the set (Ruling 9 F4 strikes D2-16)', () => {
+  const code = ROOM.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(
+    code.includes('setWindowGlow'),
+    'positive control: stripping comments must leave the code, or the assertions below pass ' +
+      'against an empty string',
+  );
+  assert.equal(
+    count(code, /\bdrawers?\b/gi),
+    0,
+    'Room still builds or exposes a drawer. D2-16 is struck: the sourced cabinet is a ' +
+      'Ch2 fixture that 03-15 places, and Room must not keep a box that fakes one. ' +
+      '(Word-boundary on purpose — "drawing"/"redraw" must not satisfy this gate.)',
+  );
+  assert.equal(count(code, /setDrawerOpen/g), 0, 'the drawer API is struck with the box');
+  // Non-vacuous: the same regex must find the word where it genuinely appears.
+  assert.equal(count('a drawer, two drawers, but never a drawing', /\bdrawers?\b/gi), 2);
+});
+
+/**
+ * The cabinet must exist to be placed later, and must NOT be on Ch1's critical path.
+ * Ruling 9 F4: "Ingest only — do not add it to CHAPTER_ASSETS[0]; it belongs to Ch4."
+ */
+test('the sourced cabinet is ingested and its six drawer nodes survived', () => {
+  const url = 'assets/vintage_wooden_drawer_01/vintage_wooden_drawer_01.glb';
+  for (let i = 1; i <= 6; i++) {
+    const mm = nodeSizeMm(url, `vintage_wooden_drawer_01_drawer0${i}`);
     assert.ok(
-      target.size > 0.05 && target.size < 3,
-      `${id}: ${target.size} m is not a size a room object has. Room divides the MODEL's own ` +
-        'measured extent by this, so it is a statement about the real world — which means a ' +
-        're-ingest at a different scale self-corrects instead of doubling the error.',
+      Math.max(...mm) > 100,
+      `drawer0${i} is ${Math.max(...mm).toFixed(1)} mm — not real geometry`,
     );
   }
-  assert.equal(PROP_ANCHORS.table.metres?.axis, 'y', 'the desk is normalised by HEIGHT');
-  assert.equal(
-    PROP_ANCHORS.table.metres?.size,
-    0.75,
-    'standard desk height, and the dimension the camera table actually depends on: ' +
-      'DESK_MEDIUM is authored "~50 cm above desk height". Uniform, so the model is not ' +
-      'distorted — see the escalation in 03-09-SUMMARY about what its proportions then imply.',
+  const body = nodeSizeMm(url, 'vintage_wooden_drawer_01_body');
+  assert.ok(Math.abs(body[0] - 857.6) <= 1, `cabinet is ${body[0].toFixed(1)} mm wide, want 857.6`);
+  assert.ok(
+    body[1] < 799.5,
+    'A10: "545 mm tall sits below the 800 mm desktop, so it tucks beside the desk without ' +
+      'breaking the desk silhouette in any authored camera"',
   );
 });
 
