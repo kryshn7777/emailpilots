@@ -76,6 +76,16 @@ const ROW_TUNING = {
   // paper grain) keeps its 2K ETC1S; normal + roughness drop to 1K, exactly the
   // WoodenTable_02 move. Ledger row annotated; ceiling untouched.
   Paper001: { uastcMax: 1024 },
+  // The two wall candidates (PBR, 03-09): a 1K UASTC normal alone is 1.30 MB (Plaster001) /
+  // 0.70 MB (PaintedPlaster017) against a 1 MB set ceiling, so 1K UASTC is unreachable for
+  // this row by arithmetic before roughness is counted at all — the Shelf_01 case exactly.
+  // Both drop to 512 UASTC and keep 1K ETC1S colour. Identical tuning on both, deliberately:
+  // Open Question 5 is a judgement between two materials, and it is only a fair one if the
+  // pipeline treated them the same. A wall tiled 4x2 across a 7 m plane, read at 2-3 m
+  // through ~24% fog, is the one surface in the room that can afford it — it is negative
+  // space by direction (ART-DIRECTION §Color system: the wall must not fight the palette).
+  Plaster001: { uastcMax: 512 },
+  PaintedPlaster017: { uastcMax: 512 },
 };
 
 /** Spawn one gltf-transform CLI command; any non-zero exit aborts the ingest. */

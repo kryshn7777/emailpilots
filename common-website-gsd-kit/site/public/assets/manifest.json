@@ -66,6 +66,17 @@
     "ingested": "2026-08-20"
   },
   {
+    "id": "PaintedPlaster017",
+    "file": "PaintedPlaster017",
+    "source_url": "https://ambientcg.com/a/PaintedPlaster017",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 4719040,
+    "bytes_optimized": 471505,
+    "ceiling_bytes": 1000000,
+    "ingested": "2026-08-26"
+  },
+  {
     "id": "Paper001",
     "file": "Paper001",
     "source_url": "https://ambientcg.com/a/Paper001",
@@ -77,6 +88,17 @@
     "ingested": "2026-08-20"
   },
   {
+    "id": "Plaster001",
+    "file": "Plaster001",
+    "source_url": "https://ambientcg.com/a/Plaster001",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 7412254,
+    "bytes_optimized": 626405,
+    "ceiling_bytes": 1000000,
+    "ingested": "2026-08-26"
+  },
+  {
     "id": "qwantani_dusk_2_puresky",
     "file": "qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr",
     "source_url": "https://polyhaven.com/a/qwantani_dusk_2_puresky",
@@ -86,6 +108,17 @@
     "bytes_optimized": 1166018,
     "ceiling_bytes": 2000000,
     "ingested": "2026-08-19"
+  },
+  {
+    "id": "qwantani_night_puresky",
+    "file": "qwantani_night_puresky/qwantani_night_puresky.hdr",
+    "source_url": "https://polyhaven.com/a/qwantani_night_puresky",
+    "license": "CC0",
+    "attribution": null,
+    "bytes_original": 1389258,
+    "bytes_optimized": 1389258,
+    "ceiling_bytes": 2000000,
+    "ingested": "2026-08-26"
   },
   {
     "id": "qwantani_sunrise_puresky",

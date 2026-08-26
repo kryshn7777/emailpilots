@@ -46,7 +46,7 @@ Procedural (no source, no license): letter/blank sheet (subdivided plane + 2-bon
 | 1, 4, 5, 6, 7 | Qwantani Sunrise (Pure Sky) [V] | https://polyhaven.com/a/qwantani_sunrise_puresky | CC0 | None (courtesy) | 1K .hdr ~1–2 MB (never download 4K+) | 1K .hdr ≤ 2 MB; PMREM once at load — actual: 1.03 MB · 1024×512 · ingested 2026-08-19 |
 | 4, 7 | Qwantani Noon (Pure Sky) [V] | https://polyhaven.com/a/qwantani_noon_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB |
 | 2, 4 | Qwantani Dusk 2 (Pure Sky) [V] | https://polyhaven.com/a/qwantani_dusk_2_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB — actual: 1.17 MB · 1024×512 · ingested 2026-08-19 |
-| 3, 4 | Qwantani Night (Pure Sky) [V] | https://polyhaven.com/a/qwantani_night_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB |
+| 3, 4 | Qwantani Night (Pure Sky) [V] | https://polyhaven.com/a/qwantani_night_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB — actual: 1.39 MB · 1024×512 · ingested 2026-08-26 (pulled early by 03-09: Open Question 5 is decided at THREE light states including night — REVIEWS.md F-13 — and Ch1 only ever shows sunrise, so the night frame could not be captured without it. Ch3 declares it as a chapter asset in 03-11; it is deliberately NOT in Ch1's manifest) |
 | 4, 5 (desktop; mobile drops it) | Qwantani Moonrise (Pure Sky) [V] | https://polyhaven.com/a/qwantani_moonrise_puresky | CC0 | None (courtesy) | ~1–2 MB | 1K ≤ 2 MB — mobile uses Night in its place |
 
 Budget note: ≤ 5 HDRIs resident as PMREMs desktop (~1 MB-class each at 1K), ≤ 4 mobile; crossfade holds max 2 active; source textures disposed after PMREM (PITFALLS #4).
@@ -58,10 +58,18 @@ Budget note: ≤ 5 HDRIs resident as PMREMs desktop (~1 MB-class each at 1K), �
 | 1–7 (letter, envelopes, tags — hero material) | Paper 001 [V] | https://ambientcg.com/a/Paper001 | CC0 | None (courtesy) | 2K set ~15–25 MB | 2K KTX2 color+normal (ECU use) ≤ 3 MB; 1K elsewhere/mobile — actual: 2.55 MB · ingested 2026-08-20 (colour 2K ETC1S kept for the Ch1 ECU; NormalGL + Roughness at 1K UASTC. 2K colour+normal alone summed 3.06 MB — over ceiling before roughness is counted — so 2K UASTC is unreachable under this ceiling by arithmetic, not tuning. Displacement + NormalDX dropped) |
 | 2–4 (envelope backs, drawer interior) | Cardboard 004 [V] | https://ambientcg.com/a/Cardboard004 | CC0 | None (courtesy) | ~15–25 MB | 1K KTX2 ≤ 1 MB |
 | 1–7 (floor) | Wood Floor 051 [V] | https://ambientcg.com/a/WoodFloor051 | CC0 | None (courtesy) | ~20–30 MB | 1K KTX2 + baked AO ≤ 1.5 MB — actual: 1.27 MB · ingested 2026-08-20 (Colour/NormalGL/Roughness/AmbientOcclusion all 1K, no tuning needed; Displacement + NormalDX dropped) |
-| 1–7 (walls) | Plaster 001 [V] | https://ambientcg.com/a/Plaster001 | CC0 | None (courtesy) | ~15–25 MB | 1K KTX2 ≤ 1 MB |
-| walls alternate (warmer grade, pick one at ingest) | Painted Plaster 017 [V] | https://ambientcg.com/a/PaintedPlaster017 | CC0 | None (courtesy) | ~15–25 MB | 1K KTX2 ≤ 1 MB |
+| 1–7 (walls) | Plaster 001 [V] | https://ambientcg.com/a/Plaster001 | CC0 | None (courtesy) | ~15–25 MB | 1K KTX2 ≤ 1 MB — **candidate, ingested 2026-08-26 for the combined-render comparison; Open Question 5 still OPEN** — actual: 0.63 MB (Colour 132,157 @1K ETC1S · NormalGL 318,113 @512 UASTC · Roughness 176,135 @512 UASTC). 1K UASTC is unreachable under this ceiling by arithmetic: the 1K normal alone is 1.30 MB. No AmbientOcclusion or Metalness slot is published for this set |
+| walls alternate (warmer grade, pick one at ingest) | Painted Plaster 017 [V] | https://ambientcg.com/a/PaintedPlaster017 | CC0 | None (courtesy) | ~15–25 MB | 1K KTX2 ≤ 1 MB — **candidate, ingested 2026-08-26 for the combined-render comparison; Open Question 5 still OPEN** — actual: 0.47 MB (Colour 61,787 @1K ETC1S · NormalGL 250,630 @512 UASTC · Roughness 159,088 @512 UASTC). Identical ROW_TUNING to Plaster001 on purpose — a judgement between two materials is only fair if the pipeline treated them the same. No AO or Metalness slot published |
 
 Drop displacement/height channels at ingest (not sampled). One wall material ships, not both.
+
+**Wall-material status (2026-08-26, plan 03-09).** BOTH candidates are ingested and present under
+`public/assets/` — an intentional, temporary breach of the one-wall rule so the scene-director can
+judge them on combined renders at three light states (sunrise / dusk / **night**) rather than on
+swatches. `?wall=` in the island entry selects which one the Room surfaces. The losing set's
+`public/assets/` directory, its `assets-source/` directory and its manifest row are removed when
+Open Question 5 closes, and `Room.ts` is pointed permanently at the winner. Until then the
+one-wall rule is suspended in the open, not quietly.
 
 Sizing fact measured at the first real PBR ingest (2026-08-20, Paper001 + WoodFloor051): UASTC costs ~1 byte/texel before zstd, so a **2K data slot lands at 2.3–2.7 MB** — 2K is affordable for ETC1S colour only, and normal/roughness/AO ride at 1K. Budget a remaining row (Cardboard004, the wall material) as colour ~0.08 MB @1K plus ~0.6–0.7 MB per UASTC slot @1K. Both sets also ship a preview thumbnail and a NormalDX variant; the pipeline allowlists only Color/NormalGL/Roughness/Metalness/AmbientOcclusion, so neither can reach `public/assets/`.
 
