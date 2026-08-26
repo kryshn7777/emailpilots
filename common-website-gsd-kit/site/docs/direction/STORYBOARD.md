@@ -568,3 +568,63 @@ and on what the visitor holds. The final three words are the visitor's agency ov
 **Mobile:** the same words, wrapping to two lines under the credits link — a footer under no scroll
 pressure can afford its whole sentence, so there is no shortened second cut. **Reduced motion:**
 identical; the line never animated on any path.
+
+### A10 — 2026-08-26 · The hero desk and chair are re-cast; §Objects is authored at node level
+
+*Supersedes: Ch1 §Objects in full, and the clause "desk drawer of `WoodenTable_02` (its real geometry)
+used as the do-not-send drawer" in Ch4 §Objects. Every other field of every chapter is untouched — no
+span, no beat percentage, no camera value, no copy line.*
+*Reason: the designated hero desk is a 300.7 × 300.7 × 417.7 mm **side table** (Poly Haven's own
+category and description say so), the designated chair is a 2273.5 mm Gothic hall chair, and three
+dressing entries name multi-item catalogue layouts rather than the nodes they place — the last of
+which is what actually wrecked the Ch1 composited frames. (REVIEWS.md §Ruling 9.)*
+
+**The hero desk, chapters 1–7, is now Poly Haven `wooden_table_02`** — 1134.4 × 706.0 × 799.5 mm,
+196 tris, CC0, Serhii Khromov, https://polyhaven.com/a/wooden_table_02. *The slug is lowercase and is
+a different asset from `WoodenTable_02`, which it replaces; the two URLs differ only in case.*
+Warm worn brown wood, rectangular top on four straight legs. Chosen because it is the size the camera
+plan was already authored around, so every camera value in this storyboard survives unchanged.
+
+**The chair is now Poly Haven `painted_wooden_chair_01`** — 431.8 × 539.8 × 956.5 mm, 724 tris, CC0,
+Kuutti Siitonen, https://polyhaven.com/a/painted_wooden_chair_01. Distressed white farmhouse chair,
+still pushed back, still the implied absent writer. Its pale value is doing work the old chair could
+not: absence reads as a silhouette, and a light chair against a dark floor is the only element in the
+room that separates by value rather than by hue.
+
+**Neither replacement is rescaled, and neither original is rescalable.** A 300 mm pedestal is not a
+small desk and a 2273 mm hall chair is not a mis-unit'd chair — both are the wrong object, and
+per-axis stretching either into the right silhouette is the fabricated stand-in brief 04 bans.
+
+**Ch1 §Objects now reads, in full:** Letter sheet (procedural subdivided plane) with ambientCG
+`Paper001` PBR (CC0) · hero desk **`wooden_table_02`** (CC0) · **`painted_wooden_chair_01`** (CC0,
+pushed back — implied absent writer) · **`desk_lamp_arm_01`** (CC0, off) · dressing, **by node**:
+**`office_notepads_a4_stack`** (one stack of plain A4; the yellow legal nodes are cut — a yellow pad
+fights the cream hero letter), **`stationery_supplies_pencilcup`** (the cup only; the loose-pencil
+spread is cut), **`binder_notebook_closed`** (closed and singular; the open variant is cut — nobody is
+working), **`alarm_clock_01`** (whole), **`clipboard`** (whole) · and **`book_encyclopedia_set_01`**
+(whole) parented to **`Shelf_01`**, not to the desktop — at 551 mm it is half the desk. All Poly Haven
+CC0. No human figures, ever.
+
+**§Objects entries name nodes, not assets, wherever the source is a multi-node layout.** Several Poly
+Haven "prop set" downloads are product-catalogue sheets — `office_notepads` is ten separate items
+spread across 1.10 × 0.66 m, `binder_notebook` carries an open *and* a closed binder side by side.
+Naming the asset told an implementer to place the whole spread, and that is what shipped. From here an
+entry names the node; where a whole asset is meant, it says "(whole)".
+
+**Ch7's blank sheet is `office_notepads_a4_a`** — a single sheet drawn from the stack Ch1 established,
+so the closing image is an object the visitor has been looking at for seven chapters.
+
+**Ch4's do-not-send drawer is now Poly Haven `vintage_wooden_drawer_01`** — a six-drawer wooden filing
+cabinet with brass label handles, 857.6 × 457.4 × 545.4 mm, 5184 tris, CC0, James Ray Cock,
+https://polyhaven.com/a/vintage_wooden_drawer_01. A room fixture from Ch2; it acts at Ch4. **The
+sanctioned procedural drawer box (D2-16) is struck** — the new desk has no apron to fake a drawer into,
+and this is the sourced object the brief prefers anyway. The beat improves: the bounced envelope is
+carried *off* the desk and filed away, which separates where you write from where suppression lives —
+the same separation the product itself makes.
+
+**Mobile and reduced-motion:** all three cuts take the same node list. Mobile's existing prop-density
+cut and its `Shelf_01` drop still apply on top, unchanged.
+
+**Open Question 5 (wall material) does not close here.** It is deferred to Ch3's browser checkpoint,
+where a wall is finally lit by a raking lamp in a dark room; the default if that checkpoint never
+happens is `PaintedPlaster017`. Full reasoning and the pre-conditions are in REVIEWS.md §Ruling 9.

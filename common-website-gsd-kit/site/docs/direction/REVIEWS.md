@@ -877,3 +877,337 @@ covering the one slot that never had one.
 
 **Canon:** STORYBOARD §Amendments **A9** (2026-08-26) — Ch7's §On-screen copy gains the footer stance
 wording. No chapter span, beat percentage, camera value, or previously locked line changes.
+
+---
+
+## Ruling 9 — the hero desk is a side table, and it is not the only mis-cast object — 2026-08-26
+
+Escalated from plan 03-09's blocking checkpoint (03-09-T3), with two items: **E-1** the hero desk's
+real-world dimensions, and **E-2** the composited Ch1 frames, offered as evidence that the
+wall-material judgement (Open Question 5) cannot be performed.
+
+**Both findings are correct. Both causes are mine.** E-1 is a mis-cast asset I designated in Phase 1.
+E-2 is not a consequence of E-1 — it is a *second, independent* direction defect that the desk fix
+would have left untouched. I found a third while checking. All three are ruled on below.
+
+### What I verified myself, before deciding anything
+
+Poly Haven's `/assets?type=models` response carries a **`dimensions` field, in millimetres**, on every
+model — on the same API call that Phase 1 already made to verify licence and polycount. I pulled the
+full catalogue (521 models, live 2026-08-26) and read it for every asset in the ledger.
+
+| ledger asset | published dims (mm) | published category | verdict |
+|---|---|---|---|
+| `WoodenTable_02` | **300.7 × 300.7 × 417.7** | Furniture/Tables/**Side & End Tables** | **mis-cast** |
+| `WoodenChair_01` | **688 × 658 × 2273.5** | Furniture/Seating/Chairs | **mis-cast** |
+| `office_notepads` | **1102.8 × 659.8 × 22.0** | Notebooks & Pads | **mis-used** (see F3) |
+| `binder_notebook` | 584 × 200 × 25.3 | Notebooks & Pads | **mis-used** (see F3) |
+| `stationery_supplies` | 301.9 × 83.7 × 164.3 | Writing Instruments | **mis-used** (see F3) |
+| `desk_lamp_arm_01` | 617 × 408 × 879 | Desk Lamps | correct |
+| `alarm_clock_01` | 228 × 168 × 174 | Alarm Clocks | correct |
+| `clipboard` | 229 × 337 × 42 | Clipboards & Boards | correct |
+| `book_encyclopedia_set_01` | 551 × 163 × 237 | Books | correct (but see F3 placement) |
+| `Shelf_01` | 1003 × 257 × 2080 | Shelving & Bookcases | correct |
+
+WoodenTable_02's own published description reads: *"small vintage wooden **side table** with a dark,
+worn finish, scalloped apron and curved legs."* Three independent published signals — dimensions,
+category, description — all said "side table", all free, all on a call we already made. Nobody read
+any of them. That is the process finding, ruled at §4.
+
+---
+
+### F1 · The hero desk — **re-direct.** `WoodenTable_02` → **`wooden_table_02`**
+
+**Verdict: replace. No scale factor is considered, and none should be.** 03-09 is right that
+height-normalising gives a 0.54 m top and width-normalising gives a 1.74 m tower, but that analysis
+concedes too much by entertaining the question. A 300 mm square pedestal is not a small desk. It is a
+different piece of furniture, and per-axis stretching it into desk proportions is exactly the
+fabricated stand-in brief 04 bans. Direction follows available assets.
+
+> **Replacement: Wooden Table 02 — https://polyhaven.com/a/wooden_table_02**
+> CC0 · Serhii Khromov · **1134.4 × 706.0 × 799.5 mm** · **196 tris** · 4K source
+> Verified live against `api.polyhaven.com/info/wooden_table_02`, 2026-08-26.
+> *"Simple wooden table with warm brown grain, worn edges, light scuffs and varnished sheen —
+> rectangular top on four straight legs."*
+
+> **The slug is lowercase and it is not the same asset as the one being replaced.** Poly Haven slugs
+> are case-sensitive: `/a/WoodenTable_02` is the 300 mm side table, `/a/wooden_table_02` is the
+> 1134 mm table. Two different assets, two different authors, near-identical URLs. Fetch the wrong one
+> and you reproduce this bug exactly. Check the author name (Serhii Khromov) or the tri count (196) at
+> download — either one disambiguates.
+
+Why this one, over the four other candidates I costed:
+
+- **It is the authored size.** 1134 × 706 × 800 against a writing-desk target of ~1300 × 650 × 740.
+  Every camera value in the storyboard — Ch1's "~1.2 m back, ~50 cm above desk height, 3/4 angle",
+  ORBIT-HOLD's desk anchor, Ch6's surface reveal — was authored around an intimate desk and survives
+  this swap unchanged. That is the whole point of choosing it.
+- **It is the authored material.** Warm worn brown wood with a varnished sheen *is* ART-DIRECTION's
+  "Real Under the Lamp" family, verbatim. Nothing is re-graded.
+- **196 tris.** The object on screen in all seven chapters becomes the cheapest thing in the room. No
+  simplify step at all — the one asset that touches every chapter gets the least risky ingest in the
+  set. Low poly is not a compromise here: a rectangular top on four straight legs genuinely *is* ~196
+  tris of geometry, and the wear lives in the normal map.
+- **A clean silhouette is the correct desk for this film.** Four straight legs and a flat top do not
+  compete with the letter, and a 1134 × 706 top has room for the letter, the lamp, the clock, the
+  clipboard stack and Ch2's growing envelope row without crowding.
+
+**Rejected: `metal_office_desk`** (https://polyhaven.com/a/metal_office_desk — 2000 × 947 × 788,
+6898 tris, CC0, Ulan Cabanilla). It is the only asset in the catalogue filed under Tables/**Desks**
+that is also a real desk with **real pedestal drawer geometry**, and that drawer is genuinely
+attractive — see F4. I am rejecting it on two grounds. **Register:** a worn grey metal industrial desk
+reads office / institutional / sales floor. The film is one person writing one honest personal email,
+and the product's standing positioning constraint is that nothing on this site may read as outbound
+sales. That is not a taste preference; it is the positioning invariant. **Scale:** at 2 m wide it
+overflows Ch1's authored 1.2 m 3/4 framing, so adopting it re-opens the camera plan in all seven
+chapters. A one-row swap becomes a re-author.
+
+**Recorded fallback, with a real gate.** At 196 tris there are no bevels, so the tabletop edge is
+geometrically razor-sharp and only the normal map softens it. If that edge breaks the worn-photoreal
+family at **Ch6's desk-surface reveal** — the one beat that puts the tabletop centre-frame and close —
+the fallback is `metal_office_desk` **plus the Ch1/Ch6 camera re-author its size forces**. That is a
+checkable condition at a named beat, not a hedge: run it at Ch6's checkpoint and record the result in
+ASSETS.md either way.
+
+---
+
+### F2 · The chair — **replace.** `WoodenChair_01` → **`painted_wooden_chair_01`**
+
+**Verdict: replace. Not a unit error; do not rescale.** Its published description is *"ornate
+Victorian Gothic wooden chair with **pointed tracery back**, carved floral motif, turned legs,
+armrests."* 2273 mm is *correct* for that object — it is a Gothic hall chair. The dimensions are not
+wrong; the casting is. Two checks confirm rescaling is the wrong instrument: the error is non-uniform
+across axes (688/450 = 1.53, 658/500 = 1.32, 2274/900 = 2.53), so no single factor recovers a chair;
+and uniform-scaling the height to 950 mm leaves a 288 × 275 mm seat — a doll's chair. Per-axis
+squashing to force a chair silhouette is the banned fabricated stand-in.
+
+> **Replacement: Painted Wooden Chair 01 — https://polyhaven.com/a/painted_wooden_chair_01**
+> CC0 · Kuutti Siitonen · **431.8 × 539.8 × 956.5 mm** · **724 tris** · 8K source (take the 2K glTF)
+> Verified live against `api.polyhaven.com/info/painted_wooden_chair_01`, 2026-08-26.
+> *"Distressed white farmhouse piece with slatted seat, decorative back splat, square legs and simple
+> stretchers."*
+
+Why this one over `dining_chair_02`, `SchoolChair_01`, `GreenChair_01` and `painted_wooden_chair_02`,
+all of which are correctly sized:
+
+- **It gives the frame the value separation it currently has none of.** Look at the composited
+  evidence: the entire set is one brown-and-yellow mush. A pale painted chair against a warm brown
+  desk and a darker floor is the only element in the room that separates by value rather than by hue.
+- **It serves the beat.** The chair's job is *"pushed back — implied absent writer."* Absence has to
+  read as a silhouette, and a light chair against a dark floor reads it. A brown chair beside a brown
+  desk does not.
+- **724 tris against a 12K ceiling: the simplify step disappears entirely.** The previous chair cost a
+  full ingest cycle tuned to ratio 0.6002 to land exactly on 12,000. That work is deleted, not redone.
+- The 432 × 540 footprint tucks under a 706 mm-deep desk without fighting it. `dining_chair_02` — the
+  nearest rival on register — is 22,013 tris, the most expensive option in the catalogue, and would
+  need the same ~45% decimation that just cost a cycle.
+
+**Combined tri effect of F1 + F2: 13,514 → 920 tris resident, in every chapter.** −12,594 against the
+~130–170K resident budget, and Ch1's first-load manifest gets both faster and lighter.
+
+---
+
+### F3 · The frames' actual offender — three dressing assets are **catalogue layouts**, cast as single props
+
+This is the finding that matters most, and it is not downstream of F1. I inspected the source glTF
+node trees:
+
+```
+office_notepads      10 nodes, translations x -0.45 .. +0.45, z -0.275 .. +0.255  -> a 1.10 x 0.66 m spread
+stationery_supplies   9 nodes, a laid-out tray of pens/pencils/eraser/cup         -> a 0.30 m spread
+binder_notebook       2 nodes: `binder_notebook` (open) AND `binder_notebook_closed` at x +0.267
+```
+
+These are **product-catalogue sheets** — several distinct items arranged on a grid for a library
+listing — not props. `office_notepads` is a 1.1 metre wide spread of ten separate pads and sheets.
+`binder_notebook` places an open *and* a closed binder side by side.
+
+**The storyboard told the implementer to place the asset, and the implementer faithfully placed the
+asset.** Ch1 §Objects reads "dressing: `office_notepads`, `stationery_supplies`, `binder_notebook`…" —
+asset-level, never node-level. So the room got a 1.1 m catalogue spread, a pen tray and two binders
+dropped onto the desk, and that is precisely what the composited frames show: a legal pad filling 70%
+of frame, a binder's rings and a metal clip floating at unrelated sizes. **The under-specification is
+mine.** Fixing the desk alone would have left every bit of this in place — a 1.1 m notepad spread
+covers a 1134 mm desk just as completely as it covered a 300 mm one.
+
+**Verdict: re-direct. Ch1 §Objects is re-authored at node level.** Direction that names a multi-object
+asset without naming the node is not a spec; it is a guess handed downstream.
+
+**The authored Ch1 desk dressing** — every entry a named node, nothing else placed:
+
+| slot | node | why |
+|---|---|---|
+| blank paper | `office_notepads_a4_stack` | one stack of plain A4 at the far corner. The yellow legal nodes (`_yellow_sheet`, `_yellow_pad`) are **cut** — cream `Paper001` is the hero letter's material, and a yellow pad beside it fights the one object the chapter is about |
+| pen cup | `stationery_supplies_pencilcup` | the cup only; the loose-pencil spread is cut |
+| Ch7 pen hero | `stationery_supplies_pen_fancy` | already designated; unchanged |
+| binder | `binder_notebook_closed` | **closed, singular.** The open variant is cut — nobody is working, the writer is absent, and a closed binder says so |
+| clock | `alarm_clock_01` (whole) | single object, 228 mm, correct as-is |
+| clipboard | `clipboard` (whole) | single object, correct as-is; Ch2's stack base, unchanged |
+| books | `book_encyclopedia_set_01` (whole) | coherent as a unit, but at 551 mm it is **half the desk** — it lives on `Shelf_01`, not on the desktop |
+
+Ch7 gains a free payoff from this: its *"fresh blank sheet where the first letter was"* is
+`office_notepads_a4_a`, a single sheet drawn from the same stack Ch1 established. The motif closes on
+an object the visitor has already been looking at for seven chapters.
+
+**Applies to all three cuts** (desktop, mobile, reduced-motion). Mobile's existing prop-density cut
+still applies on top and is unchanged.
+
+**Standing rule, so this cannot recur:** *a storyboard §Objects entry naming a multi-node source asset
+must name the node it places.* Where a whole asset is intended, the entry says "(whole)". One word per
+row, and the class is closed.
+
+---
+
+### F4 · Ch4's do-not-send drawer — **re-direct** to a real filing cabinet
+
+Ch4 §Objects currently reads *"desk drawer of `WoodenTable_02` (**its real geometry**) used as the
+do-not-send drawer."* That was already false before this ruling — the 2026-08-19 ingest found
+WoodenTable_02 to be a single node with no drawer geometry, and a procedural drawer box was sanctioned
+(D2-16). The desk swap makes it worse, not better: `wooden_table_02` is a top on four straight legs
+with **no apron at all**, so a procedural drawer would slide out of thin air.
+
+I considered the one-line fix — change "its real geometry" to "procedural, per D2-16" and stop. I am
+rejecting it because it ships a visible defect: a drawer front materialising from an apron-less
+tabletop reads as a bug, and a cheap fix that produces a defect is not cheap.
+
+> **Redirect: Vintage Wooden Drawer 01 — https://polyhaven.com/a/vintage_wooden_drawer_01**
+> CC0 · James Ray Cock · **857.6 × 457.4 × 545.4 mm** · **5184 tris** · 8K source (take the 2K glTF)
+> Verified live against `api.polyhaven.com/info/vintage_wooden_drawer_01`, 2026-08-26.
+> *"Vintage wooden six-drawer filing cabinet with worn patina and **brass label handles**."*
+
+This is better direction than the beat it replaces, which is why I am spending a model on it:
+
+- **A filing cabinet with brass label handles is the stronger metaphor.** A do-not-send list is not a
+  junk drawer — it is the place a name is filed away and never written to again. The label handle is a
+  surface a name can appear on. An anonymous desk drawer says nothing.
+- **It separates the two places the product itself separates.** The desk is where you write; the
+  cabinet is where suppression lives — a shared store, not part of the letter. Ch4's bounced envelope
+  is now *carried off the desk and filed*, which is a more legible rule-enactment than a slot opening
+  in the furniture you are already looking at.
+- **It deletes a procedural hack with a sourced asset**, which is what brief 04 asks for. D2-16's
+  procedural drawer box is **struck**.
+- 545 mm tall sits below the 800 mm desktop, so it tucks beside the desk without breaking the desk
+  silhouette in any authored camera. Worn wood, 5184 tris, no simplify step, no register break.
+
+**Scope:** a room fixture from Ch2 onward (Ch1's tight 3/4 framing with reserved upper-left negative
+space does not include it, and Ch1's fast-load budget must not carry it); it *acts* at Ch4. Which
+lazy-load batch it rides in is the implementer's call.
+
+---
+
+### 3 · Open Question 5 — **the judgement is deferred, not made.** It moves to Ch3.
+
+**03-09's read is upheld, and I am adding the reason it did not give.** I read all seven frames
+myself. The wall occupies a ~3% strip at upper-left, but smallness is not the disqualifier.
+
+**The disqualifier is that the wall is not lit in the way the decision turns on.** A plaster's entire
+character is how a raking light grazes it — whether the grain catches and throws micro-shadow, or goes
+flat. In these frames the strip sits in ambient fill with no directional rake and nothing casting onto
+it. Judging `Plaster001` against `PaintedPlaster017` there is judging their albedo, which is the least
+of what separates two plasters. I would be ruling on the one property that does not matter.
+
+**And the judgement is downstream of F1.** A wall material's apparent grain scale is read against the
+room's scale reference. With a 300 mm object cast as the hero desk, that reference is wrong, so I
+cannot tell architectural grain from doll's-house grain. Ruling now and re-ruling after the swap is
+two judgements where the first is worthless.
+
+Two secondary reads, recorded so they are not re-litigated. The frames are captured at
+`calls 18 / tris 62253` against a settled `calls 24`, so **~6 draw calls of dressing are absent** —
+they are a near-complete Ch1, and I have treated them as indicative, which is all I needed, since the
+defects are of composition and not of a missing prop. And the `?wall=` lever is confirmed working
+(`tex 42` no wall / `44` wall / `45` night), so nothing here is a silent no-op.
+
+**What must be true before OQ5 can be judged:**
+
+1. F1, F2 and F3 have landed — the desk is 1134 mm, the chair 957 mm, and the dressing is node-level —
+   so the room has a correct scale reference.
+2. The Ch1 end frame matches its authored composition: *desk surface lower third, window with morning
+   sky upper right, lamp frame left, negative space upper left*. That framing is what puts real wall in
+   the upper third. The current frames do not remotely match it, which is itself a finding for Ch1's
+   checkpoint.
+3. Frames captured **settled**, not on a loading spike. The stale `calls 24 / tris 64120` figure does
+   not survive this ruling — F1+F2 alone remove ~12.6K tris — so the operational rule replaces the
+   number: poll until the draw-call count is unchanged across consecutive samples, and never accept a
+   frame whose frame-time reads in the thousands of milliseconds.
+4. Three light states — sunrise / dusk / night — per **F-13**, judged on composited frames per **F-11**.
+5. The night state actually reads as night (see the light-state finding below).
+
+**Where it now happens: Ch3's browser checkpoint (plan 03-14, Task 3), on Ch3's own composited frames, with a
+Ch1 sunrise frame alongside for the warm state.** Ch1 is sunrise-only — that is exactly why 03-09 had
+to pull the night HDRI early to satisfy F-13. Ch3 NIGHT SHIFT is the chapter that owns a wall under
+raking lamp light in a dark room, which is the hardest and most decisive case for a plaster. The night
+HDRI returns to Ch3's manifest where it belongs, and Ch1 stops carrying an asset it never shows.
+
+**The one-wall breach is extended, bounded, and given a default.** Both sets stay under
+`public/assets/` until Ch3's checkpoint — an extension of the breach ASSETS.md already declares in the
+open, not a new one. It costs ~0.5 MB of losing material carried through Ch2. **If Ch3's checkpoint
+does not happen, the default is `PaintedPlaster017`** — a painted wall is what a domestic room has,
+bare plaster is what a gallery or a building site has, and it is 0.16 MB cheaper. The render only has
+to overturn that. Ruling 8's lesson is that an open slot with no default is the door defects walk
+through.
+
+---
+
+### The night light state — a real defect, and it belongs to Ch3
+
+Offered by 03-09 as an observation. It is a finding, and I am naming it so it is not lost.
+
+Comparing `Plaster001__sunrise` against `Plaster001__night`: the shadow the binder casts onto the pad
+is in the **same place, at the same softness, at the same density**. Only colour temperature and a
+little saturation move. **The sky changed and the sun did not.** At night there is no sun; the lamp is
+the key, and the room is lamp-pool plus sky ambient.
+
+This is an **implementation gap, not a direction gap** — the storyboard already says it. Ch2's beat 3
+reads *"Lamp head nods and clicks ON … as the sky loses the sun."* No amendment is needed. Requirement
+for Ch3's checkpoint: **at `night`, the sun directional's contribution is zero and the lamp is the only
+key.** It is Ch3's defect, not Ch1's — Ch1 never shows night, and the night frame exists only because
+F-13 demanded three states for a judgement I have now deferred to the chapter that can make it.
+
+---
+
+### 4 · The process gap — the ledger carries real-world dimensions, and `[V]` is not writable without them
+
+`[V]` meant licence + triangle count + texture weight. It did not mean dimensions, and a 300 mm
+pedestal cast as the hero desk of a seven-chapter film reached wave 3 with a verified mark against it.
+
+**What makes this indefensible rather than merely unlucky: the data was already in the response we
+read.** `dimensions` (mm), `category` and `description` all ship in the same `api.polyhaven.com`
+payload Phase 1 used to confirm licence and polycount. Nothing had to be downloaded, measured, or
+requested. Three published fields said "side table" and none of the three was read.
+
+**Ruling — one column and one sentence, applied to every row:**
+
+1. **ASSETS.md gains a `Real size (mm)` column,** filled from the source's own published metadata.
+   Where a source does not publish dimensions (Sketchfab, ambientCG), the accessor POSITION bounds are
+   measured at ingest and recorded there instead.
+2. **`[V]` is not writable until that column is filled.** Licence + tris + texture weight are now three
+   components of four, not three of three.
+3. **The sanity rule, which is what actually catches this class:** *an asset whose published dimensions
+   or published category contradict the role the storyboard casts it in is not verified — it is
+   mis-cast, and the row is blocked.* WoodenTable_02 fails on both; WoodenChair_01 on dimensions. Both
+   would have been caught in Phase 1, in the time it takes to read one line of JSON.
+
+Deliberately **not** ruled: no new process document, no checklist file, no pipeline gate. This class of
+error is caught by a column that must be filled, and a column that must be filled is enforced by the
+`[V]` mark refusing to be written. Building machinery around a field-copy would be the second mistake.
+
+I have **already backfilled the column for all ten Poly Haven model rows** as part of this ruling —
+and that sweep is what found F3, which was the actual cause of the frames 03-09 escalated. The check
+paid for itself the first time it was run.
+
+### Assertions for the implementer
+
+- `wooden_table_02` (lowercase slug, author Serhii Khromov, 196 tris) — not `WoodenTable_02`
+- the desk's world bounding box measures ~1134 × 706 × 800 mm after ingest; the chair ~432 × 540 × 957
+- no dressing node placed on the desktop exceeds ~350 mm in its longest axis, except the clipboard
+  (337 mm) and the desk itself
+- `office_notepads_yellow_sheet`, `office_notepads_yellow_pad`, the loose `stationery_supplies` pencils
+  and the open `binder_notebook` node are **absent** from Ch1's scene graph
+- `book_encyclopedia_set_01` is parented to `Shelf_01`, not to the desk
+- the D2-16 procedural drawer box is removed; `vintage_wooden_drawer_01` is present from Ch2
+- Ch1's end frame matches its authored composition well enough that wall occupies the upper third —
+  this is Ch1's own checkpoint gate, and OQ5 cannot be re-attempted until it passes
+
+**Canon:** STORYBOARD §Amendments **A10** (2026-08-26) — Ch1 §Objects is re-authored at node level and
+the hero desk and chair are replaced; Ch4 §Objects' drawer is redirected to a sourced filing cabinet.
+No chapter span, no beat percentage, no camera value, and no locked copy line changes.
