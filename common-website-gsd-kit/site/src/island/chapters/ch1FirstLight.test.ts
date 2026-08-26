@@ -30,6 +30,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CH1_COPY_AT, dustOpacityAt, inkProgressAt, span } from '../choreo/beats.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const SRC = path.join(ROOT, 'src');
@@ -175,4 +176,161 @@ test("Ch1's streamed dressing is queued off the loader's critical path", () => {
     'a streamed row added at critical priority would weight the loader bar with bytes the ' +
       'visitor is not waiting for — the dishonest bar D2-20 forbids',
   );
+});
+
+/* ============================================================ 03-11 — Ch1 complete === */
+
+/**
+ * The gates below are the ones a screenshot cannot take. They fall into three groups:
+ *
+ *  1. **Rulings, as source properties.** Amendment A2 (no in-journey headline), A7 (the light
+ *     state is the env triple and Ch1 never renders noon), CHK-B1 (one set-state record).
+ *     Each is a thing that must be ABSENT, and an absence is only checkable in the text.
+ *  2. **The demand renderer's contract.** A `gsap.to` with no `onUpdate: invalidate` runs to
+ *     completion and paints nothing at all under demand rendering (Pitfall 5) — no error, no
+ *     warning, just a token that never resolves.
+ *  3. **F-4's dismissal, as arithmetic.** The ruling asks for the mote opacity to be
+ *     *asserted* 0 at progress 1.0, which is why the ramp is a pure function in `beats.ts`
+ *     rather than three lines inlined in an `update()` no test can reach.
+ */
+
+test('Ch1 has no in-journey headline (STORYBOARD Amendment A2)', () => {
+  assert.equal(
+    count(CH1, /masthead/g),
+    0,
+    '"You write it once." is the masthead H1 — painted at first paint, on screen from load, ' +
+      'and the LCP candidate an `opacity: 0` element could never be. Passing it into ' +
+      'createCopyTimeline would gate the paint of the one element BUDGETS names as LCP.',
+  );
+  assert.equal(count(CH1, /createCopyTimeline\(/g), 1, 'one chapter, one copy timeline');
+  assert.ok(/CH1_COPY_AT/.test(CH1), 'and it reads the authored span, not a literal');
+  assert.deepEqual(
+    [...CH1_COPY_AT.sub],
+    [0.48, 0.55],
+    'the sub alone, staggered across the pull-wide with its lines landing at 55% (A2)',
+  );
+});
+
+test('the light state is the env triple, and Ch1 never renders noon (A7)', () => {
+  assert.equal(count(CH1, /skyId/g), 0, 'a single sky id cannot fix a blend (Ruling 5)');
+  assert.equal(
+    // Word-boundaried on purpose: a bare `grep -c "noon"` also matches "afternoon", which is
+    // an entirely plausible word in a chapter about the hour of the day. The gate is about
+    // the SKY id, so it must only see the sky id.
+    count(CH1, /\bnoon\b/g),
+    0,
+    "Ch1's declared pair is (sunrise, dusk2) held at mix 0.00 to 95% — so the instant mix " +
+      'leaves 0 the sun is FALLING, which is what makes §Transition out literal (A7). Under ' +
+      'the superseded chain the target was noon and the sun climbed out of Ch1.',
+  );
+  // Non-vacuous both ways.
+  assert.equal(count('the afternoon light', /\bnoon\b/g), 0, 'and "afternoon" is not a sky');
+  assert.equal(count('the noon segment', /\bnoon\b/g), 1);
+  assert.ok(/dusk2/.test(CH1), 'positive control: the authored pair is named');
+});
+
+test('Ch1 writes the shared record and never makes its own (CHK-B1)', () => {
+  assert.equal(count(CH1, /createSetState/g), 0, 'the entry creates it; the chapter receives it');
+  assert.ok(
+    count(CH1, /this\.setState\./g) >= 2,
+    'the leave-state contract is a WRITE: Ch2 opens on exactly what Ch1 left, and a chapter ' +
+      'that only reads the record hands the next one the journey origin forever',
+  );
+});
+
+test('the motes are dismissed, and the dismissal is arithmetic rather than hope (F-4)', () => {
+  // Exact, and exact by construction: `span(1, 0.95, 1)` divides one expression by itself,
+  // so it is 1.0 with no rounding anywhere in the path, and `1 - 1` is 0.
+  assert.equal(
+    dustOpacityAt(1),
+    0,
+    'STORYBOARD Ch2: "dust motes fade out with the sun". Chapters are registered permanently ' +
+      'and only the ACTIVE one is updated, so whatever Ch1 leaves the motes at persists ' +
+      'through Ch2-Ch7 — sun-shaft motes hanging in a night room for six chapters.',
+  );
+  assert.equal(dustOpacityAt(0.95), 1, 'full until the sun-angle fall begins');
+  assert.equal(dustOpacityAt(0), 1, 'and the journey origin has them at full (SET_STATE[0])');
+  assert.equal(dustOpacityAt(0.975), 0.5, 'a linear fall across the same window as the sun');
+  assert.equal(dustOpacityAt(2), 0, 'clamped past the end — a scrub can overshoot');
+
+  assert.ok(count(CH1, /dustOpacityAt\(/g) >= 1, 'and the chapter drives the motes from it');
+  assert.ok(
+    /dustOpacity/.test(CH1),
+    'writing it into the shared record too, so the seam is assertable rather than visual',
+  );
+});
+
+test('the motes are scrubbed by scroll, never by a clock (D3-16)', () => {
+  assert.equal(
+    count(CH1, /requestAnimationFrame|gsap\.ticker|performance\.now|Date\.now|setInterval/g),
+    0,
+    'a time-driven drift makes the demand renderer run continuously for ambience — battery ' +
+      'spent on motion nobody is looking at, and a chapter that no longer scrubs reversibly',
+  );
+  assert.equal(
+    count(CH1, /ponytail:/g),
+    1,
+    'the scrubbed-dust decision is a deliberate simplification with a named ceiling, and it ' +
+      'is the only one in this chapter',
+  );
+});
+
+test('the particle count comes from the quality tier, not from a viewport read', () => {
+  assert.ok(count(CH1, /particleCap/g) >= 1, 'BUDGETS §Per-frame: 40 desktop / 0 mobile');
+  assert.equal(
+    count(CH1, /matchMedia|innerWidth|innerHeight/g),
+    0,
+    'ResponsiveBranch is the single breakpoint authority; a viewport read here is a second ' +
+      'one that drifts from the stylesheet on the first edit',
+  );
+});
+
+test('every accent tween tells the demand renderer to paint (Pitfall 5)', () => {
+  const tweens = count(CH1, /gsap\.(?:to|from|fromTo|timeline)\(/g);
+  assert.ok(tweens >= 1, 'positive control: the token beat is a real tween');
+  const updates = CH1.split('\n').filter((line) => line.includes('onUpdate'));
+  assert.ok(
+    updates.length >= tweens,
+    `${tweens} tween(s) but ${updates.length} onUpdate(s). A tween with no invalidate runs to ` +
+      'completion and paints NOTHING under demand rendering — the token never resolves, and ' +
+      'nothing anywhere reports an error.',
+  );
+  for (const line of updates) {
+    assert.match(line, /invalidate/, `an onUpdate that does not invalidate: ${line.trim()}`);
+  }
+});
+
+test('no copy is written from code (D3-11)', () => {
+  assert.equal(
+    count(CH1, /\.textContent\s*=|innerHTML/g),
+    0,
+    'the prerendered nodes in index.astro ARE the copy; the chapter only splits, moves and ' +
+      'fades what the shell already shipped, or SEO and fallback parity stop being free',
+  );
+});
+
+test('the ink is scrubbed through the piecewise map, not a raw span (B-5)', () => {
+  assert.ok(count(CH1, /inkProgressAt\(/g) >= 1, 'the chapter consumes the piecewise map');
+  assert.equal(
+    count(CH1, /span\(progress,\s*0,\s*0\.4/g),
+    0,
+    'the single linear map REVIEWS.md B-5 rejects. The ramp is arc-length-normalised, so ' +
+      'this makes "Hi " complete at 5% of the page’s ink rather than at the authored 15%.',
+  );
+  // Positive control on the same pattern, so "0" here means "absent" and not "unmatchable".
+  assert.equal(count('uProgress.value = span(progress, 0, 0.40);', /span\(progress,\s*0,\s*0\.4/g), 1);
+  assert.notEqual(inkProgressAt(0.15), span(0.15, 0, 0.4), 'and the two are genuinely different');
+});
+
+test('Ch1 releases what it built and nothing it was handed (T-03-12)', () => {
+  const dispose = CH1.slice(CH1.indexOf('dispose('));
+  for (const owned of ['fold', 'ink', 'dust', 'copy']) {
+    assert.match(
+      dispose,
+      new RegExp(owned, 'i'),
+      `dispose() never mentions the ${owned} it created. brief 05 bans leaks, and the four ` +
+        'things this chapter owns are the letter rig, the cloned ink material, the mote ' +
+        'mesh and the copy timeline.',
+    );
+  }
 });
