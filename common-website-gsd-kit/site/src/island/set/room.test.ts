@@ -24,7 +24,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PROP_ANCHORS, PROP_SOURCES, type PropId } from './props.ts';
+import {
+  PROP_ANCHORS,
+  PROP_SOURCES,
+  placeProps,
+  type Placeable,
+  type PropId,
+} from './props.ts';
 
 const ISLAND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string): string => fs.readFileSync(path.join(ISLAND, rel), 'utf8');
@@ -542,4 +548,86 @@ test('desk props sit ON the desk, in fractions of its measured top', () => {
         'hanging in the air where the old one used to be.',
     );
   }
+});
+
+/* ------------------------------------------ the measured drop reaches the object --- */
+
+/**
+ * The bug this gate exists for, because a mutation test found nothing watching it:
+ * `createRoom` measured the desk and set `table.position.y = -bounds.max.y` to put its top
+ * face on cameraRig's y = 0 plane — and then `adopt()` called `applyPlacement()`, which
+ * writes `position` **outright**. The shift was silently reset to 0 on the very next line,
+ * so the desk surface sat a full desk-height above the plane every prop and every camera
+ * pose is authored against. Nothing failed. The frames just looked wrong, and the
+ * scene-director escalated them as an asset problem.
+ *
+ * The fix is that the measurement travels WITH the placement instead of racing it, so this
+ * asserts the contract `y = base + lift + drop` for each kind of plane, and asserts it twice
+ * — a second placement run is the exact thing that used to lose it.
+ */
+test('placeProps applies the measured drop, every run, on every plane', () => {
+  const make = (): Placeable & { position: { x: number; y: number; z: number } } => ({
+    position: {
+      x: 0,
+      y: 0,
+      z: 0,
+      set(x: number, y: number, z: number): void {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+      },
+    },
+    rotation: { y: 0 },
+    visible: true,
+  });
+  // The real measured numbers: wooden_table_02 is 799.5 mm tall, so its top face reaches the
+  // desk plane by dropping the model that far; office_notepads_a4_stack is centred on its own
+  // 10 mm thickness, so it rises 5 mm to stand on the surface rather than half inside it.
+  const planes = { desk: 0, floor: -0.7995, halfWidth: 0.5672, halfDepth: 0.353 };
+  const drop = { table: -0.7995, notepads: 0.005, chair: 0, encyclopedia: 0 };
+  const objects = { table: make(), notepads: make(), chair: make(), encyclopedia: make() };
+
+  const near = (got: number, want: number, why: string): void => {
+    assert.ok(Math.abs(got - want) < 1e-9, `${why}: got ${got}, want ${want}`);
+  };
+
+  for (const pass of [1, 2]) {
+    placeProps(objects, planes, 'desktop', drop);
+    near(objects.table.position.y, -0.7995, `pass ${pass}: the desk drops so its TOP is the plane`);
+    near(objects.notepads.position.y, 0.005, `pass ${pass}: a desk prop stands ON the surface`);
+    near(objects.chair.position.y, -0.7995, `pass ${pass}: a floor prop stands on the floor`);
+    near(objects.encyclopedia.position.y, 0.918, `pass ${pass}: a parented prop is local — base 0`);
+  }
+  // And the lateral half-extent scaling the desk anchors depend on, so a swap moves them.
+  near(objects.notepads.position.x, -0.44 * planes.halfWidth, 'desk u is a fraction of the top');
+  near(objects.chair.position.x, 0.14, 'floor anchors are absolute metres');
+  near(objects.encyclopedia.position.x, 0.05, 'parented anchors are the host\u2019s own metres');
+});
+
+test('Room measures that drop rather than assuming one', () => {
+  const code = ROOM.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(code.includes('applyPlacement'), 'positive control: the placement call survives stripping');
+  assert.equal(
+    count(code, /drop\[id\]\s*=/g),
+    1,
+    'exactly one place measures a prop\u2019s drop. Two would disagree; none would put the ' +
+      'desk surface a desk-height away from the plane the camera table is authored against.',
+  );
+  assert.equal(
+    count(code, /tier,\s*drop\)/g),
+    1,
+    'and the map must actually be handed to placeProps — measuring it and not passing it is ' +
+      'the same bug wearing a different shape',
+  );
+  // Exactly one direct Y write survives, and it is not a prop: `floor` is the procedural
+  // floor plane Room constructs itself. Any other name here is a second writer racing
+  // placeProps, which is precisely the shape the clobber had.
+  const yWrites = [...code.matchAll(/\b(\w+)\.position\.y\s*=/g)].map((m) => m[1]);
+  assert.deepEqual(
+    yWrites,
+    ['floor'],
+    'placeProps owns every prop’s Y. `floor` is Room’s own procedural plane and is ' +
+      'the one legitimate direct write; a prop appearing here is a shift that the next ' +
+      'applyPlacement() will silently reset.',
+  );
 });
