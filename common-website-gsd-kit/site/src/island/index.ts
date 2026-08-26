@@ -11,6 +11,7 @@
  * crossfades the canvas in over the Ch1 still once the critical batch lands.
  */
 
+import type { Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -19,6 +20,7 @@ import { Stage } from './systems/Stage.ts';
 import { Timeline } from './systems/Timeline.ts';
 import { ResponsiveBranch } from './systems/ResponsiveBranch.ts';
 import { AssetQueue } from './systems/AssetQueue.ts';
+import { createAssetRegistry, type AssetRegistry } from './systems/assetRegistry.ts';
 import { createEnvCrossfade } from './systems/envCrossfade.ts';
 import { barFraction, labelFor, navVisible } from './choreo/affordance.ts';
 import { ProofChapter } from './chapters/ProofChapter.ts';
@@ -127,6 +129,13 @@ export async function mount(opts: MountOptions): Promise<void> {
   const label = document.querySelector<HTMLElement>('#progress-label');
   const nav = document.querySelector<HTMLElement>('#quiet-nav');
   let lastIndex = -1;
+
+  // Assigned once the critical batch has been parsed, below. The drive listener is
+  // subscribed HERE — before the batch lands — because the affordance must follow the
+  // scrub from the first scroll event; the prefetch half simply does nothing until the
+  // registry exists, which is also exactly the right behaviour (nothing to prefetch
+  // one-ahead of a chapter that has not finished arriving).
+  let registry: AssetRegistry | null = null;
   const offDrive = timeline.onDrive((chapterIndex, progress) => {
     // Transform only — advancing the bar never triggers layout.
     if (bar !== null) bar.style.transform = `scaleX(${barFraction(chapterIndex, progress)})`;
@@ -162,12 +171,28 @@ export async function mount(opts: MountOptions): Promise<void> {
     .setTranscoderPath(`${opts.baseUrl}${opts.baseUrl.endsWith('/') ? '' : '/'}basis/`)
     .detectSupport(stage.renderer);
   const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(ktx2);
-  const [table, lamp, clock] = await Promise.all(
-    ([CRITICAL_ASSETS.table, CRITICAL_ASSETS.lamp, CRITICAL_ASSETS.clock] as const).map(
-      async (a) => (await gltfLoader.parseAsync(buffers.get(a.url)!, '')).scene
-    )
-  );
-  ktx2.dispose(); // transcoder workers released; decoded textures stay live
+
+  // The ONE parse path (03-RESEARCH §Pattern 10). Ch1's manifest IS the critical batch, so
+  // priming it here is exactly the parse that used to be inlined below — same loaders, same
+  // buffers, same calls — and every later chapter reaches the same cache through the
+  // one-ahead prefetch instead of decoding at its own boundary.
+  registry = createAssetRegistry({ gltfLoader, ktx2Loader: ktx2 });
+  await registry.prime(buffers);
+
+  // ktx2 is NOT disposed here. It used to be, one line after the critical parse — but the
+  // transcoder's Web Workers are what decode standalone `.ktx2` files, and the chapters that
+  // need them (Ch6's UI plane, the Paper001/Cardboard004 PBR sets) parse long after mount
+  // returns. Disposing at mount kills the workers and every later `KTX2Loader.parse` with
+  // them. The loader therefore lives as long as the island does; it is released by the
+  // island's teardown, alongside `registry.dispose()` and the systems' own disposers —
+  // which do not exist yet, because nothing unmounts the island (`systems` is rooted for
+  // the page lifetime for exactly that reason). When a teardown lands, both go in it.
+
+  const [table, lamp, clock] = await Promise.all([
+    registry.get<Object3D>(CRITICAL_ASSETS.table.url),
+    registry.get<Object3D>(CRITICAL_ASSETS.lamp.url),
+    registry.get<Object3D>(CRITICAL_ASSETS.clock.url),
+  ]);
 
   // Proof chapter scrubbed 1:1 by native scroll (D2-12), registered against the seven
   // shell sections so the master scrub emits real per-chapter (index, progress) pairs and
