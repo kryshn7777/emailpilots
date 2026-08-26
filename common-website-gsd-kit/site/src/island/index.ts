@@ -11,9 +11,10 @@
  * shell section, and crossfades the canvas in over the Ch1 still.
  *
  * This file creates the singletons and nothing else creates them: the `Room` (one set for
- * all seven chapters — the one-take camera's precondition) and the `SetState` record
- * (CHK-B1 — one record, written by each chapter as its beats fire, read by the next as
- * what it inherits). Both are handed into every chapter constructor.
+ * all seven chapters — the one-take camera's precondition), the `MaterialFamily` (one
+ * definition of every lit surface — CHK-W2) and the `SetState` record (CHK-B1 — one record,
+ * written by each chapter as its beats fire, read by the next as what it inherits). All
+ * three are handed into every chapter constructor.
  */
 
 import type { WebGLRenderTarget } from 'three';
@@ -31,6 +32,7 @@ import { barFraction, labelFor, navVisible } from './choreo/affordance.ts';
 import { CH1_STREAMED, CHAPTER_ASSETS, nextPrefetch } from './choreo/chapterAssets.ts';
 import { Ch1FirstLight } from './chapters/Ch1FirstLight.ts';
 import { createRoom } from './set/Room.ts';
+import { createMaterialFamily } from './set/materials.ts';
 import { createSetState } from './choreo/setState.ts';
 import type { SkyId } from './choreo/dayWheel.ts';
 import { parseReviewParams, REVIEW_WALL_SLOTS, reviewWallUrl } from './qa/review.ts';
@@ -259,6 +261,18 @@ export async function mount(opts: MountOptions): Promise<void> {
   // The set, built ONCE for the page. Every chapter reuses it; nothing rebuilds it. Room
   // owns the whole light rig and the day-wheel, so the fog and the key light can never
   // disagree about what time it is.
+  // The one definition of every lit surface (CHK-W2). Built before the Room because the
+  // Room hangs its floor, walls and window frame on it — and cloned, never rebuilt, by any
+  // chapter that needs per-object uniforms (Ch1's ink-patched letter is the first).
+  // ponytail: nothing disposes it, for the same reason nothing disposes `registry` or
+  // `ktx2` — the island has no teardown and `systems` is rooted for the page lifetime.
+  // When a teardown lands, `materials.dispose()` goes in it beside the other two.
+  const materials = createMaterialFamily({
+    registry,
+    wallSet: review.wall,
+    invalidate: () => stage.invalidate(),
+  });
+
   const room = await createRoom({
     stage,
     registry,
@@ -267,7 +281,7 @@ export async function mount(opts: MountOptions): Promise<void> {
     crossfade,
     skySources,
     invalidate: () => stage.invalidate(),
-    wallSet: review.wall,
+    materials,
   });
 
   // The ONE set-state record (CHK-B1). Created here, passed into every chapter constructor

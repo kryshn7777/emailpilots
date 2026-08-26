@@ -33,10 +33,11 @@
  *
  * ## Ownership (T-03-12)
  *
- * Room disposes **only what Room constructed** — the shell geometry, the procedural window,
- * the two gradient masks, its own materials. GLB prop scenes and the KTX2
+ * Room disposes **only what Room constructed** — the shell geometry, the procedural window
+ * and the two gradient masks. It owns the **meshes**; `materials.ts` owns the **materials**
+ * (CHK-W2), and the family is disposed by whoever created it. GLB prop scenes and the KTX2
  * surface textures come from `assetRegistry`, are shared with whoever else asks for them,
- * and are released by the registry's single `dispose()`. Disposing them here would be a
+ * and are released by the registry's single `dispose()`. Disposing either here would be a
  * double free the moment a second chapter holds the same prop.
  */
 
@@ -55,11 +56,8 @@ import {
   Matrix4,
   Mesh,
   MeshBasicMaterial,
-  MeshStandardMaterial,
   PlaneGeometry,
   PointLight,
-  RepeatWrapping,
-  SRGBColorSpace,
   Vector3,
   type BufferGeometry,
   type Material,
@@ -72,6 +70,7 @@ import type { AssetRegistry } from '../systems/assetRegistry.ts';
 import type { QualityManager, QualitySettings } from '../systems/QualityManager.ts';
 import type { ResponsiveBranch } from '../systems/ResponsiveBranch.ts';
 import type { EnvCrossfade } from '../systems/envCrossfade.ts';
+import type { MaterialFamily } from './materials.ts';
 import {
   createDayWheel,
   skyColorForEnv,
@@ -146,25 +145,7 @@ const TOKEN = {
   lamplight: '#E8A45C',
   dayclear: '#BFD3DE',
   ink: '#232630',
-  /** Stand-in plaster albedo until Task 3 picks the shipped wall material. */
-  plaster: '#D6CDBF',
-  /** Stand-in floor albedo until the WoodFloor051 set lands with the streamed batch. */
-  wood: '#6B5541',
 } as const;
-
-/**
- * The ambientCG slots this project samples, mapped onto their three material properties.
- * `pipeline/ingest.mjs` allowlists exactly these (plus Metalness, which no surface here
- * uses), so a set that ships fewer simply contributes fewer maps.
- */
-const PBR_SLOTS = [
-  ['Color', 'map'],
-  ['NormalGL', 'normalMap'],
-  ['Roughness', 'roughnessMap'],
-  ['AmbientOcclusion', 'aoMap'],
-] as const;
-
-type MapSlot = (typeof PBR_SLOTS)[number][1];
 
 /* ----------------------------------------------------------------------- the handle --- */
 
@@ -182,10 +163,12 @@ export interface RoomDeps {
   skySources: Partial<Record<SkyId, WebGLRenderTarget>>;
   invalidate: () => void;
   /**
-   * Task 3 review lever: which ambientCG wall candidate to surface, or `null` for the
-   * placeholder albedo. Becomes a constant once Open Question 5 is closed.
+   * The shared material family (CHK-W2). Room places meshes; it does not define surfaces —
+   * a second definition of "what does paper look like under this lamp" is the drift the
+   * "Real Under the Lamp" strategy cannot survive. Created once by the island entry, which
+   * also owns the wall-candidate review lever the family carries.
    */
-  wallSet?: string | null;
+  materials: MaterialFamily;
 }
 
 export interface Room {
@@ -194,6 +177,8 @@ export interface Room {
   /** World Y of the measured floor: the table's own underside, never a literal. */
   readonly floorY: number;
   readonly windowAnchor: Vector3;
+  /** The window opening's own metres — Ch1's motes derive the sun-shaft volume from it. */
+  readonly windowSize: { readonly width: number; readonly height: number };
   readonly lampPoolAnchor: Vector3;
   /** The ONE celestial light. Sun by day, moon by night; the wheel moves it. */
   readonly sun: DirectionalLight;
@@ -226,7 +211,7 @@ export interface Room {
 /* --------------------------------------------------------------------- construction --- */
 
 export async function createRoom(deps: RoomDeps): Promise<Room> {
-  const { stage, registry, quality, branch, invalidate } = deps;
+  const { stage, registry, quality, branch, invalidate, materials } = deps;
   const root = new Group();
   root.name = 'room';
   stage.scene.add(root);
@@ -265,26 +250,22 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   // aoMap samples the second UV set; PlaneGeometry ships one, so it is aliased rather than
   // authored — the maps are tileable surface scans, so both sets are the same coordinates.
   floorGeometry.setAttribute('uv1', floorGeometry.attributes.uv);
-  const floorMaterial = new MeshStandardMaterial({ color: TOKEN.wood, roughness: 0.72 });
-  const floor = new Mesh(floorGeometry, floorMaterial);
+  const floor = new Mesh(floorGeometry, materials.floor);
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = floorY;
   floor.receiveShadow = true;
   root.add(floor);
   ownedGeometry.push(floorGeometry);
-  ownedMaterial.push(floorMaterial);
 
   const wallGeometry = new PlaneGeometry(WALL_WIDTH, WALL_HEIGHT);
   wallGeometry.setAttribute('uv1', wallGeometry.attributes.uv);
-  const wallMaterial = new MeshStandardMaterial({ color: TOKEN.plaster, roughness: 0.85 });
-  const backWall = new Mesh(wallGeometry, wallMaterial);
+  const backWall = new Mesh(wallGeometry, materials.wall);
   backWall.position.set(0, floorY + WALL_HEIGHT / 2, BACK_Z);
-  const leftWall = new Mesh(wallGeometry, wallMaterial);
+  const leftWall = new Mesh(wallGeometry, materials.wall);
   leftWall.position.set(LEFT_X, floorY + WALL_HEIGHT / 2, 0);
   leftWall.rotation.y = Math.PI / 2;
   root.add(backWall, leftWall);
   ownedGeometry.push(wallGeometry);
-  ownedMaterial.push(wallMaterial);
 
   const fog = new FogExp2(TOKEN.ink, FOG_DENSITY);
   stage.scene.fog = fog;
@@ -306,8 +287,7 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   // the shell key art's own window (src/pages/index.astro), so the WebGL frame and the
   // no-JS still agree about what the room looks like.
   const barGeometry = new BoxGeometry(1, 1, 1);
-  const barMaterial = new MeshStandardMaterial({ color: TOKEN.ink, roughness: 0.6 });
-  const frame = new InstancedMesh(barGeometry, barMaterial, 6);
+  const frame = new InstancedMesh(barGeometry, materials.frame, 6);
   const bar = 0.05;
   const halfW = WINDOW.width / 2;
   const halfH = WINDOW.height / 2;
@@ -329,7 +309,6 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   frame.position.set(WINDOW.x, WINDOW.y, BACK_Z + 0.03);
   root.add(frame);
   ownedGeometry.push(barGeometry);
-  ownedMaterial.push(barMaterial);
 
   // Ch3's "faint cool volumetric-LOOKING gradient" — a billboard, never real volumetrics.
   const glowMask = radialMask();
@@ -438,31 +417,6 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
     invalidate();
   });
 
-  /* -- surfaces ---------------------------------------------------------------------- */
-
-  /** Hang an ingested ambientCG set on a material, skipping slots that did not ship. */
-  const dress = async (
-    material: MeshStandardMaterial,
-    setId: string,
-    repeatX: number,
-    repeatY: number,
-  ): Promise<void> => {
-    for (const [slot, property] of PBR_SLOTS) {
-      const url = `assets/${setId}/${setId}_1K-JPG_${slot}.ktx2`;
-      if (!registry.has(url)) continue;
-      const texture = await registry.get<Texture>(url);
-      texture.wrapS = RepeatWrapping;
-      texture.wrapT = RepeatWrapping;
-      texture.repeat.set(repeatX, repeatY);
-      if (property === 'map') texture.colorSpace = SRGBColorSpace;
-      // Registry-owned: shared with every other consumer and disposed by the registry.
-      material[property as MapSlot] = texture;
-    }
-    material.color.set('#ffffff');
-    material.needsUpdate = true;
-    invalidate();
-  };
-
   /* -- props ------------------------------------------------------------------------- */
 
   const clockHands: Partial<Record<'hour' | 'minute' | 'second', Object3D>> = {};
@@ -534,8 +488,9 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
       clockHands.second = clock.getObjectByName('second_hand');
     }
 
-    await dress(floorMaterial, 'WoodFloor051', 6, 6);
-    if (deps.wallSet != null) await dress(wallMaterial, deps.wallSet, 4, 2);
+    // The family hangs whatever ambientCG slots have landed and skips the rest, so this is
+    // safe before the streamed batch arrives and correct again after it does.
+    await materials.dress();
     invalidate();
   };
 
@@ -549,6 +504,7 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
     deskTopY,
     floorY,
     windowAnchor: new Vector3(WINDOW.x, WINDOW.y, BACK_Z),
+    windowSize: { width: WINDOW.width, height: WINDOW.height },
     lampPoolAnchor,
     sun,
     lampKey,

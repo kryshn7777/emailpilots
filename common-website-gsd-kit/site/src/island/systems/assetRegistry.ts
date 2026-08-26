@@ -22,16 +22,17 @@
  *   drive and `AssetQueue.load()` legitimately re-hands buffers it already resolved.
  *
  * Extensions are dispatched by suffix. `.glb` → the GLTF scene; `.ktx2` → the transcoded
- * `CompressedTexture`; `.hdr` → the raw ArrayBuffer, deliberately unparsed: PMREM
- * generation is `envCrossfade`'s and the Ch4 day-wheel's business (they own the render
- * targets and the ≤2-actives budget line), and this module has no renderer. Anything else
- * rejects naming the url rather than caching a buffer nobody can use — when 03-09 wants
- * the first-party `.png` ink ramp it adds a branch here, on purpose, in the open.
+ * `CompressedTexture`; `.png` → a data `Texture` (03-11's ink ramp — see the branch, which
+ * is deliberately in the open rather than hidden behind a generic image path); `.hdr` → the
+ * raw ArrayBuffer, deliberately unparsed: PMREM generation is `envCrossfade`'s and the Ch4
+ * day-wheel's business (they own the render targets and the ≤2-actives budget line), and
+ * this module has no renderer. Anything else rejects naming the url rather than caching a
+ * buffer nobody can use.
  */
 
 import type { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { Mesh, Texture, type Material, type Object3D } from 'three';
+import { LinearFilter, Mesh, NoColorSpace, Texture, type Material, type Object3D } from 'three';
 
 export interface AssetRegistry {
   /** Parse fetched bytes once and cache by url. Safe to call repeatedly. */
@@ -58,6 +59,30 @@ export function createAssetRegistry(deps: AssetRegistryDeps): AssetRegistry {
       return new Promise((resolve, reject) => {
         deps.ktx2Loader.parse(buffer, resolve, reject);
       });
+    }
+    if (url.endsWith('.png')) {
+      // The one PNG this site ships is 03-08's ink ramp, and every decision here is about
+      // it being DATA rather than a picture:
+      //
+      // - `NoColorSpace`, because R is stroke order, G a region mask and B nib coverage.
+      //   An sRGB decode would bend the ramp and move both published boundaries.
+      // - no mipmaps, because the shader THRESHOLDS the red channel: averaging ramp values
+      //   between neighbouring strokes across a mip level is the speckled reveal edge
+      //   research warned about, arriving by a different door.
+      // - `imageOrientation: 'flipY'` with `flipY = false`, because r185 does not apply
+      //   `UNPACK_FLIP_Y_WEBGL` to an ImageBitmap source at all (`WebGLTextures.uploadTexture`
+      //   guards it behind `isImageBitmap === false`). Setting `texture.flipY = true` here
+      //   would silently do nothing and the handwriting would arrive upside down, so the
+      //   decode has to do the flip.
+      const bitmap = await createImageBitmap(new Blob([buffer]), { imageOrientation: 'flipY' });
+      const texture = new Texture(bitmap);
+      texture.flipY = false;
+      texture.colorSpace = NoColorSpace;
+      texture.generateMipmaps = false;
+      texture.minFilter = LinearFilter;
+      texture.magFilter = LinearFilter;
+      texture.needsUpdate = true;
+      return texture;
     }
     if (url.endsWith('.hdr')) return buffer;
     throw new Error(`assetRegistry: no parser for ${url}`);

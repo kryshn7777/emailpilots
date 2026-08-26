@@ -43,6 +43,56 @@ export const CH1_BEATS = [
   { at: 0.95, label: 'sun-warms' }, // hold; HDRI exposure +0.2 stop, sun begins to fall
 ] as const;
 
+/**
+ * Ch1's two ink boundaries — where `Hi ` and `{{ name }},` end on 03-08's baked ramp.
+ *
+ * Written as `n / 255` rather than as decimals because that is literally what they are: the
+ * bake quantises with `Math.round(255 * v) / 255` so the shader's threshold lands ON the
+ * group's last 8-bit texel rather than a hair past it. Spelling them as `0.050980` would be
+ * a different double, and `inkPaper.test.ts` re-bakes the committed handwriting and compares
+ * — so a re-authoring of `assets-source/ink/strokes.json` fails the build instead of
+ * silently moving the 15% beat somewhere else on the page.
+ *
+ * `hiEnd = 13/255 = 0.050980`, `tokenEnd = 74/255 = 0.290196` (03-08 SUMMARY, `[bake]
+ * boundaries:`).
+ */
+export const CH1_INK = { hiEnd: 13 / 255, tokenEnd: 74 / 255 } as const;
+
+/**
+ * Chapter progress -> position along the ink ramp's **global** arc (REVIEWS.md B-5).
+ *
+ * The ramp is arc-length-normalised across the whole page, so a single linear
+ * `span(progress, 0, 0.40)` would make `Hi ` complete wherever its stroke length happened to
+ * fall — 5% of the page's ink, and therefore 5% of the way through a 40% beat — instead of
+ * at the authored 15%. Three linear segments, one per authored beat:
+ *
+ * | chapter | ramp | storyboard beat |
+ * |---|---|---|
+ * | 0 -> 0.15 | 0 -> `hiEnd` | LOCKED ECU, ink begins "Hi " |
+ * | 0.15 -> 0.40 | `hiEnd` -> `tokenEnd` | ink writes "{{ name }}," |
+ * | 0.40 -> 1.0 | `tokenEnd` -> 1 | the continuation, finishing under the pull-wide — by then it is texture, not reading matter |
+ *
+ * The branch boundaries are `<`, not `<=`, on purpose: at exactly 0.15 the second branch
+ * returns `hiEnd + span(0.15, 0.15, 0.40) * width` = `hiEnd + 0`, which is `hiEnd` with no
+ * arithmetic in the path at all. That is what makes the two B-5 assertions exactly equal
+ * rather than equal-to-an-epsilon.
+ *
+ * A group is only 100% inked once the ramp reaches `boundary + BLEED` (03-08's boundary
+ * nuance), so a ~half-glyph wet tail completes just after each beat. B-5 asserts the bare
+ * boundaries and that is what ships: a nib that finishes its `i`-dot a hair after the beat
+ * is handwriting, and a hard stop on the beat is not.
+ */
+export function inkProgressAt(progress: number): number {
+  const hiAt = CH1_BEATS[1].at;
+  const tokenAt = CH1_BEATS[2].at;
+  if (progress < hiAt) return span(progress, 0, hiAt) * CH1_INK.hiEnd;
+  if (progress < tokenAt) {
+    return CH1_INK.hiEnd + span(progress, hiAt, tokenAt) * (CH1_INK.tokenEnd - CH1_INK.hiEnd);
+  }
+  if (progress < 1) return CH1_INK.tokenEnd + span(progress, tokenAt, 1) * (1 - CH1_INK.tokenEnd);
+  return 1;
+}
+
 /** Ch2 THE HANDOFF — the sequence becomes an object; dusk arrives; the lamp takes over. */
 export const CH2_BEATS = [
   { at: 0.0, label: 'fold-one' },

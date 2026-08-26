@@ -31,9 +31,14 @@ import {
 } from 'three';
 import { foldWeightsFor } from './foldWeights.ts';
 
-/** A4 in metres, subdivided densely enough for the crease band to read as a curve. */
-const SHEET_W = 0.21;
-const SHEET_H = 0.297;
+/**
+ * A4 in metres, subdivided densely enough for the crease band to read as a curve.
+ *
+ * Exported because the sheet's aspect is not private to the fold: Ch1 maps a 2:1 ink ramp
+ * onto this portrait rectangle and has to know its proportions to do it without squashing
+ * the handwriting, and Ch7 lays a fresh blank one where the first letter was.
+ */
+export const SHEET = { width: 0.21, height: 0.297 } as const;
 const SEG_W = 24;
 const SEG_H = 32;
 
@@ -74,7 +79,7 @@ export interface FoldRig {
  * bakes an identity rest pose and the sheet folds from the wrong lines.
  */
 export function createFoldRig(deps: FoldRigDeps): FoldRig {
-  const geometry = new PlaneGeometry(SHEET_W, SHEET_H, SEG_W, SEG_H);
+  const geometry = new PlaneGeometry(SHEET.width, SHEET.height, SEG_W, SEG_H);
   const position = geometry.getAttribute('position');
   const count = position.count;
 
@@ -83,7 +88,7 @@ export function createFoldRig(deps: FoldRigDeps): FoldRig {
   const indices = new Uint16Array(count * 4);
   const weights = new Float32Array(count * 4);
   for (let i = 0; i < count; i++) {
-    const w = foldWeightsFor(position.getY(i), SHEET_H, CREASE, BLEND);
+    const w = foldWeightsFor(position.getY(i), SHEET.height, CREASE, BLEND);
     indices[i * 4 + 1] = 1;
     indices[i * 4 + 2] = 2;
     weights[i * 4 + 0] = w[0];
@@ -98,8 +103,8 @@ export function createFoldRig(deps: FoldRigDeps): FoldRig {
   const b2 = new Bone();
   root.add(b1);
   root.add(b2);
-  b1.position.y = SHEET_H * CREASE;
-  b2.position.y = -SHEET_H * CREASE;
+  b1.position.y = SHEET.height * CREASE;
+  b2.position.y = -SHEET.height * CREASE;
 
   const mesh = new SkinnedMesh(geometry, deps.material);
   mesh.add(root);

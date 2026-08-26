@@ -184,19 +184,26 @@ test('the reveal multiplies by nib coverage (03-08 deviation #4)', () => {
   assert.match(body, /uTokenMix/, 'and the crossfade is driven by uTokenMix');
 });
 
+/** edge0 is `uProgress` MINUS the bleed; edge1 is bare `uProgress`; the ramp is inverted. */
+const DEFINED_SMOOTHSTEP = /1\.0\s*-\s*smoothstep\(\s*uProgress\s*-\s*\w+\s*,\s*uProgress\s*,/;
+
 test('smoothstep is called with its edges in the order GLSL defines', () => {
   const body = compile(patchInkReveal(new MeshStandardMaterial(), new Texture()).material).fragmentShader;
-  const call = /smoothstep\(\s*([^,]+),\s*([^,]+),/.exec(body);
-  assert.ok(call, 'the soft leading edge is a smoothstep');
-  assert.doesNotMatch(
-    call[1]!,
-    /-/,
-    'edge0 must be the LOWER edge. The research snippet writes `smoothstep(uProgress, ' +
+  assert.match(
+    body,
+    DEFINED_SMOOTHSTEP,
+    'edge0 must be the LOWER edge. 03-RESEARCH §Pattern 5 writes `smoothstep(uProgress, ' +
       'uProgress - BLEED, ink.r)`, whose edge0 > edge1 — explicitly undefined behaviour in ' +
-      'the GLSL spec. Most drivers happen to produce the decreasing ramp it wants; a strict ' +
-      'or aggressively optimising one need not. `1.0 - smoothstep(lo, hi, x)` is the same ' +
-      'curve with defined behaviour.',
+      'the GLSL spec. Most drivers happen to compute the decreasing ramp it intends; a ' +
+      'strict or aggressively optimising one need not, and the failure would be a blank ' +
+      'sheet on one GPU vendor. `1.0 - smoothstep(lo, hi, x)` is the identical curve with ' +
+      'defined behaviour.',
   );
+  // Non-vacuous, both ways: the pattern must ACCEPT the defined form and REJECT the
+  // research snippet's ordering. An assertion that only ever sees correct code is a gate
+  // that has never been shown to fire.
+  assert.match('float w = 1.0 - smoothstep(uProgress - bleed, uProgress, ink.r);', DEFINED_SMOOTHSTEP);
+  assert.doesNotMatch('float w = smoothstep(uProgress, uProgress - bleed, ink.r);', DEFINED_SMOOTHSTEP);
 });
 
 test('the scrubbed uniforms the chapter writes are the ones the GPU reads', () => {
