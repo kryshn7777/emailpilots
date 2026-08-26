@@ -229,7 +229,9 @@ export async function mount(opts: MountOptions): Promise<void> {
     sunrise: crossfade.pmremFromHDR(buffers.get(CRITICAL_ASSETS.sunrise.url)!),
     dusk2: crossfade.pmremFromHDR(buffers.get(CRITICAL_ASSETS.dusk.url)!),
   };
-  stage.scene.environment = crossfade.texture;
+  // `scene.environment` is NOT assigned here. `crossfade.texture` throws until the first
+  // `setPair`, and the first `setPair` now belongs to the day-wheel inside the Room — so the
+  // adoption moved down to just after the Room exists and has been given the journey origin.
 
   // meshopt + KTX2 GLBs (D2-18 pipeline output). The basis transcoder is
   // self-hosted from public/basis/ — never a CDN (same rule as D2-09).
@@ -271,6 +273,11 @@ export async function mount(opts: MountOptions): Promise<void> {
   // The ONE set-state record (CHK-B1). Created here, passed into every chapter constructor
   // — a chapter with a private copy cannot hand the next one the state it inherits.
   const setState = createSetState();
+
+  // The journey origin, from the one record that declares it — and the wheel's first
+  // `setPair`, which is what makes `crossfade.texture` readable at all.
+  room.setEnv(setState.env);
+  stage.scene.environment = crossfade.texture;
 
   const ch1 = new Ch1FirstLight({ room, setState, envOverride: review.sky });
   await ch1.mount(stage);
