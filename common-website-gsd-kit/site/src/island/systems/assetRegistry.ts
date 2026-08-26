@@ -120,7 +120,8 @@ function isObject3D(value: unknown): value is Object3D {
   return typeof value === 'object' && value !== null && 'traverse' in value;
 }
 
-/** Same walk `ProofChapter.dispose()` uses: the material AND every texture it references. */
+/** The material AND every texture it references — the walk `Room.dispose()` mirrors for the
+ * primitives it built itself, on the other side of the ownership split (T-03-12). */
 function disposeMaterial(material: Material | Material[]): void {
   for (const m of Array.isArray(material) ? material : [material]) {
     for (const value of Object.values(m)) {

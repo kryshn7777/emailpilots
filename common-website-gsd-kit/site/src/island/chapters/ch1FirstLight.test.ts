@@ -162,7 +162,9 @@ test("Ch1's streamed dressing is queued off the loader's critical path", () => {
       'second batch rather than silently dropping the storyboard objects',
   );
   assert.ok(
-    /queue\.load\('lazy'\)/.test(INDEX),
+    // Whitespace-tolerant on purpose: the call is chained across lines, so a regex anchored
+    // on `queue.load(` scores 0 against a wiring that is present and correct.
+    /\.load\('lazy'\)/.test(INDEX),
     "the streamed batch rides its OWN priority. 'soon' is already carrying the benchmark " +
       'warm-cache and the one-ahead chapter prefetch, and AssetQueue.prime() would be handed ' +
       "those .json files and reject on 'no parser for benchmarks/…'.",

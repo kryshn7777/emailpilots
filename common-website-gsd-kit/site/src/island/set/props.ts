@@ -12,8 +12,8 @@
  * `cameraRig.ts` authors every pose in (ECU_LETTER sits at y = 0.08, "~8 cm above the
  * letter"). `WoodenTable_02` does not arrive in that frame: its own origin is at its base.
  * So `Room` measures the model's real top face with a `Box3` and shifts the model down by
- * that height — carrying forward the measurement `ProofChapter` proved in the Q1/Q3 spike,
- * but resolving it into the camera's frame instead of raising the props to meet the model.
+ * that height — carrying forward the runtime measurement the Q1/Q3 spike scene proved, but
+ * resolving it into the camera's frame instead of raising the props to meet the model.
  *
  * That is why an anchor names a **plane** rather than an absolute Y. `desk` resolves against
  * the measured top face (`y = 0` by construction, and it stays correct if the table is ever
@@ -30,8 +30,8 @@
  * ## What is authored here and what is not
  *
  * The lateral placements below are a first composition against §Composition (desk lower
- * third, lamp frame left, window upper right, three depth planes) and carry forward the two
- * ProofChapter tuned by eye in the spike — the lamp at x = -0.55 and the clock at x = 0.42.
+ * third, lamp frame left, window upper right, three depth planes) and carry forward the two the
+ * Phase-2 spike scene tuned by eye — the lamp at x = -0.55 and the clock at x = 0.42.
  * They are the scene-director's to move at the wave-3 sitting; the *mechanism* (measured
  * planes, closed list, one tier gate) is what this plan fixes.
  */

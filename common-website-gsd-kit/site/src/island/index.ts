@@ -6,12 +6,17 @@
  *
  * mount() wires the five single-owner systems (D2-11): QualityManager → Stage →
  * Timeline → ResponsiveBranch → AssetQueue, PMREMs the two Qwantani HDRIs into the
- * Q1 env crossfade, parses the three ingested props (meshopt + KTX2, self-hosted
- * basis transcoder — D2-09 rule), registers the proof chapter (D2-12), and
- * crossfades the canvas in over the Ch1 still once the critical batch lands.
+ * Q1 env crossfade, parses the critical props (meshopt + KTX2, self-hosted basis
+ * transcoder — D2-09 rule), builds the shared Room ONCE, registers Ch1 against its own
+ * shell section, and crossfades the canvas in over the Ch1 still.
+ *
+ * This file creates the singletons and nothing else creates them: the `Room` (one set for
+ * all seven chapters — the one-take camera's precondition) and the `SetState` record
+ * (CHK-B1 — one record, written by each chapter as its beats fire, read by the next as
+ * what it inherits). Both are handed into every chapter constructor.
  */
 
-import type { Object3D } from 'three';
+import type { WebGLRenderTarget } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -23,8 +28,11 @@ import { AssetQueue } from './systems/AssetQueue.ts';
 import { createAssetRegistry, type AssetRegistry } from './systems/assetRegistry.ts';
 import { createEnvCrossfade } from './systems/envCrossfade.ts';
 import { barFraction, labelFor, navVisible } from './choreo/affordance.ts';
-import { CHAPTER_ASSETS, nextPrefetch } from './choreo/chapterAssets.ts';
-import { ProofChapter } from './chapters/ProofChapter.ts';
+import { CH1_STREAMED, CHAPTER_ASSETS, nextPrefetch } from './choreo/chapterAssets.ts';
+import { Ch1FirstLight } from './chapters/Ch1FirstLight.ts';
+import { createRoom } from './set/Room.ts';
+import { createSetState } from './choreo/setState.ts';
+import type { SkyId } from './choreo/dayWheel.ts';
 import { installStillCapture, parseStillParam } from './qa/still.ts';
 
 /** Chunk-identification marker — check-budgets.mjs locates the island chunk by this literal. */
@@ -42,17 +50,22 @@ export interface MountOptions {
 }
 
 /**
- * The critical batch (D2-20): the two Qwantani HDRIs feeding the Q1 crossfade plus
- * the three ingested props. Byte weights mirror public/assets/manifest.json — they
- * only weight the loader percent (AssetQueue clamps streams and snaps to 1 on
- * completion, so a stale weight can never break progress).
+ * The critical batch (D2-20): the two Qwantani HDRIs feeding the Q1 crossfade plus the two
+ * props the set cannot be BUILT without — the desk, which is the world origin every camera
+ * pose is measured from, and the lamp, which the light rig is posed on. Byte weights mirror
+ * public/assets/manifest.json; they only weight the loader percent (AssetQueue clamps
+ * streams and snaps to 1 on completion, so a stale weight can never break progress).
+ *
+ * `chapterAssets.test.ts` asserts this set EQUALS `CHAPTER_ASSETS[0]` in both directions, so
+ * the Regime-B desktop gate measures exactly what the loader actually waits for. Ch1's other
+ * storyboard objects ride `CH1_STREAMED` behind the handoff — the arithmetic that forced
+ * that split is written out in `chapterAssets.ts`.
  */
 const CRITICAL_ASSETS = {
   sunrise: { url: 'assets/qwantani_sunrise_puresky/qwantani_sunrise_puresky.hdr', bytes: 1_033_946 },
   dusk: { url: 'assets/qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr', bytes: 1_166_018 },
   table: { url: 'assets/WoodenTable_02/WoodenTable_02.glb', bytes: 2_241_096 },
   lamp: { url: 'assets/desk_lamp_arm_01/desk_lamp_arm_01.glb', bytes: 1_211_992 },
-  clock: { url: 'assets/alarm_clock_01/alarm_clock_01.glb', bytes: 996_468 },
 } as const;
 
 /**
@@ -100,7 +113,11 @@ export async function mount(opts: MountOptions): Promise<void> {
   // glow/percent follows queue progress and nothing else — real bytes now.
   const queue = new AssetQueue({ fetchFn: window.fetch.bind(window), baseUrl: opts.baseUrl });
   queue.onProgress(opts.onProgress);
+  // Declaration ORDER is load-bearing: AssetQueue is idempotent per url and the FIRST
+  // declaration keeps its priority, so critical is declared first and can never be demoted
+  // by a later batch that happens to name the same file.
   for (const a of Object.values(CRITICAL_ASSETS)) queue.add(a.url, 'critical', a.bytes);
+  for (const a of CH1_STREAMED) queue.add(a.url, 'lazy', a.bytes);
   for (const file of BENCHMARK_FILES) queue.add(`benchmarks/${file}`, 'soon', 0);
   const critical = queue.load('critical'); // streaming starts NOW; failure handled at the await
   void queue.load('soon').catch(() => {
@@ -188,10 +205,17 @@ export async function mount(opts: MountOptions): Promise<void> {
     return;
   }
 
-  // PMREM both HDRIs from the fetched bytes; sources are disposed inside.
-  const rtA = crossfade.pmremFromHDR(buffers.get(CRITICAL_ASSETS.sunrise.url)!);
-  const rtB = crossfade.pmremFromHDR(buffers.get(CRITICAL_ASSETS.dusk.url)!);
-  crossfade.setPair(rtA, rtB);
+  // PMREM both HDRIs from the fetched bytes; the equirect sources are disposed inside.
+  //
+  // The targets live in `skySources`, keyed by sky id, and that object is handed to the Room
+  // (and through it to the day-wheel) BY REFERENCE. The wheel therefore owns their lifetime
+  // — it calls setPair with `disposePrevious: false` and disposes all of them itself — and
+  // the context-restore path below writes replacements into the same object rather than
+  // leaving the wheel holding handles to a dead GL context.
+  const skySources: Partial<Record<SkyId, WebGLRenderTarget>> = {
+    sunrise: crossfade.pmremFromHDR(buffers.get(CRITICAL_ASSETS.sunrise.url)!),
+    dusk2: crossfade.pmremFromHDR(buffers.get(CRITICAL_ASSETS.dusk.url)!),
+  };
   stage.scene.environment = crossfade.texture;
 
   // meshopt + KTX2 GLBs (D2-18 pipeline output). The basis transcoder is
@@ -217,24 +241,40 @@ export async function mount(opts: MountOptions): Promise<void> {
   // which do not exist yet, because nothing unmounts the island (`systems` is rooted for
   // the page lifetime for exactly that reason). When a teardown lands, both go in it.
 
-  const [table, lamp, clock] = await Promise.all([
-    registry.get<Object3D>(CRITICAL_ASSETS.table.url),
-    registry.get<Object3D>(CRITICAL_ASSETS.lamp.url),
-    registry.get<Object3D>(CRITICAL_ASSETS.clock.url),
-  ]);
+  // The set, built ONCE for the page. Every chapter reuses it; nothing rebuilds it. Room
+  // owns the whole light rig and the day-wheel, so the fog and the key light can never
+  // disagree about what time it is.
+  const room = await createRoom({
+    stage,
+    registry,
+    quality,
+    branch,
+    crossfade,
+    skySources,
+    invalidate: () => stage.invalidate(),
+  });
 
-  // Proof chapter scrubbed 1:1 by native scroll (D2-12), registered against the seven
-  // shell sections so the master scrub emits real per-chapter (index, progress) pairs and
-  // the EXP-07 affordance is verifiable in wave 1. One instance, seven ranges: the proof
-  // scene therefore replays its dolly + sunrise→dusk crossfade once per chapter, which is
-  // the visible signature of the chapter mapping working. Waves 4-10 swap this single
-  // instance for the seven storyboard chapters against these same sections.
-  const proof = new ProofChapter({ crossfade, props: { table, lamp, clock } });
-  await proof.mount(stage);
-  for (const id of ['ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7']) {
-    const section = document.querySelector<HTMLElement>(`#${id}`);
-    if (section !== null) timeline.register({ id, element: section }, proof);
+  // The ONE set-state record (CHK-B1). Created here, passed into every chapter constructor
+  // — a chapter with a private copy cannot hand the next one the state it inherits.
+  const setState = createSetState();
+
+  const ch1 = new Ch1FirstLight({ room, setState });
+  await ch1.mount(stage);
+  const section = document.querySelector<HTMLElement>('#ch1');
+  if (section === null) {
+    console.warn('island: #ch1 not found — registering Ch1 against document.body');
   }
+  timeline.register({ id: 'ch1', element: section ?? document.body }, ch1);
+
+  // Ch1's dressing, behind the handoff. 'lazy' is its own batch: 'soon' already carries the
+  // benchmark warm-cache JSONs, and handing those buffers to registry.prime() rejects on
+  // "no parser for". A failure here costs set dressing, never the journey — the room is
+  // already standing and the camera is already scrubbing.
+  void queue
+    .load('lazy')
+    .then((fetched) => registry!.prime(fetched))
+    .then(() => room.adopt())
+    .catch((e) => console.warn('island: Ch1 streamed dressing failed', e));
 
   // '?still=chN[.beat]' capture (D3-14) — installed only once the chapters are registered,
   // because the tool pins the master scrub and reads back the frame it produced. Same shape
@@ -252,9 +292,15 @@ export async function mount(opts: MountOptions): Promise<void> {
     queue
       .load('critical')
       .then((again) => {
-        const a = crossfade.pmremFromHDR(again.get(CRITICAL_ASSETS.sunrise.url)!);
-        const b = crossfade.pmremFromHDR(again.get(CRITICAL_ASSETS.dusk.url)!);
-        crossfade.setPair(a, b); // re-renders the blend at the current mix
+        // The old targets died with the context. Release them, write the replacements into
+        // the SAME `skySources` object the wheel holds, and adopt without disposal — the
+        // wheel owns these now, so the default disposing setPair would free the pair it is
+        // about to be handed back.
+        skySources.sunrise?.dispose();
+        skySources.dusk2?.dispose();
+        skySources.sunrise = crossfade.pmremFromHDR(again.get(CRITICAL_ASSETS.sunrise.url)!);
+        skySources.dusk2 = crossfade.pmremFromHDR(again.get(CRITICAL_ASSETS.dusk.url)!);
+        crossfade.setPair(skySources.sunrise, skySources.dusk2, { disposePrevious: false });
         stage.scene.environment = crossfade.texture;
         stage.invalidate();
       })

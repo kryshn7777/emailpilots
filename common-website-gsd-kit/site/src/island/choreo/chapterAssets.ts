@@ -15,10 +15,10 @@
  *
  * Ch1 is the special case and always will be: **Ch1's manifest IS the critical batch** —
  * the set that must land before the loader hands off, mirrored from `CRITICAL_ASSETS` in
- * `src/island/index.ts` and asserted equal to it. Ch1's remaining storyboard objects (the
- * chair, Paper001, the desk dressing) are on screen in Ch1 but need not be resident at
- * handoff; 03-09 decides which of them join the pre-handoff batch and which stream behind
- * it, and the Regime-B assertion in the test is what forces that to be a decision.
+ * `src/island/index.ts` and asserted equal to it in both directions. Ch1's remaining
+ * storyboard objects are on screen in Ch1 but need not be resident at handoff, and 03-09
+ * made that call: they live in `CH1_STREAMED` below, with the arithmetic that forced the
+ * split written out there.
  *
  * ## Growth rule — read this before adding a row
  *
@@ -46,7 +46,9 @@ export interface ChapterAsset {
  *
  * Ch1: the critical batch — both Qwantani skies (STORYBOARD §Sky Continuity gives Ch1 the
  * pair `(sunrise, dusk2)` held at mix 0.00 until 95%, so both are PMREM'd at mount) plus
- * the three ingested props.
+ * the two props the set cannot be BUILT without: the desk, which is the world origin, and
+ * the lamp, which the light rig is posed on. Everything else Ch1 shows is in
+ * `CH1_STREAMED`.
  *
  * Ch2: `clipboard`, the envelope stack's home base (STORYBOARD §Ch2 Objects). The
  * envelopes themselves are Sketchfab CC-BY and land with 03-10.
@@ -61,7 +63,6 @@ export const CHAPTER_ASSETS: readonly (readonly ChapterAsset[])[] = [
     { url: 'assets/qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr', bytes: 1_166_018 },
     { url: 'assets/WoodenTable_02/WoodenTable_02.glb', bytes: 2_241_096 },
     { url: 'assets/desk_lamp_arm_01/desk_lamp_arm_01.glb', bytes: 1_211_992 },
-    { url: 'assets/alarm_clock_01/alarm_clock_01.glb', bytes: 996_468 },
   ],
   [{ url: 'assets/clipboard/clipboard.glb', bytes: 740_456 }],
   [],
@@ -69,6 +70,65 @@ export const CHAPTER_ASSETS: readonly (readonly ChapterAsset[])[] = [
   [],
   [],
   [],
+] as const;
+
+/**
+ * Ch1's other half: the storyboard objects that are ON SCREEN in Ch1 but need not be
+ * RESIDENT when the loader hands off.
+ *
+ * ## Why this list exists at all
+ *
+ * BUDGETS Regime B gives Ch1's critical path 9 MB on desktop. Ch1's full storyboard object
+ * list — desk, chair, lamp, clock, five dressing props, the floor set and Paper001 — sums
+ * **16,700,829 B**. `WoodenChair_01` + `Paper001` alone are 3,865,631 B against the
+ * 2,350,480 B of headroom that existed before this plan, so "declare Ch1's objects" and
+ * "hold the desktop line" could not both be done. The line is the live one (BUDGETS
+ * §Amendments B2 retired its mobile twin), so the object list is what gave.
+ *
+ * ## How the cut was made
+ *
+ * By the opening frame, because "to interactive" is what the budget line measures. Ch1
+ * opens on an ECU 8 cm above the letter (`cameraRig.ts` ECU_LETTER) and does not begin its
+ * PULL-WIDE until 48% of a 90vh chapter. Everything below is out of that frame:
+ *
+ * | asset | why it can arrive late |
+ * |---|---|
+ * | `alarm_clock_01` | sits in the lamp pool at the desk medium; Ch3's hero, not Ch1's |
+ * | `WoodenChair_01` | pushed back behind the desk — arrives with the pull-wide |
+ * | `office_notepads`, `stationery_supplies`, `binder_notebook`, `book_encyclopedia_set_01` | dressing at the frame edges |
+ * | `Shelf_01` | dressing against the wall, and the tier-cut one |
+ * | `WoodFloor051` (4 slots) | the ECU sees no floor; the shell's floor plane carries a token albedo until the maps land |
+ *
+ * What stayed critical is what the opening frame and the set's own STRUCTURE need: both
+ * skies (Ch1 holds the pair at mix 0.00, so both are PMREM'd at mount), `WoodenTable_02`
+ * (the desk IS the world origin — `Room` measures its top face and every prop anchor and
+ * camera pose is relative to it) and `desk_lamp_arm_01` (the light rig is built once, and
+ * the lamp's key and pool are posed on its head).
+ *
+ * ## The mechanism is the one that already existed
+ *
+ * These ride `AssetQueue`'s `'lazy'` priority — declared, fetched and primed like any other
+ * batch, and excluded from the loader percent because `AssetQueue.emit()` weights `critical`
+ * items alone. `'lazy'` rather than `'soon'` on purpose: `'soon'` already carries the
+ * benchmark warm-cache JSONs and the one-ahead chapter prefetch, and handing those `.json`
+ * buffers to `assetRegistry.prime()` rejects on "no parser for". A third priority the queue
+ * has always had, and no new code.
+ *
+ * Paper001 is in neither batch. 03-11 builds the letter sheet that wears it, and the growth
+ * rule above is that a plan declares what its own code fetches — not what a later one will.
+ */
+export const CH1_STREAMED: readonly ChapterAsset[] = [
+  { url: 'assets/alarm_clock_01/alarm_clock_01.glb', bytes: 996_468 },
+  { url: 'assets/WoodenChair_01/WoodenChair_01.glb', bytes: 1_317_352 },
+  { url: 'assets/office_notepads/office_notepads.glb', bytes: 911_116 },
+  { url: 'assets/stationery_supplies/stationery_supplies.glb', bytes: 955_904 },
+  { url: 'assets/binder_notebook/binder_notebook.glb', bytes: 876_464 },
+  { url: 'assets/book_encyclopedia_set_01/book_encyclopedia_set_01.glb', bytes: 1_510_768 },
+  { url: 'assets/Shelf_01/Shelf_01.glb', bytes: 666_104 },
+  { url: 'assets/WoodFloor051/WoodFloor051_1K-JPG_Color.ktx2', bytes: 149_975 },
+  { url: 'assets/WoodFloor051/WoodFloor051_1K-JPG_NormalGL.ktx2', bytes: 350_226 },
+  { url: 'assets/WoodFloor051/WoodFloor051_1K-JPG_Roughness.ktx2', bytes: 645_522 },
+  { url: 'assets/WoodFloor051/WoodFloor051_1K-JPG_AmbientOcclusion.ktx2', bytes: 119_599 },
 ] as const;
 
 /**

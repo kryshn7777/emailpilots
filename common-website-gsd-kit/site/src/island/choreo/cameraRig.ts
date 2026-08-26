@@ -17,7 +17,7 @@
  *
  * Frame: metres, world origin at the desk anchor, desk surface plane y = 0, +Y up.
  * Azimuth is measured from +Z toward +X. Chapters apply a pose with
- * `camera.position.set(...)` + `camera.lookAt(...)`, exactly as `ProofChapter` already does.
+ * `camera.position.set(...)` + `camera.lookAt(...)`, exactly as `Ch1FirstLight` does.
  */
 
 import { span } from './beats.ts';
