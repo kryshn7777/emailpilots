@@ -44,10 +44,18 @@ test('both Sketchfab envelope rows are CC BY with attribution required + non-emp
 
 test('known ledger ceilings parse to the documented values', () => {
   const rows = parseLedger(LEDGER);
-  const table = rows.find((r) => r.id === 'WoodenTable_02');
-  assert.ok(table, 'WoodenTable_02 row missing');
+  // `wooden_table_02`, lowercase — Serhii Khromov's 1134 mm table. NOT `WoodenTable_02`,
+  // Fran Calvente's 300 mm side table, which Ruling 9 F1 struck. The two slugs differ only
+  // in case, and the ledger row carries the warning; this is the mechanical half of it.
+  const table = rows.find((r) => r.id === 'wooden_table_02');
+  assert.ok(table, 'wooden_table_02 row missing');
+  assert.strictEqual(
+    rows.find((r) => r.id === 'WoodenTable_02'),
+    undefined,
+    'the struck side-table row must be gone from the ledger, not merely superseded',
+  );
   assert.strictEqual(table.ceiling_bytes, 2_500_000);
-  assert.strictEqual(table.ceiling_tris, 30_000);
+  assert.strictEqual(table.ceiling_tris, 1_000);
   const lamp = rows.find((r) => r.id === 'desk_lamp_arm_01');
   assert.strictEqual(lamp.ceiling_bytes, 1_500_000);
   assert.strictEqual(lamp.ceiling_tris, 10_000);
@@ -56,6 +64,80 @@ test('known ledger ceilings parse to the documented values', () => {
   assert.strictEqual(hdri.category, 'hdri');
   assert.strictEqual(hdri.ceiling_bytes, 2_000_000);
   assert.strictEqual(hdri.ceiling_tris, null);
+});
+
+/**
+ * Ruling 9 §4 added a `Real size (mm)` column to the Models table — and every model row
+ * vanished from the parse, because `parseLedger` read the source URL from `cells[2]` and the
+ * ceiling from `cells[6]` by POSITION. The Models table became 8 columns while HDRIs and PBR
+ * stayed at 7, so the URL test failed on every model row and the whole section was skipped
+ * in silence: three suites red, and the next `node pipeline/ingest.mjs` would have died on
+ * `emitManifest: no ledger row for ingested asset "alarm_clock_01"`.
+ *
+ * The gate is written against a FIXTURE rather than the real ledger on purpose: asserting
+ * "the real file parses today" cannot tell a fixed parser from a reverted column. Two tables
+ * describing the same asset, one with an extra leading column, must parse identically.
+ */
+test('parseLedger locates columns by content, not by position (Ruling 9 column drift)', (t) => {
+  const header7 = '| Scene(s) | Asset | Source URL | License | Attribution | Est. original | Optimized target |';
+  const header8 = '| Scene(s) | Asset | Real size (mm) | Source URL | License | Attribution | Est. original | Optimized target |';
+  const sep = (n) => '|' + '---|'.repeat(n);
+  const row7 = '| 1-7 | Widget 01 [V] | https://polyhaven.com/a/widget_01 | CC0 | None (courtesy) | ~20 MB | \u2264 2.5 MB, \u2264 1K tris, 2K KTX2 |';
+  const row8 = '| 1-7 | Widget 01 [V] | 1134.4 \u00d7 706.0 \u00d7 799.5 | https://polyhaven.com/a/widget_01 | CC0 | None (courtesy) | ~20 MB | \u2264 2.5 MB, \u2264 1K tris, 2K KTX2 |';
+  const write = (name, header, row) => {
+    const file = path.join('pipeline', 'fixtures', name);
+    const body = ['## Models', '', header, sep(header.split('|').length - 2), row, ''];
+    fs.writeFileSync(file, body.join('\n'));
+    return file;
+  };
+  const a = write(`.cols7-${process.pid}.md`, header7, row7);
+  const b = write(`.cols8-${process.pid}.md`, header8, row8);
+  t.after(() => { for (const f of [a, b]) { try { fs.unlinkSync(f); } catch {} } });
+
+  const seven = parseLedger(a);
+  const eight = parseLedger(b);
+  assert.strictEqual(seven.length, 1, 'the 7-column control must parse its one row');
+  assert.strictEqual(eight.length, 1, 'an added column must not delete the row');
+  assert.deepStrictEqual(
+    eight,
+    seven,
+    'a column inserted to the LEFT of the URL must change nothing the parser reports — ' +
+      'ceilings, licence and attribution are all read relative to the URL cell',
+  );
+  assert.strictEqual(eight[0].source_url, 'https://polyhaven.com/a/widget_01');
+  assert.strictEqual(eight[0].license, 'CC0');
+  assert.strictEqual(eight[0].ceiling_bytes, 2_500_000);
+  assert.strictEqual(eight[0].ceiling_tris, 1_000);
+  assert.strictEqual(eight[0].texture_size, 2048);
+});
+
+/**
+ * Ruling 9 §4: `[V]` gained a fourth component. Licence + tris + texture weight are three of
+ * four now — the fourth is the asset's real-world size, and `[V]` is not writable while that
+ * cell is empty. A 300 mm pedestal reached wave 3 marked `[V]` because nobody read the
+ * `dimensions` field that shipped in the same API response as the polycount.
+ */
+test('every [V]-marked Models row carries a Real size (mm) cell (Ruling 9 §4)', () => {
+  const models = fs.readFileSync(LEDGER, 'utf8').split(/^## /m).find((s) => s.startsWith('Models'));
+  assert.ok(models, 'ASSETS.md must still have a Models section');
+  const rows = models
+    .split(/\r?\n/)
+    .filter((l) => l.startsWith('|') && /https:\/\//.test(l))
+    .map((l) => l.split('|').slice(1, -1).map((c) => c.trim()));
+  assert.ok(rows.length >= 13, `expected the full model ledger, got ${rows.length} rows`);
+  let checked = 0;
+  for (const cells of rows) {
+    if (!/\[V\]/.test(cells[1])) continue; // [I] rows are inventory-proven, not API-verified
+    checked++;
+    const size = cells[2];
+    assert.ok(
+      size.length > 0 && !/^[-\u2014]$/.test(size),
+      `${cells[1]}: marked [V] with an empty Real size (mm) cell. [V] has four components ` +
+        'now, not three (Ruling 9 \u00a74) — fill the size from the source\u2019s own ' +
+        'published metadata, or drop the mark.',
+    );
+  }
+  assert.ok(checked >= 8, `only ${checked} [V] rows were reached — the column moved again`);
 });
 
 test('emitManifest writes one row per result, carrying ceiling_bytes + license, CC BY needs attribution', (t) => {
