@@ -214,3 +214,80 @@ test('the desk is the origin anchor', () => {
       'y = 0 — so the table IS the origin, and Room shifts the model to make that true',
   );
 });
+
+/* ------------------------------------------------------- scale normalisation (03-09) --- */
+
+/**
+ * Measured from the shipped GLBs and cross-checked against Poly Haven's own `/info`
+ * metadata on 2026-08-26 (the two agree exactly, so the ingest is faithful and these are
+ * SOURCE dimensions, not pipeline damage):
+ *
+ * | prop | source W x D x H (mm) | verdict |
+ * |---|---|---|
+ * | WoodenTable_02 | 301 x 301 x 418 | a 30 cm plant stand, not a writing desk |
+ * | WoodenChair_01 | 688 x 658 x 2274 | a 2.27 m tall chair |
+ * | desk_lamp_arm_01 | 617 x 408 x 879 | plausible arm lamp |
+ * | alarm_clock_01 | 228 x 168 x 174 | plausible |
+ * | office_notepads | 1103 x 660 x 22 | a kit flat-lay, correct at real scale |
+ * | stationery_supplies | 302 x 84 x 164 | plausible |
+ * | binder_notebook | 584 x 200 x 25 | open A4 binder |
+ * | book_encyclopedia_set_01 | 551 x 163 x 237 | plausible |
+ * | clipboard | 229 x 337 x 42 | A4 clipboard, exact |
+ * | Shelf_01 | 1003 x 257 x 2080 | 2.08 m shelf unit |
+ *
+ * Eight of ten are real-world sane. Two are not, and not marginally: no writing desk is
+ * 42 cm high and no chair is 2.27 m tall. Those two — and ONLY those two — carry a
+ * normalisation target, because normalising a prop that is already right is an invented
+ * number, and inventing numbers is what the ledger exists to prevent.
+ */
+const NEEDS_NORMALISING: readonly PropId[] = ['table', 'chair'];
+
+test('only the props that are objectively wrong at source declare a scale target', () => {
+  const declared = (Object.keys(PROP_ANCHORS) as PropId[])
+    .filter((id) => PROP_ANCHORS[id].metres !== null)
+    .sort();
+  assert.deepEqual(
+    declared,
+    [...NEEDS_NORMALISING].sort(),
+    'a normalisation target on a prop that already measures correctly is a number nobody ' +
+      'can defend from the ledger — and it would silently override a future re-ingest that ' +
+      'fixed the asset',
+  );
+});
+
+test('each scale target is a real-world dimension, not a fudge factor', () => {
+  for (const id of NEEDS_NORMALISING) {
+    const target = PROP_ANCHORS[id].metres;
+    assert.ok(target !== null, `${id} must declare one`);
+    assert.match(target.axis, /^[xyz]$/, `${id}: names the axis the size is measured on`);
+    assert.ok(
+      target.size > 0.05 && target.size < 3,
+      `${id}: ${target.size} m is not a size a room object has. Room divides the MODEL's own ` +
+        'measured extent by this, so it is a statement about the real world — which means a ' +
+        're-ingest at a different scale self-corrects instead of doubling the error.',
+    );
+  }
+  assert.equal(PROP_ANCHORS.table.metres?.axis, 'y', 'the desk is normalised by HEIGHT');
+  assert.equal(
+    PROP_ANCHORS.table.metres?.size,
+    0.75,
+    'standard desk height, and the dimension the camera table actually depends on: ' +
+      'DESK_MEDIUM is authored "~50 cm above desk height". Uniform, so the model is not ' +
+      'distorted — see the escalation in 03-09-SUMMARY about what its proportions then imply.',
+  );
+});
+
+test('desk props sit ON the desk, in fractions of its measured top', () => {
+  for (const id of Object.keys(PROP_ANCHORS) as PropId[]) {
+    const anchor = PROP_ANCHORS[id];
+    if (anchor.plane !== 'desk') continue;
+    const [u, , v] = anchor.position;
+    assert.ok(
+      Math.abs(u) <= 1 && Math.abs(v) <= 1,
+      `${id} is anchored at (${u}, ${v}) of the desk half-extent — off the desk it is ` +
+        'standing on. Desk anchors are FRACTIONS, not metres, precisely because the desk ' +
+        'asset is unresolved: swapping it must move the props with it, not leave them ' +
+        'hanging in the air where the old one used to be.',
+    );
+  }
+});
