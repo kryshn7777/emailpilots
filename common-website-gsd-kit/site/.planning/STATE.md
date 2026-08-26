@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: 03-09 T1+T2 + the Ruling 9 remediation pass complete; still PAUSED at 03-09-T3 (OQ5 deferred to 03-14 T3 by Ruling 9)
-last_updated: "2026-08-26T17:30:00.000Z"
-last_activity: 2026-08-26 -- 03-09 Ruling 9 remediation (F1-F4): hero desk + chair re-cast, Ch1 dressed at node level, procedural drawer struck for a sourced cabinet; resident tris 13,514 -> 920, Ch1 critical 5.65 -> 5.43 MB; 256 tests green. E-1 closed; T3 still PAUSED because Ruling 9 defers OQ5 to 03-14 T3
+stopped_at: 03-11 T1+T2 complete and green; PAUSED at 03-11-T3, the wave-4 blocking human checkpoint. 03-09 remains separately PAUSED at its own T3 (OQ5 deferred to 03-14 T3 by Ruling 9)
+last_updated: "2026-08-26T17:25:00.000Z"
+last_activity: 2026-08-26 -- 03-11 Ch1 FIRST LIGHT: ink scrubbed piecewise onto the bake's two published boundaries (both endpoints exact), the token beat as one invalidating tween that cuts under a pinned capture, 40 scroll-scrubbed motes dismissed to exactly 0 at progress 1.0, the sub alone through domCopy. Paper001 + the ink ramp moved onto Ch1's critical path (5.43 -> 8.03 MB, 0.97 MB headroom). 277 tests green, build 4/4, island 252,494 B gz. Two gate corrections mutation-proved
 progress:
   total_phases: 6
   completed_phases: 2
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Core Experience) — EXECUTING
-Plan: 9 of 19 (03-09 PAUSED at its blocking human checkpoint)
+Plan: 11 of 19 (03-11 PAUSED at its blocking human checkpoint; 03-09 separately still PAUSED at its own)
 Status: Executing Phase 3
-Last activity: 2026-08-26 -- 03-09 Ruling 9 remediation pass (F1-F4 landed; E-1 closed); T3 still PAUSED, OQ5 deferred to 03-14 T3
+Last activity: 2026-08-26 -- 03-11 T1+T2 complete (Ch1 FIRST LIGHT plays end to end); PAUSED at T3, the wave-4 checkpoint
 
-Progress: [██████░░░░] 57%
+Progress: [██████░░░░] 57%  # unchanged: 03-11, like 03-09, is paused at its checkpoint rather than complete
 
 ## Ruling 9 remediation — 2026-08-26 (additive record)
 
@@ -55,6 +55,47 @@ Progress: [██████░░░░] 57%
 - **Still open, unchanged:** OQ5 (wall material) is deferred to **03-14 Task 3**, its
   pre-conditions now met; default `PaintedPlaster017` if that sitting never happens. Both
   candidates and the `?wall=` lever stay in place. 03-09 remains PAUSED at T3.
+
+## 03-11 Ch1 FIRST LIGHT — 2026-08-26 (additive record)
+
+- **Ch1 plays end to end on the storyboard's percentages.** Ink scrubbed through
+  `beats.inkProgressAt` — piecewise onto 03-08's two published boundaries (REVIEWS.md B-5):
+  `inkProgressAt(0.15) === hiEnd` (0.050980) and `inkProgressAt(0.40) === tokenEnd` (0.290196),
+  both **exact** by construction. A single linear `span(progress, 0, 0.40)` would read 0.375000
+  at the 15% beat — 7.4x past `hiEnd`, so `Hi ` would finish around 1.5% of the chapter.
+- **One tween in the whole file**, and its `invalidate` is on the same `onUpdate` line as its
+  side effect (Pitfall 5). The nib's bleed widening is *derived* from `uTokenMix` (`sin(pi·mix)`)
+  rather than animated beside it, so a reverse scrub unwinds both together.
+- **A progress delta over 0.05 cuts instead of tweening.** `installStillCapture` reads back three
+  animation frames after pinning the scroll, so `?still=ch1.50` would otherwise export the middle
+  of the 200 ms crossfade — the one thing REVIEWS.md B-6 says that frame must not show.
+- **The motes are dismissed as arithmetic** (F-4): `beats.dustOpacityAt` is pure and assertable,
+  `dustOpacityAt(1) === 0` exactly, `dustOpacityAt(0.975) === 0.5` verified exact in doubles
+  rather than assumed. 40 on desktop / 0 on mobile from the tier's own allowance; scrubbed by
+  scroll, never clocked (`requestAnimationFrame|gsap.ticker|performance.now|Date.now|setInterval`
+  all count 0 in the chapter).
+- **Ch1's critical path 5,433,608 → 8,032,428 B** — `Paper001` (2,548,279 B) and the ink ramp
+  (50,541 B), 967,572 B under the live 9 MB desktop line. Forced by the clone: `patchInkReveal`
+  clones `materials.paper` at mount and `Material.clone()` copies the map references it finds
+  *then*, so a streamed Paper001 would texture every other paper surface in the room and leave
+  the hero letter flat cream for the whole journey. Room's `adopt()` dresses the family before
+  the chapter is constructed, which is what makes the critical placement work with no new code.
+- **Two bugs fixed on the way.** Stage's near plane was 0.1 with an ECU authored 8 cm above the
+  letter — the near third of the sheet sat inside it and the bottom band of the site's opening
+  frame clipped through the paper to the room behind it (now 0.02). And the dust beam is marched
+  **up-sun from the desk**, not extruded from the window rect: as authored, `SUN_DIR.sunrise`
+  rakes in from frame right while the window is a +Z-facing opening in the back wall, so the
+  plan's literal volume lies *inside the wall*.
+- **Two gate corrections, both mutation-proved.** The `particleCap` positive control was
+  satisfiable by a comment (it now accepts `dustAllowance` and asserts Room's tier derivation
+  cross-file); the mobile ratchet's "the split was not undone" assertion compared a total that
+  can legitimately grow, and now names the row — `alarm_clock_01` may never return to critical.
+- **`domCopy` is now driven for the first time**, so 03-03-T4 §F's deferred runtime `aria-label`
+  check is performable at 03-11-T3. It is an elements-panel read, never a source grep (CHK-W5).
+- **Nothing was changed under `docs/direction/`.** The director's two open items — no mesh outside
+  this chapter sets `castShadow`, and `QualityManager.postPasses` is read by no code — were left
+  exactly as found. The two meshes this plan added carry explicit, reasoned flags: the letter
+  casts and does not receive; the dust neither casts nor receives.
 
 ## Performance Metrics
 
@@ -94,6 +135,7 @@ Progress: [██████░░░░] 57%
 | Phase 3 P03 | 91min | 4 tasks | 12 files |
 | Phase 3 P05 | 35min | 3 tasks | 5 files |
 | Phase 3 P09 | 165min | 2 of 3 tasks | 16 files |
+| Phase 3 P11 | 65min | 2 of 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -143,6 +185,12 @@ Recent decisions affecting current work:
 - [Phase 3]: the wall is a pane of light, not a hole — with no scene.background a hole shows the renderer clear colour, which is a worse sky than a quad the day-wheel tints; window surround + mullion cross ship as ONE InstancedMesh of six bars (03-09)
 - [Phase 3]: fog colour tracks the sky but its LEVEL does not (FOG_LUMA 0.22) — a fog matching the sky exactly fades the room to bright grey haze at noon, the opposite of "only what light touches exists"; F-14's mechanism honoured, its failure mode avoided (03-09)
 - [Phase 3]: desk-plane prop anchors are FRACTIONS of the measured desk top, and two props carry a real-world `metres` normalisation target — because the hero desk asset is now known to be unresolved and absolute lateral metres would be re-tuned by hand at every swap (03-09)
+- [Phase 3]: Paper001 and the ink ramp are on Ch1's CRITICAL path, not streamed (03-11). Not a preference: `patchInkReveal` clones `materials.paper` at mount and `Material.clone()` copies the map references it finds at clone time, so a Paper001 landing behind the handoff dresses the family and never reaches the letter — the hero object would stay flat cream for the whole journey. STORYBOARD Ch1 §Textures calls the 2K paper "the opening frame" independently. 5,433,608 → 8,032,428 B, 967,572 B of desktop headroom left
+- [Phase 3]: an accent tween distinguishes a SCRUB from a JUMP (03-11) — a progress delta over 0.05 cuts to the end state instead of tweening. `installStillCapture` reads back three animation frames after pinning the scroll, so a 200 ms beat would export half-dissolved; the same branch covers browser scroll restoration and fragment links
+- [Phase 3]: the bleed widening of the token beat is DERIVED from `uTokenMix` (`sin(pi·mix)`), not animated beside it (03-11) — one tween, one thing to invalidate, and a reverse scrub unwinds both together instead of leaving a fat nib behind
+- [Phase 3]: Ch1's dust beam is the desk footprint marched UP-SUN, not the window rect extruded along the light (03-11) — `SUN_DIR.sunrise` rakes from frame right (78°) while the window is a +Z-facing opening in the back wall, so the plan's literal volume lies inside the wall. **As authored, no sun shaft physically enters this room through this window; whether that matters is a `docs/direction/` call**
+- [Phase 3]: Stage's camera near plane is 0.02, not 0.1 (03-11) — a camera authored 8 cm above the letter cannot have a 10 cm near plane; the bottom band of the site's opening frame was clipping straight through the paper. 0.02/100 is a 5000:1 range a 24-bit depth buffer carries with ~6 µm at 1 m
+- [Phase 3]: a positive control a COMMENT can satisfy is not a control (03-11) — where the literal a gate greps for is not the spelling the code should use, the gate names both spellings and asserts the cross-file derivation that makes the second one mean the first. Applied to `particleCap` vs Room's `dustAllowance`
 - [Phase 3]: browser sittings earn their cost — both 03-03 layout defects (chapters stacking 3-to-a-range at 580vh; Ch7 at zero scrub range) were invisible to a green 195-test suite and a 4/4 build, and each is now pinned by a source gate carrying the measured numbers in its docblock
 
 ### Pending Todos
@@ -168,6 +216,11 @@ None yet.
 - BUDGETS §Amendments B2 retired the mobile asset-weight line while 03-09 ran. Its `chapterAssets.test.ts` gate is KEPT as a ratchet (not a budget line) with B2's recorded-at-retirement figure beside it; the number moved 6,649,520 -> 5,653,052 B as a side effect of the desktop-driven split, not as an attempt to close the debt B2 told executors to stop attempting
 - 03-VALIDATION.md now also carries 03-09's status cells. 03-09 edited exactly three (its T1, T2 and T3 rows). Still never `git checkout --` it
 - 03-09 did NOT invoke `gsd-sdk query state.*` — STATE.md was hand-edited additively, on the standing warning above
+- **ESCALATED 2026-08-26 (03-11): as authored, the celestial light cannot enter the room through the window.** `dayWheel`'s `SUN_DIR.sunrise = dirFrom(78, 10)` rakes in from frame right, travelling roughly `(-0.96, -0.17, -0.20)`; the window is a **+Z-facing** opening in the back wall at `z = -1.35`. Light from +X cannot pass through it. Ch1's motes work around it (the beam is marched up-sun from the desk, which is the same volume of lit air on the visitor's side of the glass), but if STORYBOARD Ch1's "raking morning sun from frame right" is meant to arrive *through* the glass, either the window moves to the +X side wall or the sunrise azimuth changes. **Both are `docs/direction/` decisions; nothing there was touched.** Ch3's TILT-REVEAL brings this same window into frame, so 03-14 will meet it again
+- 03-11 set `castShadow`/`receiveShadow` on the only two meshes it added — the letter casts and does **not** receive (a flat plane doing both under a 10° raking sun is where depth-bias acne shows, across the opening frame; Ch2's fold is the chapter that earns the flag), and the dust does neither. **The rest of the set still sets no `castShadow` anywhere and `QualityManager.postPasses` is still read by no code** — both deliberately left as found, being the scene-director's ruling in flight
+- The working tree has genuinely mixed line endings with no `.gitattributes` and `core.autocrlf=true`, so git normalises on commit and the mixture is invisible in history — until a tool rewrites a file's endings and a source gate anchored on `;\n` fails for a reason unrelated to the change (this bit 03-11, on `Stage.test.ts`). Normalise every touched file back to its own committed blob before staging, and check `git diff --stat` for whole-file churn. Logged in `phases/03-core-experience/deferred-items.md`
+- 03-VALIDATION.md now also carries 03-11's status cells. 03-11 edited exactly two (its T1 and T2 rows) and did NOT touch the 03-09-T3 row. Still never `git checkout --` it
+- 03-11 did NOT invoke `gsd-sdk query state.*` — STATE.md was hand-edited additively, on the standing warning above
 - Commits currently ride the outer repo's `feat/founder-month-promo` branch (PROJECT.md Key Decisions: revisit)
 
 ## Deferred Items
@@ -180,6 +233,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-26T14:05:00.000Z
-Stopped at: 03-09 T1+T2 complete and green (243 tests, 4/4 build gates). PAUSED at 03-09-T3, the wave-3 blocking human checkpoint: both wall candidates ingested and renderable, winner NOT picked, loser NOT deleted, manifest NOT pruned. Capture instructions in 03-09-SUMMARY.md §Task 3.
-Resume file: .planning/phases/03-core-experience/03-09-SUMMARY.md (read §Escalations E-1 first)
+Last session: 2026-08-26T17:25:00.000Z
+Stopped at: 03-11 T1+T2 complete and green (277 tests, `check` clean, build 4/4, island 252,494 B gz). PAUSED at 03-11-T3, the wave-4 blocking human checkpoint: eight HUD readings at 0.10/0.45/0.70/0.98 on `desktop` and `floor`, the `ch1.50` parity still (**not `ch1.30`** — REVIEWS.md B-6) and the `ch1.98` key art, both ≤150 KB, the reveal-order verdict, the visual dust dismissal, and 03-03-T4 §F's deferred runtime `aria-label` read — performable for the first time because this plan made a chapter drive `domCopy`. Run-book in 03-11-SUMMARY.md §Task 3.
+Resume file: .planning/phases/03-core-experience/03-11-SUMMARY.md (read §Escalations and §Task 3 first)
+
+Also still open, separately: 03-09-T3 (wall material — deferred by Ruling 9 to 03-14 T3) and 03-10.

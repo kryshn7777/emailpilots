@@ -123,7 +123,8 @@ Plans:
 **Wave 4** *(blocked on Wave 3)*
 
 - [ ] 03-10-PLAN.md — Envelope ingest: texture-strip extension + the two CC-BY sets with attribution + Cardboard004
-- [ ] 03-11-PLAN.md — Ch1 FIRST LIGHT complete: material family, ink reveal shader, PULL-WIDE micro, dust, copy
+- [~] 03-11-PLAN.md — Ch1 FIRST LIGHT complete: material family, ink reveal shader, PULL-WIDE micro, dust, copy *(T1+T2 done and green — 277 tests, build 4/4, island 252,494 B gz; PAUSED at T3, the wave-4 blocking human checkpoint: eight HUD readings, `ch1.50` + `ch1.98` stills ≤150 KB, reveal order, dust dismissal, and 03-03-T4 §F's deferred runtime `aria-label` check, which this plan made performable by being the first chapter to drive `domCopy`. See 03-11-SUMMARY §Task 3)*
+  - **Ch1's critical path grew to hold the opening frame** — `Paper001` (2,548,279 B) and 03-08's ink ramp (50,541 B) moved from "neither batch" to critical: 5,433,608 → **8,032,428 B**, 967,572 B under the live 9 MB desktop line. Forced, not preferred: `patchInkReveal` clones the family paper at mount, so a streamed Paper001 would dress every other paper surface in the room and leave the hero letter flat. Mobile ratchet re-recorded per BUDGETS §B2 — a record, not a target
 
 **Wave 5** *(blocked on Wave 4)*
 
