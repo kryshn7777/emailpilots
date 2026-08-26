@@ -144,7 +144,14 @@ test('grain steps at 24 Hz — a second of 60 fps holds exactly 24 distinct seed
 test('post scratch matches B3’s arithmetic at the worst realistic drawing buffer', () => {
   const W = 3840;
   const H = 2160;
-  const MB = 1024 * 1024;
+  // B3's own arithmetic is in DECIMAL megabytes, and it has to be read in the same units it
+  // was written in or the assertion is about the divisor rather than the bytes. 3840x2160x4 is
+  // 33,177,600 B, which reproduces B3's printed "33 MB" at 1e6 and reads 31.6 at 1024^2;
+  // 1920x1080x4x2 is 16,588,800 B, which reproduces its "~16.6 MB" at 1e6 and reads 15.8 at
+  // 1024^2. Neither sub-line is recoverable from the binary divisor, and their sum at 1e6 is
+  // 49.8 MB — B3's "≈ 50 MB", to the digit. Corrected 2026-08-27; note this makes the ≤ 56 MB
+  // assertion STRICTER, not looser, since decimal MB is the larger number.
+  const MB = 1e6;
 
   const colourOnly = postBytes(W, H, false);
   assert.ok(
@@ -168,8 +175,19 @@ test('post scratch matches B3’s arithmetic at the worst realistic drawing buff
 
 test('the composer RT is UnsignedByteType and the DoF attachments are half-resolution', () => {
   const src = strip(GRADE);
-  assert.ok(
-    src.includes('UnsignedByteType'),
+  // EVERY target, counted — not "the word appears somewhere". Two corrections, both from
+  // mutations that walked through the original assertion (2026-08-27):
+  //  - `import { UnsignedByteType }` satisfies `includes('UnsignedByteType')` forever, so
+  //    deleting a `type:` line — which hands that target back to three's HalfFloatType
+  //    default — was invisible;
+  //  - and a bare `assert.match` is satisfied by ANY one of the two targets, so the grade RT
+  //    could go half-float while the DoF pair alone kept the gate green.
+  // B3 books both, so the count is of render targets, which is the noun the sub-line counts.
+  const targets = (src.match(/new WebGLRenderTarget\(/g) ?? []).length;
+  assert.equal(targets, 2, 'positive control: the grade RT and the DoF colour attachment');
+  assert.equal(
+    (src.match(/type:\s*UnsignedByteType/g) ?? []).length,
+    targets,
     'Ruling 10 §Assertions: "the composer RT is UnsignedByteType". three’s EffectComposer ' +
       'defaults to HalfFloatType, which would double the line B3 books for nothing — tone ' +
       'mapping happens at scene shading, so the buffer holds display-referred pixels.',

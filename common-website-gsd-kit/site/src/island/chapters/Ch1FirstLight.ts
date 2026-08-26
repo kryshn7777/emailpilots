@@ -52,6 +52,7 @@ import {
   AdditiveBlending,
   InstancedMesh,
   Matrix4,
+  MathUtils,
   MeshBasicMaterial,
   PlaneGeometry,
   Vector3,
@@ -59,7 +60,7 @@ import {
   type MeshStandardMaterial,
   type Texture,
 } from 'three';
-import type { Stage } from '../systems/Stage.ts';
+import type { Focus, Stage } from '../systems/Stage.ts';
 import type { Chapter } from './Chapter.ts';
 import { radialMask, type Room } from '../set/Room.ts';
 import type { AssetRegistry } from '../systems/assetRegistry.ts';
@@ -78,6 +79,31 @@ import { createCopyTimeline, type CopyTimeline } from '../choreo/domCopy.ts';
 const TOKEN_AT = CH1_BEATS[2].at;
 /** `sun-warms` — the 95% hold where the exposure lifts, the sky moves and the dust leaves. */
 const SUN_WARMS = CH1_BEATS[4].at;
+/** `pull-wide` — the 48% micro pull, and the end of the shallow-focus ECU. */
+const PULL_WIDE = CH1_BEATS[3].at;
+
+/**
+ * **Shallow focus, transcribed — REVIEWS.md §Ruling 10 §2, "DoF's authored values (Ch1 —
+ * transcribe, do not re-derive)".** Metres, metres, pixels of the full-res buffer.
+ *
+ * | beat | focusDistance | focusRange | maxCoC |
+ * |---|---|---|---|
+ * | ECU `p 0.00–0.48` | 0.08 m | 0.015 m | 9 px |
+ * | end `p 0.95–1.00` | 1.35 m | 1.20 m | 3 px |
+ *
+ * Ch1 is one of the **two** places on the site that carry shallow focus (Ch5 is the other),
+ * and the reason is directional rather than technical: *"an 8 cm macro shot with everything
+ * sharp is instantly fake — every real macro has a 2 mm depth of field."* The ECU is WOW 0's
+ * frame and it is the first thing a visitor sees. Everywhere else deep focus is an authorial
+ * choice, not an omission, and the DoF attachments do not exist there at all.
+ *
+ * The two rows are the two ends of the PULL-WIDE, so the focus follows the lens out: the ECU
+ * values hold through `0–0.48`, ramp across the pull, and settle on the end values at 0.95.
+ * `Stage.setFocus` is a no-op on a tier that runs no post pass, so this costs mobile nothing
+ * and needs no branch here.
+ */
+const ECU_FOCUS: Focus = { distance: 0.08, range: 0.015, maxCoC: 9 };
+const END_FOCUS: Focus = { distance: 1.35, range: 1.2, maxCoC: 3 };
 
 /** SET_STATE[0].end: mix 0.05 and +0.2 of a stop, both reached at 100%. */
 const END_MIX = 0.05;
@@ -292,6 +318,16 @@ export class Ch1FirstLight implements Chapter {
     this.room.setEnv(env);
     this.room.setExposureStops(tail * END_STOPS);
 
+    // The lens opens up with the pull. `span` clamps at both ends, so every frame before 48%
+    // is exactly the ECU's 2 mm depth of field and every frame after 95% is exactly the end
+    // state — the same reverse-scrub contract every other write in this method keeps.
+    const opening = span(progress, PULL_WIDE, SUN_WARMS);
+    stage.setFocus({
+      distance: MathUtils.lerp(ECU_FOCUS.distance, END_FOCUS.distance, opening),
+      range: MathUtils.lerp(ECU_FOCUS.range, END_FOCUS.range, opening),
+      maxCoC: MathUtils.lerp(ECU_FOCUS.maxCoC, END_FOCUS.maxCoC, opening),
+    });
+
     // REVIEWS.md F-4 — the motes leave with the sun that lit them, on the same window.
     const dust = dustOpacityAt(progress);
     this.paintDust(progress, dust);
@@ -374,11 +410,15 @@ export class Ch1FirstLight implements Chapter {
    * The beam is derived, not guessed: it is the column of air the celestial light crosses on
    * its way to the letter, so it is the desk's own footprint marched **up-sun** along the
    * direction the day-wheel poses, capped by the window head so the motes cannot rise out of
-   * the room. Marching up-sun rather than down from the window rect is the one departure from
-   * the plan's wording, and it is forced: the authored sunrise azimuth rakes from frame right
-   * (`dayWheel` SUN_DIR, 78 degrees) while the window is a +Z-facing opening in the back wall,
-   * so a volume extruded from the window rect along the light direction lies *inside* the
-   * wall. Same two authorities, same beam, on the side of the glass the visitor is on.
+   * the room.
+   *
+   * This docblock used to carry a departure — *"a volume extruded from the window rect along
+   * the light direction lies inside the wall"* — and REVIEWS.md §Ruling 11 strikes it. It was
+   * true, and it was a symptom: `SUN_DIR.sunrise` pointed the light INTO the room from the
+   * inside of its own back wall. With the table rotated +67 degrees the beam and the window
+   * finally agree, and the motes march toward the glass. **No code changed here** — the beam
+   * derives from `room.sun.position`, so it followed the new direction for free, which is the
+   * whole argument for deriving it in the first place.
    */
   private buildDust(stage: Stage): void {
     // BUDGETS §Per-frame gives this tier its allowance and the Room already subscribes to the

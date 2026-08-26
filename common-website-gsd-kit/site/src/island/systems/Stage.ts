@@ -11,8 +11,23 @@
  */
 
 import { gsap } from 'gsap';
-import { ACESFilmicToneMapping, Color, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
+import {
+  ACESFilmicToneMapping,
+  Color,
+  PCFShadowMap,
+  PerspectiveCamera,
+  Scene,
+  WebGLRenderer,
+} from 'three';
 import type { QualityManager } from './QualityManager.ts';
+import { createGrade, type Focus, type Grade } from './grade.ts';
+
+/**
+ * Re-exported so a chapter asks the STAGE for shallow focus rather than reaching into the
+ * post module. `Stage` owns the composer's whole lifetime — it is built and torn down from
+ * `postPasses` — so it is also the only honest place to hand it an authored focus.
+ */
+export type { Focus };
 
 export class Stage {
   readonly scene = new Scene();
@@ -31,6 +46,15 @@ export class Stage {
   private hud: HTMLElement | null = null;
   private readonly restoreHooks = new Set<() => void>();
   private readonly disposers: Array<() => void> = [];
+  /**
+   * The one `EffectComposer` on the site, or `null` where the tier does not allow a pass.
+   * Built and torn down by `applyQuality` from `settings.postPasses` and nothing else.
+   */
+  private grade: Grade | null = null;
+  /** What the DoF stage is focused on while a chapter asks for it. Survives a rebuild. */
+  private focus: Focus | null = null;
+  /** Ticker seconds, held so `draw()` takes no arguments and both paths call it identically. */
+  private elapsed = 0;
 
   constructor(deps: { el: HTMLElement; quality: QualityManager }) {
     this.el = deps.el;
@@ -41,6 +65,17 @@ export class Stage {
     // Filmic tone mapping for the HDR environment light (Q1 crossfade reads as light,
     // not clipped white); output color space stays three's sRGB default.
     this.renderer.toneMapping = ACESFilmicToneMapping;
+    // FB-1's silent third half: three renders no shadow at all with `shadowMap.enabled` off,
+    // however many meshes are enrolled as occluders and however the light is configured. It is
+    // switched on unconditionally because it costs nothing where nothing casts — the tier gate
+    // is on the LIGHT (`Room.applyQuality` reads `settings.shadowMaps`), which is the noun the
+    // budget line counts. `PCFShadowMap`, NOT `PCFSoftShadowMap`: three r185's `WebGLProgram`
+    // shadow-type map has an entry for the former and none for the latter, so setting
+    // PCFSoft falls through to `SHADOWMAP_TYPE_BASIC` — one unfiltered tap, harder edges than
+    // the default, and an inert `shadow.radius`. In r185 the soft, radius-driven filter is
+    // spelled PCFShadowMap, and the day-wheel authors `shadow.radius` per sky against it.
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = PCFShadowMap;
     this.canvas = this.renderer.domElement;
     this.el.appendChild(this.canvas);
 
@@ -80,6 +115,13 @@ export class Stage {
     // canvas (Pitfall 6). `webglcontextlost` needs no listener: three r185
     // preventDefaults it internally and re-inits GL state on restore.
     const onRestored = (): void => {
+      // three r185 re-inits GL state on restore but NOT render targets, and the composer owns
+      // three of them. Rebuilt rather than reused: a disposed-and-recreated composer is two
+      // allocations on an event that happens approximately never, and a composer holding
+      // dead targets is a permanently black canvas on the tier that runs the pass.
+      this.grade?.dispose();
+      this.grade = null;
+      this.applyPost();
       for (const fn of this.restoreHooks) fn();
       this.invalidate();
     };
@@ -90,24 +132,32 @@ export class Stage {
     const tick = (time: number, deltaTime: number): void => {
       if (this.hidden || !this.dirty) return;
       this.dirty = false;
+      this.elapsed = time;
       if (this.hud === null) {
-        this.renderer.render(this.scene, this.camera);
+        this.draw();
       } else {
         // Instrumented render ('?hud=1', D3-15 protocol): manual info reset because
         // autoReset wipes the counters at the end of every render() call.
         this.renderer.info.reset();
         const t0 = performance.now();
-        this.renderer.render(this.scene, this.camera);
-        const draw = performance.now() - t0;
+        this.draw();
+        const drawMs = performance.now() - t0;
         const info = this.renderer.info;
         const targets = this.hudTargetCount === null ? '-' : String(this.hudTargetCount());
         // frame ms is the TICKER delta (JS per frame, the gated axis); draw ms is the
         // render() delta alone. A slow scene update is invisible in the second number,
         // which is the whole reason both columns exist.
+        //
+        // `post` is BUDGETS §Amendments B3's enforcement clause: each chapter SUMMARY records
+        // the composer's allocated RT bytes beside the PMREM count, so the three residency
+        // spends against the one ≤ 128 MB line are visible side by side in one place. It reads
+        // `-` where the tier runs no pass, which is the honest reading of "0 passes mobile".
+        const post = this.grade === null ? '-' : `${(this.grade.bytes() / 1e6).toFixed(1)} MB`;
         this.hud.textContent =
           `calls ${info.render.calls} | tris ${info.render.triangles} | ` +
-          `frame ${deltaTime.toFixed(2)} ms | draw ${draw.toFixed(2)} ms | ` +
-          `tex ${info.memory.textures} | geo ${info.memory.geometries} | pmrem-RT ${targets}`;
+          `frame ${deltaTime.toFixed(2)} ms | draw ${drawMs.toFixed(2)} ms | ` +
+          `tex ${info.memory.textures} | geo ${info.memory.geometries} | ` +
+          `pmrem-RT ${targets} | post ${post}`;
       }
       this.quality.frame(time * 1000, deltaTime);
     };
@@ -165,6 +215,27 @@ export class Stage {
     this.dirty = true;
   }
 
+  /**
+   * Shallow focus for the chapters that carry it, or `null` to run colour-only and **free the
+   * DoF attachments** (BUDGETS §Amendments B3 books them for Ch1 `0–48%` and Ch5 only).
+   *
+   * Held on Stage rather than passed through per frame, because the composer is torn down and
+   * rebuilt whenever the regression ladder crosses rung 2 — a chapter that had handed its
+   * focus to a composer that no longer exists would come back deep-focus with nothing to say
+   * so. Calling this on a tier that runs no pass is a no-op that is REMEMBERED: mobile loses
+   * DoF by design (Ruling 10 §2) and gets it back if the tier is ever raised.
+   */
+  setFocus(focus: Focus | null): void {
+    this.focus = focus;
+    this.grade?.setFocus(focus);
+    this.invalidate();
+  }
+
+  /** Resident post-scratch bytes — B3's per-chapter enforcement number. 0 where no pass runs. */
+  postBytes(): number {
+    return this.grade === null ? 0 : this.grade.bytes();
+  }
+
   /** Register work to re-run after a GL context restore; returns a disposer. */
   onRestore(fn: () => void): () => void {
     this.restoreHooks.add(fn);
@@ -178,14 +249,61 @@ export class Stage {
     for (const d of this.disposers) d();
     this.disposers.length = 0;
     this.restoreHooks.clear();
+    this.grade?.dispose();
+    this.grade = null;
     this.renderer.dispose();
     this.canvas.remove();
+  }
+
+  /**
+   * The ONE place the composer/renderer choice is made, so a still capture and a scrubbed
+   * frame can never disagree about what a frame looks like. Takes no arguments on purpose:
+   * the hud-off branch of the ticker must be one statement with no timing read and no `info`
+   * read in it, and an argument list is a place for one to grow back.
+   *
+   * **Public because `qa/still.ts` needs it.** That tool renders one frame at a capture DPR
+   * into a drawing buffer it resizes itself, and it did so by calling
+   * `renderer.render(scene, camera)` — which, the moment a composer existed, meant every LOOK
+   * capture would have been the UNGRADED frame at the composer's stale extent, while the
+   * scroll showed the graded one. The five frames the LOOK gate judges would have been of a
+   * pipeline nobody ships. Syncing the composer to the live drawing buffer here is what makes
+   * the two paths identical; `Grade.setSize` early-outs when nothing moved, so it is free.
+   */
+  draw(): void {
+    this.grade?.setSize(this.renderer.domElement.width, this.renderer.domElement.height);
+    if (this.grade === null) this.renderer.render(this.scene, this.camera);
+    else this.grade.render(this.elapsed);
   }
 
   private applyQuality(): void {
     const [min, max] = this.quality.settings.dprClamp;
     this.renderer.setPixelRatio(Math.min(max, Math.max(min, window.devicePixelRatio)));
     this.resize(); // setPixelRatio takes effect on the next setSize
+    this.applyPost();
+  }
+
+  /**
+   * **`postPasses`, consumed.** Until 2026-08-26 this field was declared by `QualityManager`
+   * and read by nothing, while BUDGETS' "Post-processing passes: 1 desktop" row read as
+   * *implemented* in every summary downstream of it — Ruling 10's meta-rule has this as its
+   * own worked example. So the composer exists exactly where the tier says one may, and the
+   * moment the regression ladder's rung 2 ("no-post") drops it on desktop the composer is
+   * **disposed**, not merely bypassed: a render target nobody draws through still holds its
+   * bytes, and rung 2 exists to give bytes and fill rate back.
+   *
+   * Falling off the pass means falling back to the mobile look — authored, graceful, and
+   * still carrying seven of the finish bar's eight items, because FB-5's exposure lives on
+   * the renderer and every one of FB-1…FB-4/6 is in the scene.
+   */
+  private applyPost(): void {
+    const wanted = this.quality.settings.postPasses === 1;
+    if (wanted && this.grade === null) {
+      this.grade = createGrade({ renderer: this.renderer, scene: this.scene, camera: this.camera });
+      this.grade.setFocus(this.focus);
+    } else if (!wanted && this.grade !== null) {
+      this.grade.dispose();
+      this.grade = null;
+    }
   }
 
   private resize(): void {
@@ -194,5 +312,9 @@ export class Stage {
     this.renderer.setSize(width, height);
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
+    // The composer follows the drawing buffer, which Stage alone owns. A grade RT left at the
+    // old extent is a stretched frame, and a stale half-res depth attachment reads as a
+    // defocus that ignores the camera.
+    this.grade?.setSize(this.renderer.domElement.width, this.renderer.domElement.height);
   }
 }

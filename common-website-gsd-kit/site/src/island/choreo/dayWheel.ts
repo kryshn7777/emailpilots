@@ -238,13 +238,42 @@ const dirFrom = (azDeg: number, elDeg: number): Dir3 => {
  * §Environmental effects calls it "the HDRI's sun path" by name — and the celestial key is
  * near-zero there by design: Ch3 §Lighting makes the lamp key at night. A moon pose above the
  * horizon for Ch3's static hold is that chapter's authoring question, not the wheel's.
+ *
+ * ## Rotated +67 degrees and raised at sunrise (REVIEWS.md §Ruling 11, canon STORYBOARD A12)
+ *
+ * Until 2026-08-26 this table pointed the sun INTO the room. `sunrise` was `dirFrom(78, 10)` =
+ * `(0.963, 0.174, 0.205)`; that is the direction *to* the sun, so the light travelled toward
+ * **-Z** — into the back wall from the inside, through a window that is a +Z-facing opening in
+ * it. No ray entering the window was going the right way, and FB-4's "the window is an
+ * aperture" described a picture of a window hung on a wall.
+ *
+ * **Every azimuth is the old one + 67. Only `sunrise`'s elevation moves, 10 -> 18.** A rigid
+ * rotation is the whole point: rotation about the vertical is an isometry of the sphere, so
+ * every relationship the paragraphs above defend is preserved *by construction* — the
+ * sunrise->dusk2 pair stays under 90 degrees apart with the target lower (78.7 degrees, was
+ * 77.4), the elevation peak still lands on pure noon, and the sweep direction and per-segment
+ * rate are identical. And it makes true something the old table only claimed: **all five skies
+ * now sit on the far side of the back wall (`z < 0` in every one)**, which is what "a
+ * single-window rig's sweep, not a full 360-degree ephemeris" was always trying to say.
+ *
+ * **Why 18 is the only elevation that works, and why it is not a taste.** The window sill sits
+ * at world `y = 0.05` and its head at `y = 0.90`. At 10 degrees a ray dropping from the
+ * window's centre reaches desk height 2.74 m out and the floor 7.34 m out — the desk's far edge
+ * is 1.0 m from the wall and the floor's half-extent is 3.5 m, so **everything landed past the
+ * room, at every azimuth**. The geometry sets its own floor: `tan(el) >= 0.475 / 1.35` gives
+ * `el >= 19.4` for a patch centred on the desk and `~17.5` for one that clips its front half.
+ * FB-3's "elevation <= 18 at sunrise" is therefore also its elevation *floor*, and 18 is the
+ * one value that satisfies both. The cost, stated: shadows shorten by 46% (a caster of height
+ * *H* throws `3.08·H` instead of `5.67·H`), which still leaves Ch1 §Lighting's "long soft
+ * shadows" at three times the caster's height. The alternative was no window patch in any
+ * chapter.
  */
 const SUN_DIR: Record<SkyId, Dir3> = {
-  sunrise: dirFrom(78, 10), // low — the warm rake and long soft shadows of Ch1 §Lighting
-  noon: dirFrom(116, 74), // the day's peak; the only sky with a short shadow
-  dusk2: dirFrom(154, -6), // just under: Ch2 §Lighting fades the sun shadow out at the lamp beat
-  night: dirFrom(196, -44), // well under — the lamp is key here, not this light
-  moonrise: dirFrom(44, -18), // climbing back toward dawn (Ch5 §Environmental: "rising")
+  sunrise: dirFrom(145, 18), // low — the warm rake and long soft shadows of Ch1 §Lighting
+  noon: dirFrom(183, 74), // the day's peak; the only sky with a short shadow
+  dusk2: dirFrom(221, -6), // just under: Ch2 §Lighting fades the sun shadow out at the lamp beat
+  night: dirFrom(263, -44), // well under — the lamp is key here, not this light
+  moonrise: dirFrom(111, -18), // climbing back toward dawn (Ch5 §Environmental: "rising")
 };
 
 /**
@@ -269,6 +298,62 @@ const SKY_INTENSITY: Record<SkyId, number> = {
   dusk2: 0.5, // the sun is under the horizon by dusk 2; Ch2 hands key light to the lamp
   night: 0.25,
   moonrise: 0.35,
+};
+
+/**
+ * **FB-5 — the renderer's tone-mapping exposure, authored per sky.** REVIEWS.md §Ruling 10
+ * calls this *"the highest-value single line in this ruling"*, and A11 §1.5 makes it law:
+ * exposure is authored from the same light state that drives the sky pair, and is **never
+ * left at the 1.0 default**. It lives on the renderer rather than inside the post pass, which
+ * is why mobile — which runs zero passes — gets it for free.
+ *
+ * **The ramp runs INVERSE to the sky's own level**, which is the whole point and is not a
+ * physical exposure meter. ART-DIRECTION §Exposure discipline asks that night scenes stay
+ * *readable*, and this journey spends three of its seven chapters after dark: tracking the
+ * sky's brightness would crush exactly the chapters the storyboard cares most about, and
+ * hand back the squeezed mid-tone histogram FB-5 exists to break. A camera operator opens up
+ * at dusk; so does this.
+ *
+ * The *mechanism* is the ruling's — authored, per chapter, from the light state, never 1.0,
+ * and gated as such in `qa/lookGate.test.ts`. The *levels* are a first authoring and are the
+ * scene-director's to move at the LOOK capture, where FB-5's three histogram thresholds
+ * (≥2% under luma 0.06, ≥0.5% over 0.94, desktop mid-tone 0.35–0.55) are measured from a
+ * composited PNG rather than predicted from here.
+ */
+export const SKY_EXPOSURE: Record<SkyId, number> = {
+  sunrise: 1.15, // open up a little: the rake is low and most of the room is in its own shade
+  noon: 0.8, // pull back, or the window and the desktop both clip together
+  dusk2: 1.25,
+  night: 1.9, // the lamp is key here and it is one small warm point — see by it
+  moonrise: 1.7,
+};
+
+/**
+ * **FB-2's softness knob, authored per sky rather than per chapter.**
+ *
+ * Ruling 10 words this as *"PCFSoft with `shadow.radius` authored per chapter"*. Authoring it
+ * here instead is a smaller answer to the same requirement and a more correct one: every
+ * chapter declares an env triple, so a per-sky radius IS per-chapter — and it additionally
+ * gets the physics right for free, because a low sun genuinely throws a longer, softer
+ * penumbra than a high one. A per-chapter table would have to restate that relationship once
+ * per chapter and could disagree with the sun it is describing.
+ *
+ * Units are shadow-map texels of Vogel-disk kernel. At 2048 over the ±2.2 m ortho a texel is
+ * 2.15 mm, so `sunrise: 3.0` is a ~6 mm penumbra at the desk — soft enough to read as morning
+ * light, tight enough to leave the letter's contact line intact.
+ *
+ * **Note on the constant this does NOT use.** `PCFSoftShadowMap` has no shader define in
+ * three r185 (`WebGLProgram`'s shadow-type map has an entry for `PCFShadowMap` and none for
+ * it), so setting it falls through to `SHADOWMAP_TYPE_BASIC` — one unfiltered tap, harder
+ * edges than the default, and a `shadow.radius` that does nothing at all. In r185 the soft,
+ * radius-driven filter is spelled `PCFShadowMap`, and `Stage` sets exactly that.
+ */
+const SKY_SHADOW_RADIUS: Record<SkyId, number> = {
+  sunrise: 3.0,
+  noon: 1.2, // the day's peak; ART-DIRECTION calls it "the only sky with a short shadow"
+  dusk2: 3.5,
+  night: 2.0,
+  moonrise: 2.5,
 };
 
 /** Great-circle interpolation between two unit directions. Degenerate pairs return `a`. */
@@ -313,6 +398,16 @@ export function skyColorAt(phase: number): { r: number; g: number; b: number } {
 /** The key light's intensity for any declared triple. */
 export function skyIntensityForEnv(env: EnvTriple): number {
   return MathUtils.lerp(SKY_INTENSITY[env.a], SKY_INTENSITY[env.b], env.mix);
+}
+
+/**
+ * The renderer's authored tone-mapping exposure for any declared triple (FB-5).
+ *
+ * `Room` is the single owner of the renderer field and reads this; no chapter writes exposure
+ * directly, so the site can never hold two opinions about how bright the frame is.
+ */
+export function skyExposureForEnv(env: EnvTriple): number {
+  return MathUtils.lerp(SKY_EXPOSURE[env.a], SKY_EXPOSURE[env.b], env.mix);
 }
 
 /**
@@ -377,11 +472,18 @@ export function createDayWheel(deps: DayWheelDeps): DayWheel {
     cam.near = 0.5;
     cam.far = LIGHT_DISTANCE * 2;
     cam.updateProjectionMatrix();
-    light.shadow.mapSize.set(1024, 1024);
+    // FB-2 / BUDGETS §Amendments B3 — 2048² depth ≈ 16.8 MB, booked as a named sub-line of
+    // the existing ≤ 128 MB texture line. **The tightening above is the fix; this is the
+    // multiplier.** 2048 texels across the ±2.2 m ortho is 2.15 mm/texel, finer than the
+    // 0.1 mm letter's own silhouette, so the sheet finally gets a real dark line under its
+    // edge. The same 2048 over three's untightened ~40 m default frustum is 19.5 mm/texel
+    // and resolves no contact at all — which is the state that produced the rejected frame.
+    light.shadow.mapSize.set(2048, 2048);
     // Grazing light is the acne worst case, and the wheel spends the sunrise and dusk
     // segments there. `normalBias` does the work at those angles; a constant `bias` alone
-    // large enough to clear them detaches contact shadows at noon.
-    light.shadow.bias = -0.0004;
+    // large enough to clear them detaches contact shadows at noon — and a shadow detached
+    // from its object by a visible gap fails FB-1 exactly as hard as no shadow at all.
+    light.shadow.bias = -0.0005;
     light.shadow.normalBias = 0.02;
   }
 
@@ -424,6 +526,14 @@ export function createDayWheel(deps: DayWheelDeps): DayWheel {
     colour.setRGB(c.r, c.g, c.b);
     light.color.copy(colour);
     light.intensity = skyIntensityForEnv(next);
+    // FB-2's penumbra, from the same triple as everything else: a low sun throws a long soft
+    // shadow, the noon sun a short hard one. Free on mobile — the map does not exist there,
+    // so the write is inert rather than branched.
+    light.shadow.radius = MathUtils.lerp(
+      SKY_SHADOW_RADIUS[next.a],
+      SKY_SHADOW_RADIUS[next.b],
+      next.mix,
+    );
 
     invalidate();
   }

@@ -72,9 +72,49 @@ interface Recipe {
   color: string;
   /** ART-DIRECTION §Material language: roughness lives in 0.45-0.85, metalness is 0. */
   roughness: number;
-  /** UV tiling. A letter sheet shows one tile of the scan; a 7 m floor shows six. */
+  /**
+   * UV tiling. A letter sheet shows one tile of the scan; the floor's is DERIVED, never
+   * eyeballed — see `FLOOR_REPEAT`.
+   */
   repeat: readonly [number, number];
 }
+
+/* ------------------------------------------------------- FB-8: the floor, in millimetres --- */
+
+/**
+ * The floor mesh's world span in metres. `Room.FLOOR_SIZE` builds a square of exactly this,
+ * and `materials.test.ts` holds the two together — a tiling derived from a surface size that
+ * has quietly drifted is the same defect wearing a formula.
+ */
+export const FLOOR_SPAN_M = 7;
+
+/**
+ * Plank rows in one `WoodFloor051` tile, counted off the shipped AO map — the seams are a
+ * hard dark line there and the count is unambiguous at ~43 px spacing across 1024.
+ * ponytail: counted once, by eye, from the map that makes it easiest. Upgrade path if this
+ * is ever load-bearing: decode the displacement map and count minima. It is not load-bearing
+ * — see the tolerance argument on `FLOOR_PLANK_M`.
+ */
+export const FLOOR_PLANKS_PER_TILE = 22;
+
+/**
+ * **FB-8 — "Texture scale is declared in millimetres."** Floor board width **120–200 mm**;
+ * REVIEWS.md §Ruling 10 §0 defect (10): *"the floor plank width is roughly a tenth of the desk
+ * plank width. Two woods in one room at two different real-world scales."*
+ *
+ * 159 mm is a domestic oak board, and it is chosen at the centre of the band on purpose: the
+ * plank count above is a visual count, so the derived repeat has to survive being wrong about
+ * it. At 20 planks/tile this reads 175 mm and at 24 it reads 146 mm — both inside the band,
+ * which is what makes the eyeballed input safe to use.
+ *
+ * The defect it replaces: `repeat: [6, 6]` over a 7 m floor is a 1.17 m tile, i.e. a **53 mm**
+ * board. That is a mosaic strip, not a floor, and beside `wooden_table_02`'s ~180 mm desk
+ * planks it is the scale incoherence the ruling names.
+ */
+export const FLOOR_PLANK_M = 0.159;
+
+/** FB-8's derivation, not a tuned number: how many tiles fit a 159 mm board across 7 m. */
+const FLOOR_REPEAT = FLOOR_SPAN_M / (FLOOR_PLANK_M * FLOOR_PLANKS_PER_TILE);
 
 const RECIPES: Record<MaterialSlot, Recipe> = {
   // STORYBOARD Ch1 §Textures: "Paper001 at 2K for the ECU — the one texture allowed 2K on
@@ -84,7 +124,13 @@ const RECIPES: Record<MaterialSlot, Recipe> = {
   // 03-10 ingests Cardboard004 with the CC-BY envelopes. The row exists so the envelope
   // re-surfacing has a family member to reach for rather than inventing a second one.
   cardboard: { set: 'Cardboard004', res: '1K', color: TOKEN.cardboard, roughness: 0.82, repeat: [1, 1] },
-  floor: { set: 'WoodFloor051', res: '1K', color: TOKEN.wood, roughness: 0.72, repeat: [6, 6] },
+  floor: {
+    set: 'WoodFloor051',
+    res: '1K',
+    color: TOKEN.wood,
+    roughness: 0.72,
+    repeat: [FLOOR_REPEAT, FLOOR_REPEAT],
+  },
   // `set` is overridden by the review lever (Open Question 5 is deferred to Ch3's checkpoint,
   // REVIEWS.md Ruling 9 §3; the default if that never happens is PaintedPlaster017).
   wall: { set: null, res: '1K', color: TOKEN.plaster, roughness: 0.85, repeat: [4, 2] },

@@ -51,13 +51,18 @@ import {
   DoubleSide,
   FogExp2,
   Group,
+  HemisphereLight,
   InstancedMesh,
   LinearFilter,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
+  MeshStandardMaterial,
+  Path,
   PlaneGeometry,
   PointLight,
+  Shape,
+  ShapeGeometry,
   Vector3,
   type BufferGeometry,
   type Material,
@@ -74,6 +79,7 @@ import type { MaterialFamily } from './materials.ts';
 import {
   createDayWheel,
   skyColorForEnv,
+  skyExposureForEnv,
   type DayWheel,
   type EnvTriple,
   type SkyId,
@@ -81,6 +87,7 @@ import {
 import {
   PROP_ANCHORS,
   PROP_SOURCES,
+  enrolShadows,
   placeProps,
   type PropDrop,
   type PropId,
@@ -88,7 +95,13 @@ import {
 
 /* ------------------------------------------------------------------ authored numbers --- */
 
-/** The stage's extents in metres. Generous enough that the fog, not an edge, ends the room. */
+/**
+ * The stage's extents in metres. Generous enough that the fog, not an edge, ends the room.
+ *
+ * `materials.FLOOR_SPAN_M` derives the floor's UV tiling from exactly this number (FB-8), and
+ * `room.test.ts` holds the two together — a plank width derived from a span that has drifted
+ * is the same eyeballed defect wearing a formula.
+ */
 const FLOOR_SIZE = 7;
 const WALL_WIDTH = 7;
 const WALL_HEIGHT = 3.2;
@@ -145,7 +158,45 @@ const TOKEN = {
   lamplight: '#E8A45C',
   dayclear: '#BFD3DE',
   ink: '#232630',
+  /** `wood` — what the floor sends back up, and the only colour FB-6's fill adds. */
+  woodbounce: '#6B5541',
 } as const;
+
+/**
+ * **FB-6's warm floor bounce**, and how hard it pushes. REVIEWS.md §Ruling 10: *"the ambient
+ * fill becomes a `HemisphereLight` with a warm wood-bounce ground colour distinct from its sky
+ * colour, so the underside of the desktop and the shade side of every prop read warm-brown
+ * rather than neutral grey. One light, one line, and it is most of the distance between
+ * 'renderer output' and 'room'."*
+ *
+ * Deliberately small. FB-3 asks that the celestial contribute **at least 4x the IBL at the
+ * desk**, and a fill loud enough to be noticed on its own is the flat ambient this ruling
+ * exists to delete. Against `sunrise`'s key at 1.6 this is a 4.6:1 key-to-added-fill ratio
+ * before the IBL is counted at all. Its *sky* half tracks the day-wheel (written in `setEnv`),
+ * so the bounce is warm at every hour while the light above it is not.
+ */
+const BOUNCE_INTENSITY = 0.35;
+
+/**
+ * **The colour-script clause, applied to the one prop that breaks it** (A11 §1, ART-DIRECTION
+ * §Color system): *"no dressing prop is the most saturated object in frame — that privilege
+ * belongs to the letter's ink."* `desk_lamp_arm_01` ships a hot orange painted shell and was
+ * the most saturated object in the rejected frame, against a wood/cream/plaster palette.
+ *
+ * The mechanism is a multiply, because the shell's colour lives in a KTX2 `baseColorTexture`
+ * and `baseColorFactor` is white: `MeshStandardMaterial.color` multiplies the map, so tinting
+ * by a *cool* grey pulls the orange's chroma down without inventing a second albedo or
+ * re-ingesting the asset. `dayclear` scaled to 0.78 takes the shell's ~(232, 114, 42) to
+ * ~(135, 74, 29) — chroma 0.745 -> 0.416, a 44% cut — and leaves it a warm dark painted metal
+ * inside §Material language's "brushed with age spots".
+ *
+ * **Only the shell.** The GLB's second material, `desk_lamp_arm_01_light`, is the emissive
+ * shade interior, and A11 says outright that ART-DIRECTION's `lamplight` token is *"the lamp's
+ * light, not its shell"*. Tinting the lamp's own light cold would be the opposite of the note.
+ */
+const LAMP_SHELL_TINT = 0.78;
+/** The GLB material that is the lamp's light rather than its shell — never tinted. */
+const LAMP_LIGHT_MATERIAL = 'desk_lamp_arm_01_light';
 
 /* ----------------------------------------------------------------------- the handle --- */
 
@@ -253,22 +304,54 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   const floor = new Mesh(floorGeometry, materials.floor);
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = floorY;
-  floor.receiveShadow = true;
+  // FB-1 exemption #1: the floor is a surface. It receives and never casts — a floor casting
+  // into its own room buys nothing and costs a grazing-angle acne risk in every frame.
+  enrolShadows(floor, false, true);
   root.add(floor);
   ownedGeometry.push(floorGeometry);
 
+  // The back wall is the aperture (REVIEWS.md §Ruling 11 §Q2·3, canon A12). It is one mesh
+  // with the window rect cut out of it, and it is the ONE wall that casts: with no hole there
+  // is no window-shaped anything for the sun to print, the directional simply passes through
+  // the wall and lights the room evenly, and FB-4's "the window is an aperture" describes a
+  // picture of a window hung on a wall. A rectangle-with-a-hole is 8 triangles against 2, one
+  // mesh, one material, one draw call — no budget line moves.
+  const backWallGeometry = apertureWall(
+    WALL_WIDTH,
+    WALL_HEIGHT,
+    WINDOW.x,
+    WINDOW.y - (floorY + WALL_HEIGHT / 2),
+    WINDOW.width,
+    WINDOW.height,
+  );
+  const backWall = new Mesh(backWallGeometry, materials.wall);
+  backWall.position.set(0, floorY + WALL_HEIGHT / 2, BACK_Z);
+  // A11 §1's exemption list said "the walls"; A12 narrows it to "the left wall". Written
+  // directly rather than through `enrolShadows` because a `Mesh` built here has no subtree to
+  // traverse, and because the two walls no longer share an answer.
+  backWall.castShadow = true;
+  backWall.receiveShadow = true;
+
   const wallGeometry = new PlaneGeometry(WALL_WIDTH, WALL_HEIGHT);
   wallGeometry.setAttribute('uv1', wallGeometry.attributes.uv);
-  const backWall = new Mesh(wallGeometry, materials.wall);
-  backWall.position.set(0, floorY + WALL_HEIGHT / 2, BACK_Z);
   const leftWall = new Mesh(wallGeometry, materials.wall);
   leftWall.position.set(LEFT_X, floorY + WALL_HEIGHT / 2, 0);
   leftWall.rotation.y = Math.PI / 2;
+  // FB-1 exemption #2, as A12 narrows it: the LEFT wall stays a plane and stays exempt. The
+  // sun is on its far side in every one of the five skies and it occludes nothing.
+  enrolShadows(leftWall, false, true);
   root.add(backWall, leftWall);
-  ownedGeometry.push(wallGeometry);
+  ownedGeometry.push(backWallGeometry, wallGeometry);
 
   const fog = new FogExp2(TOKEN.ink, FOG_DENSITY);
   stage.scene.fog = fog;
+  // Ruling 10 §0 defect (9), identified: "the dark navy slab at frame right" is not an object
+  // and not lighting — it is the renderer's `#16213A` clear colour, seen past the back wall's
+  // right edge where the room's geometry runs out. `FogExp2`'s limit at infinite depth IS the
+  // fog colour, so the background is that colour and a gap reads as the room's own falloff
+  // instead of an error-shaped rectangle. Shared instance: `setEnv` writes `fog.color`, and
+  // the background follows for free rather than being a second thing to remember.
+  stage.scene.background = fog.color;
 
   /* -- window ------------------------------------------------------------------------ */
 
@@ -307,6 +390,10 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   });
   frame.instanceMatrix.needsUpdate = true;
   frame.position.set(WINDOW.x, WINDOW.y, BACK_Z + 0.03);
+  // The frame bars are what CUT the patch (A12): both mullion shadows crossing the desktop is
+  // the literal form of FB-3, and it is the bars that draw them. The PANE beside them is
+  // exempt — an emissive pane that casts plugs its own aperture and the window goes black.
+  enrolShadows(frame, true, true);
   root.add(frame);
   ownedGeometry.push(barGeometry);
 
@@ -333,6 +420,14 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
 
   const sun = new DirectionalLight(0xffffff, 1);
   root.add(sun, sun.target);
+
+  // FB-6 — the third and last light of the rig, and the only one that is not motivated by an
+  // object in the room. It is not an unmotivated fill: its ground half IS the floor's own
+  // bounce, which is why A11 §1.6 makes it chapter-invariant law rather than a per-scene
+  // tweak. `bounce.color` (the sky half) is written from the day-wheel in `setEnv`; the ground
+  // half never moves, because a wood floor is wood at every hour.
+  const bounce = new HemisphereLight(TOKEN.dayclear, TOKEN.woodbounce, BOUNCE_INTENSITY);
+  root.add(bounce);
 
   const lampKey = new PointLight(new Color(TOKEN.lamplight), 0, 2.4, 2);
   const lampAnchor = PROP_ANCHORS.lamp.position;
@@ -470,6 +565,13 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
       // The table meets its plane by its TOP face — that plane IS the desk. Everything else
       // meets it by its underside, which is what "standing on" means.
       drop[id] = id === 'table' ? -box.max.y : -box.min.y;
+      // FB-1, at the one point every prop passes through: every mesh casts, every surface
+      // receives. A TRAVERSAL rather than a flag, because a GLB prop is a tree and `pick()`
+      // hands back a node whose actual geometry sits one or two levels below it — a flag
+      // written here would enrol nothing and nothing anywhere would say so. And RECEIVES as
+      // well as casts: props must take each other's shadows, or the desk group reads as one
+      // welded object.
+      enrolShadows(object, true, true);
       host.add(object);
       placed.set(id, object);
     }
@@ -480,6 +582,7 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
       // A3: the glTF export carries no skin, so the nod is a pose of the one named node.
       lampHead = lamp.children.length === 1 ? lamp.children[0] : lamp;
     }
+    if (lamp !== undefined) tintLampShell(lamp);
     const clock = placed.get('clock');
     if (clock !== undefined && clockHands.hour === undefined) {
       // Poly Haven's own spelling, preserved through ingest (STACK-DECISION A3).
@@ -499,6 +602,33 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   /* -- the handle -------------------------------------------------------------------- */
 
   const skyColor = new Color();
+  /**
+   * The current light state and the chapter's own offset on top of it. Held rather than
+   * recomputed because FB-5 has two authors — the day-wheel's authored per-sky level, and the
+   * chapter's ramp in stops — and the renderer has exactly one field. Ch1's
+   * `setExposureStops(tail * 0.2)` and Ch6's "room dims one stop" both land here.
+   *
+   * The origin defaults to the journey's own (`sunrise -> dusk2` at mix 0) so the very first
+   * frame is exposed at an authored level, never at the 1.0 default `index.ts` would otherwise
+   * paint one frame of before its `room.setEnv(setState.env)` lands.
+   */
+  let env: EnvTriple = { a: 'sunrise', b: 'dusk2', mix: 0 };
+  let exposureStops = 0;
+
+  /**
+   * **FB-5, and the single write.** *"`renderer.toneMappingExposure` becomes a per-chapter
+   * authored value, driven from the same light-state source as the sky pair. It is never left
+   * at 1.0."* Ruling 10 calls it the highest-value single line in the ruling, and the reason
+   * it lives on the renderer rather than inside the post pass is that **mobile runs zero
+   * passes and still gets it.**
+   *
+   * Base x stops, not base + stops: exposure is a photographic quantity, so a chapter's offset
+   * is a doubling, and `2^0 = 1` makes "no offset" mean "whatever the sky authored".
+   */
+  const writeExposure = (): void => {
+    stage.renderer.toneMappingExposure = skyExposureForEnv(env) * Math.pow(2, exposureStops);
+  };
+  writeExposure();
 
   const room: Room = {
     deskTopY,
@@ -519,12 +649,16 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
       return dustAllowance;
     },
 
-    setEnv(env: EnvTriple): void {
-      wheel.setEnv(env);
-      const { r, g, b } = skyColorForEnv(env);
+    setEnv(next: EnvTriple): void {
+      env = next;
+      wheel.setEnv(next);
+      const { r, g, b } = skyColorForEnv(next);
       skyColor.setRGB(r, g, b);
       fog.color.copy(skyColor).multiplyScalar(FOG_LUMA);
       paneMaterial.color.copy(skyColor).multiplyScalar(WINDOW_GAIN);
+      // FB-6's two colours: the sky half tracks the day-wheel, the ground half does not.
+      bounce.color.copy(skyColor);
+      writeExposure();
       invalidate();
     },
 
@@ -534,7 +668,8 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
     },
 
     setExposureStops(stops: number): void {
-      stage.renderer.toneMappingExposure = Math.pow(2, stops);
+      exposureStops = stops;
+      writeExposure();
       invalidate();
     },
 
@@ -550,6 +685,7 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
       disposers.length = 0;
       wheel.dispose();
       stage.scene.fog = null;
+      stage.scene.background = null;
       stage.scene.remove(root);
       // Only what this module constructed. The GLB scenes and the KTX2 surface textures are
       // the registry's, shared with every other consumer, and released by its dispose().
@@ -565,6 +701,77 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   };
 
   return room;
+}
+
+/**
+ * A wall with a rectangular opening in it — one mesh, one material, one draw call.
+ *
+ * `ShapeGeometry` triangulates a `Shape` with a `Path` hole, so the aperture is real geometry
+ * rather than an alpha cutout: the sun's shadow map sees a wall with a hole and prints the
+ * window on whatever is behind it, which is the whole point (REVIEWS.md §Ruling 11 §Q2·3).
+ * The hole is wound clockwise against the outline's counter-clockwise, which is what marks it
+ * as a hole rather than a second face.
+ *
+ * **The UVs are rewritten.** `ShapeGeometry`'s default generator writes each vertex's own
+ * shape-space coordinates straight into `uv`, so a 7 m outline would arrive with uv running
+ * -3.5..3.5 and the wall recipe's `repeat` would tile 7x what it asks for. They are remapped
+ * to 0..1 across the wall, and `uv1` is aliased to them for the `aoMap` — the same aliasing
+ * the floor and the plane walls use, and correct for the same reason: the maps are tileable
+ * surface scans, so both sets are the same coordinates.
+ */
+function apertureWall(
+  width: number,
+  height: number,
+  holeX: number,
+  holeY: number,
+  holeWidth: number,
+  holeHeight: number,
+): BufferGeometry {
+  const halfW = width / 2;
+  const halfH = height / 2;
+  const outline = new Shape()
+    .moveTo(-halfW, -halfH)
+    .lineTo(halfW, -halfH)
+    .lineTo(halfW, halfH)
+    .lineTo(-halfW, halfH);
+  outline.closePath();
+  const hw = holeWidth / 2;
+  const hh = holeHeight / 2;
+  const aperture = new Path()
+    .moveTo(holeX - hw, holeY - hh)
+    .lineTo(holeX - hw, holeY + hh)
+    .lineTo(holeX + hw, holeY + hh)
+    .lineTo(holeX + hw, holeY - hh);
+  aperture.closePath();
+  outline.holes.push(aperture);
+
+  const geometry = new ShapeGeometry(outline);
+  const position = geometry.attributes.position;
+  const uv = geometry.attributes.uv;
+  for (let i = 0; i < position.count; i++) {
+    uv.setXY(i, (position.getX(i) + halfW) / width, (position.getY(i) + halfH) / height);
+  }
+  uv.needsUpdate = true;
+  geometry.setAttribute('uv1', uv);
+  return geometry;
+}
+
+/**
+ * A11's colour-script clause, applied: bring the lamp's hot orange shell inside the palette.
+ *
+ * Walks the prop rather than assuming a material, because the GLB carries two — the painted
+ * shell and the emissive shade interior — and only one of them is a *dressing albedo*. The
+ * other is the lamp's own light, which A11 says in as many words is not what this clause is
+ * about. Idempotent: `adopt()` re-runs per streamed batch and the tint is an assignment, not
+ * an accumulation.
+ */
+function tintLampShell(lamp: Object3D): void {
+  lamp.traverse((node) => {
+    const material = (node as Mesh).material;
+    if (!(material instanceof MeshStandardMaterial)) return;
+    if (material.name === LAMP_LIGHT_MATERIAL) return;
+    material.color.set(TOKEN.dayclear).multiplyScalar(LAMP_SHELL_TINT);
+  });
 }
 
 /**

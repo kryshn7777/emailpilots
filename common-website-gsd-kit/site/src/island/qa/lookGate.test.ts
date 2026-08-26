@@ -49,15 +49,34 @@ import { SKY_EXPOSURE, skyExposureForEnv, type SkyId } from '../choreo/dayWheel.
 const ISLAND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string): string => fs.readFileSync(path.join(ISLAND, rel), 'utf8');
 
+/** The module that DECLARES the settings; never counted as one of their consumers. */
+const DECLARING = 'systems/QualityManager.ts';
+
 /** Comments are not code. A gate a comment can satisfy is a gate that measures prose. */
 const strip = (source: string): string =>
   source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-/** Every shipped `.ts` under `src/island/`, tests excluded. */
+/**
+ * Every shipped `.ts` under `src/island/`, tests excluded, **with `/` separators**.
+ *
+ * `readdirSync(..., { recursive: true })` returns platform-NATIVE separators, so on Windows
+ * these arrive as `systems\QualityManager.ts` — and LOOK 2's
+ * `.filter((f) => f !== 'systems/QualityManager.ts')` therefore excluded **nothing**. With the
+ * declaring module left in the consumer list, `computeSettings`'s own `base.postPasses` scored
+ * as a read, and the gate written specifically to catch `postPasses` passed on the machine
+ * this project is built on, through the whole window in which `postPasses` reached no code at
+ * all. LOOK 3b's `f.startsWith('chapters/')` loop was iterating zero files for the same
+ * reason.
+ *
+ * That is the meta-rule's sibling one more time — *a test that asserts a number without
+ * asserting what the number is a count OF* — so the normalisation lives here, in the one
+ * helper every path comparison in this file goes through, rather than at each call site.
+ */
 function shipped(): string[] {
   return fs
     .readdirSync(ISLAND, { recursive: true, encoding: 'utf8' })
-    .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+    .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+    .map((f) => f.split(path.sep).join('/'));
 }
 
 /* --------------------------------------------------------- (1) casters ≥ prop count --- */
@@ -134,8 +153,15 @@ test('LOOK 2 — every field in QualityManager’s tier table has a real consume
       `for. Got [${keys.join(', ')}].`,
   );
 
-  const consumers = shipped()
-    .filter((f) => f !== 'systems/QualityManager.ts')
+  const all = shipped();
+  assert.ok(
+    all.includes(DECLARING),
+    `positive control: the exclusion below must actually exclude something. Got paths like ` +
+      `[${all.slice(0, 3).join(', ')}] — if the declaring module is absent under this exact ` +
+      'spelling, every field scores as read by its own declaration and this gate is vacuous.',
+  );
+  const consumers = all
+    .filter((f) => f !== DECLARING)
     .map((f) => ({ file: f, code: strip(read(f)) }));
 
   for (const key of keys) {
@@ -169,9 +195,9 @@ test('LOOK 2b — the unread-settings-field debt is exactly the two ladder field
   const keys = [...iface[1].matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1]);
   assert.ok(keys.length >= 6, `positive control: parsed ${keys.length} fields, want >= 6`);
 
-  const consumers = shipped()
-    .filter((f) => f !== 'systems/QualityManager.ts')
-    .map((f) => strip(read(f)));
+  const all = shipped();
+  assert.ok(all.includes(DECLARING), 'positive control: the exclusion must exclude something');
+  const consumers = all.filter((f) => f !== DECLARING).map((f) => strip(read(f)));
   const unread = keys.filter((k) => !consumers.some((c) => new RegExp(`\\.${k}\\b`).test(c)));
 
   assert.deepEqual(
@@ -227,8 +253,11 @@ test('LOOK 3b — Room drives the renderer from that authored state, through one
     'ART-DIRECTION §Exposure discipline: one owner, one write. Two writers is two chapters ' +
       'fighting over the same renderer field.',
   );
+  // A CALL, not an occurrence: `import { skyExposureForEnv }` satisfies a bare word match for
+  // as long as the import survives, so dropping the base out of the write and leaving the
+  // import behind passed this gate. The `(` is what makes it a consumer. Corrected 2026-08-27.
   assert.ok(
-    /skyExposureForEnv/.test(ROOM),
+    /skyExposureForEnv\(/.test(ROOM),
     'and the base comes from the day-wheel’s own authored table — FB-5 says exposure is ' +
       '"driven from the same light-state source as the sky pair", so a constant here would ' +
       'be a second answer to what time it is',

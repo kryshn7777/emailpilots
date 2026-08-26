@@ -145,8 +145,31 @@ export const PROP_ANCHORS: Record<PropId, PropAnchor> = {
    */
   chair: { plane: 'floor', position: [0.14, 0, 1.42], rotationY: Math.PI * 0.92, node: null, tier: null },
 
-  /** Frame left in every master shot (§Composition); the pool anchor is under its head. */
-  lamp: { plane: 'desk', position: [-0.78, 0, -0.34], rotationY: 0.35, node: null, tier: null },
+  /**
+   * Frame left in every master shot (§Composition); the pool anchor is under its head.
+   *
+   * **Moved to the desk's back-left corner and turned away from frame centre** (2026-08-26,
+   * A11 §3's composition guard: *"nothing occupies Ch1's upper-left quadrant at the end
+   * frame … either the lamp moves or the end camera does"*). A11's own preamble forbids
+   * moving the camera — *"no camera value changes"* — so the lamp moves.
+   *
+   * Measured, not eyeballed: `room.test.ts` projects the lamp's own GLB bounds through the
+   * authored Ch1 end pose and reports how far into the frame it reaches inside that quadrant.
+   * At `[-0.78, -0.34]` / `+0.35` it reached **40.6%** of the frame's width — the arm slashing
+   * diagonally across the H1, which is the frame the owner rejected. At `[-0.92, -0.85]` /
+   * `-0.40` it reaches **16.8%**, a thin stem hugging the left edge. The anchor is still
+   * comfortably on the desktop (0.52 m of a 0.567 m half-width, 0.30 m of a 0.353 m half-depth)
+   * so the lamp does not float beside the desk to buy the composition.
+   *
+   * **The residual is escalated, not silently accepted.** `desk_lamp_arm_01` measures 893 mm
+   * tall standing on a 799 mm desk, and at `DESK_MEDIUM`'s 40-degree FOV pitched 20 degrees
+   * down the frame's mid-height line crosses the desktop plane about **10 cm** above it. Every
+   * placement that clears the quadrant outright is off the desk entirely. That is a direction
+   * question (a shorter lamp, an off-desk anchor, or a narrower reading of the guard), and the
+   * Ch1 LOOK capture is what settles whether 16.8% of a deliberately conservative bounding box
+   * is the H1 being crossed at all.
+   */
+  lamp: { plane: 'desk', position: [-0.92, 0, -0.85], rotationY: -0.4, node: null, tier: null },
 
   /** In the lamp pool, hands readable — Ch3 ticks it to each send time. A10: "(whole)". */
   clock: { plane: 'desk', position: [0.62, 0, -0.14], rotationY: -0.18, node: null, tier: null },
@@ -217,6 +240,63 @@ export interface Placeable {
   position: { set(x: number, y: number, z: number): void };
   rotation: { y: number };
   visible: boolean;
+}
+
+/**
+ * Minimal shape `enrolShadows` needs — three's `Object3D`, without importing three here.
+ *
+ * `isMesh` is three's own brand on `Mesh` and `InstancedMesh`. Enrolment only means anything
+ * on a mesh: a `Group` carries the same two fields and setting them there enrols nothing,
+ * which is precisely how a room can look enrolled and cast nothing.
+ */
+export interface Shadowable {
+  readonly isMesh?: boolean;
+  castShadow: boolean;
+  receiveShadow: boolean;
+  readonly children?: readonly Shadowable[];
+}
+
+/**
+ * FB-1 — *"every mesh casts, every surface receives"* (REVIEWS.md §Ruling 10, canonised as
+ * STORYBOARD §Amendments **A11** §1.1). Returns how many **meshes** were visited.
+ *
+ * ## Why a traversal and not a flag per prop
+ *
+ * A GLB prop is a tree. `Room.pick()` hands over a node lifted out of a catalogue sheet whose
+ * actual geometry sits one or two levels down, so a flag written on the node it was handed
+ * enrols nothing at all — and nothing anywhere would say so. Ten props each looking correct
+ * in the source and casting nothing in the frame is the exact failure the rejected Ch1 frame
+ * was.
+ *
+ * ## Why the exemptions are parameters
+ *
+ * FB-1's exemption list is the floor, the walls, the window-glow billboard, the sky and the
+ * dust sprites — and the reason splits two ways. The floor and the walls are *surfaces*: they
+ * receive and never cast, because a wall casting into its own room buys nothing and costs a
+ * grazing-angle acne risk across every frame. The billboard and the sprites are *light*:
+ * additive quads with `depthWrite` off, and an additive quad rendered into the depth map
+ * prints holes in the one shadow the room has. Two arguments, one parameter each, so a caller
+ * states which it means at the call site rather than encoding it here as a name list that
+ * would have to be kept in step with the scene graph.
+ *
+ * ## This does not touch the shadow-MAP budget
+ *
+ * A *map* is a render target a light owns; `castShadow` on a *mesh* is that mesh's enrolment
+ * as an occluder rendered into it. Twenty casting meshes still means exactly one map
+ * (BUDGETS §Per-frame budgets, as corrected 2026-08-26). Two tests asserted the opposite for a
+ * whole phase and are re-scoped in `room.test.ts` and `dayWheel.test.ts`.
+ *
+ * Idempotent: `Room.adopt()` runs once per streamed batch and re-enrols what it already holds.
+ */
+export function enrolShadows(root: Shadowable, cast: boolean, receive: boolean): number {
+  let meshes = 0;
+  if (root.isMesh === true) {
+    root.castShadow = cast;
+    root.receiveShadow = receive;
+    meshes++;
+  }
+  for (const child of root.children ?? []) meshes += enrolShadows(child, cast, receive);
+  return meshes;
 }
 
 export interface PlacePlanes {

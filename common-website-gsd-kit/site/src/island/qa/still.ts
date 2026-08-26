@@ -106,7 +106,10 @@ function capture(deps: StillDeps): void {
   renderer.setPixelRatio(CAPTURE_DPR);
   renderer.setSize(width, height, false);
   camera.updateProjectionMatrix();
-  renderer.render(scene, camera);
+  // Through Stage's own draw path, never `renderer.render` directly: on the tier that runs
+  // the post pass those are two different images, and this tool exists to judge the shipped
+  // one (Ruling 10 §4a — the LOOK frames).
+  deps.stage.draw();
   canvas.toBlob(
     (blob) => {
       if (blob !== null) save(blob, filenameFor(deps.target));

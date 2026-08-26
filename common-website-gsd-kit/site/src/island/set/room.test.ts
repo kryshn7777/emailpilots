@@ -33,6 +33,10 @@ import {
   type PropId,
   type Shadowable,
 } from './props.ts';
+import { sunDirectionForEnv, type SkyId } from '../choreo/dayWheel.ts';
+
+import { poseAt } from '../choreo/cameraRig.ts';
+import { FLOOR_PLANKS_PER_TILE, FLOOR_PLANK_M, FLOOR_SPAN_M } from './materials.ts';
 
 const ISLAND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string): string => fs.readFileSync(path.join(ISLAND, rel), 'utf8');
@@ -224,6 +228,97 @@ test('Room enrols every adopted prop, and every surface receives (FB-1 wiring)',
   }
 });
 
+/**
+ * **The aperture — REVIEWS.md Ruling 11 section Q2 point 3, canon A12.**
+ *
+ * A11 section 1 exempted "the walls" from casting and the back wall was a single 7 x 3.2
+ * `PlaneGeometry` with no opening in it. With no occluder there is no window-shaped anything:
+ * the directional passes straight through the wall and lights the room evenly, and FB-4's "the
+ * window is an aperture" describes a picture of a window hung on a wall. A12 narrows the
+ * exemption to "the left wall" and adds the window **pane** to it - an emissive pane that casts
+ * plugs its own aperture and the window goes black - while the frame bars are NOT exempt,
+ * because the bars are what cut the patch.
+ *
+ * Three separable failures, so three assertions. The direct-write list is the one that matters
+ * most: `enrolShadows` is gated above, but the back wall is a single mesh written directly, and
+ * a second direct write is exactly how the pane would quietly become an occluder again.
+ */
+test('the back wall is the one wall that casts, and it is built with the window as a hole', () => {
+  const code = ROOM.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(code.includes('apertureWall'), 'positive control: the code survives stripping');
+
+  // 1 - the hole is real geometry, not an alpha cutout: only a real opening casts a window.
+  assert.equal(
+    count(code, /new ShapeGeometry\(/g),
+    1,
+    'Ruling 11: "one mesh, one material, one draw call - a ShapeGeometry from a rectangle ' +
+      'with a rectangular hole". A cutout in a material is invisible to the shadow map.',
+  );
+  assert.equal(count(code, /\.holes\.push\(/g), 1, 'and the rect really is a HOLE in it');
+  assert.match(
+    code,
+    /geometry\.setAttribute\('uv1', uv\)/,
+    'carrying uv1 across for the aoMap, as the plane walls do (Ruling 11)',
+  );
+
+  // 2 - exactly one mesh in the set is handed castShadow directly, and it is the back wall.
+  const direct = [...code.matchAll(/\b(\w+)\.castShadow\s*=\s*true/g)].map((m) => m[1]);
+  assert.deepEqual(
+    direct.sort(),
+    ['backWall'],
+    'A12 amends A11 section 1: "the walls" becomes "the LEFT wall", and the window pane joins ' +
+      'the exemption. Exactly one mesh is enrolled by a direct write and it is the back wall; ' +
+      'anything else here - the pane above all - is an occluder that plugs the aperture it is ' +
+      'standing in. Lights are counted separately, by the shadow-MAP gate above.',
+  );
+
+  // 3 - and the left wall is still exempt, through the traversal, receiving but not casting.
+  assert.match(
+    code,
+    /enrolShadows\(leftWall,\s*false,\s*true\)/,
+    'the left wall stays a plane and stays exempt: the sun is on its far side in all five ' +
+      'skies (every SUN_DIR entry has z < 0 after Ruling 11) and it occludes nothing',
+  );
+});
+
+/**
+ * The half of Ruling 11 that makes the aperture reachable at all: **every one of the five
+ * skies is on the far side of the back wall.** Before the +67-degree rotation `sunrise` was
+ * `(0.963, 0.174, 0.205)` - the direction TO the sun - so the light travelled toward -Z, into
+ * the back wall from the INSIDE, through a +Z-facing opening. No ray entering the window was
+ * going the right way, and no azimuth alone could have fixed it at elevation 10.
+ *
+ * Asserted on the exported direction path rather than on the literals, so it holds for the
+ * blended states too - which is where a chapter actually lives.
+ */
+test('the sun is outside the back wall in every sky, and rakes low at sunrise (Ruling 11)', () => {
+  const SKIES: SkyId[] = ['sunrise', 'noon', 'dusk2', 'night', 'moonrise'];
+  for (const sky of SKIES) {
+    const d = sunDirectionForEnv({ a: sky, b: sky, mix: 0 });
+    assert.ok(
+      d.z < 0,
+      `${sky} sits at z = ${d.z.toFixed(3)}. Every sky must be on the far side of the back ` +
+        'wall (z < 0) or the light enters the room through the wall rather than the window.',
+    );
+    assert.ok(Math.abs(Math.hypot(d.x, d.y, d.z) - 1) < 1e-9, `${sky} is not a unit direction`);
+  }
+
+  // FB-3's ceiling IS its floor: at 18 degrees the window-centre ray reaches the desktop 1.46 m
+  // out, inside the room; at the old 10 it reached desk height 2.74 m out and the floor 7.34 m
+  // out, both past a room whose floor half-extent is 3.5 m and whose desk ends 1.0 m from the
+  // wall. There is exactly one value that satisfies "at most 18" and "at least ~17.5".
+  const sunrise = sunDirectionForEnv({ a: 'sunrise', b: 'sunrise', mix: 0 });
+  const elevation = (Math.asin(sunrise.y) * 180) / Math.PI;
+  assert.ok(
+    elevation > 17.4 && elevation <= 18.01,
+    `FB-3: "elevation <= 18 degrees at sunrise", and Ruling 11 section Q2 point 2 makes ~17.5 ` +
+      `its floor. Got ${elevation.toFixed(2)}. Below the floor NO azimuth lands a patch in ` +
+      'this room; above the ceiling it stops raking.',
+  );
+  // Positive control: the rejected rig fails the z test this asserts.
+  assert.ok(Math.cos(10 * (Math.PI / 180)) * Math.cos(78 * (Math.PI / 180)) > 0, 'old sun: z > 0');
+});
+
 /* ----------------------------------------------------------------- the tier knobs --- */
 
 test('per-tier cuts go through ResponsiveBranch, never through a media query (D2-11)', () => {
@@ -242,9 +337,18 @@ test('per-tier cuts go through ResponsiveBranch, never through a media query (D2
   assert.equal(count('if (window.innerWidth < 768) {', /matchMedia|innerWidth\s*[<>]/g), 1);
 });
 
+/**
+ * Corrected 2026-08-27: this counted `toneMappingExposure` in the RAW source, so the moment
+ * FB-5's write grew a docblock naming the field it is about, a gate about **writers** started
+ * failing on **prose**. That is the `particleCap`-satisfiable-by-a-comment defect with its
+ * sign flipped, and the file's own opening rule already says comments are not code. Stripped
+ * first, so a comment can neither satisfy this gate nor break it — the count is of writes.
+ */
 test('tone-mapping exposure has exactly one owner (ART-DIRECTION §Exposure discipline)', () => {
+  const code = ROOM.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(code.includes('setExposureStops'), 'positive control: the code survives stripping');
   assert.equal(
-    count(ROOM, /toneMappingExposure/g),
+    count(code, /toneMappingExposure/g),
     1,
     "Room's setExposureStops is the one write. Ch6's 'room dims one stop' and Ch1's +0.2 " +
       'both ramp through it, so two chapters can never fight over the same renderer field.',
@@ -757,5 +861,185 @@ test('Room measures that drop rather than assuming one', () => {
     'placeProps owns every prop’s Y. `floor` is Room’s own procedural plane and is ' +
       'the one legitimate direct write; a prop appearing here is a shift that the next ' +
       'applyPlacement() will silently reset.',
+  );
+});
+
+/* ------------------------------------------------- FB-8: the floor, in millimetres --- */
+
+/**
+ * REVIEWS.md Ruling 10 section 0 defect (10): *"Texture scale is incoherent. The floor plank
+ * width is roughly a tenth of the desk plank width. Two woods in one room at two different
+ * real-world scales."* FB-8 turns it into a number - floor board width **120-200 mm** - and
+ * says how it is obtained: *"derived from the surface's world size, never eyeballed. Defect
+ * (10) is a `repeat` value nobody computed."*
+ *
+ * So the gate is on the derivation, not on the `repeat`. It checks that the declared board is
+ * a real board, that the plank count is a count and not a fudge factor doing the work, and -
+ * the half that actually rots - that the world span the tiling is derived FROM is still the
+ * span `Room` builds.
+ */
+test('the floor plank width is a declared 120-200 mm, derived from the floor world size', () => {
+  assert.ok(
+    FLOOR_PLANK_M >= 0.12 && FLOOR_PLANK_M <= 0.2,
+    `FB-8: floor board width 120-200 mm. Declared ${(FLOOR_PLANK_M * 1000).toFixed(0)} mm.`,
+  );
+  assert.ok(
+    FLOOR_PLANKS_PER_TILE >= 12 && FLOOR_PLANKS_PER_TILE <= 40,
+    'the plank count is a count of planks in the scan, not a free parameter tuned until the ' +
+      'width landed in the band - a count outside this range means the two numbers have ' +
+      'stopped describing the same texture',
+  );
+
+  const room = ROOM.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const declared = /const FLOOR_SIZE = ([\d.]+);/.exec(room);
+  assert.ok(declared !== null, 'positive control: Room own floor span must be found');
+  assert.equal(
+    Number(declared[1]),
+    FLOOR_SPAN_M,
+    'Room builds a floor of one size and materials.ts derives the tiling from another. A ' +
+      'feature size derived from a span that has drifted is the same eyeballed defect ' +
+      'wearing a formula (FB-8).',
+  );
+
+  // The state this replaced, pinned so nobody re-tunes their way back into it: `repeat: 6`
+  // over 7 m is a 53 mm board - a third of a real one, and a tenth of the desk planks.
+  const wouldBeAtSix = FLOOR_SPAN_M / 6 / FLOOR_PLANKS_PER_TILE;
+  assert.ok(wouldBeAtSix < 0.12, 'positive control: the rejected tiling fails this same band');
+});
+
+/* -------------------------------------- A11 section 3: Ch1 upper-left quadrant is clear --- */
+
+/** A whole GLB bounds in metres, node transforms applied - what `Room` actually places. */
+function assetBoundsM(url: string): { lo: number[]; hi: number[] } {
+  const gltf = glbJson(url);
+  const lo = [Infinity, Infinity, Infinity];
+  const hi = [-Infinity, -Infinity, -Infinity];
+  for (const node of gltf.nodes ?? []) {
+    if (node.mesh == null) continue;
+    const scale = node.scale ?? [1, 1, 1];
+    const shift = (node as { translation?: number[] }).translation ?? [0, 0, 0];
+    for (const prim of gltf.meshes![node.mesh].primitives) {
+      const a = gltf.accessors![prim.attributes.POSITION];
+      const d = a.normalized === true ? NORMALIZED_DIVISOR[a.componentType] : 1;
+      for (let i = 0; i < 3; i++) {
+        lo[i] = Math.min(lo[i], (a.min[i] / d) * scale[i] + shift[i]);
+        hi[i] = Math.max(hi[i], (a.max[i] / d) * scale[i] + shift[i]);
+      }
+    }
+  }
+  return { lo, hi };
+}
+
+/**
+ * How far into the frame a prop reaches inside the **upper-left quadrant**, as a fraction of
+ * the frame width, projected through an authored camera pose.
+ *
+ * The prop is its own GLB bounding box - deliberately conservative, since a box is at least as
+ * big as the silhouette inside it. `Stage` builds the camera as `PerspectiveCamera(40, ...)`
+ * and the LOOK captures are 1600x1000, so those are the only two numbers the projection needs
+ * beyond the pose, and the pose itself is READ from `cameraRig`, never transcribed.
+ */
+function quadrantReach(
+  url: string,
+  anchor: readonly [number, number, number],
+  yaw: number,
+): number {
+  const FOV_Y = 40;
+  const ASPECT = 1.6; // 1600 x 1000, the LOOK gate desktop capture
+  const DESK_HALF_WIDTH = 0.5672; // wooden_table_02 measured top, halved
+  const DESK_HALF_DEPTH = 0.35305;
+
+  const pose = poseAt(0, 1); // Ch1 authored END pose
+  const dot = (a: number[], b: number[]): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const unit = (a: number[]): number[] => {
+    const l = Math.hypot(a[0], a[1], a[2]);
+    return [a[0] / l, a[1] / l, a[2] / l];
+  };
+  const cross = (a: number[], b: number[]): number[] => [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+  const eye = pose.position;
+  const forward = unit([pose.target[0] - eye[0], pose.target[1] - eye[1], pose.target[2] - eye[2]]);
+  const right = unit(cross(forward, [0, 1, 0]));
+  const up = cross(right, forward);
+  const tanHalf = Math.tan((FOV_Y / 2) * (Math.PI / 180));
+
+  const box = assetBoundsM(url);
+  const ax = anchor[0] * DESK_HALF_WIDTH;
+  const az = anchor[2] * DESK_HALF_DEPTH;
+  const drop = -box.lo[1]; // Room stands every prop on its measured underside
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const x of [box.lo[0], box.hi[0]]) {
+    for (const y of [box.lo[1], box.hi[1]]) {
+      for (const z of [box.lo[2], box.hi[2]]) {
+        const world = [ax + (x * cos + z * sin), y + drop, az + (-x * sin + z * cos)];
+        const d = [world[0] - eye[0], world[1] - eye[1], world[2] - eye[2]];
+        const depth = dot(d, forward);
+        assert.ok(depth > 0, 'positive control: the prop must be in front of the camera');
+        minX = Math.min(minX, dot(d, right) / (depth * tanHalf * ASPECT));
+        maxX = Math.max(maxX, dot(d, right) / (depth * tanHalf * ASPECT));
+        minY = Math.min(minY, dot(d, up) / (depth * tanHalf));
+        maxY = Math.max(maxY, dot(d, up) / (depth * tanHalf));
+      }
+    }
+  }
+  // Overlap of the projected box with x in [-1, 0], y in [0, 1] - the upper-left quadrant.
+  const left = Math.max(minX, -1);
+  const rightEdge = Math.min(maxX, 0);
+  const bottom = Math.max(minY, 0);
+  const top = Math.min(maxY, 1);
+  if (rightEdge <= left || top <= bottom) return 0;
+  return (rightEdge - left) / 2; // NDC x spans 2; reported as a fraction of the frame width
+}
+
+/**
+ * **A11 section 3 composition guard, measured rather than reviewed.** *"Nothing occupies Ch1
+ * upper-left quadrant at the end frame ... either the lamp moves or the end camera does."*
+ * A11 own preamble settles which: *"no camera value changes."* So the lamp moved, and this is
+ * the number it moved by.
+ *
+ * **A ratchet, and it says so.** The target is **0** and the assertion is **0.20**, because
+ * the geometry does not currently permit 0: `desk_lamp_arm_01` is 893 mm tall on a 799 mm
+ * desk, and at DESK_MEDIUM 40-degree FOV pitched 20 degrees down the frame mid-height line
+ * crosses the desktop plane about 10 cm above it - so every placement that clears the quadrant
+ * outright is off the desk. Pinning today 16.8% as *correct* would be the failure mode Ruling
+ * 10 section 5 struck down: a gate that asserts the defect. Pinning it as a **ceiling strictly
+ * below the rejected frame 40.6%** is not - it cannot be regressed silently, and the residual
+ * is named in props.ts and escalated to the director.
+ */
+test('the lamp no longer crosses Ch1 upper-left quadrant the way the rejected frame did', () => {
+  const reach = quadrantReach(
+    PROP_SOURCES.lamp,
+    PROP_ANCHORS.lamp.position,
+    PROP_ANCHORS.lamp.rotationY,
+  );
+
+  // Positive control: the REJECTED frame own placement, through this same projection.
+  const rejected = quadrantReach(PROP_SOURCES.lamp, [-0.78, 0, -0.34], 0.35);
+  assert.ok(
+    rejected > 0.4,
+    `positive control: the judged frame placement must still measure as the defect. Got ` +
+      `${(rejected * 100).toFixed(1)}% - if that has stopped reading as a breach then the ` +
+      'projection is measuring something else and every number below it is decoration.',
+  );
+
+  assert.ok(
+    reach <= 0.2,
+    `A11: the lamp reaches ${(reach * 100).toFixed(1)}% of the frame width into Ch1 ` +
+      `upper-left quadrant at the end pose, against a ${(rejected * 100).toFixed(1)}% ` +
+      'rejected frame and a ceiling of 20%. The target is 0; props.ts lamp entry records why ' +
+      '0 is not reachable on the desktop and what the LOOK capture settles.',
+  );
+  assert.ok(
+    reach < rejected,
+    'and it must be an improvement on the frame the owner rejected, not a lateral move',
   );
 });

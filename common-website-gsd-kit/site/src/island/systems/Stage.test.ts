@@ -91,3 +91,24 @@ test('the shipping render path stays bare — instrumentation costs nothing when
     'exactly one direct renderer.render call survives, inside draw()',
   );
 });
+
+/**
+ * The other half of "one draw path", in the file that was quietly the second one.
+ *
+ * `qa/still.ts` captures the frames the LOOK gate judges (Ruling 10 §4a). It rendered by
+ * calling `renderer.render(scene, camera)` itself — which was indistinguishable from Stage's
+ * own call right up until a composer existed, and would then have made every captured frame
+ * the UNGRADED one, at the composer's stale extent, while the scroll showed the graded one.
+ * A look gate whose evidence is a frame of a pipeline nobody ships is worse than no gate.
+ */
+test('the still capture renders through Stage’s draw path, not its own (Ruling 10 §4a)', () => {
+  const still = fs.readFileSync(path.join(HERE, '../qa/still.ts'), 'utf8');
+  const code = still.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(code.includes('canvas.toBlob'), 'positive control: the capture survives stripping');
+  assert.equal(
+    occurrences(code, 'renderer.render('),
+    0,
+    'the capture tool must not own a second answer to "what does a frame look like"',
+  );
+  assert.match(code, /deps\.stage\.draw\(\)/, 'it drives the one shared path instead');
+});
