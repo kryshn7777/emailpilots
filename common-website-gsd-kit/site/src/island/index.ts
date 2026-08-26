@@ -33,6 +33,7 @@ import { Ch1FirstLight } from './chapters/Ch1FirstLight.ts';
 import { createRoom } from './set/Room.ts';
 import { createSetState } from './choreo/setState.ts';
 import type { SkyId } from './choreo/dayWheel.ts';
+import { parseReviewParams, REVIEW_WALL_SLOTS, reviewWallUrl } from './qa/review.ts';
 import { installStillCapture, parseStillParam } from './qa/still.ts';
 
 /** Chunk-identification marker — check-budgets.mjs locates the island chunk by this literal. */
@@ -67,6 +68,13 @@ const CRITICAL_ASSETS = {
   table: { url: 'assets/WoodenTable_02/WoodenTable_02.glb', bytes: 2_241_096 },
   lamp: { url: 'assets/desk_lamp_arm_01/desk_lamp_arm_01.glb', bytes: 1_211_992 },
 } as const;
+
+/**
+ * The night sky the wave-3 wall review needs (REVIEWS.md F-13 makes the night frame the
+ * deciding one) — fetched ONLY when `?sky=night` asks for it. It is not a Ch1 asset: Ch3
+ * owns it, and 03-11 declares it as a chapter manifest row when Ch3 lands.
+ */
+const REVIEW_NIGHT_URL = 'assets/qwantani_night_puresky/qwantani_night_puresky.hdr';
 
 /**
  * Self-hosted detect-gpu data files (public/benchmarks — D2-09), pinned with
@@ -194,6 +202,11 @@ export async function mount(opts: MountOptions): Promise<void> {
 
   systems = { quality, stage, timeline, branch, queue, offDrive };
 
+  // Wave-3 review lever (03-09-T3), parsed behind a closed allowlist. Same shape as Stage's
+  // '?hud' / '?ctxloss' and the '?still=' tool: the parse returns allowlist members or null,
+  // and no query-string value ever reaches markup, a selector or a path (T-03-01).
+  const review = parseReviewParams(new URLSearchParams(window.location.search));
+
   let buffers: Map<string, ArrayBuffer>;
   try {
     buffers = await critical;
@@ -252,13 +265,14 @@ export async function mount(opts: MountOptions): Promise<void> {
     crossfade,
     skySources,
     invalidate: () => stage.invalidate(),
+    wallSet: review.wall,
   });
 
   // The ONE set-state record (CHK-B1). Created here, passed into every chapter constructor
   // — a chapter with a private copy cannot hand the next one the state it inherits.
   const setState = createSetState();
 
-  const ch1 = new Ch1FirstLight({ room, setState });
+  const ch1 = new Ch1FirstLight({ room, setState, envOverride: review.sky });
   await ch1.mount(stage);
   const section = document.querySelector<HTMLElement>('#ch1');
   if (section === null) {
@@ -266,14 +280,30 @@ export async function mount(opts: MountOptions): Promise<void> {
   }
   timeline.register({ id: 'ch1', element: section ?? document.body }, ch1);
 
+  // Whatever the review lever asked for rides the SAME lazy batch as the dressing — one
+  // fetch, one prime, one adopt. Weight 0: `AssetQueue.emit()` weights the loader percent by
+  // `critical` items alone, and neither of these is ever on a visitor's path anyway.
+  if (review.wall !== null) {
+    for (const slot of REVIEW_WALL_SLOTS) queue.add(reviewWallUrl(review.wall, slot), 'lazy', 0);
+  }
+  if (review.sky === 'night') queue.add(REVIEW_NIGHT_URL, 'lazy', 0);
+
   // Ch1's dressing, behind the handoff. 'lazy' is its own batch: 'soon' already carries the
   // benchmark warm-cache JSONs, and handing those buffers to registry.prime() rejects on
   // "no parser for". A failure here costs set dressing, never the journey — the room is
   // already standing and the camera is already scrubbing.
   void queue
     .load('lazy')
-    .then((fetched) => registry!.prime(fetched))
-    .then(() => room.adopt())
+    .then(async (fetched) => {
+      await registry!.prime(fetched);
+      const nightBytes = fetched.get(REVIEW_NIGHT_URL);
+      if (nightBytes !== undefined) skySources.night = crossfade.pmremFromHDR(nightBytes);
+      // Second adopt: the floor's KTX2 set and the review wall are only resolvable now.
+      await room.adopt();
+      // The chapter re-applies the override on every drive, but a pinned still is captured
+      // without one — so the light state has to be right before the first scroll, not after.
+      if (review.sky !== null) room.setEnv({ a: review.sky, b: review.sky, mix: 0 });
+    })
     .catch((e) => console.warn('island: Ch1 streamed dressing failed', e));
 
   // '?still=chN[.beat]' capture (D3-14) — installed only once the chapters are registered,
