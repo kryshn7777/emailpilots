@@ -250,14 +250,24 @@ export class Ch1FirstLight implements Chapter {
     const letter = this.fold.mesh;
     letter.rotation.x = -Math.PI / 2;
     letter.position.set(0, this.room.deskTopY + SHEET_LIFT, 0);
-    // The one new caster in the room. A sheet in a raking sun throws a hairline of shadow,
-    // and the celestial light is the site's single shadow map (ART-DIRECTION §Lighting).
-    // It does not RECEIVE: nothing is above it in Ch1 (the lamp is off, the sun is
-    // unobstructed), and a flat plane that both casts and receives at a grazing sun angle is
-    // where depth-bias acne shows — across the site's opening frame. Ch2's fold is the
-    // chapter that earns the flag, because a folded sheet genuinely shadows itself.
+    // A sheet in a raking sun throws a hairline of shadow, and the celestial light is the
+    // site's single shadow map (ART-DIRECTION §Lighting).
+    //
+    // **`receiveShadow` flips to true here** (FB-1: "every surface receives"). It shipped
+    // `false` with a real reason — the sun IS unobstructed in Ch1 as it was then built, and a
+    // flat plane that both casts and receives at a grazing angle is exactly where depth-bias
+    // acne shows, across the site's opening frame. Two things changed in the same commit as
+    // this flip, and they are the two the debt was waiting on:
+    //
+    //  - the shadow rig FB-2 asks for now exists — `normalBias 0.02`, `bias -0.0005`, and a
+    //    2048 map tightened to the ±2.2 m room ortho, which is 2.15 mm a texel;
+    //  - the sun is no longer unobstructed. Ruling 11 rebuilt the back wall with the window
+    //    as a hole and made the frame bars cast, so at Ch1's end frame **both mullion shadows
+    //    cross the desktop** — the vertical one near `x ≈ 0.105`, which is an A4 sheet's own
+    //    right edge. A letter that cannot receive is a letter the window cannot fall on, and
+    //    that patch is the strongest "real room" signal the frame has.
     letter.castShadow = true;
-    letter.receiveShadow = false;
+    letter.receiveShadow = true;
     this.fold.setFold(0, 0);
     stage.scene.add(letter);
 
