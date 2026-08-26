@@ -572,8 +572,13 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
  * the same smoothstep in both the lamp pool and the window glow so the two gradients are
  * demonstrably one shape. 64px is plenty — it is sampled across half a metre with linear
  * filtering, and a mask is the one texture nobody looks at closely.
+ *
+ * Exported for Ch1's dust motes, which want exactly this falloff at a much smaller size: a
+ * mote is a soft dot, and a second copy of twenty lines of smoothstep would be a second
+ * answer to "what shape is a soft edge in this room". The CALLER owns what it gets back —
+ * Room pushes its two into `ownedTexture`; a chapter disposes its own with the chapter.
  */
-function radialMask(size = 64): DataTexture {
+export function radialMask(size = 64): DataTexture {
   const data = new Uint8Array(size * size * 4);
   const centre = (size - 1) / 2;
   for (let y = 0; y < size; y++) {

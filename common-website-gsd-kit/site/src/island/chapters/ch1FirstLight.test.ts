@@ -276,7 +276,26 @@ test('the motes are scrubbed by scroll, never by a clock (D3-16)', () => {
 });
 
 test('the particle count comes from the quality tier, not from a viewport read', () => {
-  assert.ok(count(CH1, /particleCap/g) >= 1, 'BUDGETS §Per-frame: 40 desktop / 0 mobile');
+  // **Gate correction (03-11).** The plan spells this `grep -c "particleCap"` >= 1, and the
+  // chapter does not — and must not — read `QualitySettings` a second time: `Room` already
+  // subscribes to the regression ladder and republishes the allowance as `dustAllowance`, so
+  // a chapter-side `quality.settings.particleCap` would be a second consumer of the same
+  // knob that stops agreeing with the Room's on the first rung change. As written the gate
+  // was satisfiable by a COMMENT naming the constant, which is the vacuous-gate failure this
+  // phase has now shipped three times. So it accepts either spelling and grows the teeth the
+  // literal was standing in for: `dustAllowance` counts as a tier read only because the Room
+  // derives it from the tier, and that derivation is asserted here rather than assumed.
+  assert.ok(
+    count(CH1, /particleCap|dustAllowance/g) >= 1,
+    'BUDGETS §Per-frame: 40 desktop / 0 mobile, and it is the site’s ONLY particle system',
+  );
+  assert.match(
+    read('src/island/set/Room.ts'),
+    /dustAllowance = settings\.particleCap/,
+    'the chain the gate above depends on: Room republishes the TIER’s particle cap, inside ' +
+      'the quality subscription, so a rung-3 demotion reaches the motes. If this line moves, ' +
+      '`dustAllowance` stops being a tier read and the chapter is reading a stale number.',
+  );
   assert.equal(
     count(CH1, /matchMedia|innerWidth|innerHeight/g),
     0,

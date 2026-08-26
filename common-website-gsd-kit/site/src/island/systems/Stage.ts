@@ -44,7 +44,13 @@ export class Stage {
     this.canvas = this.renderer.domElement;
     this.el.appendChild(this.canvas);
 
-    this.camera = new PerspectiveCamera(40, 1, 0.1, 100);
+    // near = 2 cm, not the 10 cm this shipped with. STORYBOARD Ch1 opens ~8 cm above the
+    // letter (cameraRig ECU_LETTER), which puts the near half of an A4 sheet 1.7-8.7 cm from
+    // the lens: at 0.1 the bottom band of the site's opening frame was clipped straight
+    // through the paper to the room behind it. 0.02/100 is a 5000:1 range, which a 24-bit
+    // depth buffer carries with ~6 um of resolution at 1 m — three orders under the 0.8 mm
+    // the letter sits above the desk.
+    this.camera = new PerspectiveCamera(40, 1, 0.02, 100);
 
     // DPR from QualityManager settings — re-applied on every quality change (rung cuts).
     this.applyQuality();

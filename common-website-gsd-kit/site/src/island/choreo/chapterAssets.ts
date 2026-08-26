@@ -23,7 +23,7 @@
  * ## Growth rule — read this before adding a row
  *
  * Declare only assets that are ALREADY INGESTED. Every later ingest plan appends its own
- * rows here as part of that plan (03-10 the envelopes, 03-11 the per-chapter HDRIs, 03-12
+ * rows here as part of that plan (03-10 the envelopes, 03-11 the ink ramp and Paper001, 03-12
  * the Ch6 UI plane), never in advance: `chapterAssets.test.ts` fails a url that is not on
  * disk, fails a byte count the manifest disagrees with, and fails a third-party asset with
  * no licensing row. So a speculative row is a red build, not a TODO — which is the point.
@@ -45,10 +45,13 @@ export interface ChapterAsset {
  * Index 0..6 = Ch1..Ch7.
  *
  * Ch1: the critical batch — both Qwantani skies (STORYBOARD §Sky Continuity gives Ch1 the
- * pair `(sunrise, dusk2)` held at mix 0.00 until 95%, so both are PMREM'd at mount) plus
- * the two props the set cannot be BUILT without: the desk, which is the world origin, and
- * the lamp, which the light rig is posed on. Everything else Ch1 shows is in
- * `CH1_STREAMED`.
+ * pair `(sunrise, dusk2)` held at mix 0.00 until 95%, so both are PMREM'd at mount), the two
+ * props the set cannot be BUILT without (the desk, which is the world origin, and the lamp,
+ * which the light rig is posed on) and, since 03-11, the opening frame itself: 03-08's ink
+ * ramp and the three `Paper001` slots the letter wears. Ch1 opens on an ECU 8 cm above that
+ * letter, so "to interactive" and "the paper is textured" are the same moment — and the ink
+ * patch CLONES the family's paper at mount, so a late-arriving Paper001 would dress the
+ * family and never reach the clone. Everything else Ch1 shows is in `CH1_STREAMED`.
  *
  * Ch2: `clipboard`, the envelope stack's home base (STORYBOARD §Ch2 Objects). The
  * envelopes themselves are Sketchfab CC-BY and land with 03-10.
@@ -63,6 +66,10 @@ export const CHAPTER_ASSETS: readonly (readonly ChapterAsset[])[] = [
     { url: 'assets/qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr', bytes: 1_166_018 },
     { url: 'assets/wooden_table_02/wooden_table_02.glb', bytes: 2_021_652 },
     { url: 'assets/desk_lamp_arm_01/desk_lamp_arm_01.glb', bytes: 1_211_992 },
+    { url: 'assets/ink/ink-ramp.png', bytes: 50_541 },
+    { url: 'assets/Paper001/Paper001_2K-JPG_Color.ktx2', bytes: 313_463 },
+    { url: 'assets/Paper001/Paper001_2K-JPG_NormalGL.ktx2', bytes: 1_227_476 },
+    { url: 'assets/Paper001/Paper001_2K-JPG_Roughness.ktx2', bytes: 1_007_340 },
   ],
   [{ url: 'assets/clipboard/clipboard.glb', bytes: 740_456 }],
   [],
@@ -122,8 +129,13 @@ export const CHAPTER_ASSETS: readonly (readonly ChapterAsset[])[] = [
  * buffers to `assetRegistry.prime()` rejects on "no parser for". A third priority the queue
  * has always had, and no new code.
  *
- * Paper001 is in neither batch. 03-11 builds the letter sheet that wears it, and the growth
- * rule above is that a plan declares what its own code fetches — not what a later one will.
+ * Paper001 was in neither batch until 03-11, which builds the letter sheet that wears it and
+ * therefore declared it — critical, not streamed, because the ECU it dresses IS the opening
+ * frame (STORYBOARD Ch1 §Textures) and because `patchInkReveal` clones the family paper at
+ * mount. That took Ch1's critical path from 5,433,608 B to **8,032,428 B**, leaving 967,572 B
+ * under the live 9,000,000 B desktop line. The mobile ratchet in `chapterAssets.test.ts` was
+ * re-recorded to match: BUDGETS §Amendments B2 retired that line, so the number is a record
+ * of what mobile costs, never a budget to chase.
  */
 export const CH1_STREAMED: readonly ChapterAsset[] = [
   { url: 'assets/alarm_clock_01/alarm_clock_01.glb', bytes: 996_468 },

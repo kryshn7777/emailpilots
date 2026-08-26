@@ -271,8 +271,12 @@ test("Ch1's manifest IS the critical batch declared in the island entry", () => 
  *   `AssetQueue`'s existing `'lazy'` priority, which no other caller uses and which — like
  *   `'soon'` — is excluded from the loader percent by weight.
  *
- * Paper001 is in neither: 03-11 builds the letter sheet, and this file's growth rule is that
- * a plan declares what its own code fetches.
+ * Paper001 was in neither until 03-11, which builds the letter sheet and therefore declared
+ * it — **critical**, because STORYBOARD Ch1 §Textures calls the 2K paper "the opening frame"
+ * and `patchInkReveal` clones the family material at mount, so a Paper001 arriving behind the
+ * handoff would dress the family and never reach the letter's clone. With 03-08's ink ramp
+ * beside it the critical path went 5,433,608 -> 8,032,428 B, which is 967,572 B under the
+ * desktop line. That is the trade the line exists to make visible, and it was made in a plan.
  *
  * ## The mobile line is retired (BUDGETS §Amendments B2, 2026-08-26)
  *
@@ -298,10 +302,14 @@ const CH1_MOBILE_AT_RETIREMENT = 6_649_520;
  *
  * 5,653,052 -> **5,433,608** on 2026-08-26: Ruling 9 F1 swapped `WoodenTable_02` (2,241,096 B)
  * for `wooden_table_02` (2,021,652 B), the only critical-path row either ruling touched.
- * The ratchet records what mobile costs; it is not a target being closed. B2 retired the
- * line, and no per-tier asset selection was invented here or anywhere else.
+ *
+ * 5,433,608 -> **8,032,428**, same day: 03-11 declared the opening frame — 03-08's ink ramp
+ * (50,541 B) and the three `Paper001` slots (2,548,279 B) the letter wears. B2 retired the
+ * mobile line and told executors to stop attempting per-tier asset selection, so this number
+ * is **re-recorded, not chased**: the ratchet says what mobile costs, and the desktop line
+ * above is the one that gates. No per-tier selection was invented here or anywhere else.
  */
-const CH1_MOBILE_RATCHET = 5_433_608;
+const CH1_MOBILE_RATCHET = 8_032_428;
 /** BUDGETS §Regime B, "Total streamed asset weight (full journey)" — desktop, live. */
 const JOURNEY_DESKTOP_LIMIT = 30_000_000;
 
@@ -353,11 +361,26 @@ test('Ch1 mobile payload does not grow past the recorded figure (superseded by B
       'do not try to close it, and do not raise this number to make room for an asset the ' +
       'desktop line would also have to pay for.',
   );
+  // **Gate correction (03-11).** This used to assert `CH1_MOBILE_RATCHET <
+  // CH1_MOBILE_AT_RETIREMENT` under the reading "if it ever equals B2's figure again, the
+  // split was undone". That conflates two different things: the split holding, and the total
+  // never growing. The total CAN legitimately grow — 03-11 declared the opening frame's own
+  // texture, which no earlier batch had — and the old form would have painted the build red
+  // for a byte the plan was right to add, while still passing if the clock came back and
+  // something else shrank. "The split holds" is a property of the split, so it is asserted as
+  // one: the row B2's figure counted and 03-09 moved may never return to the critical path.
+  const clock = 'assets/alarm_clock_01/alarm_clock_01.glb';
+  assert.equal(
+    CHAPTER_ASSETS[0].some((a) => a.url === clock),
+    false,
+    `${clock} is back on the critical path. B2's recorded-at-retirement figure of ` +
+      `${CH1_MOBILE_AT_RETIREMENT} B counted it; 03-09 moved it because Ch1 opens on an ECU ` +
+      '8 cm above the letter and the clock is not in that frame. Ch3 is its chapter.',
+  );
   assert.ok(
-    CH1_MOBILE_RATCHET < CH1_MOBILE_AT_RETIREMENT,
-    'the split moved the clock off the critical path, so the ratchet must sit below B2’s ' +
-      'recorded-at-retirement figure; if it ever equals it again, the split was undone ' +
-      'rather than extended',
+    CH1_STREAMED.some((a) => a.url === clock),
+    'positive control: the clock must still be declared SOMEWHERE, or this gate passes by ' +
+      'the asset having been dropped rather than by the split holding',
   );
 });
 

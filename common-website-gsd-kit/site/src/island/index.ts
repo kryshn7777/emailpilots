@@ -53,11 +53,23 @@ export interface MountOptions {
 }
 
 /**
- * The critical batch (D2-20): the two Qwantani HDRIs feeding the Q1 crossfade plus the two
- * props the set cannot be BUILT without — the desk, which is the world origin every camera
- * pose is measured from, and the lamp, which the light rig is posed on. Byte weights mirror
- * public/assets/manifest.json; they only weight the loader percent (AssetQueue clamps
- * streams and snaps to 1 on completion, so a stale weight can never break progress).
+ * The critical batch (D2-20): the two Qwantani HDRIs feeding the Q1 crossfade, the two props
+ * the set cannot be BUILT without — the desk, which is the world origin every camera pose is
+ * measured from, and the lamp, which the light rig is posed on — and, from 03-11, the opening
+ * frame itself. Byte weights mirror public/assets/manifest.json; they only weight the loader
+ * percent (AssetQueue clamps streams and snaps to 1 on completion, so a stale weight can
+ * never break progress).
+ *
+ * **Paper001 and the ink ramp are here rather than in `CH1_STREAMED` for two reasons, and the
+ * second one is not negotiable.** STORYBOARD Ch1 §Textures calls `Paper001` at 2K *"the
+ * opening frame"*, and the Regime-B split is cut by what the opening frame needs — an ECU
+ * 8 cm above the letter showing untextured cream stock is the frame the whole site opens on.
+ * And `patchInkReveal` CLONES the family's paper: `Material.clone()` copies the map
+ * references it finds at clone time, so a Paper001 that lands after `Ch1FirstLight.mount()`
+ * would dress `materials.paper` and never reach the letter's clone — the hero object would
+ * stay flat for the whole journey while every other paper surface in the room went textured.
+ * Room's `adopt()` runs `materials.dress()` before the chapter is constructed, which is
+ * exactly the ordering that makes the critical placement work.
  *
  * `chapterAssets.test.ts` asserts this set EQUALS `CHAPTER_ASSETS[0]` in both directions, so
  * the Regime-B desktop gate measures exactly what the loader actually waits for. Ch1's other
@@ -69,6 +81,10 @@ const CRITICAL_ASSETS = {
   dusk: { url: 'assets/qwantani_dusk_2_puresky/qwantani_dusk_2_puresky.hdr', bytes: 1_166_018 },
   table: { url: 'assets/wooden_table_02/wooden_table_02.glb', bytes: 2_021_652 },
   lamp: { url: 'assets/desk_lamp_arm_01/desk_lamp_arm_01.glb', bytes: 1_211_992 },
+  ink: { url: 'assets/ink/ink-ramp.png', bytes: 50_541 },
+  paperColor: { url: 'assets/Paper001/Paper001_2K-JPG_Color.ktx2', bytes: 313_463 },
+  paperNormal: { url: 'assets/Paper001/Paper001_2K-JPG_NormalGL.ktx2', bytes: 1_227_476 },
+  paperRoughness: { url: 'assets/Paper001/Paper001_2K-JPG_Roughness.ktx2', bytes: 1_007_340 },
 } as const;
 
 /**
@@ -293,13 +309,25 @@ export async function mount(opts: MountOptions): Promise<void> {
   room.setEnv(setState.env);
   stage.scene.environment = crossfade.texture;
 
-  const ch1 = new Ch1FirstLight({ room, setState, envOverride: review.sky });
-  await ch1.mount(stage);
+  // Resolved BEFORE the chapter is built, not after: the chapter scopes its copy timeline
+  // inside this very element, and the registration maps the same element to a pixel range.
+  // One query, one authority for "which element is Ch1".
   const section = document.querySelector<HTMLElement>('#ch1');
   if (section === null) {
     console.warn('island: #ch1 not found — registering Ch1 against document.body');
   }
-  timeline.register({ id: 'ch1', element: section ?? document.body }, ch1);
+  const element = section ?? document.body;
+
+  const ch1 = new Ch1FirstLight({
+    room,
+    setState,
+    registry,
+    materials,
+    section: element,
+    envOverride: review.sky,
+  });
+  await ch1.mount(stage);
+  timeline.register({ id: 'ch1', element }, ch1);
 
   // Whatever the review lever asked for rides the SAME lazy batch as the dressing — one
   // fetch, one prime, one adopt. Weight 0: `AssetQueue.emit()` weights the loader percent by

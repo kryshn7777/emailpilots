@@ -93,6 +93,30 @@ export function inkProgressAt(progress: number): number {
   return 1;
 }
 
+/**
+ * Dust-mote opacity at a Ch1 progress — REVIEWS.md F-4, expressed as arithmetic.
+ *
+ * STORYBOARD Ch2 §Environmental effects: *"dust motes fade out with the sun"*. Chapters are
+ * registered permanently and only the ACTIVE one receives `update()`, so whatever Ch1 leaves
+ * the motes at persists through Ch2-Ch7 — sun-shaft motes hanging in a night room for six
+ * chapters. The fall therefore rides the same 95-100% window as the sun-angle fall and the
+ * +0.2 stop, and it lands on exactly 0.
+ *
+ * It lives here, and not as three lines inside `Ch1FirstLight.update()`, for one reason: F-4
+ * asks for the value to be **asserted** 0 at progress 1.0, and the chapter reaches `Stage`,
+ * which reaches `WebGLRenderer` — nothing under `node --test` can construct it. As a pure
+ * function of progress the dismissal is checkable, and it is exact: `span(1, 0.95, 1)`
+ * divides one expression by itself, so the endpoint is 1 with no rounding anywhere in the
+ * path and `1 - 1` is exactly 0.
+ *
+ * The window is read off `CH1_BEATS` rather than written as 0.95 again — a storyboard
+ * amendment that moves `sun-warms` must move the dust with it, or the motes outlive the sun
+ * they were lit by.
+ */
+export function dustOpacityAt(progress: number): number {
+  return 1 - span(progress, CH1_BEATS[4].at, 1);
+}
+
 /** Ch2 THE HANDOFF — the sequence becomes an object; dusk arrives; the lamp takes over. */
 export const CH2_BEATS = [
   { at: 0.0, label: 'fold-one' },
