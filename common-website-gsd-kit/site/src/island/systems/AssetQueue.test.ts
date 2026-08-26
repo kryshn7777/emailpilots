@@ -158,3 +158,56 @@ test('load(critical) resolves without touching soon/lazy items, urls joined onto
   assert.equal(calls.length, 2, 'only the critical batch was fetched');
   assert.deepEqual([...calls].sort(), ['/base/c1.bin', '/base/c2.bin'], 'base-safe joins');
 });
+
+/**
+ * Wave-2 checkpoint finding (03-07-T4 §C, "each asset fetched once"): `clipboard.glb` was
+ * pulled TWICE in a real browser scrub. `done` is only set when a fetch resolves, so a
+ * second `load()` of the same priority re-selects an item that is still in flight — and
+ * the island calls `load('soon')` at EVERY chapter boundary, including the ones whose
+ * manifest is empty, so re-entry during an in-flight prefetch is the normal case.
+ */
+test('a second load() joins an in-flight item instead of re-fetching it', async () => {
+  const calls: string[] = [];
+  const gate = deferred();
+  const fetchFn = (async (input: RequestInfo | URL) => {
+    calls.push(String(input));
+    await gate.promise;
+    return new Response(new Uint8Array(64));
+  }) as typeof fetch;
+
+  const q = new AssetQueue({ fetchFn, baseUrl: '/base/' });
+  q.add('clipboard.glb', 'soon', 64);
+
+  const first = q.load('soon');
+  await settle(); // first fetch is in flight, not yet done
+  const second = q.load('soon'); // the empty-manifest boundary re-entering
+  gate.resolve();
+  const [a, b] = await Promise.all([first, second]);
+
+  assert.equal(calls.length, 1, `fetched once, got ${calls.length}: ${calls.join(', ')}`);
+  // Both callers must still receive the bytes — a joiner that resolves empty would
+  // silently hand registry.prime() nothing to parse.
+  assert.equal(a.get('clipboard.glb')?.byteLength, 64);
+  assert.equal(b.get('clipboard.glb')?.byteLength, 64);
+});
+
+/**
+ * The latent half of the same defect: `add()` pushes unconditionally, so one url declared
+ * by two chapters (a prop that appears in two scenes — near-certain once Ch3-Ch7 land)
+ * becomes two items and two fetches no matter what the timing is.
+ */
+test('add() is idempotent per url — one declaration per asset, however many chapters want it', async () => {
+  const calls: string[] = [];
+  const fetchFn = (async (input: RequestInfo | URL) => {
+    calls.push(String(input));
+    return new Response(new Uint8Array(32));
+  }) as typeof fetch;
+
+  const q = new AssetQueue({ fetchFn, baseUrl: '/base/' });
+  q.add('shared.glb', 'soon', 32);
+  q.add('shared.glb', 'soon', 32); // a second chapter declaring the same prop
+
+  const out = await q.load('soon');
+  assert.equal(calls.length, 1, `fetched once, got ${calls.length}: ${calls.join(', ')}`);
+  assert.equal(out.get('shared.glb')?.byteLength, 32);
+});
