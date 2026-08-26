@@ -25,6 +25,7 @@ import { createEnvCrossfade } from './systems/envCrossfade.ts';
 import { barFraction, labelFor, navVisible } from './choreo/affordance.ts';
 import { CHAPTER_ASSETS, nextPrefetch } from './choreo/chapterAssets.ts';
 import { ProofChapter } from './chapters/ProofChapter.ts';
+import { installStillCapture, parseStillParam } from './qa/still.ts';
 
 /** Chunk-identification marker — check-budgets.mjs locates the island chunk by this literal. */
 export const ISLAND_ENTRY = true;
@@ -234,6 +235,13 @@ export async function mount(opts: MountOptions): Promise<void> {
     const section = document.querySelector<HTMLElement>(`#${id}`);
     if (section !== null) timeline.register({ id, element: section }, proof);
   }
+
+  // '?still=chN[.beat]' capture (D3-14) — installed only once the chapters are registered,
+  // because the tool pins the master scrub and reads back the frame it produced. Same shape
+  // as Stage's '?hud' / '?ctxloss' gates: the param is parsed to numbers behind a literal
+  // pattern and a malformed value installs nothing at all (T-03-01).
+  const still = parseStillParam(new URLSearchParams(window.location.search).get('still'));
+  if (still !== null) installStillCapture({ target: still, stage, el });
 
   // Context restore (research Pattern 4): render targets — every PMREM and the
   // blend RT — are NOT restored by the browser. Re-fetch both .hdr via AssetQueue
