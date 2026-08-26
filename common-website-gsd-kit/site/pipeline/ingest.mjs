@@ -11,9 +11,11 @@
  * the process exits 1 and nothing lands in public/assets. Raw downloads live
  * only in gitignored assets-source/ and can never ship (D2-01/D2-07).
  *
- * Per-asset config shape note — Q2 reserved slot: rows will grow an `inkSdf`
- * bake entry when the ink-reveal SDF bake tooling lands in Phase 3 (D2-16).
- * Only the slot is reserved here; no bake code in Phase 2.
+ * Q2 reserved slot — CLOSED by plan 03-08, and not where this comment expected.
+ * The ink bake is a standalone `pipeline/bake-ink.mjs` (authored polylines →
+ * a stroke-ORDER ramp PNG), not an `inkSdf` row on a sourced asset: it has no
+ * download, no licence row and no Regime-A ceiling to gate, so it never enters
+ * this pipeline. No row grows a bake entry. See STACK-DECISION.md §Q2.
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
