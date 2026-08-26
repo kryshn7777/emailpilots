@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-08-26T08:53:10.000Z"
-last_activity: 2026-08-26 -- Completed 03-05 (asset registry + one-ahead prefetch + ?still= capture; BUDGETS Regime-B mobile Ch1 line found unreachable and escalated)
+stopped_at: 03-09 T1+T2 complete; PAUSED at 03-09-T3 (blocking human checkpoint)
+last_updated: "2026-08-26T14:05:00.000Z"
+last_activity: 2026-08-26 -- 03-09 T1+T2 (the Room, Ch1 skeleton, ProofChapter retired, Ch1 payload split 5.65 MB critical / 8.50 MB streamed); PAUSED at T3; hero-desk asset escalated as unusable
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 28
   completed_plans: 16
-  percent: 57
+  percent: 57  # unchanged: 03-09 is paused at its checkpoint, not complete
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Core Experience) — EXECUTING
-Plan: 7 of 19
+Plan: 9 of 19 (03-09 PAUSED at its blocking human checkpoint)
 Status: Executing Phase 3
-Last activity: 2026-08-26 -- Completed 03-05 (asset registry + one-ahead prefetch + ?still= capture; BUDGETS Regime-B mobile Ch1 line found unreachable and escalated)
+Last activity: 2026-08-26 -- 03-09 T1+T2 (the Room, Ch1 skeleton, ProofChapter retired, Ch1 payload split); PAUSED at T3
 
 Progress: [██████░░░░] 57%
 
@@ -69,6 +69,7 @@ Progress: [██████░░░░] 57%
 | Phase 3 P08 | 70min | 2 tasks | 8 files |
 | Phase 3 P03 | 91min | 4 tasks | 12 files |
 | Phase 3 P05 | 35min | 3 tasks | 5 files |
+| Phase 3 P09 | 165min | 2 of 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,10 @@ Recent decisions affecting current work:
 - [Phase 3]: the asset registry caches PROMISES, not values, so overlapping `prime()` calls share one parse and idempotency is free — which it must be, because the prefetch decision re-runs on every scroll drive (03-05)
 - [Phase 3]: `ktx2.dispose()` was DELETED from `mount()`, not relocated — the transcoder's workers decode every later standalone `.ktx2` and there is no island teardown to move it to (nothing unmounts the island); the comment at the deletion site names what belongs in one when it lands (03-05)
 - [Phase 3]: `?still=` exports the canvas alone and REVIEWS.md F-11 is recorded as unmet, not quietly satisfied — the composited full-viewport frames F-11 wants for WOW-beat review are a headless page screenshot at the same `?still=` position, owned by 03-19-T3 (03-05)
+- [Phase 3]: Ch1's payload is SPLIT rather than declared whole — 5,653,052 B critical (both skies + the desk, which is the world origin, + the lamp, which the rig is posed on) and 8,499,498 B streamed behind the handoff on AssetQueue's existing 'lazy' priority. The whole object list is 16,700,829 B against a 9 MB desktop line; the cut is by what the opening ECU needs, which is what "to interactive" measures. Paper001 is in neither — 03-11 builds the letter (03-09)
+- [Phase 3]: the wall is a pane of light, not a hole — with no scene.background a hole shows the renderer clear colour, which is a worse sky than a quad the day-wheel tints; window surround + mullion cross ship as ONE InstancedMesh of six bars (03-09)
+- [Phase 3]: fog colour tracks the sky but its LEVEL does not (FOG_LUMA 0.22) — a fog matching the sky exactly fades the room to bright grey haze at noon, the opposite of "only what light touches exists"; F-14's mechanism honoured, its failure mode avoided (03-09)
+- [Phase 3]: desk-plane prop anchors are FRACTIONS of the measured desk top, and two props carry a real-world `metres` normalisation target — because the hero desk asset is now known to be unresolved and absolute lateral metres would be re-tuned by hand at every swap (03-09)
 - [Phase 3]: browser sittings earn their cost — both 03-03 layout defects (chapters stacking 3-to-a-range at 580vh; Ch7 at zero scrub range) were invisible to a green 195-test suite and a 4/4 build, and each is now pinned by a source gate carrying the measured numbers in its docblock
 
 ### Pending Todos
@@ -133,6 +138,12 @@ None yet.
 - **ESCALATED 2026-08-26 (03-05): BUDGETS Regime-B Ch1 mobile ≤5 MB has no owner and cannot be met in Phase 3.** Ch1's critical path is 6,649,520 B on BOTH tiers (1,649,520 B over) because the 1K mobile prop-set variants STORYBOARD authors were never ingested and the island has no per-tier asset selection. Gated as a zero-headroom debt in `chapterAssets.test.ts`. Closing it is one of: a 1K-variant ingest chain (new pipeline capability + new island mechanism), a BUDGETS amendment (Phase 6 measures the real traces), or a Ch1 mobile scene cut (scene-director). **Immediate consequence: 03-09 inherits only 2,350,480 B of desktop headroom** — the chair + Paper001 alone are 3.87 MB — so it must split Ch1 into pre-handoff-critical vs streamed-behind rather than declaring the whole storyboard object list
 - 03-VALIDATION.md now carries status cells from 03-02, 03-03, 03-04, 03-05, 03-06, 03-07 and 03-08. 03-05 edited exactly seven (its three task rows, the EXP-03/EXP-05/D3-14 coverage rows, and the wave-0 checklist line). Still never `git checkout --` it
 - 03-05 did NOT invoke `gsd-sdk query state.*` — STATE.md was hand-edited additively instead, on the standing warning above that the SDK regresses this file while returning `{"updated": true}`. Prefer the same route until that is fixed
+- **ESCALATED 2026-08-26 (03-09): the hero desk asset is not a desk.** `WoodenTable_02` measures 301 x 301 x 418 mm at source — Poly Haven's own /info API agrees, so the ingest is faithful — i.e. a 30 cm plant stand, designated "1-7 (hero desk)" in ASSETS.md since Phase 1. NO scale factor rescues it: the model is taller than it is wide, so height-normalising to 0.75 m gives a 0.54 x 0.54 m top the ten-prop dressing list overhangs, and width-normalising to 1.25 m gives a 1.74 m tower. `cameraRig.ts`'s pose table is authored against a desk you view whole from ~1.2 m. `WoodenChair_01` is separately 2.274 m tall. Remedies (none chosen, scene-director call): source a real writing desk and swap the manifest row (the fractional anchors + `metres` normalisation make this a one-row change); re-author the camera table for a small side table; or cut the dressing list. **Blocks the "does the room read / does the camera travel pop-free" half of 03-09-T3. Does NOT block the wall-material judgement** — the light rig, wall, window and lamp pool all work and all six review frames render clean
+- 03-09 shipped a `?wall=` / `?sky=` review lever (`src/island/qa/review.ts`) so Open Question 5 is a diff of two URLs rather than two builds. `?wall=` is DELETED when 03-09-T3 closes; `?sky=` is worth keeping for later chapter reviews
+- Ingest gates are bytes, tris and rig integrity — **dimensions have never been among them**, which is why a 30 cm "hero desk" and a 2.27 m "chair" reached wave 3 unremarked. A headless CDP smoke (Chrome's own protocol over Node 22's global WebSocket, zero packages) found it and a mount-breaking `scene.environment` throw within minutes of a green 240-test suite. Both were invisible to every unit gate
+- BUDGETS §Amendments B2 retired the mobile asset-weight line while 03-09 ran. Its `chapterAssets.test.ts` gate is KEPT as a ratchet (not a budget line) with B2's recorded-at-retirement figure beside it; the number moved 6,649,520 -> 5,653,052 B as a side effect of the desktop-driven split, not as an attempt to close the debt B2 told executors to stop attempting
+- 03-VALIDATION.md now also carries 03-09's status cells. 03-09 edited exactly three (its T1, T2 and T3 rows). Still never `git checkout --` it
+- 03-09 did NOT invoke `gsd-sdk query state.*` — STATE.md was hand-edited additively, on the standing warning above
 - Commits currently ride the outer repo's `feat/founder-month-promo` branch (PROJECT.md Key Decisions: revisit)
 
 ## Deferred Items
@@ -145,6 +156,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-26T08:53:10.000Z
-Stopped at: Completed 03-05-PLAN.md (wave 2: 03-05, 03-06 and 03-08 have SUMMARYs; 03-07 is the remaining wave-2 plan and carries the wave-2 browser checkpoint that 03-05's live claims are parked against)
-Resume file: .planning/phases/03-core-experience/03-07-PLAN.md
+Last session: 2026-08-26T14:05:00.000Z
+Stopped at: 03-09 T1+T2 complete and green (243 tests, 4/4 build gates). PAUSED at 03-09-T3, the wave-3 blocking human checkpoint: both wall candidates ingested and renderable, winner NOT picked, loser NOT deleted, manifest NOT pruned. Capture instructions in 03-09-SUMMARY.md §Task 3.
+Resume file: .planning/phases/03-core-experience/03-09-SUMMARY.md (read §Escalations E-1 first)

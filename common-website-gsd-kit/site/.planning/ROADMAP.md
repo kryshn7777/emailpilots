@@ -117,7 +117,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 03-09-PLAN.md — The Room: procedural shell, prop placement, light rig, tier knobs; Ch1 skeleton; ProofChapter retired; wall material decided on a combined render
+- [~] 03-09-PLAN.md — The Room: procedural shell, prop placement, light rig, tier knobs; Ch1 skeleton; ProofChapter retired; wall material decided on a combined render *(T1+T2 done; PAUSED at T3, the blocking human checkpoint — both wall candidates ingested and renderable via `?wall=`/`?sky=`; hero-desk asset escalated, see 03-09-SUMMARY §E-1)*
 
 **Wave 4** *(blocked on Wave 3)*
 
