@@ -30,7 +30,7 @@ Lifted **verbatim** from STORYBOARD.md's "On-screen copy" fields (D-16/D-17 — 
 | Ch4 Six Days | "Days pass. It keeps your pace." / (as the ramp visibly lifts) "New mailboxes ease in — about 5 a day at first, toward about 50." / (bounce beat, small) "A dead address comes back once — and is never emailed again." | §5 warm-up (Appendix B safe numbers) + §6 bounce retire / do-not-send |
 | Ch5 The Reply | (after the landing, alone on screen) "She answered." / (as FOLLOW-UP 3 lies down) "So the rest stands down. Before every follow-up, it checks for a reply — any of your inboxes counts." | §4 stop-on-reply across connected inboxes; §8's 15-minute number is saved for Ch6's chips |
 | Ch6 Your Desk, The App | "Meet Email Pilots." / "Everything you just watched is a Windows app, doing its actual job." / Chips: "Follow-ups stop the moment they reply" (§4) · "Replies checked every 15 minutes" (§8) · "Your mailbox + up to 5 more, sending in parallel" (§1) · "One do-not-send list across every account" (§6) · "No open or click tracking — replies are the honest metric" (§13) · "Optional AI that never phones home" (§9 — generic phrasing per Appendix A) / In-world card: "Ready for takeoff" (§7) / Privacy close: "All of it on your PC. Gmail, Microsoft, or your own server. No cloud account. No telemetry." | §1, §4, §6, §7, §8, §9, §10, §13 |
-| Ch7 Ready When You Are | H2: "Your follow-ups, off your mind." / CTA primary: "Download for Windows — free" / Sub: "Free to start. No credit card." / Honesty note (expandable): "Windows will double-check a new app — here's the screen you'll see, and why." / Founder line (small): "Founder window: early signups fly First Class free." / Secondary: "See everything it does →" / Footer: credits/colophon · privacy stance line | §12 + `## Conversion block` below |
+| Ch7 Ready When You Are | H2: "Your follow-ups, off your mind." / CTA primary: "Download for Windows — free" / Sub: "Free to start. No credit card." / Honesty note (expandable): "Windows will double-check a new app — here's the screen you'll see, and why." / Founder line (small): "Founder window: early signups fly First Class free." / Secondary: "See everything it does →" / Footer: credits/colophon · privacy stance line "Everything Email Pilots knows stays in plain files on your PC — yours to open, back up, or delete." | §12; footer stance §10 (STORYBOARD Amendment A9) + `## Conversion block` below |
 
 World-type strings beyond these fields (Ch2 wait-tags "FOLLOW-UP 2 · wait 3 days" / "FOLLOW-UP 3 · wait 4 days", Ch4 day-tag MON→SAT, Ch6 mapping labels) are specified in the storyboard's Animation/Typography fields — Phase 3 places them from there, verbatim, adding claim rows below if any new claim appears.
 
@@ -53,6 +53,7 @@ Every distinct product claim in the proposed copy, traced to `docs/product/FEATU
 | Optional AI that never phones home | Ch6 chip | §9 | Appendix A: keep generic — no per-account label claims, no auto-rewrite claims (see `## Appendix A exclusions`) |
 | Your mailbox + up to 5 more, sending in parallel | Ch6 chip | §1, Appendix B | Safe number |
 | Local-first: runs on your PC; Gmail, Microsoft, or your own server; no cloud account; no telemetry | Ch6 privacy close | §1, §10 | "100% local" / "zero cloud servers" are the sanctioned honest superlatives (Appendix B) |
+| Your data is plain local files you can open, back up, or delete | Ch7 footer stance | §10 | §10's first bullet, near-verbatim. States the same differentiator as Ch6's close, affirmatively — no new capability, number, or guarantee (Amendment A9) |
 | No open or click tracking — replies are the honest metric | Ch6 chip | §13 | Honest-limits section; reply-rate analytics are built in |
 | Free to start, no credit card | Ch7 sub | §12 | 7-day trial per §12; no price shown in v1 copy (see `## Conversion block`) |
 | "Maya" and every on-screen thread are demo narrative | Site-wide | §11 | Explore mode ships sample data; nothing is presented as a testimonial or statistic |
@@ -69,7 +70,13 @@ The Ch7 spec (D-18). The CTA is the real product action — a free Windows downl
 - **Secondary CTA:** `See everything it does →` — the concise product section.
 - **Persistent quiet nav:** "Email Pilots" wordmark + a small "Download" link from Ch3 onward — the fast path for busy visitors.
 - **Hard rule:** NO Buy button, NO purchase claims, NO price anywhere — the license store is not live (activation refuses every key), so a purchase claim would be false (§12 gating note + Appendix A).
-- **Footer:** credits/colophon link (the CC-BY attribution surface, D-07) · privacy stance line.
+- **Footer:** credits/colophon link (the CC-BY attribution surface, D-07) · privacy stance line:
+  `Everything Email Pilots knows stays in plain files on your PC — yours to open, back up, or delete.` (§10.)
+  Authored by STORYBOARD Amendment A9 / REVIEWS.md §Ruling 8 — the slot was specified in Phase 1 and
+  its words were not, and it shipped filled by copy-paste from Ch6's locked privacy close. It is
+  **not** a refrain of that close and must never be re-merged with it: Ch6 makes the privacy claim
+  mid-journey in negations; the footer stands behind it afterwards, affirmatively, as site chrome.
+  Inter, not mono. Same words on mobile and on the reduced-motion path.
 
 ## Banned register
 

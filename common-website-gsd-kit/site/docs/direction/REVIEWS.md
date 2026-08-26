@@ -752,3 +752,128 @@ CHAPTER_SPANS_VH = [90, 100, 120, 140, 110, 110, 70]   // unchanged, sums to 740
 **Canon:** STORYBOARD §Amendments **A8** (2026-08-20) — A3 gains a mechanical definition of "ends
 stopped"; A4 gains the Ch7 hold-to-end exception. No span, no beat percentage, and no camera value
 changes.
+
+---
+
+## Ruling 8 — the footer's privacy stance line — 2026-08-26
+
+`impeccable`'s `aphoristic-cadence` rule flags `src/pages/index.astro`: three sections closing on the
+same short-rebuttal shape ("X. No Y."), which reads as machine cadence rather than voice. "Once is
+fine; the pattern is the tell."
+
+### Two of the three are locked canon and stay exactly as they are
+
+**Instance 1 — Ch6's privacy close (92%):** *"All of it on your PC. Gmail, Microsoft, or your own
+server. No cloud account. No telemetry."* Locked word-for-word in `.planning/COPY-PLAN.md`
+§Per-chapter copy (Ch6 row), carried at STORYBOARD Ch6 §On-screen copy, traced `(§1, §10)` to
+`docs/product/FEATURES.md`. Its negations are not a stylistic tic — they are two of the product's
+literal differentiators, and FEATURES Appendix B instructs us to lead with exactly them. Unchanged.
+
+**Instance 2 — Ch7's CTA sub:** *"Free to start. No credit card."* Also locked (COPY-PLAN Ch7 row,
+§12). A different register entirely — price, not privacy — and it is the honest qualifier the CTA
+needs to carry. Unchanged.
+
+**Neither should be re-opened by a future reader.** Two locked lines, a chapter apart, in two
+registers, is not a pattern. It is two facts stated plainly, which is the house voice.
+
+### The third instance is the defect — and it is a different bug than the lint named
+
+Shipped at `src/pages/index.astro:243`:
+
+```html
+<p class="stance">Email Pilots runs on your PC. No cloud account. No telemetry.</p>
+```
+
+That is Ch6's locked close with its first clause swapped and **its last two sentences copy-pasted
+verbatim**, roughly 50vh of scroll below the original.
+
+COPY-PLAN specified the slot and never authored the words — §Conversion block's Footer bullet reads
+"credits/colophon link (the CC-BY attribution surface, D-07) · privacy stance line", and STORYBOARD
+Ch7 §On-screen copy ends the same way. **An implementer filled an unspecified slot from the nearest
+locked line.** The lint saw duplication and read it as cadence; the cadence is downstream.
+
+The structural cause is worth naming. Every other Ch7 string is quoted inside COPY-PLAN's
+§Per-chapter copy table, so `src/island/choreo/copyParity.test.ts` asserts it against the shell. The
+stance line is the one Ch7 string that was never quoted — so it was the one Ch7 string with no gate,
+and the unauthored line walked through the only unguarded door on the page.
+
+### Verdict: **fix.** New wording, authored. The refrain is refused.
+
+I considered ruling for the refrain — a bookend that lands the same beats after the journey ends is a
+real device, and it would have cost nothing. I am rejecting it on three grounds, none of them the
+lint's.
+
+**A refrain needs distance.** ~50vh — the tail release and the conversion block — is inside earshot
+of the first statement. A phrase that returns before the audience has finished hearing it does not
+read as a device. It reads as a stutter.
+
+**This one comes back weaker than it left.** The footer instance drops the strongest clause ("Gmail,
+Microsoft, or your own server") and flattens "All of it on your PC" into the nominal "Email Pilots
+runs on your PC". A refrain that spends the repetition and returns *less* than the original is the
+worst available version of the idea.
+
+**The bookend is already cast, and it is visual.** Ch7's blank sheet is Ch1's first image (STORYBOARD
+Ch7 §Visual composition) — the site's authored closure, chosen in Phase 1. A verbatim copy echo in
+the footer competes with that closure instead of reinforcing it. One bookend per ending.
+
+### The job the footer position actually gives the line
+
+Ruling 7 already drew this line: *the footer is site chrome, not story.* Ch6's close does its work at
+the emotional peak of the revelation, mid-journey, with the room dimmed and the UI plane risen. The
+footer's line runs after the journey has ended and the CTA has been made, beside the credits link — a
+provenance surface.
+
+So its job is **not to make the privacy claim**; Ch6 already made it. Its job is to *stand behind it*:
+the honest signature at the bottom of the document, and the line that survives being read cold by
+someone who arrived mid-page, or who is on the STATIC-ENHANCED path and never saw Ch6 animate.
+
+That job wants the opposite rhetoric from Ch6's. Ch6 spent the negation. The site should not end on
+what the product isn't — it should end on what it is, and on what the visitor holds.
+
+### The line
+
+> **Everything Email Pilots knows stays in plain files on your PC — yours to open, back up, or delete.**
+
+Traced to `docs/product/FEATURES.md` §10, first bullet, near-verbatim: "Everything stays on your PC.
+Contacts, history, replies, settings — plain local files you can open, back up, or delete."
+
+Why this line and not another:
+
+- **It carries no negation and no rebuttal cadence at all**, so the flagged pattern drops from three
+  instances to two — and the two that remain are locked, separated, and in different registers. The
+  lint's finding is answered at its root rather than papered over.
+- **"Everything it knows" spends and disarms a small tension inside one sentence.** It concedes that
+  the app holds things about you, then says precisely where they sit. That is a stronger privacy move
+  than any "No X." — it answers the question the visitor was actually going to ask.
+- **"Plain files you can open" is the most concrete, most checkable privacy proof in FEATURES**, and
+  the site has not spent it anywhere — not in a Ch6 chip, not in Ch6's close. The footer is the right
+  place to spend it: a quiet, verifiable fact that rewards whoever is still reading at the bottom.
+- **The last three words of the site are "open, back up, or delete."** The experience ends on the
+  visitor's agency over their own data — which is the feeling the conversion should leave behind, and
+  it rhymes with the blank sheet waiting on the desk without repeating it.
+
+Constraint sweep, all clear: no new capability, number, or guarantee (§10 only, no §-body number) ·
+no phrase from COPY-PLAN §Banned register (all eight positioning bans and all four generic-register
+bans checked) · no never-claim ("safe"/"verified", pricing or purchase, deliverability, "spam") · no
+§Appendix A exclusion (tiers/keys, browser-session connect, AI-on-Microsoft, auto-rewrite,
+unsubscribe, dark mode) · no Buy button, no price.
+
+**Register:** Inter — the explanation voice, not mono. This is prose the *maker* says, not a system
+log. The existing `.stance` styling stands; do not demote it to fine print.
+
+**Mobile:** the same words. It wraps to two lines beneath the credits link, and that is the authored
+mobile treatment — a footer under no scroll pressure can afford its whole sentence, so there is no
+shortened variant to maintain. **Reduced motion:** identical; the line never animated on any path.
+
+### What the implementer does
+
+1. Replace the content of `<p class="stance">` at `src/pages/index.astro:243` with the line above,
+   verbatim, em dash included.
+2. Nothing else under `src/` changes — no CSS, no choreography, no `worldType.ts` constant.
+
+`copyParity.test.ts` is **red between this ruling and that edit**, deliberately: the string is now
+quoted in COPY-PLAN's Ch7 row, so the gate asserts it in the shell. That red is the gate finally
+covering the one slot that never had one.
+
+**Canon:** STORYBOARD §Amendments **A9** (2026-08-26) — Ch7's §On-screen copy gains the footer stance
+wording. No chapter span, beat percentage, camera value, or previously locked line changes.

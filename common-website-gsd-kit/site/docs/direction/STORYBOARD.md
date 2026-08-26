@@ -537,3 +537,34 @@ This is the ending's real requirement: the canvas holds *and* the copy holds.
 measures the journey; the footer is site chrome, not story. The bar fills as the room settles and
 stays full through the held rest and the footer. Parking it short of full through the entire authored
 ending would tell the visitor the film is unfinished while it is over.
+
+### A9 — 2026-08-26 · Ch7's footer stance line is authored; it is not Ch6's close repeated
+
+*Supersedes: the trailing clause "Footer: credits/colophon · privacy stance line" in Ch7's §On-screen
+copy, which named a slot and never authored its words. No other Ch7 field changes, and no locked line
+anywhere is altered.*
+*Reason: the unauthored slot shipped filled by copy-paste — Ch6's locked privacy close with its first
+clause swapped and its last two sentences duplicated verbatim, ~50vh below the original. It was the
+one Ch7 string never quoted into COPY-PLAN's copy table, so it was the one Ch7 string with no parity
+gate. (REVIEWS.md §Ruling 8.)*
+
+Ch7's §On-screen copy now ends: Footer: credits/colophon · privacy stance line — **"Everything Email
+Pilots knows stays in plain files on your PC — yours to open, back up, or delete."** *(FEATURES §10.)*
+
+**Ch6's close is untouched and stays canon.** "All of it on your PC. Gmail, Microsoft, or your own
+server. No cloud account. No telemetry." remains Ch6's 92% beat, verbatim. The two lines are not
+variants of each other and neither is a refrain of the other.
+
+**They hold different jobs.** Ch6's close makes the privacy claim at the peak of the revelation, in
+negations, because those negations are the differentiators. The footer line — site chrome, not story,
+per A8's distinction — *stands behind* the claim after the journey has ended and the CTA has been
+made. It is the signature at the bottom of the document, and the one privacy line that survives being
+read cold by a visitor who arrived mid-page or who never saw Ch6 animate.
+
+**It carries no negation by design.** Ch6 spent the negation; the site ends on what the product *is*
+and on what the visitor holds. The final three words are the visitor's agency over their own data.
+
+**Register:** Inter — the explanation voice, not mono; prose the maker says, not a system log.
+**Mobile:** the same words, wrapping to two lines under the credits link — a footer under no scroll
+pressure can afford its whole sentence, so there is no shortened second cut. **Reduced motion:**
+identical; the line never animated on any path.
