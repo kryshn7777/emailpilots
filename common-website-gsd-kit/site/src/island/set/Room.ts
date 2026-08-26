@@ -79,7 +79,13 @@ import {
   type EnvTriple,
   type SkyId,
 } from '../choreo/dayWheel.ts';
-import { PROP_ANCHORS, PROP_SOURCES, placeProps, type PropId } from './props.ts';
+import {
+  PROP_ANCHORS,
+  PROP_SOURCES,
+  placeProps,
+  type PropId,
+  type ScaleTarget,
+} from './props.ts';
 
 /* ------------------------------------------------------------------ authored numbers --- */
 
@@ -240,12 +246,21 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   // The desk is the origin. `WoodenTable_02` arrives with its origin at its base, so the
   // model is shifted down by its own measured height — putting the real top face on
   // cameraRig's y = 0 plane rather than raising every camera pose to meet the model.
+  //
+  // It is also normalised first: at source it is a 301 x 301 x 418 mm plant stand (Poly
+  // Haven's own /info agrees), and every measurement below would otherwise be taken against
+  // that. See props.ts §Scale normalisation and 03-09-SUMMARY §Escalations.
   const table = await registry.get<Object3D>(PROP_SOURCES.table);
+  normaliseScale(table, PROP_ANCHORS.table.metres);
   const bounds = new Box3().setFromObject(table);
   const tableHeight = bounds.max.y - bounds.min.y;
   const deskTopY = 0;
   const floorY = -tableHeight;
   table.position.y = -bounds.max.y;
+  // Half-extents of the real top face — what a desk anchor's fractional u/v scale by, so a
+  // different desk asset moves every prop with it instead of stranding them in mid-air.
+  const deskHalfWidth = (bounds.max.x - bounds.min.x) / 2;
+  const deskHalfDepth = (bounds.max.z - bounds.min.z) / 2;
 
   /* -- shell ------------------------------------------------------------------------- */
 
@@ -413,6 +428,8 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
     placeProps(Object.fromEntries(placed) as Partial<Record<PropId, Object3D>>, {
       desk: deskTopY,
       floor: floorY,
+      halfWidth: deskHalfWidth,
+      halfDepth: deskHalfDepth,
     }, tier);
   };
 
@@ -471,6 +488,7 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
       const url = PROP_SOURCES[id];
       if (!registry.has(url)) continue;
       const object = await registry.get<Object3D>(url);
+      if (id !== 'table') normaliseScale(object, PROP_ANCHORS[id].metres);
       root.add(object);
       placed.set(id, object);
     }
@@ -570,6 +588,23 @@ export async function createRoom(deps: RoomDeps): Promise<Room> {
   };
 
   return room;
+}
+
+/**
+ * Scale a model uniformly so its measured extent on the named axis is the declared real-world
+ * size. Idempotent: the extent is re-measured from the model's CURRENT scale, so calling it
+ * twice is a no-op rather than a second division — which matters, because `adopt()` runs once
+ * per asset batch.
+ *
+ * `null` ships the model at source scale, which is the case for eight of the ten props.
+ */
+function normaliseScale(object: Object3D, target: ScaleTarget | null): void {
+  if (target === null) return;
+  const size = new Box3().setFromObject(object).getSize(new Vector3());
+  const extent = size[target.axis];
+  if (!(extent > 0)) return; // an unmeasurable model is a broken model, not a scale of Infinity
+  object.scale.multiplyScalar(target.size / extent);
+  object.updateMatrixWorld(true);
 }
 
 /**

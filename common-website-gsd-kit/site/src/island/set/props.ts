@@ -20,6 +20,27 @@
  * re-ingested at a different height); `floor` resolves against the measured underside, which
  * is where the room's floor plane goes. Neither is a literal anywhere in `Room.ts`.
  *
+ * ## Desk anchors are FRACTIONS, and that is not premature generality
+ *
+ * A `desk` anchor's X and Z are fractions of the measured desk top's half-extent, not metres.
+ * The reason is a fact rather than a preference: the hero desk asset is **unresolved**.
+ * `WoodenTable_02` measures 301 x 301 x 418 mm at source — Poly Haven's own `/info` agrees —
+ * which is a plant stand, not the writing desk the whole site is about. Until the
+ * scene-director rules on it (see 03-09-SUMMARY §Escalations), absolute lateral metres would
+ * be tuned against a desk that is about to change size, and every one of them would have to
+ * be re-tuned by hand when it does. Fractions move with the desk for free.
+ *
+ * `floor` anchors stay absolute metres: a floor has no natural extent to be a fraction of.
+ *
+ * ## Scale normalisation
+ *
+ * Eight of the ten props measure real-world sane against Poly Haven's metadata and ship at
+ * native scale. Two do not, and not marginally — no writing desk is 42 cm high and no chair
+ * is 2.27 m tall — so those two, and only those two, declare a `metres` target. `Room`
+ * divides the MODEL's own measured extent by it, which means the statement here is about the
+ * real world and a future re-ingest at a corrected scale silently self-corrects rather than
+ * doubling the error. Normalising a prop that is already right would be an invented number.
+ *
  * ## The list is closed
  *
  * ART-DIRECTION §Environment language: *"Set dressing is finite and fixed: desk, chair,
@@ -49,13 +70,26 @@ export type PropId =
   | 'encyclopedia'
   | 'shelf';
 
+/** A real-world dimension a model is normalised to, on the axis it is measured along. */
+export interface ScaleTarget {
+  axis: 'x' | 'y' | 'z';
+  /** Metres. `Room` scales the model uniformly so its measured extent on `axis` is this. */
+  size: number;
+}
+
 export interface PropAnchor {
   /** Which measured plane the Y is relative to. Never an absolute world height. */
   plane: 'desk' | 'floor';
-  /** `[x, y, z]` in metres; `y` is the lift above the named plane, usually 0. */
+  /**
+   * `desk`: `[u, lift, v]` — u and v are FRACTIONS of the measured desk-top half-extent
+   * (so |u|, |v| <= 1 is "on the desk"), `lift` is metres above the surface.
+   * `floor`: `[x, lift, z]` in metres.
+   */
   position: readonly [number, number, number];
   /** Yaw in radians. Nothing in this room is pitched or rolled — it all sits flat. */
   rotationY: number;
+  /** Uniform scale normalisation, or `null` to ship the model at its source scale. */
+  metres: ScaleTarget | null;
   /**
    * `null` = ships on every tier. `'desktop'` = the storyboard's authored cut, and the only
    * value in this table: ASSETS.md marks Shelf_01 "desktop-only side dressing; first cut
@@ -66,37 +100,62 @@ export interface PropAnchor {
 }
 
 export const PROP_ANCHORS: Record<PropId, PropAnchor> = {
-  /** The origin anchor. Room shifts the model so this position IS the desk surface. */
-  table: { plane: 'desk', position: [0, 0, 0], rotationY: 0, tier: null },
+  /**
+   * The origin anchor. Room shifts the model so this position IS the desk surface.
+   *
+   * Normalised by HEIGHT, not width, for two reasons. It is the dimension the camera table
+   * actually depends on — `DESK_MEDIUM` is authored "~50 cm above desk height" — and it is
+   * uniform, so the model is not distorted. The consequence is stated rather than hidden:
+   * a 301 x 301 x 418 mm model scaled to 0.75 m tall has a 0.54 x 0.54 m top, which is a
+   * small writing table and cannot host all ten dressing props at once. That is evidence
+   * for the asset call, not a thing to tune around.
+   */
+  table: { plane: 'desk', position: [0, 0, 0], rotationY: 0, metres: { axis: 'y', size: 0.75 }, tier: null },
 
-  /** Pushed back from the desk — the implied absent writer (STORYBOARD Ch1 §Objects). */
-  chair: { plane: 'floor', position: [0.06, 0, 0.74], rotationY: Math.PI, tier: null },
+  /**
+   * Pushed back from the desk and turned aside — the implied absent writer (Ch1 §Objects).
+   *
+   * Pushed back FAR: every authored camera pose lives on the +Z side of the desk between
+   * z = 0.11 (ECU_LETTER) and z = 3.51 (ROOM_CORNER), which is exactly where a writer's
+   * chair would be. At z = 0.74 the chair sat 20 cm from the lens at DESK_MEDIUM and
+   * obscured the frame. At 1.42 it is behind the desk framings and reads in the two wide
+   * shots, which is where a chair earns its place — Ch1 §Visual composition names the desk,
+   * the window and the lamp, and does not name the chair.
+   */
+  chair: {
+    plane: 'floor',
+    position: [0.14, 0, 1.42],
+    rotationY: Math.PI * 0.92,
+    // 2.274 m at source. 0.92 m is a writing chair's back height.
+    metres: { axis: 'y', size: 0.92 },
+    tier: null,
+  },
 
   /** Frame left in every master shot (§Composition); the pool anchor is under its head. */
-  lamp: { plane: 'desk', position: [-0.55, 0, -0.12], rotationY: 0.35, tier: null },
+  lamp: { plane: 'desk', position: [-0.78, 0, -0.34], rotationY: 0.35, metres: null, tier: null },
 
   /** In the lamp pool, hands readable — Ch3 ticks it to each send time. */
-  clock: { plane: 'desk', position: [0.42, 0, -0.05], rotationY: -0.18, tier: null },
+  clock: { plane: 'desk', position: [0.62, 0, -0.14], rotationY: -0.18, metres: null, tier: null },
 
   /** The envelope stack's home base (Ch2 §Objects) — the stack builds beside the pool. */
-  clipboard: { plane: 'desk', position: [0.3, 0, 0.16], rotationY: 0.12, tier: null },
+  clipboard: { plane: 'desk', position: [0.44, 0, 0.45], rotationY: 0.12, metres: null, tier: null },
 
-  notepads: { plane: 'desk', position: [-0.3, 0, 0.2], rotationY: -0.25, tier: null },
+  notepads: { plane: 'desk', position: [-0.44, 0, 0.56], rotationY: -0.25, metres: null, tier: null },
 
   /** Carries the Ch7 pen hero (`stationery_supplies_pen_fancy`), so it sits near the sheet. */
-  stationery: { plane: 'desk', position: [0.13, 0, 0.24], rotationY: 0.08, tier: null },
+  stationery: { plane: 'desk', position: [0.19, 0, 0.68], rotationY: 0.08, metres: null, tier: null },
 
-  binder: { plane: 'desk', position: [-0.16, 0, -0.22], rotationY: 0.22, tier: null },
+  binder: { plane: 'desk', position: [-0.23, 0, -0.62], rotationY: 0.22, metres: null, tier: null },
 
   /**
    * On the desk's far corner rather than on the shelf: the shelf is cut on mobile, and a
    * book set parented to a prop that disappears would leave twenty books in mid-air on the
    * tier that can least afford the debugging.
    */
-  encyclopedia: { plane: 'desk', position: [-0.44, 0, -0.3], rotationY: 0.1, tier: null },
+  encyclopedia: { plane: 'desk', position: [-0.63, 0, -0.85], rotationY: 0.1, metres: null, tier: null },
 
   /** Against the left wall, well outside the lamp pool — the declared first cut. */
-  shelf: { plane: 'floor', position: [-1.62, 0, -0.85], rotationY: 0.08, tier: 'desktop' },
+  shelf: { plane: 'floor', position: [-1.62, 0, -0.85], rotationY: 0.08, metres: null, tier: 'desktop' },
 };
 
 /**
@@ -130,6 +189,10 @@ export interface PlacePlanes {
   desk: number;
   /** World Y of the measured floor (the table's underside). */
   floor: number;
+  /** Half the measured desk top's X extent, in metres — what a `desk` anchor's u scales by. */
+  halfWidth: number;
+  /** Half the measured desk top's Z extent. */
+  halfDepth: number;
 }
 
 /**
@@ -149,8 +212,15 @@ export function placeProps(
 ): void {
   for (const [id, object] of Object.entries(props) as [PropId, Placeable][]) {
     const anchor = PROP_ANCHORS[id];
-    const base = anchor.plane === 'desk' ? planes.desk : planes.floor;
-    object.position.set(anchor.position[0], base + anchor.position[1], anchor.position[2]);
+    const onDesk = anchor.plane === 'desk';
+    const base = onDesk ? planes.desk : planes.floor;
+    const scaleX = onDesk ? planes.halfWidth : 1;
+    const scaleZ = onDesk ? planes.halfDepth : 1;
+    object.position.set(
+      anchor.position[0] * scaleX,
+      base + anchor.position[1],
+      anchor.position[2] * scaleZ,
+    );
     object.rotation.y = anchor.rotationY;
     object.visible = anchor.tier === null || anchor.tier === tier;
   }
