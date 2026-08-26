@@ -20,39 +20,63 @@ const MB = 1_000_000;
  * Parse the Models / HDRIs / PBR texture-set tables of the assets ledger.
  * Returns rows: { id, name, category, source_url, license, attribution_required,
  * attribution, ceiling_bytes, ceiling_tris, texture_size }.
- * Rows are recognized mechanically: inside a known section, a 7-cell table row
- * whose Source URL cell is an https URL. This skips headers, separators, and
- * the decimation-plan subsection table (whose cells carry no URL).
+ * Rows are recognized mechanically: inside a known section, a table row carrying
+ * an https URL in one of its cells. This skips headers, separators, and the
+ * decimation-plan subsection table (whose cells carry no URL).
+ *
+ * Columns are located RELATIVE TO THE URL CELL, never by index. Ruling 9 §4 added
+ * a `Real size (mm)` column to the Models table and left HDRIs/PBR at seven, and
+ * an index-addressed parser answered that by dropping all fourteen model rows in
+ * silence — a red suite and, one command later, `emitManifest: no ledger row for
+ * ingested asset`. The ledger is prose the scene-director edits; a parser that
+ * breaks when a column is added is a parser that will break again.
  */
+const cellsOf = (line) => line.split('|').slice(1, -1).map((c) => c.trim());
+
 export function parseLedger(assetsMdPath) {
-  const text = fs.readFileSync(assetsMdPath, 'utf8');
-  const lines = text.split(/\r?\n/);
+  const lines = fs.readFileSync(assetsMdPath, 'utf8').split(/\r?\n/);
   let category = null;
+  let column = null; // header name -> index, for the table currently being read
   const rows = [];
-  for (const line of lines) {
+  const find = (header, re) => header.findIndex((h) => re.test(h));
+  for (const [i, line] of lines.entries()) {
     const heading = line.match(/^##\s+(.+)/);
     if (heading) {
       const t = heading[1];
       category = /^Models/.test(t) ? 'model' : /^HDRIs/.test(t) ? 'hdri' : /^PBR/.test(t) ? 'pbr' : null;
+      column = null;
       continue;
     }
     if (!category || !line.startsWith('|')) continue;
-    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
-    if (cells.length < 7) continue;
-    const source_url = cells[2];
+    // Markdown's own definition of a header row: the line above the `|---|` separator.
+    if (/^\|[\s:|-]+\|$/.test(lines[i + 1] ?? '')) {
+      const header = cellsOf(line);
+      column = {
+        name: find(header, /^asset$/i),
+        url: find(header, /source\s*url/i),
+        license: find(header, /license/i),
+        attribution: find(header, /attribution/i),
+        target: find(header, /optimi[sz]ed\s*target/i),
+      };
+      continue;
+    }
+    if (column === null || column.url === -1) continue;
+    const cells = cellsOf(line);
+    const source_url = cells[column.url] ?? '';
     if (!/^https:\/\//.test(source_url)) continue;
-    const target = cells[6];
+    const target = cells[column.target] ?? '';
+    const attribution = cells[column.attribution] ?? '';
     const mb = target.match(/≤\s*([\d.]+)\s*MB/);
     const tris = target.match(/≤\s*([\d,]+)K\s*tris/);
     const tex = target.match(/(\d+)K\s*(?:→\s*)?KTX2|(\d+)K→KTX2/);
     rows.push({
       id: source_url.replace(/\/+$/, '').split('/').pop(),
-      name: cells[1].replace(/\s*\[(V|I)\]\s*$/, ''),
+      name: (cells[column.name] ?? '').replace(/\s*\[(V|I)\]\s*$/, ''),
       category,
       source_url,
-      license: cells[3],
-      attribution_required: /REQUIRED/.test(cells[4]),
-      attribution: cells[4], // verbatim ledger column; colophon-grade credit text refines at CC-BY ingest
+      license: cells[column.license] ?? '',
+      attribution_required: /REQUIRED/.test(attribution),
+      attribution, // verbatim ledger column; colophon-grade credit text refines at CC-BY ingest
       ceiling_bytes: mb ? Math.round(parseFloat(mb[1]) * MB) : null,
       ceiling_tris: tris ? parseInt(tris[1].replace(/,/g, ''), 10) * 1000 : null,
       texture_size: tex ? parseInt(tex[1] ?? tex[2], 10) * 1024 : null,
