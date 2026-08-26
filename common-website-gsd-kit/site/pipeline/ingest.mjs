@@ -40,7 +40,24 @@ const GLTFPACK_CLI = fileURLToPath(new URL('../node_modules/gltfpack/cli.js', im
 // NEVER go through the one-shot `optimize` command — its join/flatten/palette
 // defaults collapse the node graph and merge named meshes, which destroys rigs
 // (research Pattern 5 / Pitfall 3). They take the per-command rig-safe chain.
-const RIGGED = new Set(['desk_lamp_arm_01', 'alarm_clock_01']);
+//
+// Ruling 9 F3/F4 widened the class from "rigged" to "the node graph is load-bearing",
+// which is what the rig-safe chain was always actually protecting. Four rows joined:
+// three catalogue layouts the storyboard now addresses BY NODE (office_notepads,
+// stationery_supplies, binder_notebook — a §Objects entry naming a multi-node asset
+// must name the node, STORYBOARD A10) and vintage_wooden_drawer_01, whose six named
+// drawer nodes are the do-not-send beat Ch4 opens. Every one of them shipped as a
+// single joined mesh before this: `office_notepads.glb` carried ONE node called
+// `office_notepads_yellow_sheet` holding all ten items' geometry, so node-level
+// placement was not merely unimplemented — it was impossible against the shipped file.
+const NODE_PRESERVING = new Set([
+  'desk_lamp_arm_01',
+  'alarm_clock_01',
+  'office_notepads',
+  'stationery_supplies',
+  'binder_notebook',
+  'vintage_wooden_drawer_01',
+]);
 
 // Rows whose geometry stage runs gltfpack `-si` instead of gltf-transform's
 // simplifier — the fallback STACK-DECISION sanctions "if gltf-transform's
@@ -55,20 +72,32 @@ const GLTFPACK_SIMPLIFY = new Set(['book_encyclopedia_set_01']);
 
 // D-15 downward iterations (never relaxes a ceiling): per-asset input tightening
 // applied after a bytes-gate failure, recorded in the ASSETS.md ledger actuals.
-// WoodenTable_02: 2K UASTC normal+metallicRoughness alone cost ~6.9 MB vs the
-// 2.5 MB ceiling — UASTC slots drop to 1K (color stays 2K ETC1S per the row).
+// wooden_table_02: 2K UASTC normal+metallicRoughness would cost ~5 MB vs the
+// 2.5 MB ceiling — UASTC slots drop to 1K (colour stays 2K ETC1S per the row).
+// Inherited unchanged from the struck WoodenTable_02 row: the tuning was always a
+// statement about a 2K UASTC slot's cost, never about which table it was applied to.
 // desk_lamp_arm_01: 1K UASTC metallicRoughness cost 973 KB of a 1.5 MB ceiling —
 // mr/occlusion drops to 512 (low-frequency data), normal keeps the row's 1K.
 // alarm_clock_01: post-dedup 1K textures still summed ~1.42 MB vs the 1.2 MB
 // ceiling — same mr→512 move (flat metal body, roughness is low-frequency).
 const ROW_TUNING = {
-  WoodenTable_02: { uastcMax: 1024 },
+  wooden_table_02: { uastcMax: 1024 },
   desk_lamp_arm_01: { mrMax: 512 },
   alarm_clock_01: { mrMax: 512 },
   clipboard: { mrMax: 512 },
   stationery_supplies: { mrMax: 512 },
   Shelf_01: { uastcMax: 512 },
-  WoodenChair_01: { mrMax: 512 },
+  // painted_wooden_chair_01: the row itself authors "1K colour ETC1S + 512 UASTC
+  // nor/mr" (Ruling 9 F2), so this is the ledger's own number, not a post-failure
+  // iteration — a distressed white painted surface is low-frequency in every data
+  // channel and the chair is behind the desk in every authored framing.
+  painted_wooden_chair_01: { uastcMax: 512 },
+  // vintage_wooden_drawer_01: the untuned 1K set shipped 1,769,400 B against the
+  // 1.2 MB ceiling, and its 1K UASTC metallicRoughness alone was 859,803 B of that.
+  // Same mr→512 move as the lamp and the clock, for the same reason: worn wood and
+  // brass label handles are low-frequency in roughness, and the cabinet is never
+  // closer than the desk in any authored pose. Normal keeps the row's 1K.
+  vintage_wooden_drawer_01: { mrMax: 512 },
   binder_notebook: { mrMax: 512 },
   // Paper001 (PBR): the 2K set summed 5.36 MB vs a 3 MB ceiling, and colour+normal
   // at 2K alone is 3.06 MB — 2K UASTC is unreachable under this ceiling by
@@ -289,8 +318,8 @@ async function ingestModelRow(row) {
   const ratio = row.ceiling_tris ? Math.min(1, row.ceiling_tris / src.tris) : 1;
   console.log(`[source] ${row.id}: ${src.tris} tris, ${src.skins} skin(s), named nodes [${src.namedNodes.join(', ')}], ratio ${ratio.toFixed(4)}`);
   const work = makeWork(row.id);
-  const rigged = RIGGED.has(row.id);
-  const { intermediate, final } = rigged
+  const keepNodes = NODE_PRESERVING.has(row.id);
+  const { intermediate, final } = keepNodes
     ? await ingestRiggedRow(row, srcFile, work, ratio)
     : await ingestStaticRow(row, srcFile, work, ratio);
 
@@ -301,12 +330,14 @@ async function ingestModelRow(row) {
       failClosed(row.id, 'tris', `${mid.tris} > ${row.ceiling_tris}`);
     }
   }
-  if (rigged) {
+  if (keepNodes) {
+    // Skins for the rigs, named nodes for every member: a chapter that places or poses a
+    // node by name has no way to notice the name silently disappearing at ingest.
     const skinsOk = mid.skins === src.skins;
     const nodesOk = sameList(mid.namedNodes, src.namedNodes);
-    gateReport(row.id, 'rig', `skins ${src.skins}→${mid.skins}, namedNodes ${src.namedNodes.length}→${mid.namedNodes.length} (unchanged: ${nodesOk})`, skinsOk && nodesOk);
-    if (!skinsOk) failClosed(row.id, 'rig', `skin count changed ${src.skins} → ${mid.skins}`);
-    if (!nodesOk) failClosed(row.id, 'rig', `named-node set changed: [${src.namedNodes.join(', ')}] → [${mid.namedNodes.join(', ')}]`);
+    gateReport(row.id, 'nodes', `skins ${src.skins}→${mid.skins}, namedNodes ${src.namedNodes.length}→${mid.namedNodes.length} (unchanged: ${nodesOk})`, skinsOk && nodesOk);
+    if (!skinsOk) failClosed(row.id, 'nodes', `skin count changed ${src.skins} → ${mid.skins}`);
+    if (!nodesOk) failClosed(row.id, 'nodes', `named-node set changed: [${src.namedNodes.join(', ')}] → [${mid.namedNodes.join(', ')}]`);
   }
   const bytes = fs.statSync(final).size;
   if (!gateReport(row.id, 'bytes', `${bytes} / ceiling ${row.ceiling_bytes}`, bytes <= row.ceiling_bytes)) {
@@ -462,7 +493,7 @@ async function main() {
     return;
   }
   for (const row of wanted) {
-    console.log(`\n=== ingest ${row.id} (${row.category}${RIGGED.has(row.id) ? ', rigged' : ''}) ===`);
+    console.log(`\n=== ingest ${row.id} (${row.category}${NODE_PRESERVING.has(row.id) ? ', node-preserving' : ''}) ===`);
     const res = row.category === 'hdri' ? await ingestHdriRow(row)
       : row.category === 'pbr' ? await ingestPbrRow(row)
         : await ingestModelRow(row);
