@@ -103,6 +103,34 @@ Questions recorded, not answered (RESEARCH Pitfall 6 — no design-by-doc for un
 | Q5 | First-party Ch6 UI screenshot capture | Cross-repo dependency (product app at 2×, demo data, light theme) — Phase 3 |
 | Q6 | In-world small-text rendering | Canvas sprites vs troika-three-text — Phase 3 render test at mobile DPR |
 
+**Q2 — 2026-08-26 (plan 03-08, D3-05). RESOLVED, and not as an SDF.** The slot
+`pipeline/ingest.mjs` reserved under D2-16 is filled by `pipeline/bake-ink.mjs`: authored
+polyline JSON → a global arc-length ramp raster → an 8-bit **RGB** PNG (colour type 2),
+`public/assets/ink/ink-ramp.png`, 1024×512, **50,541 B**. ~250 lines, **node stdlib only** —
+the PNG writer is inline CRC32 over `node:zlib`, so the bake added zero supply-chain surface
+and zero packages.
+
+The question assumed a distance field; the effect does not want one. The Ch1 reveal thresholds
+**stroke order**, not nearest-edge distance: `R` is the normalised global arc-length position of
+the nearest stroke point, and the paper shader reveals every texel where `R <= uProgress`. `G` is
+the region mask (body 0 / token 128 / name 255) so the `{{ name }}, → Maya,` resolve is a region
+blend rather than a second texture. `B` is nib coverage — the plan had reserved it as zero, and
+03-08 found that `R = 0` is *both* a legitimate pen-down texel and bare paper, so a shader
+thresholding `R` alone would flood the whole sheet at any progress.
+
+PNG and not KTX2, deliberately: block compression perturbs a smooth ramp non-monotonically into
+stepped reveal edges. ~2 MB VRAM as an RGBA8 upload against a 128 MB texture line — not a
+candidate for "optimisation".
+
+Unlike 03-04's model-geometry finding, this bake **is** byte-reproducible (pure float math plus
+`zlib.deflateSync(level: 9)` — no subprocess, no clock, no map-iteration order in the output
+path), so re-running it produces zero git churn and the unit suite asserts it with
+`Buffer.compare` on both the raster and the encoded PNG.
+
+Still owed by a human: the in-scene confirmation at the **wave-4** batched checkpoint (03-11-T3,
+`03-VALIDATION.md`) — the same ramp bytes through the real shader, the real paper material and
+the real ECU camera, rather than through the CPU reveal maths they were inspected with here.
+
 ## Conventions carry-over
 
 For Phase 2+ code (from the site CLAUDE.md): 2-space indent · strict TS · named exports · DI over module mocks.
