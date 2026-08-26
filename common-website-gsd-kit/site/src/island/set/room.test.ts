@@ -27,9 +27,11 @@ import { fileURLToPath } from 'node:url';
 import {
   PROP_ANCHORS,
   PROP_SOURCES,
+  enrolShadows,
   placeProps,
   type Placeable,
   type PropId,
+  type Shadowable,
 } from './props.ts';
 
 const ISLAND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -59,13 +61,16 @@ const ROOM = read('set/Room.ts');
  */
 const LIGHT_RE = /new (?:DirectionalLight|PointLight|SpotLight|AmbientLight|HemisphereLight)\b/g;
 
-test('the whole light rig is two lights, and Room builds both (T-03-06)', () => {
+test('the whole light rig is three lights, and Room builds all three (T-03-06)', () => {
   assert.equal(
     count(ROOM, LIGHT_RE),
-    2,
-    'ART-DIRECTION §Lighting: one celestial directional + one lamp key, through Ch5. 03-17 ' +
-      'adds the one sanctioned shadowless UI bounce fill for Ch6 and re-gates this at 3 (W-8) ' +
-      '— from Room, which stays the single owner of every light on the site.',
+    3,
+    'ART-DIRECTION §Lighting: one celestial directional + one lamp key, plus REVIEWS.md ' +
+      '§Ruling 10 FB-6 / STORYBOARD A11 §1.6 — "the fill has two colours, a sky colour above ' +
+      'and a warm bounce colour from the floor" — which is one HemisphereLight. It is not an ' +
+      'unmotivated fill: it is the floor’s own bounce, and A11 makes it chapter-invariant ' +
+      'law. 03-17 adds the one sanctioned Ch6 UI bounce and re-gates this at 4 (W-8) — from ' +
+      'Room, which stays the single owner of every light on the site.',
   );
 });
 
@@ -81,19 +86,142 @@ test('no chapter and no vocabulary module constructs a light', () => {
   }
 });
 
-test('exactly one castShadow in the set, and the tier guard is on the same line', () => {
-  const lines = ROOM.split('\n').filter((l) => l.includes('castShadow'));
+/* ------------------------------------------------------------------ the shadow rig --- */
+
+/**
+ * **This assertion was pointed the wrong way. It is re-scoped, not deleted (REVIEWS.md
+ * §Ruling 10 §5; "invert, don't delete" is Ruling 1's standing precedent).** It used to read:
+ *
+ * ```
+ * const lines = ROOM.split('\n').filter((l) => l.includes('castShadow'));
+ * assert.equal(lines.length, 1,
+ *   'BUDGETS §Per-frame budgets: shadow maps 0 mobile / 1 desktop. One write, one owner.');
+ * ```
+ *
+ * and that is a category error with teeth. A shadow **map** is a render target a *light*
+ * owns. `castShadow` on a **mesh** is that mesh's enrolment as an occluder rendered INTO that
+ * map. They are different quantities and they do not trade: a room in which every one of
+ * twenty meshes casts still has exactly one map. The budget row counts maps; the old
+ * assertion counted string occurrences in a file and treated the count as the map count.
+ *
+ * So it did not merely fail to notice that nothing in the room cast a shadow — **it required
+ * it**, cited BUDGETS as the authority, and would have broken for any implementer who added a
+ * caster. 277 green tests coexisted with an unlit room because of this line.
+ *
+ * The one-write-one-owner discipline is right and stays. Its subject is now the **light**,
+ * and the light names are read out of the file rather than hard-coded, so a second light
+ * handed a map fails here even if it is called something this comment never imagined.
+ */
+test('exactly one LIGHT owns a shadow map, and the tier guard is on its line (Ruling 10 §5)', () => {
+  const lightNames = [...ROOM.matchAll(/const (\w+) = new \w*Light\b/g)].map((m) => m[1]);
+  assert.ok(
+    lightNames.length >= 2,
+    'positive control: the rig’s own light variables must be found, or every assertion ' +
+      'below is measuring an empty list',
+  );
+  const enrolled = ROOM.split('\n').filter((l) =>
+    lightNames.some((n) => new RegExp(`\\b${n}\\.castShadow\\s*=`).test(l)),
+  );
   assert.equal(
-    lines.length,
+    enrolled.length,
     1,
-    'BUDGETS §Per-frame budgets: shadow maps 0 mobile / 1 desktop. One write, one owner.',
+    'BUDGETS §Per-frame budgets: shadow MAPS 0 mobile / 1 desktop — and "1" counts lights ' +
+      'that own a map, never meshes enrolled as occluders. One write, one owner.',
   );
   assert.match(
-    lines[0],
+    enrolled[0],
     /settings\.shadowMaps/,
-    'the single castShadow write must read QualityManager, never a viewport measurement or ' +
-      'a literal — mobile carries baked AO and contact cheats instead (D3-16)',
+    'the single light-enrolment write must read QualityManager, never a viewport measurement ' +
+      'or a literal — mobile carries baked AO and contact cheats instead (D3-16)',
   );
+});
+
+/**
+ * FB-1's **inverse** assertion, in the file the mis-pointed one lived in (Ruling 10 §5.3).
+ *
+ * The number that used to be pinned at 1 is now pinned at "every mesh in the room", and the
+ * subject is meshes — the noun the budget line never counted. Two halves, because the defect
+ * has two halves: the traversal must really set both flags (behaviour), and Room must really
+ * run it over every prop and every surface (wiring).
+ */
+test('enrolShadows sets both flags on every mesh, skips non-meshes, and counts them (FB-1)', () => {
+  const mesh = (): Shadowable => ({
+    isMesh: true,
+    castShadow: false,
+    receiveShadow: false,
+    children: [],
+  });
+  const group = (children: Shadowable[]): Shadowable => ({
+    castShadow: false,
+    receiveShadow: false,
+    children,
+  });
+
+  // A GLB prop is a tree, not a mesh: `pick()` hands Room a node whose meshes are one or two
+  // levels down. A traversal that only touched the root would enrol nothing at all and is
+  // exactly the shape a "one castShadow write" gate would have waved through.
+  const leafA = mesh();
+  const leafB = mesh();
+  const nested = mesh();
+  const root = group([leafA, group([leafB, group([nested])])]);
+
+  assert.equal(enrolShadows(root, true, true), 3, 'three meshes, at three depths');
+  for (const m of [leafA, leafB, nested]) {
+    assert.equal(m.castShadow, true, 'every mesh casts (FB-1)');
+    assert.equal(m.receiveShadow, true, 'every surface receives (FB-1)');
+  }
+  assert.equal(root.castShadow, false, 'a Group is not a mesh and is not enrolled');
+
+  // The exemptions are a parameter, not a special case: the dust sprites and the window-glow
+  // billboard are additive quads with depthWrite off, and an additive quad in the shadow map
+  // prints holes in the one shadow the room has (FB-1 names both by name).
+  const air = mesh();
+  assert.equal(enrolShadows(air, false, false), 1, 'an exempt mesh is still counted as visited');
+  assert.equal(air.castShadow, false);
+  assert.equal(air.receiveShadow, false);
+
+  // Idempotent: `adopt()` runs once per streamed batch and re-enrols what it already has.
+  assert.equal(enrolShadows(root, true, true), 3, 'a second pass is the same three meshes');
+});
+
+test('Room enrols every adopted prop, and every surface receives (FB-1 wiring)', () => {
+  const code = ROOM.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(code.includes('applyPlacement'), 'positive control: the code survives stripping');
+
+  assert.equal(
+    count(code, /enrolShadows\(/g),
+    4,
+    'four enrolment sites, and no more: the adopted prop (inside adopt(), so it reaches ' +
+      'every streamed batch), the floor, the two walls as one pair, and the window frame. ' +
+      'A prop that neither casts nor receives is not dressed — it is pasted on (A11 §1).',
+  );
+  assert.match(
+    code,
+    /enrolShadows\(object,\s*true,\s*true\)/,
+    'the adopted prop CASTS and RECEIVES — props must receive each other’s shadows, ' +
+      'or the desk group reads as one welded object (FB-1)',
+  );
+  assert.match(
+    code,
+    /enrolShadows\(floor,\s*false,\s*true\)/,
+    'the floor is one of FB-1’s five named casting exemptions, and receives',
+  );
+  assert.match(
+    code,
+    /enrolShadows\(frame,\s*true,\s*true\)/,
+    'the window frame is one of Ruling 10’s twelve named Ch1 casters',
+  );
+
+  // The exempt meshes are exempt by NOT being enrolled — asserted by name so a future edit
+  // that hands the additive quads to the traversal fails here rather than in a frame.
+  for (const exempt of ['pane', 'glow', 'pool']) {
+    assert.doesNotMatch(
+      code,
+      new RegExp(`enrolShadows\\(${exempt}\\b`),
+      `${exempt} is made of light, not matter: an additive depthWrite:false quad rendered ` +
+        'into the depth map prints a hole in the one shadow the room has',
+    );
+  }
 });
 
 /* ----------------------------------------------------------------- the tier knobs --- */

@@ -65,6 +65,14 @@ test('no query-string value can reach DOM markup — textContent only (T-03-01)'
   assert.match(SOURCE, /params\.get\('hud'\) === '1'/);
 });
 
+/**
+ * Re-scoped when the post pass landed (REVIEWS.md §Ruling 10 §2). It used to pin the literal
+ * `this.renderer.render(this.scene, this.camera);`, which was the right *fact* — the hud-off
+ * branch does no instrumentation — pinned to the wrong *spelling*: there are now two render
+ * paths (bare, and through the one `EffectComposer` on desktop), so the branch calls the
+ * single method that owns the choice. What the assertion is about is unchanged: the shipping
+ * path must be one statement, with no timing read and no `info` read in it.
+ */
 test('the shipping render path stays bare — instrumentation costs nothing when hud is off', () => {
   const m = SOURCE.match(/if \(this\.hud === null\) \{([\s\S]*?)\} else \{/);
   assert.ok(m !== null, 'Stage.ts branches the tick on whether the overlay exists');
@@ -72,5 +80,14 @@ test('the shipping render path stays bare — instrumentation costs nothing when
     .replace(/\/\/[^\n]*/g, '')
     .replace(/\s+/g, ' ')
     .trim();
-  assert.equal(body, 'this.renderer.render(this.scene, this.camera);');
+  assert.equal(body, 'this.draw();', 'one statement, and it is the shared render path');
+  assert.equal(occurrences(body, 'performance.now'), 0, 'no timing read on the bare path');
+  assert.equal(occurrences(body, 'info.'), 0, 'and no counter read on the bare path');
+  // The draw path itself is the ONE place the composer/renderer choice is made, so a still
+  // capture and a scrubbed frame can never disagree about what a frame looks like.
+  assert.equal(
+    occurrences(SOURCE, 'this.renderer.render(this.scene, this.camera)'),
+    1,
+    'exactly one direct renderer.render call survives, inside draw()',
+  );
 });

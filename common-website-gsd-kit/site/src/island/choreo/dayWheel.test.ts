@@ -375,9 +375,71 @@ test('the mobile moonrise substitution lives here, once, and reads from the tier
 
 /* --------------------------------------------- source contract for the three half */
 
-test('exactly one shadow caster is configured and no light is constructed here', () => {
-  assert.equal(occurrences(SOURCE, 'castShadow'), 1, 'BUDGETS Ch4 law: shadow maps = 1');
+/**
+ * **Re-scoped, not deleted (REVIEWS.md §Ruling 10 §5).** This test used to read:
+ *
+ *     assert.equal(occurrences(SOURCE, 'castShadow'), 1, 'BUDGETS Ch4 law: shadow maps = 1');
+ *
+ * A shadow **map** is a render target a *light* owns. `castShadow` on a **mesh** is that
+ * mesh's enrolment as an occluder rendered into that map — a different noun entirely, and
+ * twenty enrolled meshes is still one map. Counting string occurrences and calling the
+ * result "shadow maps = 1" turned the budget row into a prohibition on ever casting a
+ * shadow, which is the defect the whole of Ruling 10 exists to undo.
+ *
+ * Ruling 10 §5.4 rules the `light.castShadow = true` below **correct as written** — it is a
+ * light — so the assertion keeps it and gains the two things the old one never checked: that
+ * exactly one shadow **map** is configured here, and that the wheel enrols no mesh at all
+ * (mesh enrolment belongs to `Room`, which owns the scene graph).
+ */
+test('the wheel configures exactly one shadow MAP, tier-guarded, and enrols no mesh', () => {
+  assert.equal(
+    occurrences(SOURCE, 'shadow.mapSize'),
+    1,
+    'BUDGETS Ch4 law: shadow MAPS = 1 — one render target, sized once, in one place',
+  );
+  assert.equal(
+    occurrences(SOURCE, 'light.castShadow'),
+    1,
+    'and the map has exactly one owner: the injected celestial LIGHT (Ruling 10 §5.4)',
+  );
+  assert.ok(
+    SOURCE.includes('settings.shadowMaps === 1'),
+    'the map is configured behind the tier guard — mobile owns zero maps (BUDGETS)',
+  );
+  // The noun correction, asserted rather than asserted-about: nothing in this file may enrol
+  // a mesh. `Room` owns the scene graph and therefore owns enrolment (FB-1).
+  assert.equal(
+    /\b(?:mesh|object|prop|root|floor|wall)\w*\.castShadow/i.test(SOURCE),
+    false,
+    'the wheel drives a light; enrolling occluders is Room’s job, and a second owner is a ' +
+      'second answer to "what casts in this room"',
+  );
+  // Positive control: the same pattern must SEE a mesh enrolment when one is present.
+  assert.equal(/\b(?:mesh|object|prop|root|floor|wall)\w*\.castShadow/i.test('mesh.castShadow = true'), true);
   assert.equal(/new (DirectionalLight|SpotLight|PointLight)/.test(SOURCE), false, 'lights are injected');
+});
+
+/**
+ * FB-2 — contact at millimetre scale, and the arithmetic that makes it sufficient.
+ *
+ * The resolution is the multiplier; **the room-tightened ortho is the fix.** 2048 texels
+ * across the ±2.2 m frustum below is 2.15 mm/texel, finer than the 0.1 mm sheet's own
+ * silhouette; the same 2048 over three's untightened ~40 m default is 19.5 mm/texel and
+ * resolves nothing at all. Both halves are asserted, because shipping one without the other
+ * is how the rejected frame happened.
+ */
+test('the one shadow map is 2048² over a room-tightened ortho — 2.4 mm/texel (FB-2 / B3)', () => {
+  assert.ok(SOURCE.includes('mapSize.set(2048, 2048)'), 'BUDGETS §Amendments B3: 2048² ≈ 16.8 MB');
+  const extent = /cam\.right = ([\d.]+)/.exec(SOURCE);
+  assert.ok(extent !== null, 'positive control: the ortho half-extent is a literal in this file');
+  const mmPerTexel = (Number(extent[1]) * 2 * 1000) / 2048;
+  assert.ok(
+    mmPerTexel < 3,
+    `${mmPerTexel.toFixed(2)} mm/texel. FB-2 needs finer than the paper's own thickness or ` +
+      'the sheet gets no dark line under its edge and stays a sticker on the desktop.',
+  );
+  assert.ok(SOURCE.includes('normalBias = 0.02'), 'FB-2 authors normalBias 0.02 (grazing light)');
+  assert.ok(SOURCE.includes('bias = -0.0005'), 'FB-2 authors bias -0.0005');
 });
 
 test('the wheel owns its sources: the non-disposing seam is used exactly once (Pitfall 3)', () => {
