@@ -73,7 +73,7 @@ Restated here so later phases never renegotiate them:
 
 | Dependency | Condition | Status |
 |---|---|---|
-| troika-three-text | ONLY if canvas-texture sprite tags blur at mobile DPR — decided by a Phase 3 render test (Q6; RESEARCH Alternatives row) | **OPEN — 2026-08-26**, awaiting the wave-2 measurement (see below) |
+| troika-three-text | ONLY if canvas-texture sprite tags blur at mobile DPR — decided by a Phase 3 render test (Q6; RESEARCH Alternatives row) | **OPEN — 2026-08-26**, deferred to **wave 5 (03-13-T3)**: the wave-2 sitting ran and could not measure it — nothing mounts a tag yet (see below) |
 
 **Q6 — 2026-08-26 (plan 03-07, D3-07).** The canvas-atlas path shipped in
 `src/island/choreo/labels.ts` with every 03-RESEARCH Pitfall-6 rule applied: the Plex Mono face
@@ -89,6 +89,22 @@ Whatever the verdict, **nothing is installed from this plan**. `grep -c troika p
 stays 0. A *blurred* outcome records the failure and the measurement; adopting troika-three-text
 then requires the Package Legitimacy Gate plus slopcheck first (03-RESEARCH flags the package
 `[ASSUMED]`), which is a plan-level decision and never a code-time `npm install`.
+
+**Q6 — 2026-08-26, wave-2 sitting: NOT MEASURED, and deliberately not guessed.** The wave-2
+checkpoint (03-07-T4) ran in Chromium at 390x844 under `?path=full&tier=floor`. It could not
+produce the number, because **no tag reaches the screen yet**: `createConstellation` is defined in
+`src/island/choreo/constellation.ts` and called by nothing outside its own tests, and the one
+chapter that mounts (`ProofChapter`) imports neither it nor `labels.ts`. Importing the atlas is not
+the same as drawing with it, and a legibility verdict read off a scene with no tags in it would be
+a fabricated measurement, not a lenient one.
+
+Deferred to the **wave-5 sitting (03-13-T3)**, which is the first checkpoint standing behind a
+chapter that mounts the real case the plan names — Ch2's wait tags. The Ch3 constellation timestamp
+becomes available a wave later (03-14-T3) and is the second reading, not a substitute for the first.
+
+Unchanged by this deferral: `grep -c troika package.json` is still **0**, and nothing about the
+canvas-atlas implementation is in question — the shipped path already satisfies every Pitfall-6
+rule listed above. What is outstanding is only the on-screen px measurement that closes the row.
 
 ## Open questions → Phase 2 spikes
 
