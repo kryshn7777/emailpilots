@@ -23,6 +23,7 @@ import { AssetQueue } from './systems/AssetQueue.ts';
 import { createAssetRegistry, type AssetRegistry } from './systems/assetRegistry.ts';
 import { createEnvCrossfade } from './systems/envCrossfade.ts';
 import { barFraction, labelFor, navVisible } from './choreo/affordance.ts';
+import { CHAPTER_ASSETS, nextPrefetch } from './choreo/chapterAssets.ts';
 import { ProofChapter } from './chapters/ProofChapter.ts';
 
 /** Chunk-identification marker — check-budgets.mjs locates the island chunk by this literal. */
@@ -136,6 +137,8 @@ export async function mount(opts: MountOptions): Promise<void> {
   // registry exists, which is also exactly the right behaviour (nothing to prefetch
   // one-ahead of a chapter that has not finished arriving).
   let registry: AssetRegistry | null = null;
+  /** Highest chapter index already handed to the queue. Ch1 (0) IS the critical batch. */
+  let lastPrefetched = 0;
   const offDrive = timeline.onDrive((chapterIndex, progress) => {
     // Transform only — advancing the bar never triggers layout.
     if (bar !== null) bar.style.transform = `scaleX(${barFraction(chapterIndex, progress)})`;
@@ -144,6 +147,31 @@ export async function mount(opts: MountOptions): Promise<void> {
       if (nav !== null) nav.classList.toggle('is-visible', navVisible(chapterIndex));
       lastIndex = chapterIndex;
     }
+
+    // EXP-05 / D3-10 — chapter N−1 pays for chapter N. It rides THIS subscription, not a
+    // second one, for the same reason the affordance does: the prefetch must see exactly
+    // the (chapterIndex, progress) pair the chapter itself was driven with, and there is
+    // one scroll driver on this site.
+    //
+    // The decision is pure and idempotent because onDrive fires on every scroll update —
+    // `nextPrefetch` returns an index only on the first drive past a boundary and never on
+    // a reverse drive, so this is a comparison per event and real work once per chapter.
+    // 'soon' priority is deliberate: AssetQueue weights the loader percent by `critical`
+    // items alone, so a prefetch batch can never move the bar the visitor is watching.
+    if (registry === null) return; // critical batch still landing — nothing to prime into
+    const ahead = nextPrefetch(chapterIndex, lastPrefetched, CHAPTER_ASSETS.length);
+    if (ahead === null) return;
+    lastPrefetched = ahead;
+    const primed = registry;
+    for (const a of CHAPTER_ASSETS[ahead]) queue.add(a.url, 'soon', a.bytes);
+    void queue
+      .load('soon')
+      .then((fetched) => primed.prime(fetched))
+      .catch((e) => {
+        // A missed prefetch degrades to a slower mount and must never reject into the
+        // scrub path or strand the journey (T-03-08).
+        console.warn(`island: chapter ${ahead + 1} prefetch failed`, e);
+      });
   });
 
   systems = { quality, stage, timeline, branch, queue, offDrive };

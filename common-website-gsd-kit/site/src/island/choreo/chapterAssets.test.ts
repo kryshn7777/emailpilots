@@ -17,14 +17,18 @@
  *     path two build-gate lines that until now no plan and no script checked. See the
  *     Regime-B block below — the desktop line is a live gate; the mobile line is a live
  *     gate on a recorded debt, and the reason is written out there in full.
- *  3. **Span mirror (CHK-W9).** 03-03 already asserts the seven FULL-mode `min-height`
- *     values against a **literal** `[90,100,120,140,110,110,70]` in
- *     `src/styles/shellLayout.test.ts`. That catches an edited stylesheet and nothing
- *     else: permute `CHAPTER_SPANS_VH` itself and the CSS still matches the literal, the
- *     literal still matches the CSS, and every chapter's scroll span silently re-maps
- *     while both suites stay green. The gate below is the missing edge — CSS compared to
- *     the **constant**, element by element — and it deliberately never writes the seven
- *     numbers down, because a second copy of them is what made the first gate blind.
+ *  3. **Span mirror (CHK-W9).** The seven span values are pinned twice already, and both
+ *     pins are to a *private literal copy*: `beats.test.ts` holds `CHAPTER_SPANS_VH`
+ *     against `[90,100,120,140,110,110,70]`, and `shellLayout.test.ts` holds the seven
+ *     FULL-mode `min-height` declarations against a second, independent
+ *     `[90,100,120,140,110,110,70]`. Each pair is self-consistent, and **nothing compares
+ *     the stylesheet to the constant the island actually scrubs against.** A STORYBOARD
+ *     amendment that moves a span touches four files; update the CSS with its literal, and
+ *     the constant with its literal, and transpose one of the two edits, and both existing
+ *     suites stay green while every chapter's scroll range is re-mapped. The gate below is
+ *     that missing edge — CSS read against the constant, element by element — and it is
+ *     the one place in the project that must never write the seven numbers down, because a
+ *     third copy would make it exactly as blind as the two it exists to join up.
  */
 
 import { test } from 'node:test';
@@ -307,9 +311,10 @@ test('FULL-mode section spans mirror CHAPTER_SPANS_VH element by element (CHK-W9
     assert.equal(
       declared[i].vh,
       span,
-      `#ch${i + 1}: shell.css says ${declared[i].vh}vh, CHAPTER_SPANS_VH says ${span}vh. The ` +
-        'sum gate in shellLayout.test.ts cannot see this: any permutation of the seven still ' +
-        'totals 740 while every beat percentage in the site silently re-maps.',
+      `#ch${i + 1}: shell.css says ${declared[i].vh}vh, CHAPTER_SPANS_VH says ${span}vh. ` +
+        'Neither existing suite can see this — each holds its own artifact against its own ' +
+        'literal copy of the seven numbers, so the stylesheet and the constant can drift ' +
+        'apart as two internally consistent pairs while both stay green.',
     );
   }
 });
