@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: 03-09 T1+T2 complete; PAUSED at 03-09-T3 (blocking human checkpoint)
-last_updated: "2026-08-26T14:05:00.000Z"
-last_activity: 2026-08-26 -- 03-09 T1+T2 (the Room, Ch1 skeleton, ProofChapter retired, Ch1 payload split 5.65 MB critical / 8.50 MB streamed); PAUSED at T3; hero-desk asset escalated as unusable
+stopped_at: 03-09 T1+T2 + the Ruling 9 remediation pass complete; still PAUSED at 03-09-T3 (OQ5 deferred to 03-14 T3 by Ruling 9)
+last_updated: "2026-08-26T17:30:00.000Z"
+last_activity: 2026-08-26 -- 03-09 Ruling 9 remediation (F1-F4): hero desk + chair re-cast, Ch1 dressed at node level, procedural drawer struck for a sourced cabinet; resident tris 13,514 -> 920, Ch1 critical 5.65 -> 5.43 MB; 256 tests green. E-1 closed; T3 still PAUSED because Ruling 9 defers OQ5 to 03-14 T3
 progress:
   total_phases: 6
   completed_phases: 2
@@ -28,9 +28,33 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 Phase: 3 (Core Experience) — EXECUTING
 Plan: 9 of 19 (03-09 PAUSED at its blocking human checkpoint)
 Status: Executing Phase 3
-Last activity: 2026-08-26 -- 03-09 T1+T2 (the Room, Ch1 skeleton, ProofChapter retired, Ch1 payload split); PAUSED at T3
+Last activity: 2026-08-26 -- 03-09 Ruling 9 remediation pass (F1-F4 landed; E-1 closed); T3 still PAUSED, OQ5 deferred to 03-14 T3
 
 Progress: [██████░░░░] 57%
+
+## Ruling 9 remediation — 2026-08-26 (additive record)
+
+- **REVIEWS §Ruling 9 F1–F4 / STORYBOARD §A10 executed against 03-09's work.** No plan file; the
+  ruling was the spec. Hero desk `WoodenTable_02` (300.7 mm side table) → `wooden_table_02`
+  (Serhii Khromov, 1134.4 × 706.0 × 799.5 mm, 196 tris). Chair `WoodenChair_01` (2273.5 mm
+  Gothic hall chair) → `painted_wooden_chair_01` (Kuutti Siitonen, 431.8 × 539.8 × 956.5 mm,
+  724 tris). `vintage_wooden_drawer_01` (James Ray Cock, 857.6 × 457.4 × 545.4 mm, 5184 tris)
+  ingested for Ch4 and deliberately **not** put on Ch1's critical path. All three confirmed on
+  author AND dimensions AND polycount before download.
+- **Ch1 §Objects is now dressed at node level** (A10): `office_notepads_a4_stack`,
+  `stationery_supplies_pencilcup`, `binder_notebook_closed`; the book set moved onto `Shelf_01`.
+  The three catalogue rows were re-ingested node-preserving — `optimize` had joined their node
+  graphs away, so node placement was impossible against the shipped files.
+- **Ch1 critical path 5,653,052 → 5,433,608 B** (≤ 9 MB desktop, live); streamed 8,499,498 →
+  7,728,826 B; journey 14,893,006 → 13,902,890 B. Mobile ratchet lowered to the measured figure
+  per BUDGETS §B2 — recorded, not chased.
+- **Two blocking bugs fixed on the way:** Ruling 9 §4's new ledger column broke `parseLedger`'s
+  positional read (all 14 model rows silently dropped; 3 suites red at HEAD), and Room's
+  desk-top shift was being clobbered by the next `applyPlacement()`, putting the desk surface a
+  desk-height off the plane every camera pose is authored against.
+- **Still open, unchanged:** OQ5 (wall material) is deferred to **03-14 Task 3**, its
+  pre-conditions now met; default `PaintedPlaster017` if that sitting never happens. Both
+  candidates and the `?wall=` lever stay in place. 03-09 remains PAUSED at T3.
 
 ## Performance Metrics
 

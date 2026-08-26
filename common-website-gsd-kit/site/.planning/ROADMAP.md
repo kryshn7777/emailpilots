@@ -118,6 +118,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2)*
 
 - [~] 03-09-PLAN.md — The Room: procedural shell, prop placement, light rig, tier knobs; Ch1 skeleton; ProofChapter retired; wall material decided on a combined render *(T1+T2 done; PAUSED at T3, the blocking human checkpoint — both wall candidates ingested and renderable via `?wall=`/`?sky=`; hero-desk asset escalated, see 03-09-SUMMARY §E-1)*
+  - **Ruling 9 remediation pass, 2026-08-26** — E-1 came back as REVIEWS §Ruling 9 / STORYBOARD A10 and is DONE: hero desk re-cast to `wooden_table_02` (Khromov, 1134.4 mm, 196 tris) and the chair to `painted_wooden_chair_01` (Siitonen, 956.5 mm, 724 tris), Ch1 §Objects dressed at NODE level, D2-16's procedural drawer struck for the sourced `vintage_wooden_drawer_01`. Resident tris 13,514 → 920; Ch1 critical 5,653,052 → 5,433,608 B; 256 tests green, build 4/4. **T3 stays PAUSED** — OQ5 is deferred by the same ruling to 03-14 T3, so 03-09 is still not complete
 
 **Wave 4** *(blocked on Wave 3)*
 

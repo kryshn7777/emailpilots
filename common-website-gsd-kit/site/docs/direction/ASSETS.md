@@ -87,7 +87,7 @@ the hero desk. **The breach is therefore extended, bounded, and given a default:
   Ch1 sunrise frame alongside. Ch3 NIGHT SHIFT is the chapter that owns a wall under a raking lamp in
   a dark room — the hardest and most decisive case for a plaster. The night HDRI returns to Ch3's
   manifest, where it belongs, and Ch1 stops carrying an asset it never shows.
-- **Pre-conditions:** the desk/chair/dressing fixes (Ruling 9 F1–F3) have landed · Ch1's end frame
+- **Pre-conditions:** the desk/chair/dressing fixes (Ruling 9 F1–F3) have landed — **DONE 2026-08-26** (`wooden_table_02` 1134.4 mm, `painted_wooden_chair_01` 956.5 mm, Ch1 dressed at node level; the room now carries a correct scale reference) · Ch1's end frame
   matches its authored composition, so wall occupies the upper third · frames captured **settled**
   (poll until the draw-call count is unchanged across consecutive samples; never accept a frame whose
   frame-time reads in the thousands of ms — the old `calls 24 / tris 64120` figure does not survive
@@ -138,3 +138,31 @@ Screenshot rule: demo data only ("Maya" thread), light theme only, no real addre
 
 CC-BY obligations are unchanged at 2 — all three Ruling 9 assets are Poly Haven CC0 (courtesy credit
 only): Serhii Khromov, Kuutti Siitonen, James Ray Cock. Add all three to the colophon's courtesy list.
+
+**Ruling 9 remediation landed, 2026-08-26 (plan 03-09, wave-3 pass).** The three new rows
+above are ingested and gate-green; `WoodenTable_02` and `WoodenChair_01` are removed from
+`public/assets/`, from `assets-source/` and from `manifest.json`. Measured against the
+budget-delta table above:
+
+| | predicted by Ruling 9 | measured at ingest |
+|---|---|---|
+| desk + chair resident tris | 920 | **920** (196 + 724 — both exact) |
+| simplify steps in the model set | 3 | **3** (lamp, binder, books; all three new rows ran at ratio 1.0000) |
+| desk + chair shipped bytes | — | 2,021,652 + 518,760 = **2,540,412** (was 3,558,448) |
+| Ch1 critical path | — | 5,653,052 → **5,433,608 B**, against the live ≤ 9 MB desktop line |
+| Ch1 streamed batch | — | 8,499,498 → **7,728,826 B** |
+| whole declared journey | — | 14,893,006 → **13,902,890 B**, against ≤ 30 MB |
+
+The three catalogue-layout rows were **re-ingested**, not merely re-placed: their 2026-08-20
+run went through `optimize`, whose join/flatten collapsed `office_notepads`' ten items into a
+single node named `office_notepads_yellow_sheet`. Node-level placement was not unimplemented
+against that file — it was impossible. `NODE_PRESERVING` in `pipeline/ingest.mjs` now covers
+them and `vintage_wooden_drawer_01`, and the named-node gate runs on every member.
+
+**One process finding of the same class as Ruling 9 §4.** Adding the `Real size (mm)` column
+broke `pipeline/manifest.mjs`, which read the ledger by column INDEX: every model row vanished
+from the parse in silence, three suites went red, and the next ingest would have died on
+`emitManifest: no ledger row for ingested asset`. The parser now locates columns from each
+table's own markdown header. A ledger the scene-director edits in prose cannot be read
+positionally — that is the same lesson as reading `dimensions` off an API response nobody
+looked at.

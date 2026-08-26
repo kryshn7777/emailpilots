@@ -19,7 +19,9 @@ provides:
 affects:
   - src/island/index.ts (Room + SetState created once, Ch1 registered against #ch1)
   - src/island/choreo/chapterAssets.ts (Ch1's manifest split)
-  - docs/direction/ASSETS.md (three ingest actuals; one-wall rule suspended in the open)
+  - docs/direction/ASSETS.md (three ingest actuals; one-wall rule suspended in the open; Ruling 9 rows + the new Real size (mm) column)
+  - docs/direction/STORYBOARD.md (Ch1/Ch4 §Objects marked superseded by A10 — additive pointers only)
+  - pipeline/manifest.mjs (ledger read by column name, not index — Ruling 9 §4 broke the positional parse)
   - pipeline/ingest.mjs (ROW_TUNING for the two wall candidates)
 tech-stack:
   added: []
@@ -50,9 +52,10 @@ key-files:
 metrics:
   tasks_completed: 2
   tasks_total: 3
-  tests: "213 -> 243 (+30)"
+  tests: "213 -> 243 (+30); Ruling 9 pass 243 -> 256 (+13)"
   duration_min: 165
   completed: 2026-08-26
+  ruling_9_remediation: "2026-08-26 — F1-F4 landed; OQ5 still deferred to 03-14 T3"
 ---
 
 # Phase 3 Plan 09: The Room Summary
@@ -450,3 +453,306 @@ query-string surface (`?wall=` / `?sky=`) is a closed allowlist under T-03-01 wi
 
 All seven created source files, the three ingested asset directories, both deletions and all ten
 commit hashes verified on disk / in `git log` on 2026-08-26.
+
+---
+
+# Ruling 9 remediation (wave-3 pass, 2026-08-26)
+
+**Spec: `REVIEWS.md` §Ruling 9 F1–F4 and `STORYBOARD.md` §A10. There was no plan file — the
+ruling is the plan.** Everything above this line is the original 03-09 record and is left
+untouched; this section is what escalation E-1 came back as.
+
+**Status: F1, F2, F3 and F4 all landed. OQ5 is still deferred** to 03-14 Task 3 — its
+pre-conditions are now met, but the judgement is the scene-director's and is not made here.
+Both wall candidates, the `?wall=` lever and the `03-09-T3` validation row are untouched.
+
+## What the three-way confirmation returned
+
+Ruling 9 F1 exists because `/a/wooden_table_02` and `/a/WoodenTable_02` are two different
+assets with the same display name, so nothing entered the pipeline until author **and**
+dimensions **and** polycount all agreed. Read live from `api.polyhaven.com/info/<slug>` at
+download, then re-measured from the shipped GLB:
+
+| asset | published author | published dims (mm) | published tris | shipped bounds (mm) | shipped tris | shipped bytes |
+|---|---|---|---|---|---|---|
+| `wooden_table_02` | **Serhii Khromov** | 1134.4 × 706.0 × 799.5 | **196** | 1134.4 × 706.1 × 799.5 | 196 | **2,021,652** / 2.5 MB |
+| `painted_wooden_chair_01` | **Kuutti Siitonen** | 431.8 × 539.8 × 956.5 | **724** | 431.7 × 539.8 × 956.5 | 724 | **518,760** / 1.0 MB |
+| `vintage_wooden_drawer_01` | **James Ray Cock** | 857.6 × 457.4 × 545.4 | **5184** | 857.6 × 441.8 × 545.5 | 5184 | **1,144,480** / 1.2 MB |
+
+*(The drawer's shipped depth reads 441.8 mm against a published 457.4: the published figure is
+the whole asset's bounding box including the drawer fronts' proud brass handles, the measured
+one is the `_body` node alone. Every other axis matches to 0.1 mm.)*
+
+**The guard was proved, not assumed.** Feeding the trap slug `WoodenTable_02` to the same
+downloader with the same expectations printed `author "Fran Calvente" | 300.7 × 300.7 × 417.7
+mm | 1514 tris` and aborted before writing a byte.
+
+**No simplify step ran on any of the three** — `ratio 1.0000` each, as F1 required. One D-15
+downward iteration was needed and is recorded in the ledger: the drawer's untuned 1K set
+shipped 1,769,400 B against a 1.2 MB ceiling, of which its 1K UASTC metallicRoughness alone was
+859,803 B, so mr drops to 512 (the `desk_lamp_arm_01` / `alarm_clock_01` precedent). The
+ceiling did not move.
+
+**Razor-edge risk, as instructed.** At 196 tris `wooden_table_02` has no bevels: the tabletop
+edge is geometrically sharp and only the normal map softens it. In the Ch1 0.95 capture below
+the near edge reads fine at ~1.2 m, but Ch1 never puts the tabletop centre-frame and close.
+**The gate is Ch6's desk-surface reveal**, and the recorded fallback is `metal_office_desk`
+**plus the Ch1/Ch6 camera re-author its 2 m width forces**. It is deliberately **not** ingested
+now — a fallback sitting in `public/assets/` that nothing places is the one-wall breach again.
+
+## Resident-tris delta — measured, and exactly what Ruling 9 predicted
+
+| | before | after | delta |
+|---|---|---|---|
+| desk + chair resident tris | 1,514 + 12,000 = **13,514** | 196 + 724 = **920** | **−12,594** |
+| simplify steps in the model set | 4 (chair, lamp, binder, books) | **3** (lamp, binder, books) | the chair's ratio-0.6002 tuning is deleted, not redone |
+| desk + chair shipped bytes | 3,558,448 | **2,540,412** | −1,018,036 |
+| whole-scene tris at Ch1 0.95 (HUD, real frame) | 64,120 | **32,510** | −31,610 |
+| draw calls at Ch1 0.95 | 24 | **21** | −3 |
+
+The scene delta is far larger than the desk-and-chair delta because F3 stopped placing three
+catalogue spreads: `office_notepads` went from ten meshes on the desk to one,
+`stationery_supplies` from nine to one, `binder_notebook` from two to one. E-3's "draw calls are
+~24 against the storyboard's ~12" is materially improved and no longer worth escalating.
+
+## The new Ch1 critical/streamed split
+
+`CHAPTER_ASSETS[0]` changed by exactly one row — the desk — because it is the only
+critical-path asset either ruling touched. The split 03-09 authored is re-derived, not re-argued.
+
+### Critical — `CHAPTER_ASSETS[0]`, **5,433,608 B** (3,566,392 B under the ≤ 9 MB desktop line)
+
+| asset | bytes | |
+|---|---|---|
+| `qwantani_sunrise_puresky.hdr` | 1,033,946 | unchanged |
+| `qwantani_dusk_2_puresky.hdr` | 1,166,018 | unchanged |
+| **`wooden_table_02.glb`** | **2,021,652** | was `WoodenTable_02.glb` 2,241,096 |
+| `desk_lamp_arm_01.glb` | 1,211,992 | unchanged |
+
+### Streamed — `CH1_STREAMED`, **7,728,826 B**, on `'lazy'` (was 8,499,498 B)
+
+| asset | bytes | |
+|---|---|---|
+| `alarm_clock_01.glb` | 996,468 | unchanged |
+| **`painted_wooden_chair_01.glb`** | **518,760** | was `WoodenChair_01.glb` 1,317,352 |
+| `office_notepads.glb` | 920,680 | re-ingested node-preserving (was 911,116) |
+| `stationery_supplies.glb` | 969,736 | re-ingested node-preserving (was 955,904) |
+| `binder_notebook.glb` | 880,988 | re-ingested node-preserving (was 876,464) |
+| `book_encyclopedia_set_01.glb` | 1,510,768 | unchanged |
+| `Shelf_01.glb` | 666,104 | unchanged |
+| `WoodFloor051` × 4 slots | 1,265,322 | unchanged |
+
+Whole declared journey (both batches + Ch2's clipboard): **13,902,890 B** against the ≤ 30 MB
+streamed-weight line, down from 14,893,006 B.
+
+**The mobile ratchet moved DOWN, 5,653,052 → 5,433,608 B**, and only as a side effect of the
+desk swap. Per BUDGETS §Amendments B2 it is a recorded figure, not a line being closed: no
+per-tier asset selection was invented, no `desktopOnly` flag was added, and the retired
+5,000,000 B line was not asserted. E-2's residual (`Shelf_01` fetched on mobile and never shown)
+is unchanged and still belongs to whoever owns the 1K-variant chain.
+
+**`vintage_wooden_drawer_01` is in neither batch, deliberately.** F4 says ingest only; A10 makes
+it a Ch2 room fixture that acts at Ch4, and 1,144,480 B on Ch1's critical path for an object
+outside the opening frame is the exact trade the split exists to refuse. A gate now asserts it
+is ingested, licensed, and declared by nothing.
+
+## F3 — which nodes were placed
+
+Ch1 §Objects is authored at node level. `PropAnchor` gained a `node` field; `null` is A10's
+"(whole)". `Room` lifts the named node out of the loaded scene and never adds its siblings, so
+a cut item costs neither a draw call nor a byte beyond the GLB already fetched.
+
+| slot | node placed | measured size | what stopped being placed |
+|---|---|---|---|
+| blank paper | **`office_notepads_a4_stack`** | 210.0 × 290.0 × 10.0 mm | the whole 1102.8 × 659.8 mm ten-item spread |
+| pen cup | **`stationery_supplies_pencilcup`** | 83.7 × 83.7 × 83.9 mm | the 301.9 mm laid-out tray of nine |
+| binder | **`binder_notebook_closed`** | 170.6 × 200.0 × 25.3 mm | both binders across 584.0 mm, incl. the open one at 365.2 mm |
+| clock | `alarm_clock_01` (whole) | 228 × 168 × 174 mm | — correct as-is |
+| clipboard | `clipboard` (whole) | 228.6 × 336.6 × 42.0 mm | — correct as-is; the ruling's named 337 mm exception |
+| books | `book_encyclopedia_set_01` (whole) | 551.3 mm | moved off the desktop onto `Shelf_01` |
+
+**Ch7 gets its payoff for free:** `office_notepads_a4_a` (210 × 290 mm, a single sheet) is a
+sibling node in the same GLB, so 03-18 lifts the fresh blank sheet out of an asset that has been
+resident since Ch1, at no extra byte.
+
+**The books are parented, not tier-gated.** A10 puts them on `Shelf_01`; the shelf is the
+storyboard's declared mobile cut. Parenting makes the cut carry for free — three.js visibility
+is hierarchical — so `room.test.ts`'s "shelf is the ONE tier-gated prop" stays green and *true*
+instead of needing a second gate BUDGETS §Adaptive-quality does not sanction. `y = 0.918` is the
+third shelf board's measured top face, read from a vertex-height histogram of the source mesh
+(boards at 355 / 636 / 918 / 1199 / 1481 / 1762 mm above the shelf's base) — the board just
+above desk height, so the set reads in the wide shots.
+
+**The catalogue rows had to be re-ingested, not merely re-placed.** Their 2026-08-20 ingest ran
+`optimize`, whose `join`/`flatten`/`palette` defaults collapsed ten notepad nodes into ONE mesh
+named `office_notepads_yellow_sheet`. Node-level placement was not unimplemented against the
+shipped file — it was *impossible*. `pipeline/ingest.mjs`'s `RIGGED` set is renamed
+`NODE_PRESERVING`, because the class was never "rigged": it is "the node graph is load-bearing",
+which covers the rigs, the three catalogue layouts, and `vintage_wooden_drawer_01`, whose six
+named drawer nodes let Ch4 open real geometry rather than a faked box.
+
+## F4 — the procedural drawer is struck
+
+`DRAWER_TRAVEL`, `Room.drawer` and `Room.setDrawerOpen` are deleted. D2-16's sanctioned box was
+faked into `WoodenTable_02`'s apron; `wooden_table_02` has no apron, and a drawer front
+materialising out of a tabletop reads as a bug. The sourced cabinet ships with `_body` +
+`_drawer01`…`_drawer06` intact and gated.
+
+## Deviations from the ruling
+
+### Auto-fixed
+
+**1. [Rule 3 — Blocking] Ruling 9 §4's own new column broke the ledger parser** — `f114267` / `dda9174`
+Found at: baseline, before any work. `pipeline/manifest.mjs` read the source URL from `cells[2]`
+and the ceiling from `cells[6]` **by position**. The Models table became eight columns while
+HDRIs and PBR stayed at seven, so the URL test failed on every model row and all fourteen were
+skipped in silence — three suites red at HEAD (the "243 passing" baseline was really 240/3), and
+`node pipeline/ingest.mjs` would have died on `emitManifest: no ledger row for ingested asset
+"alarm_clock_01"` before anything could be ingested at all. The parser now reads each table's
+own markdown header row and locates its columns by name.
+
+**2. [Rule 1 — Bug] the desk-top shift was being silently clobbered** — `43224e2`
+Found during: reading the placement path before changing it. `createRoom` set
+`table.position.y = -bounds.max.y` to put the measured top face on `cameraRig`'s y = 0 plane —
+and then `adopt()` → `applyPlacement()` → `placeProps` wrote `position` outright and reset it to
+0 on the next line. **The desk surface therefore sat a full desk-height above the plane every
+prop anchor and every authored camera pose is measured against**, which is part of why the
+frames the scene-director reviewed showed dressing floating at unrelated heights. Invisible to
+all 243 tests.
+Fixed at the root rather than by re-ordering two lines: `Room` measures a per-prop `drop` as each
+model is adopted — the table by its measured **top** face, everything else by its measured
+**underside** — and `placeProps` applies it on every run, so nothing can clobber it again. Node
+extraction needs the same measurement independently: `office_notepads_a4_stack` is centred on
+its own 10 mm thickness, so an unmeasured placement buries half the pad in the desk.
+
+**3. [Rule 3 — Blocking] the two struck assets blocked manifest regeneration** — `a7b8daa`
+`emitManifest` throws on a shipped asset with no ledger row, and the director had already struck
+both rows, so the first ingest aborted at the manifest step. Removing them from `public/assets/`
+and `assets-source/` was the cleanup the ruling asked for anyway; the same-run regeneration then
+pruned their rows by itself.
+
+### Beyond the ruling, and why
+
+**`normaliseScale` / `ScaleTarget` / `metres` are deleted, not left unused.** Every asset in the
+table now measures real-world correct at source, so the mechanism had no caller. Ruling 9 is
+explicit that a mis-cast asset is not rescalable — "per-axis stretching either into the right
+silhouette is the fabricated stand-in brief 04 bans" — and an idle rescaler is an invitation to
+re-cast by arithmetic next time. The gate is now a positive one: no prop declares a scale
+target, and `Room` contains no rescaler.
+
+**Two superseded STORYBOARD body lines carry a pointer.** Ch1 §Objects and Ch4 §Objects' drawer
+clause are marked `SUPERSEDED by §Amendments A10` in place, additively, with the original text
+untouched. A10 says it supersedes them; the whole shape of Ruling 9 is a downstream reader
+faithfully implementing a line nobody had marked.
+
+### Escalated rather than decided
+
+**Nothing.** Every item in the ruling was executable as written. OQ5 remains deferred as the
+director ruled — its pre-conditions (F1/F2/F3 landed, a correct scale reference in the room) are
+now met, and `03-VALIDATION.md`'s `03-09-T3` row and both wall candidates are untouched.
+
+## Gate corrections
+
+Every one was found by running or mutating the gate, and every fix was proved by mutation.
+
+| # | Gate as inherited / first written | Defect | Correction |
+|---|---|---|---|
+| 1 | `parseLedger` reads `cells[2]` / `cells[6]` | Column-INDEX addressing. Ruling 9 §4's new `Real size (mm)` column deleted all 14 model rows from the parse **in silence** — the failure surfaced three suites away, and would have surfaced next as a mid-ingest throw | locate columns from each table's own markdown header row. Gated by a FIXTURE — two tables describing one asset, seven columns and eight, must parse identically. Asserting "the real file parses today" cannot tell a fixed parser from a reverted column |
+| 2 | *(mine)* "no node placed on the desktop exceeds 350 mm" | Caught `desk_lamp_arm_01` at 892.6 mm. The ruling's rule is about **dressing**, and its own audit table marks the arm lamp correct at source; ART-DIRECTION §Composition names it the frame-left anchor of every master shot | exempt `table` and `lamp` by name, with the reason. The clipboard keeps a tighter 340 mm cap, and a positive control asserts the OPEN binder (365.2 mm) **fails** the rule — it is the node A10 cut, and the reason it cut it, so the line provably measures something |
+| 3 | *(mine)* `assetSizeMm` | Looked every mesh node up **by name**, and `book_encyclopedia_set_01` ships one anonymous joined node — so the helper threw on `""` instead of measuring the thing the gate was about | measure by node object, not by name; `nodeSizeMm` keeps the by-name lookup where a missing name IS the failure |
+| 4 | *(mine)* "no direct `.position.y =` in Room" | Matched Room's own procedural floor plane, which is not a prop and is a legitimate writer | collect the matched identifiers and assert the list is exactly `['floor']`. A named list fails loudly on a new writer instead of hiding it in a count |
+| 5 | **the gap the mutation battery found** | Deleting the per-prop drop from `placeProps` — the exact Rule-1 bug above — left **all 254 tests green**. A fix with no gate is a fix that gets undone | two halves: a contract gate driving `placeProps` directly (`y = base + lift + drop`, on all three planes, asserted **twice** because a second run is what used to lose it, with a tolerance comparison rather than IEEE-754 equality), and a source gate that Room measures it once, passes it, and writes no prop's Y directly |
+
+**Mutation battery — 14 deliberate breaks, each reverted:**
+
+| mutation | caught by |
+|---|---|
+| `url: 2` back into the ledger parser | 4 gates red |
+| blank a `[V]` row's `Real size (mm)` cell | the four-part `[V]` gate |
+| fetch the trap slug `WoodenTable_02` | the downloader's three-way confirmation, before any write |
+| place the whole notepad asset again (`node: null`) | the A10 node gate |
+| place the OPEN binder | 3 gates red, incl. the 350 mm rule |
+| put the book set back on the desktop | 2 gates red |
+| re-add a `metres` scale target | the no-rescale gate |
+| construct a procedural drawer box in Room | the F4 strike gate |
+| declare the cabinet on Ch1's critical path | the F4 batch gate |
+| stale desk byte weight (2,241,096) | 4 gates red |
+| delete the drop from `placeProps` | **nothing — this is why gate 5 exists**; red after it |
+| measure the drop but stop passing it | the source gate |
+| re-add the direct `table.position.y =` write | the identifier-list gate |
+| treat the parented prop as a world plane | the contract gate |
+
+## Runtime verification
+
+Composited full-viewport captures (REVIEWS §F-11 — canvas-only exports judge the wrong image),
+headless Chromium over CDP, Ch1 scrolled to progress 0.95, **zero console errors and zero page
+errors on both**:
+
+```
+desktop 1440x900  calls 21 | tris 32510 | frame 25.00 ms | draw 6.50 ms | tex 38 | geo 30 | pmrem-RT 3
+mobile   420x860  calls 20 | tris 32328 | frame  2.52 s  | draw 5.30 ms | tex 32 | geo 29 | pmrem-RT 3
+```
+
+`frame` is meaningless under headless software rasterisation, as at T1/T2 — the BUDGETS Ch1 line
+still needs real GPU hardware at a checkpoint. `calls`, `tris`, `tex`, `geo` and `pmrem-RT` are
+real. Mobile shows 20 calls against desktop's 21: the shelf cut, carrying the book set with it
+exactly as the parenting intends.
+
+The desktop frame reads as the authored room — a writing desk at the right size, the A4 stack,
+closed binder, pencil cup, clipboard and clock **sitting on the surface** rather than sunk into
+it or floating above it, the arm lamp frame-left, the window upper-right, and no catalogue
+spread anywhere. That frame is what E-1 escalated, and it is the check the tests could not make.
+
+## Verification
+
+| gate | result |
+|---|---|
+| `npm test` | **256 passed, 0 failed** (baseline 243 declared / 240 actually passing — see deviation 1) |
+| `npm run check` | 0 errors, 0 warnings, 1 pre-existing hint (`systems` unused in index.ts) |
+| `npm run build` eager | 1,858 B gz / 10,240 — PASS |
+| `npm run build` boundary | 0 static island refs — PASS |
+| `npm run build` base-safety | 0 violations (base=/) — PASS |
+| `npm run build` island | 246,415 B gz / 307,200 — PASS (was 246,314) |
+| `git status --porcelain assets-source/` | 0 |
+| ingest | 6 rows re-run; every tris / bytes / named-node gate PASS |
+| runtime | island mounts, canvas opacity 1, zero console errors, desktop + mobile |
+
+## Commits (Ruling 9 pass)
+
+| hash | what |
+|---|---|
+| `f114267` | test: pin the ledger parser against Ruling 9's new column |
+| `dda9174` | fix: read the ledger by column name, not column index |
+| `a7b8daa` | chore: ingest the Ruling 9 assets and re-cut the catalogue layouts |
+| `3a962fd` | test: the failing Ruling 9 F1–F4 gates |
+| `43224e2` | feat: re-cast the hero desk and chair, dress Ch1 at node level |
+| `22921cd` | test: gate the measured drop the mutation battery found unwatched |
+
+## Known Stubs — updated
+
+The 03-09 stub table above stands, **minus one**: `Ch1FirstLight` still has no ink, no motes and
+no DOM copy (03-11), only `#ch1` is registered (waves 4–10), the floor albedo is a placeholder
+until the streamed batch lands, and both wall candidates still ship under the documented
+one-wall suspension. **The hero-desk stub is closed** — the set no longer stands on a
+provisional asset.
+
+One new, and deliberate: `vintage_wooden_drawer_01` ships under `public/assets/` and **nothing
+places it**. That is F4's instruction (ingest only, Ch2 fixture, 03-15 places it), it is gated so
+it cannot drift onto Ch1's critical path, and it is recorded here so the next verifier does not
+read it as dead weight.
+
+## Threat Flags
+
+None. No new network endpoint, auth path, file-access pattern or trust-boundary schema. The
+downloads were HTTPS GETs to `dl.polyhaven.org`, md5-verified against the published hashes, into
+gitignored `assets-source/`.
+
+## Self-Check: PASSED
+
+Verified on disk / in `git log` on 2026-08-26: all three new GLBs present at the byte counts
+claimed above (2,021,652 / 518,760 / 1,144,480); `WoodenTable_02` and `WoodenChair_01` absent
+from `public/assets/`, from `assets-source/` and from `manifest.json`; all six commit hashes
+resolve; `git status --porcelain assets-source/` empty; the three byte sums re-derived from the
+live constants (5,433,608 / 7,728,826 / 13,902,890); both wall candidates still present in
+`public/assets/` and `assets-source/` and the literal `Open Question 5 resolved` still absent by
+design; `npm test` 256/0, `npm run check` 0 errors, `npm run build` 4/4 PASS.
