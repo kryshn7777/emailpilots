@@ -19,6 +19,12 @@ interface QueueItem {
   /** Clamped to expectedBytes while streaming; set to expectedBytes on completion. */
   loadedBytes: number;
   done: boolean;
+  /**
+   * The in-flight fetch, so a second load() of this priority JOINS it rather than
+   * starting a second download. `done` alone cannot carry this: it only flips when a
+   * fetch resolves, which leaves the whole download window unguarded.
+   */
+  inflight?: Promise<ArrayBuffer>;
 }
 
 export class AssetQueue {
@@ -35,6 +41,11 @@ export class AssetQueue {
   }
 
   add(url: string, priority: Priority, expectedBytes: number): void {
+    // One item per url. Two chapters may legitimately declare the same prop, and two
+    // items for one url is two fetches whatever the timing does. First declaration wins
+    // and keeps its priority: it is the earlier one, so it is the one the loader percent
+    // was already weighted against, and re-weighting mid-load would move the visitor's bar.
+    if (this.items.some((i) => i.url === url)) return;
     this.items.push({ url, priority, expectedBytes, loadedBytes: 0, done: false });
   }
 
@@ -52,22 +63,35 @@ export class AssetQueue {
     const out = new Map<string, ArrayBuffer>();
     await Promise.all(
       batch.map(async (item) => {
-        let buffer: ArrayBuffer;
-        try {
-          const res = await this.fetchFn(this.baseUrl + item.url);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          buffer = await this.read(res, item);
-        } catch (e) {
-          const reason = e instanceof Error ? e.message : String(e);
-          throw new Error(`AssetQueue: failed to load ${item.url}: ${reason}`);
-        }
-        item.done = true;
-        item.loadedBytes = item.expectedBytes; // full weight on completion → exact 1 at batch end
-        this.emit();
-        out.set(item.url, buffer);
+        // Join an in-flight fetch instead of starting a second one. The island calls
+        // load('soon') at EVERY chapter boundary — including boundaries whose manifest is
+        // empty — so re-entry while a prefetch is still downloading is the normal case.
+        // Measured before this guard: clipboard.glb fetched twice in a full-journey scrub
+        // (03-07-T4 §C, "each asset fetched once").
+        item.inflight ??= this.fetchOne(item);
+        out.set(item.url, await item.inflight);
       })
     );
     return out;
+  }
+
+  /** One download, however many callers are waiting on it. */
+  private async fetchOne(item: QueueItem): Promise<ArrayBuffer> {
+    let buffer: ArrayBuffer;
+    try {
+      const res = await this.fetchFn(this.baseUrl + item.url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      buffer = await this.read(res, item);
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : String(e);
+      // A rejection must not be cached as this item's answer — a later load() retries.
+      item.inflight = undefined;
+      throw new Error(`AssetQueue: failed to load ${item.url}: ${reason}`);
+    }
+    item.done = true;
+    item.loadedBytes = item.expectedBytes; // full weight on completion → exact 1 at batch end
+    this.emit();
+    return buffer;
   }
 
   /** Stream the body when available so progress is real bytes, not per-file steps. */
