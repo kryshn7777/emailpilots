@@ -741,3 +741,90 @@ Five named frames, seven universal visual assertions, three greppable code asser
 the plan **before** implementation and checked against captures **after**, so the chapter meets a
 prediction rather than describing itself. Specified in full in Ruling 10 §4. Ch1 must pass its LOOK
 block before Ch2 implementation begins.
+
+### A12 — 2026-08-26 · The scroll mapping is arithmetic; WOW 0 gets a head budget; the sun moves to the far side of the window wall
+
+*Completes A8 (which stated the progress-1.0 end and left the 0 end to be inferred). Amends A11 §1's
+shadow-casting exemption list and A11 §4's "it lands first, at ~40vh". Adds the authored celestial
+table and the back wall's aperture as canon. No chapter span, no beat percentage, no camera value and
+no locked copy line changes.*
+*Reason: two escalations at opposite ends of Ch1 — a head-of-journey report derived from a scroll
+convention this site does not use, and a sun that cannot reach the room through its own window.
+Full arithmetic and the rejected alternatives: REVIEWS.md §Ruling 11.*
+
+**1 · Chapter progress, written as arithmetic — the whole definition, both ends.**
+
+```
+progress = clamp01( (scrollY − boxTop) / (boxBottom − boxTop) )      // document space
+```
+
+`boxTop` and `boxBottom` are the section's document-space edges. **There is no viewport term.**
+So **progress 0 is the box top meeting the viewport *top*** and progress 1 is the box bottom meeting
+the viewport top (A8's half). This is *not* ScrollTrigger's `top bottom → bottom top` convention, and
+reading it as such has now produced two escalations reporting spans that are actually reachable.
+
+Consequence for Ch1, which is the chapter it keeps being asked about: **Ch1 reaches progress 0 at
+`#ch1`'s own document top and every authored beat is reachable.** The visitor's first frame is Ch1
+progress 0 — blank cream paper, no ink — and the whole write-on plays from their first scroll.
+
+**2 · WOW 0's head budget — it lands inside the first screen, on every cut.**
+
+A11 §4 places WOW 0 "at ~40vh". That figure is measured from `#ch1`'s top; the visitor scrolls from
+the top of the *page*, and the masthead (A2, in normal flow, above `<main>`) sits in between. The
+authored requirement is therefore a page coordinate, not a chapter percentage:
+
+> **The token's resolve (Ch1 p 0.48) completes within `0.80 × viewport height` of scroll from the top
+> of the page.** Equivalently, with Ch1 at 90vh: **`#ch1`'s document top sits at or above
+> `0.368 × viewport height`.**
+
+Desktop 1600×1000 measures 0.228 / **0.66** and passes. The mobile cut is **measured at the
+`ch1-mobile` LOOK capture**, never computed — a display H1 that wraps to a third line is what this
+budget exists to catch. Reduced motion is exempt; it has no scrub. Ch1's beat percentages do not move.
+
+**3 · The authored celestial table — the sun rig rotates 67° and the sunrise rake rises to 18°.**
+
+A7 made "each sky carries an authored sun direction" canon without writing the directions down. They
+are canon now, because as authored no sun could enter the room through the window at all: the sunrise
+key raked from inside the room toward the back wall, and at 10° elevation *no* azimuth puts a light
+patch anywhere inside the floor's extent.
+
+| sky | azimuth | elevation |
+|---|---|---|
+| `sunrise` | **145°** | **18°** |
+| `noon` | **183°** | 74° |
+| `dusk2` | **221°** | −6° |
+| `night` | **263°** | −44° |
+| `moonrise` | **111°** | −18° |
+
+Every azimuth is its old value **+ 67°** — a rigid rotation, so every relationship A6 and A7 depend on
+is preserved by construction: the sunrise→dusk2 descent, the elevation peak on pure noon, the sweep's
+direction and per-segment rate. Only `sunrise`'s elevation moves (10° → 18°), which is simultaneously
+Ruling 10 FB-3's ceiling and this room's geometric floor. **A6's phase chain, key table, day-tag flips,
+mixes and seams are untouched; `SKY_COLOR` and `SKY_INTENSITY` are untouched.**
+
+What it buys: all five skies now sit on the far side of the window wall, which is what A7's *"a
+single-window rig's sweep, not a full 360° ephemeris"* always meant. What it costs: Ch1's shadows run
+`3.08 ×` a caster's height instead of `5.67 ×` — still long, still raking, still from frame right. What
+Ch4 gains: its morning shadows now sweep the floor **in frame** rather than the floor behind the desk.
+
+**4 · The back wall is an aperture, not a picture of one.**
+
+The window patch FB-3 requires cannot exist without an occluder, and the back wall had no opening in
+it. **The back wall is built with the window rect removed** — one mesh, one material, one draw call —
+**and it is the one wall that casts.**
+
+A11 §1.1's exemption list is amended: *"the floor, **the left wall**, the window-glow billboard,
+**the window pane**, the sky, and the dust sprites."* The pane is added because an emissive plane that
+casts plugs its own aperture and the window goes black. **The window's frame bars are not exempt and
+must cast** — they are what cuts the patch, and both mullions land on the desktop in Ch1's end frame.
+
+The Ch1 end frame's patch, for the record: a bright quadrilateral crossing the desktop diagonally from
+back-right to front-left, corners near `(−0.12, −0.353) · (0.567, −0.353) · (0.333, 0.353) ·
+(−0.567, 0.353)`, long edges parallel to the jambs, **the letter inside it** with the patch's hard left
+edge falling just left of the sheet. Ch7's patch shrinks and retreats toward the window as the sun
+climbs, ending as a band along the desktop's back edge — it never leaves the frame.
+
+**5 · Ch1 §Environmental effects — the beam and the window now agree.** The dust motes are still
+marched up-sun from the desk footprint and capped by the window head, unchanged; what changes is that
+the march now runs *toward the glass* instead of into the wall, so the shaft the motes hang in is the
+shaft the window makes.

@@ -1596,3 +1596,305 @@ field that no code reads is a failed gate.* Add its sibling, which is the more d
 
 This also retires any suspicion that Ch1's unlit look was an oversight of sequencing — something not
 yet reached. It was reached, decided, asserted, and defended by CI.
+
+---
+
+## Ruling 11 — the head of the journey, and the sun that cannot reach the window — 2026-08-26
+
+Two escalations, opposite ends of Chapter 1. **Question 1 is refused on its premise** — nothing is
+unreachable, and the arithmetic that says otherwise is not the arithmetic this site runs.
+**Question 2 is upheld and is worse than reported** — there are three independent reasons no light
+reaches that desk through that window, not one, and FB-3's own closing sentence is among them.
+
+### Q1 · The premise to correct first: `progressMap` has no viewport term
+
+The escalation states that a chapter's progress "runs 0 when its box top meets the viewport bottom",
+attributes it to A8, and derives from it that Ch1 opens at progress 0.4063 with 40.6% of its scrub
+above the document. That is GSAP ScrollTrigger's default `start: 'top bottom'` convention. **This site
+does not use it, and never has.** The mapping is eleven lines of arithmetic in
+`src/island/systems/progressMap.ts`, and it is document-space:
+
+```
+progress = clamp01( (scrollY − boxTop) / (boxBottom − boxTop) )
+```
+
+`Timeline.measure()` builds those two numbers as `rect.top + window.scrollY` and
+`rect.bottom + window.scrollY` — a document-space top and bottom, and **no viewport height appears
+anywhere in the path**. So:
+
+- **progress 0 is the box top meeting the viewport *top*.** Not the viewport bottom.
+- **progress 1 is the box bottom meeting the viewport top.** That is the half A8 states, the half the
+  escalation read correctly, and the half Ruling 7 measured from — `(694.9 − 694.9)/70 = 0` is that
+  same formula with no viewport term in it.
+
+A8 asserted the 1.0 end and said nothing about the 0 end; the symmetric ScrollTrigger reading was
+supplied by the escalation, not by me. **A8 is not amended — it is completed**, in A12, by writing the
+mapping down as arithmetic so this class of error stops recurring. It has now cost two escalations.
+
+The committed test already pins it, and it is the shortest possible disproof — `progressMap.test.ts`,
+layout B, whose first section is `{ top: 100, bottom: 300 }`:
+
+```
+assert.deepEqual(progressMap(0, gapped), { chapterIndex: 0, progress: 0 });
+```
+
+Under the escalation's convention that call returns ~0.4, and the suite is green.
+
+### Q1 · The numbers, re-derived at the escalation's own measurement
+
+1600×1000, `?path=full`. `#ch1` top 228, bottom 1128, viewport 1000, maxScroll 7808 — **every one of
+those box figures is correct**, and they reconcile exactly: 228 px is the masthead (outside `<main>`,
+A2), `.stage-wrap` contributes 0 to flow (100svh box, `margin-bottom: -100svh`), so `#ch1` starts at
+`<main>`'s top; 1128 = 228 + 90vh; 8808 = 228 + 7400 (740vh) + 1000 (`.tail-release`, A8) + 180 footer.
+The layout is exactly what A2 and A8 authored. Only the progress derivation was foreign.
+
+| Ch1 beat | escalation's convention | **shipped `progressMap`** | ink at that beat |
+|---|---|---|---|
+| p 0 — ECU, blank paper | scrollY −772 · unreachable | **scrollY 228** | 0 |
+| p 0.15 — `hiEnd`, "Hi " done | scrollY −487 · unreachable | **scrollY 363** | 13/255 |
+| p 0.40 — `tokenEnd`, token written | scrollY −12 · unreachable | **scrollY 588** | 74/255 |
+| p 0.48 — **WOW 0 resolve complete** | scrollY 140 | **scrollY 660** | — |
+| p 1.0 — Ch1 exits | scrollY 1128 | **scrollY 1128** | 1 |
+
+**The visitor's first frame is Ch1 progress 0: blank cream paper, no ink.** Which is what Ch1
+§Scroll behavior asks for at 0–15% and what WOW 0's own recording spec asks for — *"ink draws 'Hi '
+and then '{{ name }},' … the braces contract and the token blooms."* All of it is reachable, all of it
+plays, in order, from the visitor's first scroll. **Nothing is lost and WOW 0 is intact.**
+
+The 228 px in front of it is not dead scroll either: it is the masthead leaving, which A2 authored as
+Ch1's pre-roll title and shell.css drives with `animation-timeline: view()` over the H1's own exit
+range (scrollY ~112 → ~188). What remains genuinely static is **40 px — 4% of a viewport.** That is
+not a defect and it does not get a spacer.
+
+### Q1 · The real defect the escalation surfaced: **Ruling 10 §3's arithmetic was journey-relative**
+
+This is the finding worth keeping, and it is mine. Ruling 10 §3 promoted WOW 0 on the strength of one
+number: *"lands at 40–48% of Ch1 ≈ 40vh ≈ five seconds in — inside the attention window."* **40vh is
+measured from `#ch1`'s top, not from the top of the page.** The visitor scrolls from the top of the
+page. The masthead sits in between, and it is a DOM element whose height nobody has ever budgeted.
+
+Measured properly, WOW 0's resolve completes at **scrollY 660 px on a 1000 px viewport — 0.66 of a
+viewport**, not 0.40. Still inside the five-to-eight-second window, at its far edge. The claim survives;
+the number in it was wrong by half a screen, and the quantity it depends on is unpinned.
+
+**Ruling — the head budget. WOW 0 lands inside the first screen, on every cut.**
+
+> **From the top of the page, the token's resolve is complete within `0.80 × viewport height` of
+> scrolling.** Equivalently, since Ch1 is 90vh and the resolve completes at p 0.48:
+> **the masthead's bottom edge sits at or above `0.368 × viewport height`.**
+
+As built, desktop 1600×1000 measures **0.66** (masthead 0.228) and passes with room. The mobile cut is
+**measured at Ch1's `ch1-mobile.png` LOOK capture, not estimated** — 390×844 computes to roughly 0.71
+off the masthead's `clamp(3rem, 12vh, 7rem)` padding plus a two-line H1, which passes, but a display
+H1 that wraps to three lines does not, and that is exactly the failure this budget exists to catch.
+Reduced motion is exempt: it has no scrub.
+
+This converts "five seconds in" from an adjective into a number a capture can answer, and it makes the
+masthead's height a budgeted quantity rather than an accident. It is the whole cost of Q1.
+
+### Q1 · What does not change — stated explicitly, because the question asked
+
+- **`CHAPTER_SPANS_VH` is unchanged.** `[90, 100, 120, 140, 110, 110, 70]`, total **740vh**.
+- **The 740vh gate in `src/styles/shellLayout.test.ts` is untouched.** No edit there, real or noted.
+- **`inkProgressAt` is not remapped.** Its three segments already land `hiEnd` at 15% and `tokenEnd`
+  at 40% exactly, and all three are reachable. Remapping authored beats to compensate for a mapping
+  error would have moved the hook away from the frame it was composed for.
+- **`progressMap.ts`, `Timeline.ts` and `affordance.ts` are untouched.** At scrollY 0–228 the meter
+  reads chapter 1 at 0% — correct: the title card is on screen and the journey has not started.
+
+Rejected, each in one line: **a pre-roll spacer before `#ch1`** — it would insert the dead scroll the
+head's negative margin exists to delete, to fix a defect that is not there. **Re-anchoring Ch1 to
+another element** — a second anchoring rule for one chapter, when the existing one is correct.
+**Widening Ch1** — the mirror of the widening Ruling 7 rejected at the tail, and for the same reason.
+**Accepting that Ch1 opens mid-reveal** — accepting a defect that does not exist.
+
+---
+
+### Q2 · The escalation is right, and there are three failures, not one
+
+The 03-11 executor declined to change geometry on its own and was correct to escalate. I verified all
+three from the source.
+
+**1 · The azimuth points the sun into the room, not through the window.**
+`dirFrom(az, el) = (cos el · sin az, sin el, cos el · cos az)`, and `SUN_DIR.sunrise = dirFrom(78, 10)`
+= **(0.963, 0.174, 0.205)**. That is the direction *to* the sun, so light travels
+**(−0.963, −0.174, −0.205)** — toward **−Z**, into the back wall at `BACK_Z = −1.35`, from the inside.
+The window is a +Z-facing opening in that wall. No ray entering it is going the right way. Confirmed.
+
+**2 · Elevation 10° cannot put a patch anywhere in this room, at any azimuth.**
+This is the half the escalation did not reach, and it is the one that makes FB-3 unachievable rather
+than merely mis-aimed. The window sill sits at world **y = 0.05** — 50 mm above the desktop — and its
+head at **y = 0.90**. A ray at 10° dropping from the window's centre (y = 0.475) reaches desk height
+after **2.74 m** of travel and the floor (y = −0.7995) after **7.34 m**. The desk's far edge is 1.0 m
+from the wall and the floor is 3.5 m half-extent. **Everything lands past the room.** Rotating the
+azimuth alone would have produced no patch and a second escalation.
+
+The geometry sets its own floor: for the window-centre ray to reach the desktop at all,
+`tan(el) ≥ 0.475 / 1.35` → **el ≥ 19.4°** for a patch centred on the desk, and **el ≥ ~17.5°** for one
+that clips the desktop's front half. **FB-3's "elevation ≤ 18° at sunrise" is therefore also its
+elevation *floor*.** There is exactly one value that satisfies both, and it is 18.
+
+**3 · Nothing in the room casts the aperture.** A11 §1 exempts **the walls** from casting, and the
+back wall is a single 7 × 3.2 `PlaneGeometry` with no opening in it. With no occluder there is no
+window-shaped anything: the directional simply passes through the wall and lights the room evenly, and
+FB-4's "the window is an aperture" describes a picture of a window hung on a wall — **defect (4) of
+Ruling 10 §0, which I filed as a material problem and which is in fact a geometry problem.**
+
+**FB-3's closing sentence — "it costs one number: the sun's azimuth" — is wrong, and it is mine.**
+It costs three things. This is the same failure mode as §5's addendum: a requirement written against
+what the frame should look like, without checking what the set would have to be for it to happen.
+
+### Q2 · Ruling — the sun rig rotates and rises, the wall gets a real opening, the window does not move
+
+**FB-3 and FB-4 stand unamended.** The window patch is the strongest "real room" signal available and
+the owner's escalation is what put it in the ruling; it is not being negotiated away because the set
+does not currently support it. The set changes.
+
+**1 · One constant, applied rigidly: every azimuth in `SUN_DIR` rotates by +67°.**
+
+| sky | before | **after** | direction after (x, y, z) |
+|---|---|---|---|
+| `sunrise` | az 78, el 10 | **az 145, el 18** | (+0.546, +0.309, −0.779) |
+| `noon` | az 116, el 74 | **az 183, el 74** | (−0.014, +0.961, −0.275) |
+| `dusk2` | az 154, el −6 | **az 221, el −6** | (−0.652, −0.105, −0.751) |
+| `night` | az 196, el −44 | **az 263, el −44** | (−0.714, −0.695, −0.088) |
+| `moonrise` | az 44, el −18 | **az 111, el −18** | (+0.888, −0.309, −0.341) |
+
+A rigid rotation is the whole point: **every relationship the table's own docblock defends is
+preserved by construction**, because rotation about the vertical is an isometry of the sphere. The
+sunrise→dusk2 pair stays 78.7° apart (was 77.4°) and under 90° with the target lower, so Ch1
+§Transition out still descends from the instant `mix` leaves 0. The elevation peak still lands on pure
+noon. The sweep direction and per-segment rate are identical. **And it fixes something the old table
+only claimed:** all five skies now sit on the far side of the back wall (`z < 0` for every one), which
+is what *"a single-window rig's sweep, not a full 360° ephemeris"* was always trying to say and never
+was.
+
+**2 · `sunrise` elevation rises 10° → 18°** — FB-3's ceiling, and per §Q2·2 the geometry's floor.
+Cost, stated plainly: shadows shorten by 46% (a prop of height *H* throws `3.08·H` instead of
+`5.67·H`). The lamp's shadow across the desk goes from 2.27 m to 1.23 m. Ch1 §Lighting's "long soft
+shadows" survives at 3× the caster's height; the alternative is no window patch in any chapter.
+
+**3 · The back wall becomes the one wall that casts, and it is built with the window rect as a hole.**
+One mesh, one material, one draw call — a `ShapeGeometry` from a rectangle with a rectangular hole
+(carry `uv1` across for the aoMap, as the current wall does). The left wall stays exempt and stays a
+plane; the sun is on its far side in every sky and it occludes nothing. **A11 §1's exemption list is
+amended in A12: "the walls" becomes "the left wall", and the window *pane* joins the exempt list** —
+if the emissive pane casts, it plugs its own aperture and the window goes black. The frame bars are
+*not* exempt and must cast: they are what cuts the patch.
+
+### Q2 · The frame this produces — Ch1's end, in numbers
+
+Pure `sunrise`, travel **(−0.546, −0.309, +0.779)**. From a pane point `(1.05 + u, h, −1.35)`,
+`u ∈ [−0.475, 0.475]`, `h ∈ [0.05, 0.90]`, the desktop plane `y = 0` is met at:
+
+```
+z(h)    = −1.35 + 2.5212·h
+x(h,u)  =  1.05 + u − 1.7653·h
+```
+
+- The desktop (`x ∈ ±0.567`, `z ∈ ±0.353` — `wooden_table_02`'s 1134 × 706 mm top) is lit by the
+  window band **h ∈ [0.396, 0.675]** — the middle of the glass.
+- The patch crosses the desktop **diagonally**, entering back-right and leaving front-left: corners at
+  roughly **(−0.12, −0.353) · (0.567, −0.353) · (0.333, 0.353) · (−0.567, 0.353)**. Its long edges are
+  parallel to the jambs. **Both mullions cut it** — the vertical one at `x ≈ 0.105` near `z = 0`, the
+  horizontal one at `z ≈ −0.153`. FB-3 is satisfied literally, not approximately.
+- **The letter is inside the patch.** At `z = 0` the lit band runs `x ∈ [−0.370, 0.567]`, and its hard
+  left edge falls across the desktop just left of the letter — a bright/dark boundary in the frame's
+  centre. At `ECU_LETTER` the ray to the sun crosses the wall plane at **(0.945, 0.535)**, inside the
+  window rect, so the macro is lit *through the window*: WOW 0's *"sun raking across the grain at a low
+  angle"* becomes literally true instead of decorative.
+- **Composition note, not a sun problem:** the vertical mullion's shadow lands near `x ≈ 0.105`, which
+  is an A4 sheet's right edge if the letter is centred. If it reads as a bar across the letter at the
+  ECU, **the letter's anchor moves, not the sun.**
+
+**Ch7 keeps its patch.** At Ch7's end (phase 5.20, `slerp(sunrise, noon, 0.2)`, elevation 29.7°) the
+sun has climbed until the ray from the desk *origin* crosses the wall 11 mm above the window head —
+but from the desktop's back edge it crosses at y = 0.673, well inside. The patch **shrinks and
+retreats toward the window across Ch7** rather than vanishing: at the final frame it is a band at
+`z ∈ [−0.353, −0.016]`, `x ∈ [−0.27, 0.567]`, in clear view from `ROOM_CORNER`. The room at rest in
+morning light keeps its window on the desk.
+
+### Q2 · What this costs Ch4 and A6 — nothing, and it gains
+
+**A6 is not touched.** The phase chain, the 4.20-cycle span, `CH4_WHEEL_KEYS`, the midnight day-tag
+flips, every mix and every seam are functions of phase and sky id. **`SUN_DIR`'s five literals are the
+only thing that moves.** `wheelSegment`, `dayIndexForPhase`, `SKY_COLOR` and `SKY_INTENSITY` are
+untouched, and A7's triple is untouched.
+
+What changes in Ch4 is **which floor the shadows sweep**. Before, the sunrise and noon light travelled
+toward −Z, so the morning shadows fell behind the desk against the wall — largely out of frame. After,
+they fall toward +Z, across the floor the camera is actually looking at. **WOW A's "shadows sweeping
+the floor like clock hands" starts being true of the floor in shot.** The rotation direction and the
+per-segment rate are unchanged, so the wheel's read is unchanged.
+
+One new behaviour to watch, at Ch4's LOOK gate and not before: with the wall now an occluder, each
+sunrise→noon climb slides the window patch back to the wall and lets the room flood from over the wall
+top, then reverses on the way down to dusk. That is a sundial, and it is a gain — but Ch4 crosses it
+eight times, four of them inside the ×4 blur, so **Ch4's `L7` frames must show it reading as a sweep
+and not as a strobe.** No number is set here; Ch4's plan sets it against its own captures.
+
+**No test breaks.** `dayWheel.test.ts` asserts only elevation relationships — monotonic descent across
+`sunrise→dusk2`, a rise across `sunrise→noon` and `moonrise→sunrise`, the peak at pure noon, and the
+sun under the horizon through night. I checked each against the new table: the descent is monotone
+(0.309 → 0.283 → 0.234 → 0.132 → 0.015 → −0.105 across the slerp), the rises hold, the argmax stays at
+phase 0.2, and the under-horizon elevations are unchanged. **No azimuth or component literal is
+asserted anywhere.**
+
+**No budget line moves, so there is no B4.** The shadow-map count stays 1 — the back wall and the
+frame bars are meshes enrolling as occluders in the map that already exists, which is exactly the
+distinction §5's addendum was written to establish. The wall stays one mesh, one material, one draw
+call; a rectangle-with-a-hole is 8 triangles against 2. No texture is added.
+
+`Ch1FirstLight.buildDust` needs **no code change** — it derives the beam from `room.sun.position`, so
+it follows the new direction for free. Its docblock's "one departure from the plan's wording … a
+volume extruded from the window rect along the light direction lies *inside* the wall" is now false
+and should be struck: the beam and the window finally agree, and the motes march toward the glass.
+
+### Q2 · Rejected
+
+**Move the window.** Its rect is authored against `DESK_MEDIUM`'s 40° vertical FOV pitched 20° down —
+sill just above the desktop, head ~0.9 m over it — so that it reads upper-frame in Ch1's close and so
+that **Ch3's +9.5° TILT-REVEAL is what brings the whole opening into frame**. Raising it to shorten the
+light's throw takes it out of Ch1's end frame and pre-empts Ch3's move. The set would be redesigned to
+avoid changing two numbers in a table.
+
+**Re-author the sun per chapter.** A second authority over the celestial direction, six weeks after
+A7 deleted the first one. The whole point of `slerp(dir[a], dir[b], mix)` is that no chapter is a
+special case.
+
+**Rotate the room instead of the sun.** Identical result, but it invalidates every camera pose,
+every prop anchor and every composition note in seven chapters. The sun table is five lines.
+
+**Amend FB-3.** Refused. It came out of the owner's own escalation, it is the strongest available
+signal that the room is a room, and it is achievable for three edits inside one table and one mesh.
+
+### Assertions for the implementer
+
+- `SUN_DIR` reads `sunrise: dirFrom(145, 18)` · `noon: dirFrom(183, 74)` · `dusk2: dirFrom(221, −6)` ·
+  `night: dirFrom(263, −44)` · `moonrise: dirFrom(111, −18)`. **Every azimuth is the old one + 67; only
+  `sunrise`'s elevation moves.** Transcribe; do not re-derive.
+- every `SUN_DIR` entry has `z < 0` — the sun is outside the back wall in all five skies
+- the back wall is one mesh with the window rect removed from it, carries `uv1`, and is the only wall
+  with `castShadow = true`; the left wall stays a plane and stays exempt
+- the window **pane** does not cast; the window **frame bars** do
+- at Ch1 `p = 0.98`, a bright quadrilateral is visible on the desktop with edges parallel to the
+  window jambs and **both mullion shadows crossing it** — near `x ≈ 0.105` and `z ≈ −0.153`
+- at Ch1 `p = 0.02` the macro is lit through the window: the ray from the letter crosses the wall
+  plane at (0.945, 0.535), inside the window rect
+- at Ch7's final frame a patch is still on the desktop, `z ∈ [−0.353, −0.016]` — shrunken and retreated
+  toward the window, not absent
+- the directional's shadow ortho contains the back wall (`z = −1.35`); the existing ±2.2 fit does
+- `dayWheel.test.ts` passes unchanged — if an azimuth literal turns out to be asserted somewhere,
+  that assertion is the defect (Ruling 9's rule: invert, don't delete)
+- Ch1FirstLight's dust docblock no longer claims the beam contradicts the window
+- **WOW 0's head budget:** on the `ch1-p02`/`ch1-mobile` captures, `#ch1`'s document top is
+  ≤ **0.368 × viewport height**, so the resolve at p 0.48 completes within **0.80 × viewport height**
+  of scroll from the top of the page. Desktop measures 0.228 / 0.66. Mobile is **measured, not
+  computed**, at the Ch1 mobile LOOK frame.
+- `CHAPTER_SPANS_VH`, `shellLayout.test.ts`'s 740vh gate, `progressMap.ts`, `Timeline.ts`,
+  `affordance.ts` and `inkProgressAt` are **not edited by this ruling**
+
+**Canon:** STORYBOARD §Amendments **A12** (2026-08-26) — the progress mapping is written down as
+arithmetic, WOW 0 gets a head budget, the sun rig rotates and rises, and the back wall becomes the
+aperture. No chapter span, no beat percentage, no camera value and no locked copy line changes.
+**No budget line moves; BUDGETS §Amendments gains no B4.**
