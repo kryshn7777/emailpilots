@@ -53,6 +53,7 @@ plus live verification performed for this document (Poly Haven / Sketchfab / amb
 - **J · CTA moments:** quiet persistent "Download" from Ch3; full conversion block in Ch7 (free download, SmartScreen honesty, founder-window note — **no Buy button**).
 - **K · Ending:** the room at rest in morning light, a fresh blank sheet where the first letter was — the loop offered to the visitor.
 - **L · Shareable moments:** WOW A (Six Days day-wheel), WOW B (The Reply stand-down), WOW C (desk→UI snap). All composed to survive a 9:16 crop.
+  > **Amended by §Amendments A11 (2026-08-26): WOW 0 — Ch1's `{{ name }}` → "Maya," resolve at 40–48% — is the fourth, and it lands first, at ~40vh. Four is the ceiling.**
 
 **Product-truth note:** "Maya" and every on-screen thread are demo narrative (the app itself ships an explore mode with sample data — FEATURES §11); nothing is presented as a testimonial or statistic. Every claim line below traces to `docs/product/FEATURES.md` (section cited per scene).
 
@@ -97,6 +98,7 @@ Beat percentages below are **chapter-local** (0% = chapter entry, 100% = exit).
 - **Purpose:** Setup + hook. Establish the world (one desk, morning), the register (personal, one human writing to one human), and the first oddity (ink writing itself; a merge token resolving).
 - **User emotion:** Calm intimacy; a prick of curiosity at the self-writing ink.
 - **Visual composition:** Opens ECU (extreme close-up) on cream paper grain, raking morning sun from frame right, shallow world (paper fills frame). Ends at a 3/4 medium shot: desk surface lower third, window with morning sky upper right, lamp (off) frame left, negative space upper left reserved for DOM type.
+  > **Amended by §Amendments A11 (2026-08-26): at the end frame the letter sheet is written on, with "Maya," legible — §K's fresh blank sheet is Ch7's alone — and the upper-left quadrant is actually clear (the judged frame had the lamp arm crossing the H1).**
 - **Camera position:** Start ~8cm above the letter, 35° pitch; end ~1.2m back, ~50cm above desk height, 3/4 angle on the desk.
 - **Camera movement:** **PULL-WIDE (micro)** — one continuous scrubbed pull from paper ECU to desk medium, decelerating; then LOCKED.
 - **Objects:** Letter sheet (procedural subdivided plane — permitted procedural geometry) with ambientCG `Paper001` PBR (CC0) · hero desk **Poly Haven `WoodenTable_02`** (CC0) · **`WoodenChair_01`** (CC0, pushed back — implied absent writer) · **`desk_lamp_arm_01`** (CC0, off) · dressing: **`office_notepads`**, **`stationery_supplies`**, **`binder_notebook`**, **`book_encyclopedia_set_01`**, **`alarm_clock_01`** (all Poly Haven CC0; office props verified in PITFALLS inventory; table/chair/lamp/clock URL-verified 2026-08-18). No human figures, ever.
@@ -278,6 +280,8 @@ Beat percentages below are **chapter-local** (0% = chapter entry, 100% = exit).
 ---
 
 ## Wow Moments — the shareable three
+
+> **Amended by §Amendments A11 (2026-08-26) — they are now four. WOW 0 ("the token resolves," Ch1 40–48%) is added ahead of WOW A and is specified in A11 §4. The three below are unchanged.**
 
 Each emerges from product behavior, none bolted on. Each is composed to read inside a 9:16 crop (desk low, window high — the site's master composition is natively vertical).
 
@@ -630,3 +634,110 @@ cut and its `Shelf_01` drop still apply on top, unchanged.
 **Open Question 5 (wall material) does not close here.** It is deferred to Ch3's browser checkpoint,
 where a wall is finally lit by a raking lamp in a dark room; the default if that checkpoint never
 happens is `PaintedPlaster017`. Full reasoning and the pre-conditions are in REVIEWS.md §Ruling 9.
+
+### A11 — 2026-08-26 · The lighting law becomes chapter-invariant; Ch1 ends on the written letter; WOW 0 is named
+
+*Amends: §Wow Moments (the shareable **three** becomes **four**), §The Concept item **L**, and Ch1's
+§Visual composition and §Scroll behavior 95–100%. Adds one chapter-invariant law that every chapter's
+§Lighting and §Environmental effects fields are read **under**, not instead of.*
+*No chapter span, no beat percentage, no camera value and no locked copy line changes.*
+*Reason: the first correctly-composed Ch1 frame was rejected by the project owner. Not one mesh in the
+scene cast a shadow, and the "1 post pass" the budgets describe was a settings field no code read. The
+direction in ART-DIRECTION §Lighting language was already right — "no unmotivated fills," "sunrise
+rake," "per-chapter exposure ramps." It had simply never been built, and nothing in the plan set ever
+looked. Full reasoning, arithmetic and per-item numbers: REVIEWS.md §Ruling 10.*
+
+**1 · The lighting law — chapter-invariant, all seven chapters, all three cuts.**
+
+Every chapter's §Lighting field describes the *sources*. This describes what the sources must
+**produce**, and it does not vary by chapter. Numbers live in Ruling 10 §1 (FB-1…FB-8); the law is:
+
+1. **Every mesh casts; every surface receives.** Exemptions are only the floor, the walls, the
+   window-glow billboard, the sky and the dust sprites. A prop that neither casts nor receives is not
+   dressed — it is pasted on. **This does not touch the shadow-map budget:** a *map* is a render
+   target a light owns; `castShadow` on a *mesh* is that mesh's enrolment as an occluder rendered into
+   it. Twenty casting meshes still means exactly one map. Two tests currently assert the opposite and
+   are re-scoped, not deleted — REVIEWS.md §Ruling 10 §5.
+2. **The one shadow map is tightened to the room, not the world**, and resolved finely enough to put
+   a dark line under a sheet of paper. Contact is the single loudest quality signal in the frame.
+3. **The key rakes; it does not fill.** The celestial directional contributes at least 4× the IBL at
+   the desk. A frame in which you cannot say where the light is coming from has failed.
+4. **The window is an aperture.** It reads at least two stops brighter than any surface in the room,
+   it glows onto the wall around its frame (via the window-glow billboard this storyboard already
+   owns — never via a bloom pass, which is a banned aesthetic), and **its light lands somewhere
+   visible as a patch with edges parallel to the frame**, in every chapter that has daylight.
+5. **Exposure is authored per chapter** on the renderer, from the same light state that drives the
+   sky pair. Never left at default. This is what ART-DIRECTION's "per-chapter exposure ramps" means
+   mechanically, and it is the one finish item that costs mobile nothing.
+6. **The fill has two colours** — a sky colour above and a warm bounce colour from the floor — so the
+   underside of the desk and the shade side of every prop read warm, not neutral grey.
+7. **Every frame carries real range**: true shadow and true highlight, never the squeezed mid-tone
+   histogram that reads as cheap.
+8. **Every hero silhouette separates from its background** along its whole edge.
+
+**Colour-script clause.** *No dressing prop is the most saturated object in frame.* That privilege
+belongs to the letter's ink in Ch1–Ch2, to the envelope from Ch3, and to `stamp-red` and
+`verdict-go` in the exact scenes that name them. A prop whose albedo out-shouts the story object is
+re-tinted into the palette. (The desk lamp's hot orange is the live instance; ART-DIRECTION's
+`lamplight` token is the lamp's *light*, not its shell.)
+
+**2 · The finish stage — one composer, one pass, and which chapters get shallow focus.**
+
+Desktop runs exactly one `EffectComposer` and one `ShaderPass`, in the fixed order
+**DoF → filmic S-curve → vignette → grain**. Mobile runs zero passes and loses only those four
+things; every other item of the lighting law applies to all three cuts. The recipe, its constants and
+the reasons the order is fixed are in Ruling 10 §2.
+
+The storyboard fact this pins: **shallow focus exists in Ch1 (0–48%) and Ch5 only.** Ch1 because an
+8 cm macro with everything sharp is not a macro, and Ch5 because it is the emotional payoff. Every
+other chapter renders deep-focus by authorial choice, not by omission. Nowhere in the journey is
+depth of field a filter applied because it was available.
+
+**3 · Ch1's end frame carries the written letter.**
+
+Ch1 §Visual composition's end description gains one clause: **the letter sheet on the desk is written
+on, with "Maya," legible at the end frame.** The pull-wide reveals *the letter you just watched being
+written, on a desk* — a visitor who pulls back from a letter and finds a blank sheet has had the beat
+they just watched deleted retroactively.
+
+**§K's fresh blank sheet belongs to Ch7 and to Ch7 alone.** It is the closing image of the whole
+journey — the loop offered back to the visitor — and Ch1 shipping a blank sheet spends the ending six
+chapters early. (Per A10, that Ch7 sheet is `office_notepads_a4_a`, drawn from the stack Ch1
+establishes.)
+
+**Composition guard, same frame:** nothing occupies Ch1's **upper-left quadrant** at the end frame.
+The storyboard already reserves it — *"negative space upper left reserved for DOM type"* — and the
+judged frame had the lamp arm crossing the H1 diagonally. Either the lamp moves or the end camera
+does; whichever preserves the authored end framing.
+
+**4 · WOW 0 — the shareable three become four.**
+
+§The Concept item **L** now reads: *WOW 0 (the token resolves), WOW A (Six Days day-wheel), WOW B
+(The Reply stand-down), WOW C (desk→UI snap). All composed to survive a 9:16 crop.* §Wow Moments
+gains this entry, ahead of WOW A:
+
+- **WOW 0 — "the token resolves" (Ch1, 40–48%).** *15-second recording shows:* macro cream paper,
+  fibre visible, sun raking across the grain at a low angle; ink draws "Hi " and then "{{ name }}," in
+  a real hand; the braces contract and the token blooms into "Maya," with ink bleeding half a
+  millimetre into the fibre; the camera pulls back and the sheet you were reading turns out to be one
+  page on a whole desk in morning light. A merge field *is* the product — watching one resolve is
+  watching COMMON work, five seconds in.
+
+**Why it is promoted rather than added.** The beat already exists at Ch1 40–48% and no content
+changes. What changes is its status: **WOW A opens at 310vh — 42% of a 740vh journey.** A visitor
+arriving from a creator post gives the page five to eight seconds, not forty. WOW 0 is the only
+payoff that can land inside that window, and it is the most product-true image the site has. It has
+been treated as an animation that must exist; it is a payoff that must land, and it is gated as one.
+
+**Four is the ceiling.** Ch2 gets no wow beat — that would break the rhythm law and flatten the
+quiet/spectacular alternation the whole journey is built on. Ch2's exposure is handled by the look
+gate's **L7** assertion instead (Ruling 10 §4): its three frames must read as three visibly different
+times of day, because a hundred viewport-heights whose entry and exit frames are interchangeable has
+not happened.
+
+**5 · Every chapter plan carries a LOOK block.**
+
+Five named frames, seven universal visual assertions, three greppable code assertions — written into
+the plan **before** implementation and checked against captures **after**, so the chapter meets a
+prediction rather than describing itself. Specified in full in Ruling 10 §4. Ch1 must pass its LOOK
+block before Ch2 implementation begins.

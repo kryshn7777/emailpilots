@@ -30,7 +30,7 @@ Two temperatures tell the whole story: **the world's cool time** vs **the desk's
 | `verdict-go` | `#3E7C4F` | ONLY for the "Ready for takeoff" state and CTA affirmatives |
 | `stamp-red` | `#B23A2E` | ONLY for the bounce mark / do-not-send moments |
 
-Rules: `verdict-go` and `stamp-red` are *semantic*, never decorative — each appears in exactly the scenes the storyboard names. No gradients as decoration; gradients exist only as light behaves (sky, lamp falloff). DOM text contrast ≥ WCAG AA against its actual backdrop at every scroll position (test over the night scenes especially).
+Rules: **no dressing prop is the most saturated object in frame** — that privilege belongs to the letter's ink (Ch1–Ch2), the envelope (Ch3 on), and `stamp-red`/`verdict-go` in the exact scenes that name them; a prop whose albedo out-shouts the story object is re-tinted into the palette (STORYBOARD §Amendments A11). `verdict-go` and `stamp-red` are *semantic*, never decorative — each appears in exactly the scenes the storyboard names. No gradients as decoration; gradients exist only as light behaves (sky, lamp falloff). DOM text contrast ≥ WCAG AA against its actual backdrop at every scroll position (test over the night scenes especially).
 
 ## Material language
 
@@ -54,6 +54,7 @@ The verified inventory guarantees a register collision (photoreal Poly Haven sca
 - **The day-cycle is the color script:** sunrise rake (Ch1) → dusk violet + lamp-on (Ch2) → night blue + lamp pool (Ch3) → wheeling full cycle (Ch4) → moonrise deep blue → sunrise flood (Ch5) → clean morning (Ch6) → noon clarity (Ch7). Lamp ON at Ch2 75%, OFF at Ch5 97% — the lamp's on-state literally spans "the desk's shift."
 - **Shadows:** exactly one shadow map (the celestial directional), desktop only; all statics carry baked AO; mobile uses baked AO + contact-shadow cheats. Lamp pool is a projected soft gradient, not a shadowed light.
 - **Exposure discipline:** tone mapping (ACES-style) with per-chapter exposure ramps; night scenes stay *readable* (nightblue ambient floor, never crushed black).
+- **This section is now enforced with numbers.** Everything above was already right and had never been built: the first composited Ch1 frame had zero shadow casters, no readable light direction and a flat wall. The finish bar — what these sources must *produce*, as measurable quantities — is REVIEWS.md §Ruling 10 §1 (FB-1…FB-8), restated as chapter-invariant law in STORYBOARD §Amendments A11 §1.
 - **HDRIs at 1K for IBL** (2K only if the window sky is verified soft at final framing) — PITFALLS #4.
 
 ## Environment language
@@ -118,3 +119,4 @@ House additions: no lens flares; no floating UI "cards in space" outside Ch6's a
 3. Night readability: `ink`-on-`paper` DOM text ≥ AA at the darkest scroll position.
 4. The lamp pool reads warm and the window reads cool in every chapter — if a grade breaks the two-temperature rule, the grade is wrong.
 5. Any effect that can't name its motivation in one sentence is cut.
+6. **The LOOK gate, per chapter** (REVIEWS.md §Ruling 10 §4) — five named composited frames, seven universal visual assertions (contact · direction · range · ratio · separation · falloff · change), three greppable code assertions. Written into the chapter plan **before** implementation, captured **after**. A settings field that no code reads is a failed gate, not a pending feature.

@@ -1211,3 +1211,388 @@ paid for itself the first time it was run.
 **Canon:** STORYBOARD §Amendments **A10** (2026-08-26) — Ch1 §Objects is re-authored at node level and
 the hero desk and chair are replaced; Ch4 §Objects' drawer is redirected to a sourced filing cabinet.
 No chapter span, no beat percentage, no camera value, and no locked copy line changes.
+
+---
+
+## Ruling 10 — the room has no light in it — 2026-08-26
+
+**Escalation:** the project owner, on the first correctly-composed Ch1 composited frame:
+*"I am quite disappointed with the quality of the product. The website looks like a old android game
+but I needed more quality and wow factors to scroll. Improve those in future implementations."*
+
+**Frame judged:** Ch1 `p=0.95`, composited 1600×1000, `?path=full&hud=1&tier=desktop`,
+HUD `calls 21 | tris 32510 | tex 35 | pmrem-RT 3`.
+
+**Verdict: the owner is right, the cause is not taste, and Ruling 9's fixes hold.** Geometry, scale
+and placement are correct — the desk is the 1134 mm `wooden_table_02`, the dressing is at node level,
+nothing is a catalogue spread. A10 is not reopened. **What is wrong is that there is no lighting in
+this scene at all** — only fill — and no finish stage of any kind. Below: the finish bar as numbers
+(§1), the post pass made real (§2), the wow ordering (§3), and the gate that would have caught this
+before a frame ever reached the owner (§4).
+
+### 0 · What I see, itemised — so this is not "make it look better"
+
+Eleven defects, all visible in the one PNG, in descending order of how loudly each says "game asset":
+
+1. **Nothing sits on anything.** The paper, the cup, the clipboard, the clock, the binder, the lamp
+   clamp and all four desk legs have **no contact shadow**. The sheet is a white rectangle *stickered*
+   onto the desktop. This is the whole verdict in one observation.
+2. **You cannot tell where the sun is.** No shadow anywhere points anywhere. The frame contains no
+   readable light direction, which is the definition of "lit by ambient."
+3. **The wall is one flat value across 1600 px.** No gradient, no falloff, no corner darkening, no
+   junction darkening where wall meets floor.
+4. **The window is a flat peach rectangle**, not an aperture. It is not brighter than the room, it
+   throws no patch of light onto the desk or floor, and nothing glows around its frame. It reads as a
+   picture of a window hung on the wall.
+5. **No range.** No true black and no true white anywhere except the paper. Everything is squeezed
+   into the middle of the histogram — which is what "flat / cheap" *means*, numerically.
+6. **No key-to-fill ratio.** The lit face and the shaded face of the desktop are the same value. Same
+   for the lamp arm, the clock body, the cup.
+7. **Nothing separates from its background.** The desk's far edge dies into the wall; so does the lamp
+   arm; so does the chair (absent from this frame, but the rule stands).
+8. **Everything is equally sharp**, from a sheet of paper at ~0.6 m to a wall at ~4 m.
+9. **The dark navy slab at frame right** reads as an untextured object or a hole in the room. It is
+   the only near-black in frame and it is not lighting — it is an error-shaped rectangle.
+10. **Texture scale is incoherent.** The floor plank width is roughly a tenth of the desk plank width.
+    Two woods in one room at two different real-world scales.
+11. **The lamp is the most saturated object in the frame** — a hot orange against a wood/cream/plaster
+    palette — and it is a *dressing prop*. It also **cuts diagonally through the H1**, in the exact
+    upper-left region STORYBOARD reserves as "negative space upper left reserved for DOM type."
+
+(9) (10) and (11) are cheap, local, and independent of everything below. Fix them first; they cost an
+afternoon and they remove three of the eleven tells on their own. (11)'s composition half is a breach
+of locked canon, not a preference: **either the lamp moves out of the upper-left quadrant or the end
+camera does**, and the implementer picks whichever preserves Ch1's authored end framing.
+
+### 1 · The finish bar — eight things that must be true of a shipping frame
+
+FB-1…FB-6 are the bar. FB-7/FB-8 are material hygiene that FB-1…FB-6 will otherwise expose. Each is a
+number or a yes/no, never an adjective.
+
+**FB-1 · Every mesh casts, every surface receives.**
+`castShadow = true` on **every** mesh in the room. The only exemptions: the floor, the walls, the
+window-glow billboard, the sky, and the dust sprites. `receiveShadow = true` on the floor, the walls,
+the desktop **and every prop** — props must receive each other's shadows, or the desk group reads as
+one welded object. Today the grep is: one hit, on the light. That number must equal the prop count.
+
+**FB-2 · Contact at millimetre scale, from the shadow map — not from a second mechanism.**
+A 1024² map spread over the world cannot resolve a sheet of paper touching a desktop, so "turn
+shadows on" alone will not fix defect (1). Two changes, and they are enough:
+
+- **2048² map** (16.8 MB, booked in BUDGETS §Amendments B3), and
+- **the directional's ortho frustum tightened to the room bounds, not the world.**
+
+The arithmetic that makes this sufficient: 2048 texels across a ~5 m room is **2.4 mm per texel** —
+finer than the paper's own thickness, so the sheet gets a real dark line under its edge. Untightened,
+the same 2048 over a ~40 m default frustum is 19.5 mm/texel and buys nothing. **The tightening is the
+fix; the resolution is the multiplier.** No SSAO, no contact-shadow decals, no second pass.
+
+Set `shadow.normalBias = 0.02`, `shadow.bias = -0.0005`, PCFSoft with `shadow.radius` authored per
+chapter. A shadow detached from its object by a visible gap (peter-panning) fails FB-1 exactly as
+hard as no shadow at all — it is the same "pasted on" read.
+
+**FB-3 · A raking key, not ambient fill.**
+The sun directional's contribution at the desk must be **at least 4× the IBL's**. Frame-checkable
+form: sample one sunlit pixel and one shadowed pixel **of the same material** — the luminance ratio
+must be **≥ 3:1** (about 1.6 stops, after ACES rolls the highlight off).
+
+And the sun must *rake*: **elevation ≤ 18°** at sunrise, azimuth set so the light enters through the
+window. **The window's light patch must land somewhere visible in the Ch1 end frame** — a bright
+quadrilateral on the desktop or the floor, its edges parallel to the window frame, its corners cut by
+the mullion. This single element is the strongest "real room" signal available and it costs one
+number: the sun's azimuth.
+
+**FB-4 · The window is an aperture.**
+(a) The window plane reads **at least 2 stops brighter** than any surface in the room, so it clips to
+near-white after tone mapping — real windows blow out. (b) A glow bleeds onto the wall around the
+frame: **use the window-glow billboard the storyboard already owns** (already budgeted, already
+mobile-clipped in Ch3's risk row) — not a bloom pass. (c) The visible sky is the HDRI, carrying a
+real gradient, never a flat colour.
+
+**FB-5 · Exposure and range are authored, per chapter.**
+`renderer.toneMappingExposure` becomes a per-chapter authored value, driven from the same light-state
+source as the sky pair. It is **never left at 1.0**. The gate on the result:
+
+- **≥ 2%** of pixels below **luma 0.06** (real shadow)
+- **≥ 0.5%** of pixels above **luma 0.94** (real highlight — the window, and the specular hit on the
+  clock bells)
+- the **desktop mid-tone** lands at **luma 0.35–0.55**
+
+This is the numeric definition of "not flat," it is measurable from a PNG, and — because exposure
+lives on the renderer and not inside a pass — **it costs mobile nothing and needs no post-processing
+at all.** It is the highest-value single line in this ruling.
+
+**FB-6 · Separation, bought with one light.**
+Every hero silhouette separates from its background along its whole edge. The wall darkening away
+from the window comes free once FB-3 lands. Add exactly one thing: the ambient fill becomes a
+**`HemisphereLight` with a warm wood-bounce ground colour distinct from its sky colour**, so the
+underside of the desktop and the shade side of every prop read warm-brown rather than neutral grey.
+One light, one line, and it is most of the distance between "renderer output" and "room."
+
+**FB-7 · Material response, not albedo.**
+The desk reads plastic because its roughness is uniform. The ingested Poly Haven props ship ARM/ORM
+maps; **verify they are actually bound** — `roughnessMap`, `metalnessMap`, and `aoMap` (which needs
+its own UV set assigned, or it silently does nothing). *An ARM texture present in the GLB but not
+assigned to a material slot is the same class of defect as `postPasses`: declared, unconsumed, and
+invisible to every green test.*
+
+**FB-8 · Texture scale is declared in millimetres.**
+Any tiled material's feature size is derived from the surface's world size, never eyeballed. Floor
+board width **120–200 mm**; wall plaster grain sub-millimetre; desk planks whatever the source model
+actually has. Defect (10) is a `repeat` value nobody computed.
+
+### 2 · The post pass, made real — one pass, one shader, four stages
+
+There is no `EffectComposer` in `src/island/` and `postPasses` is read by nothing. BUDGETS' "1 pass
+desktop / 0 mobile" describes fiction. Here is what the one pass **is**.
+
+**First, what it is not.** Two obvious candidates are rejected, and the reasons matter more than the
+choices:
+
+- **No bloom.** It would fix the window, but it is multi-mip (about ten fullscreen draws, not one),
+  "excessive bloom" is a **banned aesthetic** in brief 04, and the storyboard already owns an
+  authored, art-directed, mobile-safe alternative — the window-glow billboard (FB-4b). *An effect
+  that is authored in-world beats the same effect applied automatically in post.*
+- **No SSAO/GTAO.** It would fix contact darkening, but FB-2's tightened 2048 map does the same job
+  more correctly, on the actual light direction, for a fraction of the cost.
+
+**The recipe. Order is fixed and each position has a reason.**
+
+```
+RenderPass  (scene -> composer RT, RGBA8, tone-mapped at scene shading)
+  +- CommonGradePass  (ONE ShaderPass, ONE fullscreen draw)
+     1. DoF gather     - 6-tap ring, radius = CoC from linearized depth vs authored focus
+     2. Filmic S-curve - toe 0.055, shoulder 0.92; reclaims the black point ACES leaves milky
+     3. Vignette       - smoothstep(0.55, 1.15, r), strength 0.28
+     4. Grain          - value noise x 0.018, stepped at 24 Hz (film cadence, NOT per-frame)
+```
+
+- **Exposure is not in this list** — it lives on `renderer.toneMappingExposure` per FB-5. Putting it
+  in the pass too would double-apply it and would deny mobile the fix.
+- **DoF is first** because it is the only stage that reads scene depth; everything after it is
+  display-referred.
+- **Grain is last** because grain that gets blurred by DoF stops reading as film grain and starts
+  reading as compression noise. This is the whole reason the order is fixed rather than suggested.
+- **Grain steps at 24 Hz, not 60.** Noise resampled every frame shimmers; noise held for ~2.5 frames
+  reads as film. This one detail is most of the difference.
+
+**DoF's authored values (Ch1 — transcribe, do not re-derive):**
+
+| Beat | focusDistance | focusRange | maxCoC |
+|---|---|---|---|
+| Ch1 ECU (`p=0.00–0.48`) | 0.08 m | 0.015 m | 9 px |
+| Ch1 end (`p=0.95–1.00`) | 1.35 m | 1.20 m | 3 px |
+
+**DoF is enabled in Ch1 (0–48%) and Ch5 only.** Everywhere else the pass runs colour-only and the
+depth attachment is not allocated. That is both a budget decision (B3) and a direction one: an 8 cm
+macro shot with everything sharp is *instantly* fake — every real macro has a 2 mm depth of field —
+and Ch5 is the emotional payoff. Those are the two places shallow focus is dramatically motivated;
+elsewhere it would be a filter.
+
+**Cost control, stated so it is not discovered later.** The composer's RT is **RGBA8, not half-float**
+— tone mapping already happened at scene shading, so the buffer holds display-referred pixels and
+16-bit storage buys nothing. **The DoF colour and depth attachments run at half resolution** and
+upsample: DoF output is by definition low-frequency, and in-focus regions are taken from the full-res
+colour by CoC-weighted mix, so the halving is visually free and quarters the bytes. Worst realistic
+desktop case (3840×2160 drawing buffer): 33 MB full-res grade + ~16.6 MB half-res DoF pair ≈ **50 MB**.
+Booked as a named sub-line of the existing ≤ 128 MB texture-memory budget in BUDGETS §Amendments
+**B3** — no budget line is raised.
+
+**Mobile (0 passes) still gets:** authored exposure, the raking key, the 0-shadow-map baked-AO path,
+the window light patch, the hemisphere bounce, the window-glow billboard, and correct texture scale —
+i.e. **seven of the eight finish-bar items.** Mobile loses DoF, vignette and grain. That is a
+defensible second cut, not a downgrade, and it is exactly why FB-5 was placed on the renderer.
+
+**Regression ladder rung 2** ("drop the post pass, desktop") now means *fall back to the mobile look*.
+Graceful, authored, not broken. No ladder change needed.
+
+**No budget amendment is required for the pass itself.** One pass, as allowed. B3 books two costs the
+tables never named — shadow-map resolution and post scratch — because D-15 says nothing is spent
+silently, not because a line moved.
+
+### 3 · Wow, re-examined — the owner said "to scroll," and that is an *ordering* problem
+
+**WOW A, B and C stand. I am not changing them.** Each emerges from the product (the day-wheel *is*
+the sequencer, the stand-down *is* stop-on-reply, the desk→UI snap *is* the app), none is bolted on,
+and all three survive a 9:16 crop. The defect is not what they are. It is **when the first one lands.**
+
+**The arithmetic.** The journey is 740vh. **WOW A opens at 310vh — 42% of the scroll**, roughly 35–45
+seconds in at typical pace. Before it: three chapters marked *Quiet · Quiet, warming · First
+astonishment*. That is correct **film** rhythm and wrong **web** rhythm: a film has a captive
+audience, a scroll page has a bounce rate, and a visitor arriving from a creator post gives you
+**five to eight seconds**, not forty.
+
+**Ruling — WOW 0, "the token resolves," is promoted from hook to named wow beat.**
+It requires no new content. Ch1's `{{ name }}` → `Maya,` beat already lands at **40–48% of Ch1 ≈ 40vh
+≈ five seconds in** — inside the attention window — and it is the most product-true image the site
+has: a merge field *is* the feature, and watching one resolve is watching the product work. It has
+simply never been treated as a payoff that must land, only as an animation that must exist.
+
+*15-second recording shows:* macro cream paper, fibre visible, sun raking across the grain at a low
+angle; ink draws "Hi " and then "{{ name }}," in a real hand; the braces contract and the token blooms
+into "Maya," with ink bleeding half a millimetre into the fibre; the camera pulls back and the sheet
+you were reading turns out to be one page on a whole desk in morning light.
+
+Three requirements, each a defect in the judged frame:
+
+1. **The ECU must be shallow-focus** (§2's DoF, `focus 0.08 m / range 0.015 m`). A sharp-everywhere
+   macro is not a macro.
+2. **The ink bleed must be visible at the ECU** — the 200 ms cross-dissolve is already specified; add
+   that the bleed spreads **0.4–0.8 mm** into the fibre and that the stroke has variable width.
+3. **Ch1's end frame must show the written letter, with "Maya," legible.** The judged frame's sheet is
+   **blank**, and that is worse than a missing feature: a visitor pulls back from a letter and finds
+   no letter, which retroactively deletes the beat they just watched. It is also **Ch7's image
+   appearing six chapters early** — STORYBOARD §K's ending is *"a fresh blank sheet where the first
+   letter was."* Ch1 shipping a blank sheet spends the ending. Canonised in **A11**.
+
+**The count is now four (WOW 0 · A · B · C), which is the charter ceiling. Nobody adds a fifth.**
+
+**The remaining exposed span, named so the gate can watch it.** With WOW 0 at ~40vh and Ch3's first
+departure at **10–22% of Ch3 ≈ 202–216vh**, the second payoff is correctly placed and needs no change.
+The gap between them is **Ch2, 90–190vh** — the site's only ~100vh stretch with no designed payoff at
+either end within fifteen seconds. I am **not** adding a wow beat to Ch2; that would break the rhythm
+law and flatten the alternation the whole journey is built on. Instead the look gate carries one extra
+assertion for every chapter (§4, **L7**), and Ch2 is the chapter it exists for: **Ch2's three frames
+must read as three visibly different times of day.** If Ch2's dusk transition is not legible frame to
+frame, then Ch2 is a hundred viewport-heights of nothing happening — a *look* failure with a scroll
+consequence, exactly the class this ruling exists to catch.
+
+### 4 · The LOOK GATE — how "how it looks" gets gated, per chapter
+
+**The process failure is the real finding.** The suite was **256/256 green** and four build gates
+PASSED with **zero shadow casters** and a **fictional post pipeline**. Every plan this phase gated
+geometry, bytes, triangles and frame time. **No plan gated how it looks.** And a declared-but-unread
+settings field (`postPasses`) reads as *implemented* in every summary and every gate downstream of it.
+
+**The meta-rule, which is that lesson generalised:**
+
+> **A settings field that no code reads is a failed gate, not a pending feature. No plan may report a
+> look-affecting capability as done on the strength of a declaration — the evidence is a frame or a
+> consumer, never a config line.**
+
+**The gate itself. Three parts, per chapter, in the chapter plan's SUMMARY under a `LOOK` block.**
+
+**(a) The frames — five, fixed, no negotiation about which.**
+All at `?path=full&hud=1`, captured **settled** (poll until the draw-call count is unchanged across
+consecutive samples; never accept a frame whose frame time reads in the thousands of ms — Ruling 9).
+
+| Name | Capture |
+|---|---|
+| `chN-p02.png` | `tier=desktop`, 1600×1000, chapter entry `p=0.02` |
+| `chN-pXX.png` | `tier=desktop`, 1600×1000, the chapter's own **dominant beat** percentage |
+| `chN-p98.png` | `tier=desktop`, 1600×1000, chapter exit `p=0.98` |
+| `chN-mobile.png` | mobile tier, **390×844**, dominant beat |
+| `chN-rm.png` | reduced-motion, 1600×1000, the chapter's authored still |
+
+Mobile is a second authored cut and reduced motion is a third. A gate that only ever looks at desktop
+is how they quietly stop being cuts and start being leftovers.
+
+**(b) What must be visibly true — seven universal assertions, every frame, every chapter.**
+Phrased so a person answers yes/no from the PNG in five seconds, with no expertise:
+
+- **L1 · Contact.** Every object touching a surface has a shadow touching it, with no visible gap. Zero floaters.
+- **L2 · Direction.** One dominant light direction is readable — every shadow points the same way, and you can say which way without being told.
+- **L3 · Range.** ≥2% of pixels under luma 0.06 **and** ≥0.5% over luma 0.94. *(One command: `magick chN-p98.png -colorspace Gray -format %c histogram:info:-` or any equivalent — this assertion is measured, not eyeballed.)*
+- **L4 · Ratio.** A lit face and a shaded face of the same material differ by **≥3:1** in luminance.
+- **L5 · Separation.** The hero silhouette does not merge into its background at any point along its edge.
+- **L6 · Falloff.** No large flat surface (wall, floor) is uniform across the frame — each has a visible gradient away from its light source.
+- **L7 · Change.** The chapter's three desktop frames are **visibly three different moments**. A chapter whose entry and exit frames are interchangeable has not happened.
+
+Plus the per-chapter assertions I author in STORYBOARD or here (Ch1's are in §Assertions below).
+
+**(c) The greppable half — three checks, because this is the exact class of defect that shipped.**
+
+1. `grep -rc "castShadow" src/island/` returns **at least the chapter's prop count**, not 1.
+2. **Every field in `QualityManager`'s tier tables has a consumer:** for each key, `grep -rn "<key>" src/ | wc -l` must be **greater than 1** — a declaration plus at least one read. `postPasses` currently returns 1 and would have failed this the day it was written.
+3. `renderer.toneMappingExposure` is assigned from the chapter's authored light state, not left at 1.0.
+
+**The timing rule, which is what makes it a gate rather than a description.**
+**The `LOOK` block is written into the chapter plan *before* implementation** — authored from my
+direction — **and the frames are captured after.** The chapter either meets a prediction or it does
+not. A LOOK block written afterwards is a description of whatever got built, and that is precisely
+how 256/256 green coexisted with an unlit room.
+
+**Retroactive application — and this is the sharpest statement of the problem.**
+The judged Ch1 frame fails **L1, L2, L4, L5 and L6** outright. **L3 I want measured rather than
+trusted** — on my eye the darkest region in frame is the navy slab (defect 9), which is not lighting
+at all, and the only near-white is the paper; I read it as failing, but L3 is the one assertion in the
+list that has a command, so run the command. **Ch1 must pass its LOOK block before Ch2 implementation
+begins.** A second chapter built on an unlit first chapter doubles the rework.
+
+### Assertions for the implementer
+
+- `grep -rc "castShadow" src/island/` returns **≥ 12** for Ch1 (desk, chair, lamp, binder, clock, clipboard, cup, A4 stack, sheet, shelf, book set, window frame) — not 1
+- the sun directional's shadow camera is an ortho tightened to the **room** bounds; `shadow.mapSize` is **2048**; `normalBias 0.02`, `bias -0.0005`
+- the Ch1 end frame contains a **visible window light patch** on the desktop or the floor, its edges parallel to the window frame
+- the letter sheet in the Ch1 end frame is **written on**, with `Maya,` legible; the blank sheet belongs to Ch7 and to Ch7 only
+- `renderer.toneMappingExposure` is driven per chapter and is not 1.0 in any chapter
+- exactly **one** `EffectComposer`, exactly **one** `ShaderPass`, stages in the order DoF → S-curve → vignette → grain; grain steps at 24 Hz; the composer RT is `UnsignedByteType`; the DoF colour and depth attachments are **half-resolution** and are allocated only in Ch1 `0–48%` and Ch5
+- no dressing prop is the most saturated object in frame — that privilege belongs to the letter's ink, and later to the envelope. The lamp's hot orange is brought inside the palette; a runtime albedo tint in the room builder is the cheap way, and the choice of mechanism is the implementer's
+- nothing occupies Ch1's **upper-left quadrant** in the end frame — either the lamp moves or the end camera does
+- the floor's plank feature width measures **120–200 mm** in world units
+- the navy slab at frame right is identified and either lit, textured, or removed
+- every `QualityManager` tier field has at least one reader; `postPasses` is consumed by the composer or deleted
+
+**Canon:** STORYBOARD §Amendments **A11** (2026-08-26) — the lighting law and the finish bar become
+chapter-invariant direction, Ch1's end frame carries the written letter, and WOW 0 is named as the
+fourth shareable moment. BUDGETS §Amendments **B3** (2026-08-26) — shadow-map resolution and post
+scratch are booked as named sub-lines of the existing ≤ 128 MB texture-memory budget; no budget line
+is raised. No chapter span, no beat percentage, no camera value and no locked copy line changes.
+
+### 5 · Addendum, same day — the suite was not merely silent. It was **enforcing** the defect.
+
+I went looking for the baseline my own FB-1 assertion would be measured against, and found something
+that changes §4's argument and would have ambushed the implementer on contact. Two tests exist whose
+sole job is to guarantee that **no mesh ever casts a shadow**:
+
+```
+src/island/set/room.test.ts:84
+  test('exactly one castShadow in the set, and the tier guard is on the same line')
+  → assert.equal(lines.length, 1,
+      'BUDGETS §Per-frame budgets: shadow maps 0 mobile / 1 desktop. One write, one owner.')
+
+src/island/choreo/dayWheel.test.ts:379
+  assert.equal(occurrences(SOURCE, 'castShadow'), 1, 'BUDGETS Ch4 law: shadow maps = 1')
+```
+
+**Both rest on a category error.** A shadow **map** is a render target a *light* owns. `castShadow` on
+a **mesh** is that mesh's enrolment as an occluder rendered *into* that map. They are not the same
+quantity and they do not trade against each other: **a room in which every one of twenty meshes casts
+still has exactly one shadow map.** The budget line counts maps. The tests count string occurrences of
+`castShadow` and treat the count as if it were the map count.
+
+The consequence is precise and it is the whole story of this ruling:
+
+> The tests did not fail to notice that nothing cast a shadow. **They required it**, cited BUDGETS as
+> the authority, and turned the defect into a passing assertion that any implementer adding
+> `castShadow = true` to a prop would break. 256/256 green was not the absence of a look gate. It was
+> a look gate pointed the wrong way, and the green tick was the lock on the door.
+
+**Correction, and it binds:**
+
+1. **`shadowMaps` governs lights, never meshes.** The one-write-one-owner discipline `room.test.ts`
+   protects is *correct and stays* — but its subject is the **light's** `castShadow`, which must
+   remain a single tier-guarded write reading `settings.shadowMaps`. That assertion should match on
+   the light's own line, not on every occurrence of the string in the file.
+2. **Both assertions are re-scoped, not deleted.** Re-scope to the light (`sun.castShadow` /
+   the injected directional). Ruling 9's lesson holds here too: **invert, don't delete.** The test
+   that reads "exactly one shadow map is configured" is a test worth having; it was measuring the
+   wrong noun.
+3. **After re-scoping, FB-1's gate is the inverse assertion** and belongs in the same file: the count
+   of *meshes* with `castShadow = true` is **≥ the chapter's prop count**, and `receiveShadow` is set
+   on the floor, the walls, the desktop and every prop. The number that used to be pinned at 1 is
+   pinned at "at least twelve" for Ch1.
+4. **`dayWheel.ts:368`'s `light.castShadow = true` is correct as written** and is not what this
+   addendum touches — it is a light.
+
+**And the generalisation, which is now stronger than §4 stated it.** The meta-rule was: *a settings
+field that no code reads is a failed gate.* Add its sibling, which is the more dangerous of the two:
+
+> **A test that asserts a number without asserting what the number is a count *of* will eventually
+> lock in the opposite of the budget it cites.** When a test quotes a budget line in its failure
+> message, the review question is not "does the assertion pass" — it is **"is the thing being counted
+> the thing the budget line counts?"** Here it was not, for the single most visible property of every
+> frame on the site, and it held for a whole phase behind a green suite.
+
+This also retires any suspicion that Ch1's unlit look was an oversight of sequencing — something not
+yet reached. It was reached, decided, asserted, and defended by CI.

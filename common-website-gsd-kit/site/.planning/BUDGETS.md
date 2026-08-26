@@ -21,9 +21,9 @@ One row per part-06 checklist item; columns are the three tiers.
 | DPR clamp | [1, 1.5] | [1, 1.5] | [1, 2] | Lane A (D-13) |
 | Draw calls | ≤ 75 | ≤ 75 | ≤ 75 | Lane A; Ch4 expected worst ~35–45 (Finding 2) |
 | Triangles resident | ≤ 200K | ≤ 200K | ≤ 200K | Lane A; ledger-target arithmetic predicts ~90–100K resident incl. procedural — headroom is real (Finding 2) |
-| Texture memory (VRAM, block-compressed KTX2) | ≤ 128 MB | ≤ 128 MB | ≤ 128 MB | Lane A (D-13) |
-| Shadow maps | 0 | 0 | 1 | Art-direction law: one celestial directional, desktop only; mobile = baked AO + contact cheats |
-| Post-processing passes | 0 (tone mapping only) | 0 (tone mapping only) | 1 | Lane A + art-direction law |
+| Texture memory (VRAM, block-compressed KTX2) | ≤ 128 MB | ≤ 128 MB | ≤ 128 MB | Lane A (D-13). **The line is unchanged; two named sub-lines are booked beneath it — shadow-map resolution and post scratch: see §Amendments B3 (2026-08-26).** |
+| Shadow maps | 0 | 0 | 1 | Art-direction law: one celestial directional, desktop only; mobile = baked AO + contact cheats. **Still exactly 1 — and "1" counts *lights that own a map*, never meshes enrolled as occluders. Twenty casting meshes is still one map. Its resolution and the room-tightened ortho are booked in §Amendments B3 (2026-08-26); the caster requirement is REVIEWS.md §Ruling 10 FB-1, and the two tests that misread this row are corrected in §Ruling 10 §5.** |
+| Post-processing passes | 0 (tone mapping only) | 0 (tone mapping only) | 1 | Lane A + art-direction law. **Still exactly 1. Until 2026-08-26 this line described a `postPasses` field no code read; the pass is now specified in REVIEWS.md §Ruling 10 §2 and its render targets booked in §Amendments B3.** |
 | Particle count | 0 | 0 | ≤ 40 dust sprites | Ch1 sunbeam — the site's ONLY particle system, desktop only (storyboard) |
 | JS per frame | ≤ 5 ms | ≤ 5 ms | ≤ 5 ms | Lane A (D-13) |
 | Frame-rate target | ≥ 45 fps | ≥ 60 fps target (45 fps floor) | 60 fps locked | Lane A (D-13); Ch5's locked 60 fps is a ship-blocker (D-15) |
@@ -179,3 +179,60 @@ variants and adding per-tier selection to the asset layer, not by re-adding the 
 **Consequence for executors:** no plan should attempt to close the mobile asset-weight debt, and the
 zero-headroom gate 03-05 recorded against it is superseded. The **desktop** ≤ 9 MB line is live,
 tight, and the one to gate against.
+
+### B3 (2026-08-26) — shadow-map resolution and post scratch are booked as named sub-lines of the ≤ 128 MB texture line
+
+*Supersedes: nothing. **No budget line is raised.** Two sub-lines are added under the **Texture memory
+(VRAM, block-compressed KTX2)** row of §Per-frame budgets, and the **Shadow maps** and
+**Post-processing passes** rows are annotated to point here.*
+*Owner: `scene-director`, REVIEWS.md §Ruling 10 §2.*
+
+**The conflict, stated.** The tables count *maps* and *passes* and never named what either costs. The
+Shadow maps row says `1` without a resolution; the Post row says `1 pass` without the render targets a
+pass requires. Both spend real bytes against the ≤ 128 MB line, and D-15 says nothing is spent
+silently. Ruling 10 makes the one shadow map and the one post pass actually exist, so the bytes become
+real this phase and are booked before they are allocated, not after they are discovered.
+
+**The two sub-lines.**
+
+| Sub-line | desktop | floor/high-mobile | Composition |
+|---|---|---|---|
+| Shadow map resolution | **2048² depth ≈ 16.8 MB** | n/a — 0 maps | One map, unchanged. The resolution is not the fix; **the ortho frustum tightened to the room bounds is** — 2048 texels across a ~5 m room is 2.4 mm/texel, finer than the paper's own thickness. The same 2048 over an untightened ~40 m frustum is 19.5 mm/texel and resolves no contact at all (Ruling 10 FB-2). |
+| Post scratch (composer render targets) | **≤ 56 MB** | **0** — 0 passes | Full-res RGBA8 grade RT (**not** half-float: tone mapping happens at scene shading, so the buffer is display-referred) + half-res RGBA8 DoF colour + half-res depth. **The DoF attachments are allocated in Ch1 `0–48%` and Ch5 only**; every other chapter runs the pass colour-only. Worst realistic desktop case, at a 3840×2160 drawing buffer: 33 MB + ~16.6 MB ≈ **50 MB**, inside the line with 6 MB spare. |
+
+**The coincidence rule — why the two worst cases are not summed.** ≤ 128 MB is a *residency* line, and
+the peaks do not coincide. The two heaviest simultaneous states, shown:
+
+```
+Ch4 (the budget chapter):  33.0 grade RT + 16.8 shadow + 36.0 PMREM (B1)  =  85.8 MB
+                           DoF is off in Ch4 — its attachments do not exist
+Ch1 ECU:                   33.0 grade RT + 16.6 DoF pair + 16.8 shadow + 18.0 PMREM (B1 "elsewhere", 3 targets)
+                                                                        =  84.4 MB
+```
+
+Both leave **~42–44 MB for every shipped model and PBR texture**. That the chapter holding the big
+PMREM residency (Ch4) is also the chapter without DoF attachments is not luck — it is why Ruling 10
+scoped shallow focus to Ch1 and Ch5 in the first place.
+
+**What this changes about an existing assertion.** B1 projected the ≤ 24-file KTX2 set at 1K as
+"comfortably inside" the remainder and flagged that projection as an assertion this phase must earn.
+After B3 the remainder is **~42 MB, not ~92 MB**. The assertion is now tight rather than comfortable,
+and **03-19 Task 2's audit of the summed bytes against the real `public/assets/manifest.json` is the
+check that settles it.** No number is assumed on either side of it.
+
+**If that audit finds the KTX2 sum over ~42 MB, the redirect order is:**
+
+1. Drop DoF from **Ch5**, keeping Ch1's ECU (−16.6 MB in the only state that carries it).
+2. Step the shadow map back to **1024², keeping the tightened ortho** (−12.6 MB). 4.9 mm/texel is a
+   degraded contact shadow but still a real one — unlike untightened 1024², which is the state that
+   produced the rejected frame.
+3. Authored per-scene cuts from the storyboard's mobile-adaptation column.
+
+**Never**: turning shadow *casting* off, or dropping the grade RT. Ruling 10's FB-1 and FB-5 are the
+floor this amendment exists to protect, not the surface it trades against.
+
+**Enforcement.** Each chapter SUMMARY (D3-15) already records the `?hud=1` `pmrem-RT` count and the
+day-wheel source count. It now also records **the composer's allocated RT bytes** for that chapter, so
+the three residency spends are visible side by side in one place. The LOOK gate's greppable half
+(Ruling 10 §4c) catches the other half of the failure that produced this amendment: a tier field that
+no code reads is a failed gate, not a pending feature.
