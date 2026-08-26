@@ -245,20 +245,52 @@ material is a **clone** of `materials.paper` (`patchInkReveal` does the cloning)
 answers to the day-wheel IBL exactly like every other paper in the room; `new
 MeshStandardMaterial` counts 0 across `src/island/chapters/`.
 
-## Shadow flags set (the director's ruling is not pre-empted)
+## Shadow flags set, and where they now stand against Ruling 10
 
 Two meshes were added and both carry an explicit, reasoned pair. **Neither the missing
 `castShadow` across the rest of the set nor the unwired `postPasses` was touched.**
 
 | mesh | `castShadow` | `receiveShadow` | reasoning |
 |---|---|---|---|
-| the letter (`SkinnedMesh`) | **true** | **false** | A sheet in a raking sun throws a hairline, and the celestial light is the site's single shadow map. It does not receive: nothing is above it in Ch1 (lamp off, sun unobstructed), and a flat plane that both casts and receives at a grazing sun angle is exactly where depth-bias acne shows — across the opening frame. Ch2's fold is the chapter that earns the flag. |
+| the letter (`SkinnedMesh`) | **true** | **false** | A sheet in a raking sun throws a hairline, and the celestial light is the site's single shadow map. It does not receive: nothing is above it in Ch1 (lamp off, sun unobstructed), and a flat plane that both casts and receives at a grazing sun angle is exactly where depth-bias acne shows — across the opening frame. |
 | the dust `InstancedMesh` | **false** | **false** | Air does not cast and does not receive; forty additive quads in the shadow map would print forty holes in the one shadow the room has. |
 
 Setting the letter's caster is **inert today and correct tomorrow**: the sun's shadow map
-currently renders nothing because nothing casts, and the letter's shadow would fall on the desk
-prop (which does not receive) rather than on the floor. When a raking key and the director's
-`castShadow` pass land, the hero object is already a caster.
+currently renders nothing because nothing else casts, and the letter's shadow would fall on the
+desk prop (which does not receive) rather than on the floor.
+
+### Ruling 10 landed while this plan was executing
+
+`b4bda69 docs(direction): Ruling 10 + A11 + B3` is **this plan's feat commit's own parent** — it
+was written in parallel, as expected, and 03-11 was authored before it. Where it lands on what was
+built:
+
+| Ruling 10 item | this plan |
+|---|---|
+| **FB-1**, dust sprites are a named exemption from `castShadow` | ✅ **agrees** — the mote mesh is `false`/`false` |
+| **FB-1**, the sheet is one of the ≥12 named casters | ✅ **agrees** — the letter is `castShadow = true` |
+| **FB-1**, "every surface receives" | ⚠️ **one named debt** — the letter is `receiveShadow = false`. **See below.** |
+| **FB-2** — 2048² map, ortho tightened to room bounds, `normalBias 0.02`, `bias -0.0005`, PCFSoft | ⬜ not this plan (Room's shadow rig + BUDGETS B3) |
+| **FB-3 – FB-8**, the composer, the raking key, the hemisphere bounce | ⬜ not this plan |
+| DoF authored for **Ch1 0–48%** | ⬜ not this plan — there is still no `EffectComposer` |
+| **WOW 0 — "the token resolves" is promoted to a named wow beat** | ℹ️ that beat is the one this plan built; the ordering consequence is 03-19's |
+
+**The one debt, stated precisely.** FB-1 asks for `receiveShadow = true` on every prop, and the
+letter is a prop. It ships `false` because **FB-2 is what makes `true` safe**: a flat plane that
+both casts and receives under a 10° raking sun is the textbook depth-bias acne case, and FB-2's
+`normalBias 0.02` / `bias -0.0005` / tightened 2048² ortho are exactly the settings that remove
+it. Flipping the flag *alone*, today, would put shadow moiré across the site's opening frame —
+which is making the thing Ruling 10 exists to fix worse, not better. **The flip belongs in the
+same commit as the shadow rig**, and the Ruling-10 remediation plan should treat it as one line
+of its FB-1 pass rather than as a separate finding.
+
+**No `LOOK` block is authored here, deliberately.** Ruling 10 §4's timing rule is explicit: *"the
+`LOOK` block is written into the chapter plan **before** implementation … A LOOK block written
+afterwards is a description of whatever got built, and that is precisely how 256/256 green
+coexisted with an unlit room."* Writing one into this SUMMARY now would be that exact anti-pattern
+with this plan's name on it. Ch1 owes a LOOK gate; its block belongs in the remediation plan that
+does FB-1 – FB-8, authored from the direction and captured after. **Ruling 10 also states Ch1 must
+pass its LOOK block before Ch2 implementation begins**, so that plan gates 03-13.
 
 ## The Ch1 payload, re-gated
 
@@ -452,9 +484,12 @@ recorded in `deferred-items.md`.
 enter the room through the window (deviation 2). The scene-director owns whether that matters.
 Nothing was changed under `docs/direction/`.
 
-Two items belong to the ruling already in flight and were deliberately **not** touched: no mesh
+Two items belong to the ruling that landed mid-plan and were deliberately **not** touched: no mesh
 outside this chapter sets `castShadow`, and `QualityManager.postPasses` is still read by no code
-(there is no `EffectComposer`). Both were left exactly as found.
+(there is no `EffectComposer`). Both were left exactly as found — **REVIEWS §Ruling 10 / STORYBOARD
+§A11 / BUDGETS §B3 now specify both in full**, and executing them is a remediation plan of its own,
+the same shape Ruling 9's was. See §Shadow flags for the one line of it this plan touches and why
+it is deferred rather than half-done.
 
 ## Task 3 — the wave-4 blocking human checkpoint (NOT RUN)
 
