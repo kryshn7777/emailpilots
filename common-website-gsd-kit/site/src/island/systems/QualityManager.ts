@@ -116,7 +116,11 @@ export class QualityManager {
     };
   }
 
-  /** Stage feeds every rendered frame's ms; rung changes update settings and notify. */
+  /**
+   * Stage feeds the ms of a rendered frame it can vouch for — one whose ticker delta is that
+   * frame's cost rather than the gap since the last render. Rung changes update settings and
+   * notify.
+   */
   frame(nowMs: number, frameMs: number): void {
     if (this.ladder === null) return;
     const rung = this.ladder.sample(nowMs, frameMs);
@@ -124,6 +128,18 @@ export class QualityManager {
       this.rung = rung;
       this.apply(this.current.tier, rung);
     }
+  }
+
+  /**
+   * Stage feeds a frame whose delta measured a GAP rather than work — a demand renderer on an
+   * idle page produces those constantly, and taken as measurements they walked the ladder to
+   * the bottom rung on a scene with 8 ms of headroom (see regressionLadder's module note).
+   *
+   * No rung can change here by construction — idleness only ever restarts the step-down
+   * window — so there is deliberately no notify path to keep in step with `frame()`.
+   */
+  idle(nowMs: number): void {
+    this.ladder?.idle(nowMs);
   }
 
   dispose(): void {

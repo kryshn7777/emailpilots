@@ -177,10 +177,11 @@ test('a frame the ticker cannot vouch for is reported as idleness, not as a slow
   const body = tickBody();
   const latch = /const (\w+) = this\.\w+; this\.\w+ = false;/.exec(body);
   assert.ok(latch !== null, 'positive control: the latch local must be named');
-  assert.match(
-    body,
-    new RegExp(`if \(${latch[1]}\) this\.quality\.frame\(`),
-    'the ladder is fed a measurement ONLY on a frame that followed a rendered frame',
+  assert.ok(
+    body.includes(`if (${latch[1]}) this.quality.frame(`),
+    'the ladder is fed a measurement ONLY on a frame that followed a rendered frame, and the ' +
+      `guard must be the latch itself (\`${latch[1]}\`), not a fresh read of the field — the ` +
+      'field has already been cleared for the NEXT tick by the time this line runs',
   );
   assert.match(
     body,

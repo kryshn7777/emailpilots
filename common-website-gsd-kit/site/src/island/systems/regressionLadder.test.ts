@@ -182,49 +182,73 @@ const PAUSE_RESUME_TRACE: ReadonlyArray<readonly [number, number]> = [
  * not working. (The equality is exact rather than approximate because both numbers come out
  * of gsap's one `Date.now()`-derived clock — the trace above confirms it to the millisecond.)
  */
+interface Replay {
+  rung: Rung;
+  /** How many frames the routing rule refused to treat as measurements. */
+  routedToIdle: number;
+  /** How many it did — a trace that never reaches this is a straight line, not a gate. */
+  routedToSample: number;
+}
+
 const replay = (
   ladder: ReturnType<typeof createLadder>,
   trace: ReadonlyArray<readonly [number, number]>,
   opts: { asStageFeedsIt: boolean }
-): Rung => {
+): Replay => {
   let previous: number | null = null;
-  let rung: Rung = 'full';
+  const out: Replay = { rung: 'full', routedToIdle: 0, routedToSample: 0 };
   for (const [nowMs, frameMs] of trace) {
     const consecutive = previous !== null && nowMs - previous === frameMs;
-    rung =
-      opts.asStageFeedsIt && !consecutive ? ladder.idle(nowMs) : ladder.sample(nowMs, frameMs);
+    if (opts.asStageFeedsIt && !consecutive) {
+      out.routedToIdle++;
+      out.rung = ladder.idle(nowMs);
+    } else {
+      out.routedToSample++;
+      out.rung = ladder.sample(nowMs, frameMs);
+    }
     previous = nowMs;
   }
-  return rung;
+  return out;
 };
 
 test('positive control — fed every rendered frame, the measured traces ARE the defect', () => {
   // If either of these ever reads 'full', the trace stopped containing the bug and the two
-  // gates below became decorative. This is the assertion that keeps them honest.
+  // gates below became decorative. This is the assertion that keeps them honest — and it
+  // does a second job: it is fed through THIS ladder, gap-length clause and all, so it also
+  // proves that clause is not sufficient on its own. Stage's routing is load-bearing, not
+  // belt-and-braces, and deleting it puts both numbers back.
   assert.equal(
-    replay(createLadder({ budgetMs: DESKTOP }), IDLE_TRACE, { asStageFeedsIt: false }),
+    replay(createLadder({ budgetMs: DESKTOP }), IDLE_TRACE, { asStageFeedsIt: false }).rung,
     'dpr-down',
-    'the 60 s idle trace steps the ladder down when every sample is taken as a measurement',
+    'the 60 s idle trace still steps the ladder down when every sample is taken as a ' +
+      'measurement — none of its three samples is even gap-shaped; they are 124, 20 and ' +
+      '1147 ms, and the ratio over a window that holds two of them is 100%',
   );
   assert.equal(
-    replay(createLadder({ budgetMs: DESKTOP }), PAUSE_RESUME_TRACE, { asStageFeedsIt: false }),
-    'authored-cuts',
-    'and the pause-and-resume trace falls all four rungs — DPR, post, garnish, authored cuts ' +
-      '— on a scene whose measured draw cost never left 1.6-8.9 ms',
+    replay(createLadder({ budgetMs: DESKTOP }), PAUSE_RESUME_TRACE, { asStageFeedsIt: false }).rung,
+    'no-garnish',
+    'and the pause-and-resume trace falls three rungs — DPR, post, garnish — on a scene ' +
+      'whose measured draw cost never left 1.6-8.9 ms. Rung 2 is the composer.',
   );
 });
 
 test('60 s of an idle page never steps the ladder down (measured trace)', () => {
-  assert.equal(
-    replay(createLadder({ budgetMs: DESKTOP }), IDLE_TRACE, { asStageFeedsIt: true }),
-    'full',
-    'a page nobody is touching is not a page that is over budget',
-  );
+  const out = replay(createLadder({ budgetMs: DESKTOP }), IDLE_TRACE, { asStageFeedsIt: true });
+  // Both arms of the routing rule must actually be taken, or this is a straight-line replay
+  // dressed as a gate — the failure mode this whole phase has been shipping.
+  assert.ok(out.routedToIdle >= 2, `the trace must exercise idle(); took it ${out.routedToIdle}×`);
+  assert.ok(out.routedToSample >= 1, 'and it must still feed at least one real measurement');
+  assert.equal(out.rung, 'full', 'a page nobody is touching is not a page that is over budget');
 });
 
 test('pause-and-resume scroll never steps the ladder down (measured trace)', () => {
+  const out = replay(createLadder({ budgetMs: DESKTOP }), PAUSE_RESUME_TRACE, {
+    asStageFeedsIt: true,
+  });
+  assert.ok(out.routedToIdle >= 8, `the trace must exercise idle(); took it ${out.routedToIdle}×`);
+  assert.ok(out.routedToSample >= 20, 'and most of it is real back-to-back rendering');
   assert.equal(
-    replay(createLadder({ budgetMs: DESKTOP }), PAUSE_RESUME_TRACE, { asStageFeedsIt: true }),
+    out.rung,
     'full',
     'reading is the behaviour this site is built to produce; it must not cost the finish',
   );

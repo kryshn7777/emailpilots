@@ -89,7 +89,8 @@ test('a MISSING buffer is what three reports as "no header found" — not a spen
 
 test('the retained .hdr ArrayBuffer parses twice — PMREM does not consume or detach it', () => {
   const file = fs.readFileSync(path.join(SITE, HDR_URL));
-  const buffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
+  // A standalone copy, exactly as AssetQueue's stream reassembly produces one.
+  const buffer: ArrayBuffer = new Uint8Array(file).buffer;
   const bytesBefore = buffer.byteLength;
   const loader = new HDRLoader();
 

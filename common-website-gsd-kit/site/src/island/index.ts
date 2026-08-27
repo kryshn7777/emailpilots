@@ -362,23 +362,32 @@ export async function mount(opts: MountOptions): Promise<void> {
   const still = parseStillParam(new URLSearchParams(window.location.search).get('still'));
   if (still !== null) installStillCapture({ target: still, stage, el });
 
-  // Context restore (research Pattern 4): render targets — every PMREM and the
-  // blend RT — are NOT restored by the browser. Re-fetch both .hdr via AssetQueue
-  // (HTTP cache makes it cheap), regenerate, re-adopt, invalidate.
+  // Context restore (research Pattern 4): render targets — every PMREM and the blend RT — are
+  // NOT restored by the browser, so both skies have to be regenerated from CPU bytes.
+  //
+  // Those bytes come from the **registry**, not from a second `AssetQueue.load('critical')`.
+  // The re-fetch this used to do could never work: `load()` resolves only items that are not
+  // yet `done`, and after mount they all are — so it resolved an EMPTY map, the `!` on
+  // `again.get(url)` handed `undefined` to `HDRLoader.parse`, and every context loss died with
+  // `Read Error: no header found` and left the scene with no environment map at all. The
+  // buffers were never the problem: `assetRegistry` keeps `.hdr` as the raw ArrayBuffer by
+  // design (03-05), `parse` only ever takes a view over it, and it re-reads intact.
+  // `contextRestore.test.ts` pins all four halves of that.
+  const restoreSource = registry;
   stage.onRestore(() => {
-    queue.add(CRITICAL_ASSETS.sunrise.url, 'critical', CRITICAL_ASSETS.sunrise.bytes);
-    queue.add(CRITICAL_ASSETS.dusk.url, 'critical', CRITICAL_ASSETS.dusk.bytes);
-    queue
-      .load('critical')
-      .then((again) => {
+    void Promise.all([
+      restoreSource.get<ArrayBuffer>(CRITICAL_ASSETS.sunrise.url),
+      restoreSource.get<ArrayBuffer>(CRITICAL_ASSETS.dusk.url),
+    ])
+      .then(([sunriseBytes, duskBytes]) => {
         // The old targets died with the context. Release them, write the replacements into
         // the SAME `skySources` object the wheel holds, and adopt without disposal — the
         // wheel owns these now, so the default disposing setPair would free the pair it is
         // about to be handed back.
         skySources.sunrise?.dispose();
         skySources.dusk2?.dispose();
-        skySources.sunrise = crossfade.pmremFromHDR(again.get(CRITICAL_ASSETS.sunrise.url)!);
-        skySources.dusk2 = crossfade.pmremFromHDR(again.get(CRITICAL_ASSETS.dusk.url)!);
+        skySources.sunrise = crossfade.pmremFromHDR(sunriseBytes);
+        skySources.dusk2 = crossfade.pmremFromHDR(duskBytes);
         crossfade.setPair(skySources.sunrise, skySources.dusk2, { disposePrevious: false });
         stage.scene.environment = crossfade.texture;
         stage.invalidate();

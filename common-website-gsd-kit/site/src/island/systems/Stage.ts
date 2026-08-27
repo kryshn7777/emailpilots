@@ -55,6 +55,11 @@ export class Stage {
   private focus: Focus | null = null;
   /** Ticker seconds, held so `draw()` takes no arguments and both paths call it identically. */
   private elapsed = 0;
+  /**
+   * Whether the PREVIOUS ticker dispatch rendered. The ticker's `deltaTime` is wall clock
+   * since that dispatch, so it is this frame's cost only when the answer is yes — see the tick.
+   */
+  private drewLastTick = false;
 
   constructor(deps: { el: HTMLElement; quality: QualityManager }) {
     this.el = deps.el;
@@ -130,8 +135,15 @@ export class Stage {
 
     // Demand render on the single gsap ticker (D-11 one-ticker law).
     const tick = (time: number, deltaTime: number): void => {
+      // Latched FIRST, and cleared unconditionally, because the early return below is the
+      // whole point: a tick that renders nothing must leave the flag down. Read it after the
+      // return and it stays stuck `true` across every skipped tick, which is exactly the
+      // frame the ladder must not be handed.
+      const consecutive = this.drewLastTick;
+      this.drewLastTick = false;
       if (this.hidden || !this.dirty) return;
       this.dirty = false;
+      this.drewLastTick = true;
       this.elapsed = time;
       if (this.hud === null) {
         this.draw();
@@ -159,7 +171,18 @@ export class Stage {
           `tex ${info.memory.textures} | geo ${info.memory.geometries} | ` +
           `pmrem-RT ${targets} | post ${post}`;
       }
-      this.quality.frame(time * 1000, deltaTime);
+      // `deltaTime` is wall clock since the previous ticker DISPATCH — not this frame's cost.
+      // On a demand renderer those are the same number only when that dispatch also rendered.
+      // Otherwise the delta spans ticks nothing was drawn in, and the ladder (budget 16.7 ms)
+      // reads a visitor pausing to read as catastrophic overload: measured on the shipped
+      // build, rung 2 disposed the composer ~10 s after load and never gave it back, while
+      // `drawMs` sat at 1.6-8.9 ms throughout.
+      //
+      // It cannot simply be handed `drawMs` instead: that reading exists only inside the
+      // `hud !== null` branch above, and keeping it there is a gate of its own — the shipping
+      // path stays bare. So the honest thing to report is which of the two numbers this is.
+      if (consecutive) this.quality.frame(time * 1000, deltaTime);
+      else this.quality.idle(time * 1000);
     };
     gsap.ticker.add(tick);
     this.disposers.push(() => gsap.ticker.remove(tick));
