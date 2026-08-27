@@ -112,3 +112,85 @@ test('the still capture renders through Stage’s draw path, not its own (Ruling
   );
   assert.match(code, /deps\.stage\.draw\(\)/, 'it drives the one shared path instead');
 });
+
+/* ============================================ the ladder is fed frames, not wall clock === */
+
+/** The ticker callback, comments stripped and whitespace collapsed to single spaces. */
+function tickBody(): string {
+  const m = /const tick = \([\s\S]*?\n {4}\};\n {4}gsap\.ticker\.add\(tick\);/.exec(SOURCE);
+  assert.ok(m !== null, 'positive control: the one gsap ticker callback must be found');
+  return m[0]
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Measured on the shipped build 2026-08-27: **the composer was disposed ~10 s after load on an
+ * idle page and never came back**, while `draw` sat at 1.6–8.9 ms the whole time.
+ *
+ * `deltaTime` is gsap's wall clock since the previous ticker DISPATCH. Stage is a demand
+ * renderer — it skips dispatches in which nothing changed — so on a page the visitor is
+ * *reading*, which is the behaviour this site is built to produce, that delta is the gap
+ * between renders and not the cost of one. `QualityManager` hands it straight to the ladder,
+ * whose budget is 16.7 ms, so idleness reads as catastrophic overload and rung 2 (`no-post`)
+ * disposes the one `EffectComposer` the entire Ruling 10 finish bar renders through.
+ *
+ * The fix cannot be "feed `drawMs`": that number is computed only inside the `hud !== null`
+ * branch, and the gate above — *the shipping render path stays bare* — is what keeps it there.
+ * So the ticker latches whether the PREVIOUS dispatch rendered, and routes the frame to
+ * `frame()` only when it did. Everything else is reported as `idle()`.
+ *
+ * The three facts below are the ones that fail independently, so they are asserted separately:
+ * the latch must be read **before** the demand-render early return (a `return` above it
+ * freezes the flag `true` and every wake-up frame scores as a measurement); it must be raised
+ * **after** it, on a tick that actually renders; and the two ladder entry points must be the
+ * two arms of one branch on it.
+ */
+test('the ticker latches whether the previous dispatch rendered, before the early return', () => {
+  const body = tickBody();
+  const m = /const (\w+) = this\.(\w+); this\.\2 = false; if \(this\.hidden \|\| !this\.dirty\) return;/.exec(
+    body,
+  );
+  assert.ok(
+    m !== null,
+    'the tick must open by latching the previous dispatch\u2019s render into a local and ' +
+      'clearing the flag, and only then take the demand-render early return. Read it after ' +
+      'the return and a skipped tick never clears it, so the first frame back from an idle ' +
+      `page scores as a measurement of a 4 s frame. Body starts: ${body.slice(0, 160)}`,
+  );
+  const flag = m[2];
+  assert.equal(
+    occurrences(body, `this.${flag} = true;`),
+    1,
+    `${flag} is raised exactly once — on the one path that renders`,
+  );
+  assert.ok(
+    body.indexOf(`this.${flag} = true;`) > body.indexOf('this.dirty = false;'),
+    `${flag} must be raised AFTER the early return clears dirty, or a skipped tick claims to ` +
+      'have drawn',
+  );
+});
+
+test('a frame the ticker cannot vouch for is reported as idleness, not as a slow frame', () => {
+  const body = tickBody();
+  const latch = /const (\w+) = this\.\w+; this\.\w+ = false;/.exec(body);
+  assert.ok(latch !== null, 'positive control: the latch local must be named');
+  assert.match(
+    body,
+    new RegExp(`if \(${latch[1]}\) this\.quality\.frame\(`),
+    'the ladder is fed a measurement ONLY on a frame that followed a rendered frame',
+  );
+  assert.match(
+    body,
+    /else this\.quality\.idle\(/,
+    'and every other frame reports the gap it actually measured — dropping the call instead ' +
+      'leaves the ladder\u2019s window spanning the idle time, which closes on a population ' +
+      'of one and steps down anyway',
+  );
+  // One entry point each, in the whole file: a second unguarded `quality.frame(` anywhere is
+  // the defect coming back through a different door.
+  assert.equal(occurrences(SOURCE, 'this.quality.frame('), 1, 'exactly one measurement feed');
+  assert.equal(occurrences(SOURCE, 'this.quality.idle('), 1, 'exactly one idleness feed');
+});
