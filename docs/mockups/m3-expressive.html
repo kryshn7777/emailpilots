@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Email Pilots — Material 3 Expressive mockups</title>
+<style>
+/* ============================================================
+   TOKENS — copy this block as the CSS reference
+   Material 3 Expressive: high-emphasis color, big radii,
+   spring motion, size-contrasted type. Curves only.
+   ============================================================ */
+:root{
+  /* --- color: light --- */
+  --primary:#5A4BDA;           --on-primary:#FFFFFF;
+  --primary-container:#E3DEFF; --on-primary-container:#150067;
+  --secondary:#605A7C;         --secondary-container:#E7DEF8; --on-secondary-container:#1D192B;
+  --tertiary:#D2452F;          --tertiary-container:#FFDAD3; --on-tertiary-container:#410100;
+  --success:#136B3A;           --success-container:#B7F2CC;
+  --surface:#FDF7FF;           --on-surface:#1C1B20;
+  --surface-container-low:#F8F2FA;
+  --surface-container:#F2ECF6;
+  --surface-container-high:#ECE6F1;
+  --surface-container-highest:#E5DFEA;
+  --on-surface-variant:#49454E; --outline-variant:#CCC4D4;
+
+  /* --- shape: expressive scale, all continuous curves --- */
+  --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px;
+  --r-xl:28px; --r-2xl:36px; --r-3xl:44px; --r-full:999px;
+
+  /* --- motion: spring-ish easings --- */
+  --spring-fast:280ms cubic-bezier(.34,1.56,.64,1);
+  --spring-slow:520ms cubic-bezier(.22,1.2,.36,1);
+  --emphasized:400ms cubic-bezier(.2,0,0,1);
+
+  /* --- type: expressive size contrast --- */
+  --font:"Segoe UI Variable","Segoe UI",Roboto,system-ui,sans-serif;
+  --display-lg:44px/1.05 var(--font);
+  --headline:26px/1.2 var(--font);
+  --title:17px/1.3 var(--font);
+  --body:14px/1.45 var(--font);
+  --label:12px/1.2 var(--font);
+
+  /* --- elevation: soft, no hard edges --- */
+  --e1:0 1px 3px rgba(28,27,32,.10), 0 1px 2px rgba(28,27,32,.06);
+  --e2:0 4px 12px rgba(28,27,32,.10), 0 2px 4px rgba(28,27,32,.06);
+  --e3:0 10px 28px rgba(28,27,32,.16), 0 4px 8px rgba(28,27,32,.08);
+}
+body.dark{
+  --primary:#C6BFFF;           --on-primary:#2A1B77;
+  --primary-container:#4133B8; --on-primary-container:#E5DEFF;
+  --secondary:#CBC2DB;         --secondary-container:#48455E; --on-secondary-container:#E8DEF8;
+  --tertiary:#FFB4A5;          --tertiary-container:#8E2A18; --on-tertiary-container:#FFDAD3;
+  --success:#8ED8A8;           --success-container:#0B4B27;
+  --surface:#141318;           --on-surface:#E6E1E9;
+  --surface-container-low:#1B1B21;
+  --surface-container:#201F25;
+  --surface-container-high:#2B2930;
+  --surface-container-highest:#36343B;
+  --on-surface-variant:#CAC4D0; --outline-variant:#49454E;
+  --e3:0 10px 28px rgba(0,0,0,.5), 0 4px 8px rgba(0,0,0,.3);
+}
+
+/* ============================================================
+   SHEET CHROME
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font:var(--body);background:#EDE7F3;color:var(--on-surface);
+  padding:40px 28px 80px;-webkit-font-smoothing:antialiased;
+}
+body.dark{background:#0D0C10}
+.sheet-head{max-width:1400px;margin:0 auto 36px;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.sheet-head h1{font:var(--display-lg);letter-spacing:-1.2px;color:#1C1B20}
+body.dark .sheet-head h1{color:#E6E1E9}
+.sheet-head p{color:#49454E;max-width:52ch}
+body.dark .sheet-head p{color:#CAC4D0}
+.theme-toggle{
+  margin-left:auto;border:0;cursor:pointer;font:var(--title);
+  padding:14px 24px;border-radius:var(--r-full);
+  background:#5A4BDA;color:#fff;box-shadow:var(--e2);
+  transition:border-radius var(--spring-fast),transform var(--spring-fast);
+}
+.theme-toggle:active{border-radius:var(--r-md);transform:scale(.96)}
+
+.grid{
+  max-width:1400px;margin:0 auto;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
+  gap:52px 40px;
+}
+.slot{display:flex;flex-direction:column;align-items:center;gap:14px}
+.slot > figcaption{font:var(--label);letter-spacing:.6px;text-transform:uppercase;color:#49454E}
+body.dark .slot > figcaption{color:#CAC4D0}
+
+/* ============================================================
+   PHONE FRAME
+   ============================================================ */
+.phone{
+  width:340px;height:720px;border-radius:var(--r-3xl);
+  background:var(--surface);color:var(--on-surface);
+  box-shadow:var(--e3);overflow:hidden;position:relative;
+  display:flex;flex-direction:column;isolation:isolate;
+}
+.status{
+  height:34px;flex:none;display:flex;align-items:center;
+  justify-content:space-between;padding:0 22px;
+  font:var(--label);font-weight:600;color:var(--on-surface-variant);
+}
+.status .dots{display:flex;gap:4px;align-items:center}
+.status .dots i{width:6px;height:6px;border-radius:var(--r-full);background:currentColor;display:block}
+.screen{flex:1;overflow:hidden;position:relative;padding:0 16px}
+.scroll{height:100%;overflow:hidden}
+
+/* ============================================================
+   COMPONENTS
+   ============================================================ */
+
+/* --- expressive header: big type + tonal morphing blob --- */
+.hero{position:relative;padding:14px 6px 20px}
+.hero h2{font:var(--display-lg);letter-spacing:-1.5px}
+.hero .sub{color:var(--on-surface-variant);margin-top:6px}
+.blob{
+  position:absolute;inset:auto -50px 10px auto;width:150px;height:150px;
+  border-radius:58% 42% 46% 54% / 50% 56% 44% 50%;
+  background:var(--primary-container);opacity:.7;z-index:-1;
+  animation:morph 12s ease-in-out infinite;
+}
+@keyframes morph{
+  0%,100%{border-radius:58% 42% 46% 54% / 50% 56% 44% 50%;transform:rotate(0deg)}
+  50%    {border-radius:44% 56% 62% 38% / 42% 48% 52% 58%;transform:rotate(12deg)}
+}
+
+/* --- search bar (pill) --- */
+.searchbar{
+  display:flex;align-items:center;gap:12px;height:52px;padding:0 18px;
+  border-radius:var(--r-full);background:var(--surface-container-high);
+  color:var(--on-surface-variant);
+}
+
+/* --- filter chips --- */
+.chips{display:flex;gap:8px;margin:14px 0 6px;flex-wrap:wrap}
+.chip{
+  font:var(--label);font-weight:600;padding:9px 16px;border-radius:var(--r-full);
+  border:1px solid var(--outline-variant);color:var(--on-surface-variant);
+  background:transparent;transition:border-radius var(--spring-fast),background var(--emphasized);
+}
+.chip.on{background:var(--secondary-container);color:var(--on-secondary-container);border-color:transparent}
+.chip:active{border-radius:var(--r-xs)}
+
+/* --- list item --- */
+.item{display:flex;gap:14px;align-items:flex-start;padding:14px 8px;border-radius:var(--r-lg)}
+.item.sel{background:var(--secondary-container)}
+.avatar{
+  width:44px;height:44px;flex:none;border-radius:var(--r-full);
+  background:var(--primary-container);color:var(--on-primary-container);
+  display:grid;place-items:center;font-weight:700;font-size:15px;
+}
+.avatar.t{background:var(--tertiary-container);color:var(--on-tertiary-container)}
+.avatar.s{background:var(--success-container);color:var(--success)}
+.item .txt{min-width:0;flex:1}
+.item .row1{display:flex;align-items:baseline;gap:8px}
+.item .name{font:var(--title);font-weight:650;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .time{font:var(--label);color:var(--on-surface-variant);flex:none}
+.item .snip{color:var(--on-surface-variant);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dot{width:9px;height:9px;border-radius:var(--r-full);background:var(--primary);flex:none;margin-top:8px}
+
+/* --- cards --- */
+.card{
+  background:var(--surface-container);border-radius:var(--r-xl);
+  padding:18px;margin-bottom:12px;
+}
+.card.tonal{background:var(--primary-container);color:var(--on-primary-container)}
+.card.warm{background:var(--tertiary-container);color:var(--on-tertiary-container)}
+.card h3{font:var(--title);font-weight:650;margin-bottom:4px}
+.stat{font:var(--display-lg);letter-spacing:-1.5px;font-weight:600}
+.stat small{font:var(--label);font-weight:600;opacity:.7;margin-left:6px;letter-spacing:.4px}
+.card-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card-row .card{margin:0}
+
+/* --- wavy progress (M3E signature, smooth sine — no zigzag) --- */
+.wavy{display:block;width:100%;height:18px;overflow:visible;margin-top:6px}
+.wavy path{fill:none;stroke-width:4;stroke-linecap:round}
+.wavy .track{stroke:var(--surface-container-highest);opacity:.7}
+.wavy .fill{stroke:var(--primary);stroke-dasharray:320;stroke-dashoffset:120;
+  animation:wave 2.4s var(--emphasized) infinite alternate}
+@keyframes wave{to{stroke-dashoffset:60}}
+
+/* --- linear progress (rounded, gapped — M3E style) --- */
+.bar{height:10px;border-radius:var(--r-full);background:var(--surface-container-highest);
+  overflow:hidden;display:flex;gap:4px}
+.bar i{display:block;height:100%;border-radius:var(--r-full);background:var(--primary)}
+
+/* --- buttons: press morphs radius instead of flashing a ripple --- */
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.btn{
+  border:0;cursor:pointer;font:var(--title);font-weight:650;
+  padding:14px 24px;border-radius:var(--r-full);
+  background:var(--primary);color:var(--on-primary);
+  transition:border-radius var(--spring-fast),transform var(--spring-fast);
+}
+.btn:active{border-radius:var(--r-md);transform:scale(.95)}
+.btn.tonal{background:var(--secondary-container);color:var(--on-secondary-container)}
+.btn.outline{background:transparent;color:var(--primary);box-shadow:inset 0 0 0 1px var(--outline-variant)}
+.btn.sm{padding:10px 18px;font:var(--label);font-weight:700}
+
+/* --- connected button group (M3E): pills fusing into one bar --- */
+.group{display:flex;gap:3px}
+.group .btn{border-radius:var(--r-sm);flex:1;padding:14px 10px;text-align:center}
+.group .btn:first-child{border-radius:var(--r-full) var(--r-sm) var(--r-sm) var(--r-full)}
+.group .btn:last-child{border-radius:var(--r-sm) var(--r-full) var(--r-full) var(--r-sm)}
+.group .btn:not(.on){background:var(--surface-container-high);color:var(--on-surface-variant)}
+.group .btn.on{background:var(--primary);color:var(--on-primary)}
+
+/* --- FAB / extended FAB --- */
+.fab{
+  position:absolute;right:22px;bottom:96px;z-index:5;
+  height:60px;min-width:60px;padding:0 22px;border:0;cursor:pointer;
+  display:flex;align-items:center;gap:10px;
+  font:var(--title);font-weight:700;
+  border-radius:var(--r-xl);background:var(--primary);color:var(--on-primary);
+  box-shadow:var(--e3);
+  transition:border-radius var(--spring-fast),transform var(--spring-fast);
+}
+.fab:active{border-radius:var(--r-full);transform:scale(.93)}
+.fab.warm{background:var(--tertiary);color:#fff}
+
+/* --- FAB menu stack --- */
+.fabmenu{position:absolute;right:22px;bottom:96px;z-index:5;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.fabmenu .mini{
+  display:flex;align-items:center;gap:10px;height:46px;padding:0 18px;border:0;cursor:pointer;
+  border-radius:var(--r-full);background:var(--surface-container-high);
+  color:var(--on-surface);font:var(--label);font-weight:700;box-shadow:var(--e2);
+}
+
+/* --- bottom nav --- */
+.nav{
+  flex:none;height:78px;display:flex;align-items:center;justify-content:space-around;
+  background:var(--surface-container);padding:0 6px 8px;
+}
+.nav b{display:flex;flex-direction:column;align-items:center;gap:4px;font:var(--label);font-weight:600;
+  color:var(--on-surface-variant)}
+.nav b .pill{
+  width:60px;height:34px;border-radius:var(--r-full);display:grid;place-items:center;font-size:16px;
+  transition:background var(--spring-fast);
+}
+.nav b.on{color:var(--on-secondary-container)}
+.nav b.on .pill{background:var(--secondary-container)}
+
+/* --- top app bar --- */
+.appbar{display:flex;align-items:center;gap:14px;padding:12px 6px 6px;font:var(--title);font-weight:650}
+.appbar .icon{width:40px;height:40px;border-radius:var(--r-full);display:grid;place-items:center;
+  background:var(--surface-container-high);flex:none}
+.appbar .grow{flex:1}
+
+/* --- text fields (filled, big radius) --- */
+.field{
+  background:var(--surface-container-high);border-radius:var(--r-md) var(--r-md) var(--r-xs) var(--r-xs);
+  padding:10px 16px;margin-bottom:10px;border-bottom:2px solid transparent;
+}
+.field.focus{border-bottom-color:var(--primary)}
+.field label{display:block;font:var(--label);font-weight:600;color:var(--primary)}
+.field .val{padding-top:2px}
+.field.area{min-height:150px;border-radius:var(--r-md)}
+
+/* --- switch (M3 shape, pure curves) --- */
+.sw{width:52px;height:32px;border-radius:var(--r-full);background:var(--surface-container-highest);
+  position:relative;flex:none;transition:background var(--emphasized)}
+.sw i{position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:var(--r-full);
+  background:var(--on-surface-variant);transition:all var(--spring-fast)}
+.sw.on{background:var(--primary)}
+.sw.on i{left:26px;top:4px;width:24px;height:24px;background:var(--on-primary)}
+
+/* --- slider --- */
+.slider{display:flex;align-items:center;gap:10px;height:34px}
+.slider .track{flex:1;height:14px;border-radius:var(--r-full);background:var(--surface-container-highest);position:relative}
+.slider .track i{position:absolute;inset:0 auto 0 0;width:62%;border-radius:var(--r-full);background:var(--primary)}
+.slider .knob{width:6px;height:34px;border-radius:var(--r-full);background:var(--primary);flex:none}
+
+/* --- section labels --- */
+.sec{font:var(--label);font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--primary);margin:18px 8px 8px}
+
+/* --- sequence timeline: rounded nodes + rounded rails, never angular --- */
+.step{display:flex;gap:14px}
+.step .rail{width:44px;flex:none;display:flex;flex-direction:column;align-items:center}
+.step .node{width:40px;height:40px;border-radius:var(--r-full);display:grid;place-items:center;
+  background:var(--primary);color:var(--on-primary);font-weight:700;flex:none}
+.step .node.idle{background:var(--surface-container-highest);color:var(--on-surface-variant)}
+.step .line{flex:1;width:4px;border-radius:var(--r-full);background:var(--outline-variant);margin:6px 0}
+.step .body{flex:1;padding-bottom:14px}
+.step .body .card{margin:0}
+
+/* --- badges --- */
+.badge{font:var(--label);font-weight:700;padding:5px 12px;border-radius:var(--r-full);
+  background:var(--success-container);color:var(--success)}
+.badge.warn{background:var(--tertiary-container);color:var(--tertiary)}
+.badge.idle{background:var(--surface-container-highest);color:var(--on-surface-variant)}
+
+/* --- snackbar --- */
+.snack{position:absolute;left:16px;right:16px;bottom:96px;z-index:6;
+  background:var(--surface-container-highest);border-radius:var(--r-lg);
+  padding:16px 18px;display:flex;align-items:center;gap:12px;box-shadow:var(--e2)}
+.snack b{margin-left:auto;color:var(--primary);font:var(--label);font-weight:700}
+
+.spacer{height:120px}
+.muted{color:var(--on-surface-variant)}
+.flex{display:flex;align-items:center;gap:10px}
+.between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+/* ============================================================
+   TOKEN REFERENCE PANEL
+   ============================================================ */
+.ref{max-width:1400px;margin:64px auto 0;background:var(--surface);color:var(--on-surface);
+  border-radius:var(--r-2xl);padding:32px;box-shadow:var(--e2)}
+.ref h2{font:var(--headline);margin-bottom:18px}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.sw-card{border-radius:var(--r-lg);padding:16px;height:88px;display:flex;flex-direction:column;
+  justify-content:flex-end;font:var(--label);font-weight:700}
+.shapes{display:flex;gap:14px;flex-wrap:wrap;margin-top:22px}
+.shapes div{width:74px;height:74px;background:var(--primary-container);color:var(--on-primary-container);
+  display:grid;place-items:center;font:var(--label);font-weight:700}
+
+/* ============================================================
+   DESKTOP ARTBOARD — the real Email Pilots shape (Electron)
+   ============================================================ */
+.deskwrap{max-width:1400px;margin:64px auto 0}
+.deskwrap > figcaption{font:var(--label);letter-spacing:.6px;text-transform:uppercase;
+  color:#49454E;margin-top:14px;text-align:center}
+body.dark .deskwrap > figcaption{color:#CAC4D0}
+.desk{
+  height:760px;border-radius:var(--r-2xl);overflow:hidden;display:flex;
+  background:var(--surface);color:var(--on-surface);box-shadow:var(--e3);
+}
+
+/* navigation rail — M3 pill indicators */
+.rail{
+  width:104px;flex:none;background:var(--surface-container-low);
+  display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px 10px;
+}
+.rail .mark{width:46px;height:46px;border-radius:var(--r-lg);background:var(--primary);
+  color:var(--on-primary);display:grid;place-items:center;font-size:20px;margin-bottom:18px}
+.rail .rfab{
+  width:60px;height:60px;border:0;cursor:pointer;border-radius:var(--r-xl);
+  background:var(--primary-container);color:var(--on-primary-container);font-size:22px;
+  box-shadow:var(--e1);margin-bottom:20px;
+  transition:border-radius var(--spring-fast),transform var(--spring-fast);
+}
+.rail .rfab:active{border-radius:var(--r-full);transform:scale(.93)}
+.rail b{display:flex;flex-direction:column;align-items:center;gap:5px;font:var(--label);
+  font-weight:600;color:var(--on-surface-variant);padding:4px 0;width:100%}
+.rail b .pill{width:60px;height:34px;border-radius:var(--r-full);display:grid;place-items:center;
+  font-size:17px;transition:background var(--spring-fast)}
+.rail b.on{color:var(--on-secondary-container)}
+.rail b.on .pill{background:var(--secondary-container)}
+.rail .foot{margin-top:auto}
+
+/* list pane */
+.pane{
+  width:380px;flex:none;background:var(--surface-container-low);
+  border-left:1px solid var(--outline-variant);
+  display:flex;flex-direction:column;padding:22px 16px 0;
+}
+.pane .ptop{padding:0 8px 4px}
+.pane .ptop h2{font:var(--headline);font-weight:650;letter-spacing:-.6px}
+.pane .plist{flex:1;overflow:hidden;margin-top:10px}
+.pane .item{padding:12px 12px}
+.pane .item.sel{background:var(--secondary-container)}
+
+/* reading pane */
+.read{flex:1;min-width:0;display:flex;flex-direction:column;padding:22px 28px 0;position:relative}
+.read .rhead{display:flex;align-items:flex-start;gap:16px;padding-bottom:18px;
+  border-bottom:1px solid var(--outline-variant)}
+.read .rhead h2{font:26px/1.15 var(--font);font-weight:650;letter-spacing:-.5px}
+.read .rbody{flex:1;overflow:hidden;padding:22px 0;max-width:64ch}
+.read .rbody p{margin-bottom:14px;font-size:15px;line-height:1.6}
+.read .quote{background:var(--surface-container);border-radius:var(--r-lg);
+  padding:14px 18px;color:var(--on-surface-variant);margin-bottom:18px;font-size:14px}
+.iconbtn{width:44px;height:44px;flex:none;border:0;cursor:pointer;border-radius:var(--r-full);
+  background:var(--surface-container-high);color:var(--on-surface-variant);font-size:16px;
+  display:grid;place-items:center;
+  transition:border-radius var(--spring-fast),background var(--emphasized)}
+.iconbtn:active{border-radius:var(--r-sm)}
+
+/* right insight column */
+.aside{width:290px;flex:none;padding:22px 22px 0;background:var(--surface-container-low);
+  border-left:1px solid var(--outline-variant);overflow:hidden}
+@media (max-width:1200px){.aside{display:none}}
+</style>
+</head>
+<body>
+
+<div class="sheet-head">
+  <div>
+    <h1>Email&nbsp;Pilots — M3 Expressive</h1>
+    <p>CSS reference sheet. Tokens live in the <code>:root</code> block at the top of this file — copy it whole. Every shape is a continuous curve: pills, squircles, morphing blobs, sine waves. No angular chevrons, no zigzag.</p>
+  </div>
+  <button class="theme-toggle" onclick="document.body.classList.toggle('dark')">Toggle theme</button>
+</div>
+
+<div class="grid">
+
+<!-- ============ 1. INBOX ============ -->
+<figure class="slot">
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+  <div class="screen"><div class="scroll">
+    <div class="hero">
+      <div class="blob"></div>
+      <h2>Inbox</h2>
+      <div class="sub">12 replies · 3 need you</div>
+    </div>
+    <div class="searchbar"><span>&#9906;</span><span class="muted">Search mail</span>
+      <span class="avatar" style="width:34px;height:34px;font-size:12px;margin-left:auto">KH</span></div>
+    <div class="chips">
+      <span class="chip on">Replies</span><span class="chip">Unread</span>
+      <span class="chip">Campaigns</span><span class="chip">Bounced</span>
+    </div>
+    <div class="item sel">
+      <div class="avatar">MR</div>
+      <div class="txt">
+        <div class="row1"><span class="name">Maya Rivera</span><span class="time">9:12</span></div>
+        <div class="snip">Re: quick follow-up — happy to chat Thursday, does 3pm work on your side?</div>
+      </div><div class="dot"></div>
+    </div>
+    <div class="item">
+      <div class="avatar t">DF</div>
+      <div class="txt">
+        <div class="row1"><span class="name">Dan Fowler</span><span class="time">8:47</span></div>
+        <div class="snip">Thanks for the note. Forwarding to our ops lead this week.</div>
+      </div><div class="dot"></div>
+    </div>
+    <div class="item">
+      <div class="avatar s">AL</div>
+      <div class="txt">
+        <div class="row1"><span class="name">Amara Lund</span><span class="time">Yest</span></div>
+        <div class="snip">Interested — send over the pricing page when you get a moment.</div>
+      </div>
+    </div>
+    <div class="item">
+      <div class="avatar">TS</div>
+      <div class="txt">
+        <div class="row1"><span class="name">Tomas Silva</span><span class="time">Yest</span></div>
+        <div class="snip">Out of office until the 24th. I will respond after I am back.</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+  </div></div>
+  <button class="fab">&#9998; Compose</button>
+  <div class="nav">
+    <b class="on"><span class="pill">&#9993;</span>Inbox</b>
+    <b><span class="pill">&#9678;</span>Campaigns</b>
+    <b><span class="pill">&#8646;</span>Sequences</b>
+    <b><span class="pill">&#9881;</span>Settings</b>
+  </div>
+</div>
+<figcaption>01 · Inbox — list, chips, extended FAB</figcaption>
+</figure>
+
+<!-- ============ 2. DASHBOARD ============ -->
+<figure class="slot">
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+  <div class="screen"><div class="scroll">
+    <div class="hero">
+      <div class="blob"></div>
+      <h2>Today</h2>
+      <div class="sub">Warm-up day 6 of 14</div>
+    </div>
+    <div class="card tonal">
+      <h3>Sent today</h3>
+      <div class="stat">38<small>/ 60 CAP</small></div>
+      <svg class="wavy" viewBox="0 0 300 18" preserveAspectRatio="none">
+        <path class="track" d="M3 9 Q 15 1 27 9 T 51 9 T 75 9 T 99 9 T 123 9 T 147 9 T 171 9 T 195 9 T 219 9 T 243 9 T 267 9 T 291 9"/>
+        <path class="fill"  d="M3 9 Q 15 1 27 9 T 51 9 T 75 9 T 99 9 T 123 9 T 147 9 T 171 9 T 195 9 T 219 9 T 243 9 T 267 9 T 291 9"/>
+      </svg>
+    </div>
+    <div class="card-row">
+      <div class="card"><h3 class="muted">Reply rate</h3><div class="stat" style="font-size:34px">14<small>%</small></div></div>
+      <div class="card warm"><h3>Bounced</h3><div class="stat" style="font-size:34px">2</div></div>
+    </div>
+    <div class="card">
+      <div class="between"><h3>Next run</h3><span class="badge">Armed</span></div>
+      <div class="muted" style="margin:6px 0 12px">Sequence “Founder intro” · in 42 min</div>
+      <div class="bar"><i style="width:26%"></i><i style="width:18%;background:var(--tertiary)"></i></div>
+      <div class="btns"><button class="btn sm">Run now</button><button class="btn sm tonal">Pause</button></div>
+    </div>
+    <div class="spacer"></div>
+  </div></div>
+  <div class="fabmenu">
+    <button class="mini">&#9678; New campaign</button>
+    <button class="mini">&#8593; Import list</button>
+    <button class="fab" style="position:static">&#65291;</button>
+  </div>
+  <div class="nav">
+    <b><span class="pill">&#9993;</span>Inbox</b>
+    <b class="on"><span class="pill">&#9678;</span>Campaigns</b>
+    <b><span class="pill">&#8646;</span>Sequences</b>
+    <b><span class="pill">&#9881;</span>Settings</b>
+  </div>
+</div>
+<figcaption>02 · Dashboard — tonal stat cards, wavy progress, FAB menu</figcaption>
+</figure>
+
+<!-- ============ 3. COMPOSE ============ -->
+<figure class="slot">
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+  <div class="screen"><div class="scroll">
+    <div class="appbar"><span class="icon">&#10005;</span><span class="grow">New message</span><span class="icon">&#8943;</span></div>
+    <div class="field"><label>From</label><div class="val">kittu@emailpilots.app</div></div>
+    <div class="field focus"><label>To</label><div class="val">maya@northwind.io</div></div>
+    <div class="field"><label>Subject</label><div class="val">Quick follow-up on Thursday</div></div>
+    <div class="field area"><label>Body</label>
+      <div class="val">Hi Maya —<br><br>Thanks for taking a look last week. Thursday 3pm works on my end; I will send an invite unless another slot suits you better.<br><br>— Kittu</div>
+    </div>
+    <div class="chips">
+      <span class="chip on">{{first_name}}</span><span class="chip">{{company}}</span><span class="chip">{{city}}</span>
+    </div>
+    <div class="group" style="margin-top:14px">
+      <button class="btn on">Send now</button>
+      <button class="btn">Schedule</button>
+      <button class="btn">Draft</button>
+    </div>
+    <div class="spacer"></div>
+  </div></div>
+  <div class="snack">Merge fields resolved for 42 recipients <b>UNDO</b></div>
+  <div class="nav">
+    <b class="on"><span class="pill">&#9993;</span>Inbox</b>
+    <b><span class="pill">&#9678;</span>Campaigns</b>
+    <b><span class="pill">&#8646;</span>Sequences</b>
+    <b><span class="pill">&#9881;</span>Settings</b>
+  </div>
+</div>
+<figcaption>03 · Compose — filled fields, connected button group, snackbar</figcaption>
+</figure>
+
+<!-- ============ 4. SEQUENCE ============ -->
+<figure class="slot">
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+  <div class="screen"><div class="scroll">
+    <div class="appbar"><span class="icon">&#8592;</span><span class="grow">Founder intro</span><span class="icon">&#8943;</span></div>
+    <div class="chips"><span class="chip on">Active</span><span class="chip">42 enrolled</span><span class="chip">3 replied</span></div>
+    <div class="sec">Steps</div>
+
+    <div class="step">
+      <div class="rail"><div class="node">1</div><div class="line"></div></div>
+      <div class="body"><div class="card">
+        <div class="between"><h3>Intro</h3><span class="badge">Sent 42</span></div>
+        <div class="muted">Day 0 · 09:00 local</div>
+      </div></div>
+    </div>
+    <div class="step">
+      <div class="rail"><div class="node">2</div><div class="line"></div></div>
+      <div class="body"><div class="card">
+        <div class="between"><h3>Nudge</h3><span class="badge warn">Sending</span></div>
+        <div class="muted" style="margin-bottom:10px">Day 3 · skips repliers</div>
+        <div class="bar"><i style="width:58%"></i></div>
+      </div></div>
+    </div>
+    <div class="step">
+      <div class="rail"><div class="node idle">3</div></div>
+      <div class="body"><div class="card">
+        <div class="between"><h3>Last call</h3><span class="badge idle">Queued</span></div>
+        <div class="muted">Day 7 · 09:00 local</div>
+      </div></div>
+    </div>
+
+    <div class="btns" style="padding:0 6px">
+      <button class="btn tonal">&#65291; Add step</button>
+      <button class="btn outline">Preview</button>
+    </div>
+    <div class="spacer"></div>
+  </div></div>
+  <button class="fab warm">&#10074;&#10074; Pause</button>
+  <div class="nav">
+    <b><span class="pill">&#9993;</span>Inbox</b>
+    <b><span class="pill">&#9678;</span>Campaigns</b>
+    <b class="on"><span class="pill">&#8646;</span>Sequences</b>
+    <b><span class="pill">&#9881;</span>Settings</b>
+  </div>
+</div>
+<figcaption>04 · Sequence — rounded-rail timeline, status badges</figcaption>
+</figure>
+
+<!-- ============ 5. ACCOUNTS ============ -->
+<figure class="slot">
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+  <div class="screen"><div class="scroll">
+    <div class="hero">
+      <div class="blob"></div>
+      <h2>Accounts</h2>
+      <div class="sub">3 mailboxes · 2 sending</div>
+    </div>
+    <div class="card tonal">
+      <div class="between">
+        <div><h3>kittu@emailpilots.app</h3><div style="opacity:.75">Gmail · app password</div></div>
+        <div class="sw on"><i></i></div>
+      </div>
+      <div class="bar" style="margin-top:14px;background:rgba(0,0,0,.12)"><i style="width:63%;background:var(--primary)"></i></div>
+      <div style="margin-top:8px;opacity:.8">38 / 60 today</div>
+    </div>
+    <div class="card">
+      <div class="between">
+        <div><h3>kittu@outlook.com</h3><div class="muted">Microsoft · Graph</div></div>
+        <div class="sw on"><i></i></div>
+      </div>
+      <div class="bar" style="margin-top:14px"><i style="width:22%"></i></div>
+      <div class="muted" style="margin-top:8px">11 / 50 today</div>
+    </div>
+    <div class="card">
+      <div class="between">
+        <div><h3>hello@studio.dev</h3><div class="muted">SMTP · paused</div></div>
+        <div class="sw"><i></i></div>
+      </div>
+      <div class="btns"><button class="btn sm tonal">Reconnect</button></div>
+    </div>
+    <div class="sec">Domain auth</div>
+    <div class="card">
+      <div class="flex"><span class="badge">SPF</span><span class="badge">DKIM</span><span class="badge warn">DMARC</span></div>
+      <div class="muted" style="margin-top:10px">DMARC record missing — add a TXT record to finish setup.</div>
+    </div>
+    <div class="spacer"></div>
+  </div></div>
+  <button class="fab">&#65291; Mailbox</button>
+  <div class="nav">
+    <b><span class="pill">&#9993;</span>Inbox</b>
+    <b><span class="pill">&#9678;</span>Campaigns</b>
+    <b><span class="pill">&#8646;</span>Sequences</b>
+    <b class="on"><span class="pill">&#9881;</span>Settings</b>
+  </div>
+</div>
+<figcaption>05 · Accounts — switches, quota bars, auth badges</figcaption>
+</figure>
+
+<!-- ============ 6. SETTINGS ============ -->
+<figure class="slot">
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+  <div class="screen"><div class="scroll">
+    <div class="appbar"><span class="icon">&#8592;</span><span class="grow">Sending limits</span></div>
+    <div class="sec">Pace</div>
+    <div class="card">
+      <div class="between"><h3>Daily cap</h3><span class="badge idle">60</span></div>
+      <div class="slider"><span class="knob"></span><span class="track"><i></i></span><span class="knob"></span></div>
+      <div class="muted">Warm-up raises this by 5 each day.</div>
+    </div>
+    <div class="card">
+      <div class="between"><h3>Gap between sends</h3><span class="badge idle">45–120s</span></div>
+      <div class="slider"><span class="knob"></span><span class="track"><i style="width:40%"></i></span><span class="knob"></span></div>
+    </div>
+    <div class="sec">Safety</div>
+    <div class="card">
+      <div class="between" style="margin-bottom:14px"><div><h3>Stop on reply</h3><div class="muted">Drop from every sequence</div></div><div class="sw on"><i></i></div></div>
+      <div class="between" style="margin-bottom:14px"><div><h3>Auto-suppress bounces</h3><div class="muted">Hard bounces only</div></div><div class="sw on"><i></i></div></div>
+      <div class="between"><div><h3>Weekend sending</h3><div class="muted">Sat &amp; Sun</div></div><div class="sw"><i></i></div></div>
+    </div>
+    <div class="card warm">
+      <h3>Danger zone</h3>
+      <div style="opacity:.8;margin-bottom:4px">Sign out wipes stored passwords on this device.</div>
+      <div class="btns"><button class="btn sm" style="background:var(--tertiary);color:#fff">Sign out</button></div>
+    </div>
+    <div class="spacer"></div>
+  </div></div>
+  <div class="nav">
+    <b><span class="pill">&#9993;</span>Inbox</b>
+    <b><span class="pill">&#9678;</span>Campaigns</b>
+    <b><span class="pill">&#8646;</span>Sequences</b>
+    <b class="on"><span class="pill">&#9881;</span>Settings</b>
+  </div>
+</div>
+<figcaption>06 · Settings — sliders, switches, danger card</figcaption>
+</figure>
+
+</div>
+
+<!-- ============ 07. DESKTOP ============ -->
+<figure class="deskwrap">
+<div class="desk">
+
+  <!-- navigation rail -->
+  <nav class="rail">
+    <div class="mark">&#9992;</div>
+    <button class="rfab">&#9998;</button>
+    <b class="on"><span class="pill">&#9993;</span>Inbox</b>
+    <b><span class="pill">&#9678;</span>Campaigns</b>
+    <b><span class="pill">&#8646;</span>Sequences</b>
+    <b><span class="pill">&#9635;</span>Recipients</b>
+    <b><span class="pill">&#9711;</span>Accounts</b>
+    <b class="foot"><span class="pill">&#9881;</span>Settings</b>
+  </nav>
+
+  <!-- list pane -->
+  <section class="pane">
+    <div class="ptop">
+      <h2>Replies</h2>
+      <div class="muted" style="margin-top:2px">12 new · Founder intro</div>
+    </div>
+    <div class="searchbar" style="height:46px;margin-top:14px">
+      <span>&#9906;</span><span class="muted">Search replies</span>
+    </div>
+    <div class="chips">
+      <span class="chip on">Needs reply</span><span class="chip">Interested</span><span class="chip">All</span>
+    </div>
+    <div class="plist">
+      <div class="item sel">
+        <div class="avatar">MR</div>
+        <div class="txt">
+          <div class="row1"><span class="name">Maya Rivera</span><span class="time">9:12</span></div>
+          <div class="snip">Happy to chat Thursday, does 3pm work on your side?</div>
+        </div><div class="dot"></div>
+      </div>
+      <div class="item">
+        <div class="avatar t">DF</div>
+        <div class="txt">
+          <div class="row1"><span class="name">Dan Fowler</span><span class="time">8:47</span></div>
+          <div class="snip">Thanks for the note. Forwarding to our ops lead this week.</div>
+        </div><div class="dot"></div>
+      </div>
+      <div class="item">
+        <div class="avatar s">AL</div>
+        <div class="txt">
+          <div class="row1"><span class="name">Amara Lund</span><span class="time">Yest</span></div>
+          <div class="snip">Interested — send over the pricing page when you get a moment.</div>
+        </div>
+      </div>
+      <div class="item">
+        <div class="avatar">TS</div>
+        <div class="txt">
+          <div class="row1"><span class="name">Tomas Silva</span><span class="time">Yest</span></div>
+          <div class="snip">Out of office until the 24th.</div>
+        </div>
+      </div>
+      <div class="item">
+        <div class="avatar t">RK</div>
+        <div class="txt">
+          <div class="row1"><span class="name">Rhea Kapoor</span><span class="time">Mon</span></div>
+          <div class="snip">Who handles this on your side? Copying our head of growth.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- reading pane -->
+  <section class="read">
+    <div class="rhead">
+      <div class="avatar" style="width:52px;height:52px;font-size:17px">MR</div>
+      <div style="flex:1;min-width:0">
+        <h2>Re: quick follow-up on Thursday</h2>
+        <div class="muted" style="margin-top:4px">Maya Rivera &lt;maya@northwind.io&gt; · 9:12 AM</div>
+        <div class="chips" style="margin:10px 0 0">
+          <span class="chip on">Reply detected</span>
+          <span class="chip">Sequence paused</span>
+        </div>
+      </div>
+      <button class="iconbtn">&#8617;</button>
+      <button class="iconbtn">&#9873;</button>
+      <button class="iconbtn">&#8943;</button>
+    </div>
+
+    <div class="rbody">
+      <div class="quote">Thanks for taking a look last week. Thursday 3pm works on my end; I will send an invite unless another slot suits you better.</div>
+      <p>Hi Kittu —</p>
+      <p>Thursday at 3pm is good. Send the invite to this address and I will loop in Priya, who runs our outbound tooling. She will have sharper questions about deliverability than I do.</p>
+      <p>One thing ahead of the call: we send from two domains and want per-domain caps rather than one shared limit. Is that something the app handles today?</p>
+      <p>— Maya</p>
+    </div>
+
+    <div class="card" style="max-width:64ch">
+      <div class="between" style="margin-bottom:10px">
+        <h3>Reply as kittu@emailpilots.app</h3>
+        <span class="badge">Auto-suppressed from sequence</span>
+      </div>
+      <div class="field focus" style="margin:0"><label>Message</label>
+        <div class="val muted">Write a reply…</div></div>
+      <div class="btns">
+        <button class="btn">Send</button>
+        <button class="btn tonal">Draft with AI</button>
+        <button class="btn outline">Schedule</button>
+      </div>
+    </div>
+    <div style="height:24px"></div>
+  </section>
+
+  <!-- insight column -->
+  <aside class="aside">
+    <div class="sec" style="margin-top:0">Today</div>
+    <div class="card tonal">
+      <h3>Sent</h3>
+      <div class="stat" style="font-size:38px">38<small>/ 60</small></div>
+      <svg class="wavy" viewBox="0 0 240 18" preserveAspectRatio="none">
+        <path class="track" d="M3 9 Q 15 1 27 9 T 51 9 T 75 9 T 99 9 T 123 9 T 147 9 T 171 9 T 195 9 T 219 9 T 237 9"/>
+        <path class="fill"  d="M3 9 Q 15 1 27 9 T 51 9 T 75 9 T 99 9 T 123 9 T 147 9 T 171 9 T 195 9 T 219 9 T 237 9"/>
+      </svg>
+    </div>
+    <div class="card">
+      <div class="between"><h3>Reply rate</h3><span class="badge">+3%</span></div>
+      <div class="stat" style="font-size:34px">14<small>%</small></div>
+    </div>
+    <div class="card">
+      <div class="between"><h3>Next run</h3><span class="badge idle">42 min</span></div>
+      <div class="muted" style="margin:4px 0 12px">Founder intro · step 2</div>
+      <div class="bar"><i style="width:58%"></i></div>
+    </div>
+    <div class="card warm">
+      <h3>2 bounced</h3>
+      <div style="opacity:.85">Auto-suppressed. Review before the next send.</div>
+    </div>
+  </aside>
+
+</div>
+<figcaption>07 · Desktop — navigation rail, list + reading pane, insight column</figcaption>
+</figure>
+
+<!-- ============ TOKEN REFERENCE ============ -->
+<div class="ref">
+  <h2>Token reference</h2>
+  <div class="swatches">
+    <div class="sw-card" style="background:var(--primary);color:var(--on-primary)">--primary</div>
+    <div class="sw-card" style="background:var(--primary-container);color:var(--on-primary-container)">--primary-container</div>
+    <div class="sw-card" style="background:var(--secondary-container);color:var(--on-secondary-container)">--secondary-container</div>
+    <div class="sw-card" style="background:var(--tertiary);color:#fff">--tertiary</div>
+    <div class="sw-card" style="background:var(--tertiary-container);color:var(--on-tertiary-container)">--tertiary-container</div>
+    <div class="sw-card" style="background:var(--success-container);color:var(--success)">--success-container</div>
+    <div class="sw-card" style="background:var(--surface);color:var(--on-surface);box-shadow:inset 0 0 0 1px var(--outline-variant)">--surface</div>
+    <div class="sw-card" style="background:var(--surface-container);color:var(--on-surface)">--surface-container</div>
+    <div class="sw-card" style="background:var(--surface-container-high);color:var(--on-surface)">--surface-container-high</div>
+    <div class="sw-card" style="background:var(--surface-container-highest);color:var(--on-surface)">--surface-container-highest</div>
+  </div>
+  <div class="shapes">
+    <div style="border-radius:var(--r-xs)">xs 8</div>
+    <div style="border-radius:var(--r-sm)">sm 12</div>
+    <div style="border-radius:var(--r-md)">md 16</div>
+    <div style="border-radius:var(--r-lg)">lg 20</div>
+    <div style="border-radius:var(--r-xl)">xl 28</div>
+    <div style="border-radius:var(--r-2xl)">2xl 36</div>
+    <div style="border-radius:var(--r-3xl)">3xl 44</div>
+    <div style="border-radius:var(--r-full)">full</div>
+    <div style="border-radius:58% 42% 46% 54% / 50% 56% 44% 50%">blob</div>
+  </div>
+  <p class="muted" style="margin-top:22px">
+    Motion: <code>--spring-fast</code> for press and shape morph, <code>--spring-slow</code> for entrances,
+    <code>--emphasized</code> for color and size. Press states morph the radius (pill&nbsp;&rarr;&nbsp;rounded square) instead of flashing a ripple.
+  </p>
+</div>
+
+</body>
+</html>

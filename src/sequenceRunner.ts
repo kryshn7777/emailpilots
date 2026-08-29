@@ -134,20 +134,29 @@ export async function advanceSequenceRecord(record: any, sequences: Sequence[], 
 export class SequenceRunner {
   private task: ScheduledTask | null = null;
   private ticking = false;
+  /** DLV-2: set by stop(). A tick already mid-flight ends at its next send
+   *  boundary (and inside a pacing wait) instead of running on for hours. */
+  private stopped = false;
 
   constructor(
     public config: Config,
     public mailProcessor: MailProcessor,
-    public processors?: Map<string, MailProcessor>
+    public processors?: Map<string, MailProcessor>,
+    /** Freemium #7 — the ONE tier gate: "Free builds, First Class flies".
+     *  Omitted means entitled, which keeps the CLI path and every existing test
+     *  byte-identical; Electron supplies the real check at both call sites. */
+    public isEntitled?: () => boolean
   ) {}
 
   start(): void {
     this.stop();
+    this.stopped = false;
     this.task = cron.schedule('0 * * * *', () => void this.tick()); // top of every hour
     void this.tick(); // and once now
   }
 
   stop(): void {
+    this.stopped = true;
     if (this.task) {
       this.task.stop();
       this.task = null;
@@ -169,6 +178,13 @@ export class SequenceRunner {
     // the real prospect would permanently skip that step once Practice is turned off.
     // Drips simply pause while Practice Mode is on.
     if (this.config.testMode) return;
+    // Freemium #7. Checked at the scheduling boundary only, never mid-batch, so a
+    // tier flip can never interrupt a send already in flight. Nothing else is
+    // gated: manual and scheduled sending stay free, drips are the paid part.
+    // Telling the user WHY lives in the callback's owner (electron/main.ts), which
+    // has the sendLog sink that actually reaches the UI — a packaged build has no
+    // console, and the K3 lesson is that a silent stall reads as a broken app.
+    if (this.isEntitled && !this.isEntitled()) return;
     this.ticking = true;
     try {
       const { recipientsJson } = this.config.paths;
@@ -224,7 +240,11 @@ export class SequenceRunner {
           if (!this.stillSendable(recipientsJson, rec)) return Promise.resolve(false);
           const p = this.processorFor(rec);
           if (!p) { orphanedAccounts.add(String(rec.accountId || 'default')); return Promise.resolve(false); }
-          return p.processRecipient(rec, 'sequence');
+          // DLV-2: paced like the batch path (a tick with many due steps used to
+          // fire them back-to-back — one SMTP session after another within
+          // seconds, the burst shape providers throttle and flag). Cancellable so
+          // a Stop during the wait ends the tick.
+          return p.processRecipient(rec, 'sequence', { pace: true, isCancelled: () => this.stopped });
         },
       };
 
@@ -237,6 +257,10 @@ export class SequenceRunner {
       // aborting the tick or losing the others. The fresh-read merge still protects
       // against a concurrent UI save.
       for (const record of records) {
+        // DLV-2: a Stop lands between records — the un-sent ones keep their due
+        // state, so a restart sends them; nothing trickles out after the user
+        // pressed Stop.
+        if (this.stopped) break;
         let changed = false;
         try {
           changed = await advanceSequenceRecord(record, sequences, deps);

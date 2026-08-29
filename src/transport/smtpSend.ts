@@ -4,10 +4,10 @@ import type { Config } from '../config';
 import type { EmailAttachment, SendOptions, SendResult } from './sendStrategy';
 
 /**
- * Send one message through an already-built nodemailer transporter. Shared by
- * SmtpStrategy (password auth) and OAuthSmtpStrategy (XOAUTH2) so the From
- * formatting, List-Unsubscribe headers, and accepted/rejected accounting are
- * identical regardless of how the connection authenticated.
+ * Send one message through an already-built nodemailer transporter for
+ * SmtpStrategy (password auth); `composeMessage` below is also reused by
+ * GraphStrategy, so the From formatting, List-Unsubscribe headers, and
+ * accepted/rejected accounting are identical regardless of transport.
  *
  * Compose-once (Slice B): the MIME is compiled here with MailComposer — the
  * exact class nodemailer's own sendMail uses internally (mailer/index.js:

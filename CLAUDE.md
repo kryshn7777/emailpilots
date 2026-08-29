@@ -35,13 +35,29 @@ Windows / PowerShell is primary. Chain commands with `;` + `if ($?) { … }`, **
 | `src/` | Core Node business logic (send engine, campaigns, sequences, stores) **+** the renderer (`main.ts`, `renderer.ts`) | LIVE |
 | `electron/` | Electron **source**: `main.ts` (main process + **all IPC handlers** = the action surface), `preload.ts`, `transport/` (browser OAuth) | LIVE |
 | `dist-electron/` | Build output of `electron/`; `package.json` `"main"` points here | generated |
-| `dist-vite/` | Vite build output of the renderer (`index.html`, `gui2.html`, assets) | generated |
+| `dist-vite/` | Vite build output of the renderer (`index.html`, assets) | generated |
 | `landing/` | Live marketing site (React 19 + Vite + Tailwind 4 + three/gsap). Deployed to GitHub Pages by `.github/workflows/deploy-landing.yml` | LIVE |
 | `EmailPiolets 2/` | Landing-site snapshot / embedded git tree | **Do NOT edit or delete** |
+### One UI surface: `index.html` + `src/style.css`
+
+**GUI2 was deleted on 2026-08-05.** `gui2.html`, `src/gui2.css`, `LaunchGUI2.bat`, the
+`EPT_GUI=2` branch in `electron/main.ts`, its rollup input, and
+`src/__tests__/gui2Parity.test.ts` are all gone. There is no second shell to mirror
+markup or ids into — do not reintroduce one.
+
+Consequences worth knowing:
+
+- The `SHOW_NO_PASSWORD_TRANSPORTS` flag is gone with it. The **browser-session**
+  transports (credential-less webmail connect) only ever had buttons in GUI2, so
+  `inboxConnected` now pins `allowBrowser: false`. The backend under `src/transport/` +
+  `electron/transport/` survives, inert — it automates webmail UIs (provider-ToS risk)
+  and was never verified live. Microsoft **OAuth** is unaffected and still first-class.
+- Shared stylesheets (`src/onboarding.css`, `src/preview.css`) are still worth writing
+  against token *names* rather than raw values, so a theme change lands for free.
 
 ## Invariants — never violate
 
-- **SMTP-only transport.** No Gmail API / Graph / ESP. Keep anti-ban work transport-agnostic. Transports live behind `src/transport/` (`SendStrategy`).
+- **SMTP-first transport, one sanctioned exception.** SMTP for Gmail (app passwords) + self-hosted. **Microsoft accounts use Graph `Mail.Send`** (`transport: 'graph'`, `GraphStrategy`) — Microsoft disabled password SMTP *and* per-mailbox SMTP AUTH, so raw SMTP is a dead end there. Graph is Microsoft-only; no Gmail API / ESP. Keep anti-ban work transport-agnostic; all transports live behind `src/transport/` (`SendStrategy`). Graph is full parity: send via `GraphStrategy` (`Mail.Send`), replies + DSN bounce auto-suppress via `Mail.Read` (`graphMailReader` + `replyPoller.scanAccountGraph`). Only AI reply-classification is not yet wired for `graph`.
 - **Non-breaking, additive.** New features layer on; never break the working single-account flow.
 - **Password-redaction contract.** `get-config` redacts all passwords (exposes a `hasPass` flag, never the value). A **blank** password on save = keep the stored one. Sign-out IPC wipes everything. Never surface a real password to the renderer or logs.
 - **Secrets are never committed.** `.env` + all per-user JSON are gitignored. A plaintext-password leak once forced a git-history reset — rotate credentials, don't rely on git surgery. **Treat these files as off-limits and never read them.** The enforcing deny-list is proposed in `.claude/settings.suggested.json` and only blocks reads once applied (rename to `.claude/settings.json`); until then this is policy, not a hard block.
@@ -57,5 +73,7 @@ All runtime state is flat JSON under `getBasePath()` (`process.cwd()` in dev, th
 Trigger (`electron/main.ts` IPC / `Scheduler` / `SequenceRunner`) → `campaignRunner.runAllAccounts` → per-account `mailProcessor.processEmails` → suppression check → `renderer.renderEmail` → `rateLimiter.tryConsume` → `emailService.sendMail` → `transport/factory.makeStrategy` → `smtpSend` → bounce auto-suppress. Replies: `replyPoller` (15-min IMAP sweep) → `replyStore` / `statsManager`.
 
 When editing anything on that path, use the **send-path-reviewer** subagent (`.claude/agents/send-path-reviewer.md`).
+
+Deliverability rules that must survive any edit (audit 2026-08-29, `AUDIT-deliverability.md`, code labels `DLV-1..9`): a suppression write needs a *failed* 5.x.x that is not 5.7.x (delay / success DSNs and sender-side policy refusals never blacklist a recipient — sync RCPT and async DSN paths agree); the sequence tick paces consecutive attempts through `processRecipient(..., { pace, isCancelled })` and `SequenceRunner.stop()` ends a running tick; an "Unsubscribe" reply subject is honored without AI on both IMAP and Graph read paths; 587 requires STARTTLS.
 
 Separate from the send path: the `check-domain-auth` IPC (`electron/main.ts`) runs advisory SPF/DKIM/DMARC DNS lookups via `src/domainAuth.ts` (pure logic, no DOM/DNS) for the Accounts-view domain-authentication card.

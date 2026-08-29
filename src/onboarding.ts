@@ -45,7 +45,7 @@ export interface ConnectedInput {
  * question from listing it).
  */
 export function accountHasCredentials(a?: ConnectedAccount): boolean {
-  return !!a?.hasPass || a?.transport === 'oauth-smtp' || a?.transport === 'browser';
+  return !!a?.hasPass || a?.transport === 'browser' || a?.transport === 'graph';
 }
 
 /**
@@ -66,7 +66,7 @@ export function isInboxConnected(i: ConnectedInput): boolean {
   if (i.smtpUser && i.smtpHasPass) return true;
   return (i.accounts || []).some(a =>
     a?.enabled !== false && (
-      (!!i.allowOauth && a?.transport === 'oauth-smtp') ||
+      (!!i.allowOauth && a?.transport === 'graph') ||
       (!!i.allowBrowser && (!!a?.hasPass || a?.transport === 'browser'))
     )
   );
@@ -118,4 +118,53 @@ export function computeOnboardingSteps(s: OnboardingState): OnboardingResult {
   }));
 
   return { visible, graduated, steps };
+}
+
+// --- Level-Up checklist: the post-graduation follow-on card. Same machinery,
+// walking an activated user to the next three wins: automatic follow-ups,
+// domain authentication, and the on-device AI. ---
+
+export type LevelUpKey = 'sequence' | 'domain-auth' | 'ai';
+
+export interface LevelUpState {
+  /** Lifetime emails sent — the card only exists after the first real send. */
+  totalSent: number;
+  /** At least one sequence created. */
+  hasSequence: boolean;
+  /** Every sending domain's SPF/DKIM/DMARC checked out clean at least once. */
+  domainAuthPassed: boolean;
+  /** The local AI assistant is switched on. */
+  aiEnabled: boolean;
+  /** User explicitly dismissed the card. */
+  dismissed: boolean;
+}
+
+export interface LevelUpStep {
+  key: LevelUpKey;
+  status: StepStatus;
+}
+
+export interface LevelUpResult {
+  visible: boolean;
+  steps: LevelUpStep[];
+}
+
+const LEVEL_UP_ORDER: LevelUpKey[] = ['sequence', 'domain-auth', 'ai'];
+
+export function computeLevelUpSteps(s: LevelUpState): LevelUpResult {
+  const done: Record<LevelUpKey, boolean> = {
+    sequence: s.hasSequence,
+    'domain-auth': s.domainAuthPassed,
+    ai: s.aiEnabled,
+  };
+  // Appears only after graduation; retires itself once every step is done.
+  const visible = s.totalSent > 0 && !s.dismissed && !LEVEL_UP_ORDER.every(k => done[k]);
+
+  const firstTodoIdx = LEVEL_UP_ORDER.findIndex(k => !done[k]);
+  const steps: LevelUpStep[] = LEVEL_UP_ORDER.map((key, i) => ({
+    key,
+    status: done[key] ? 'done' : (i === firstTodoIdx ? 'active' : 'todo'),
+  }));
+
+  return { visible, steps };
 }

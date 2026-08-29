@@ -16,14 +16,39 @@ export function normalizeAppPassword(pass: string | undefined | null): string {
  */
 export function friendlySmtpError(raw?: string): string {
   const msg = (raw || '').toLowerCase();
+  // Microsoft mailbox has SMTP client submission turned OFF (a per-mailbox / tenant
+  // setting), which is NOT the same as the basic-auth retirement below and needs a
+  // DIFFERENT fix. Its signature: "SmtpClientAuthentication is disabled for the
+  // Mailbox" + the aka.ms/smtp_auth_disabled help link, and it arrives AFTER a valid
+  // OAuth sign-in (SMTP command AUTH XOAUTH2) — the token is fine, the mailbox itself
+  // refuses SMTP. Switching auth method or signing in again cannot help; the only fix
+  // is enabling SMTP AUTH on the mailbox. Checked FIRST, because this error ALSO
+  // carries "535 5.7.139" — without this the OAuth branch below would swallow it and
+  // tell a user who has ALREADY connected with OAuth to "Sign in with Microsoft", an
+  // endless loop (the exact bug reported for kryshnn@outlook.com, 2026-07-20).
+  if (/smtpclientauthentication is disabled|smtp_auth_disabled/.test(msg)) {
+    return 'Your Microsoft mailbox has SMTP sending turned off. In Outlook settings, turn on “Let devices and apps use SMTP AUTH” (see aka.ms/smtp_auth_disabled), then run the test again.';
+  }
   // Microsoft retired password (basic-auth) SMTP — personal mailboxes Sept 2024,
   // Microsoft 365 April 2026. Its rejection carries a stable signature: SMTP
-  // enhanced status 5.7.139, or an explicit "basic authentication is disabled" /
-  // "SmtpClientAuthentication is disabled". Catch it BEFORE the generic auth
-  // branch below: advising this user to "use an app password" points them at a
-  // credential Microsoft no longer honors — an endless loop. The working route is
-  // OAuth. Gmail's bad-app-password is 5.7.8, so this never fires for Gmail.
-  if (/5\.7\.139|smtpclientauthentication|basic auth\w* (?:is )?disabled/.test(msg)) {
+  // enhanced status 5.7.139, or an explicit "basic authentication is disabled".
+  // Catch it BEFORE the generic auth branch below: advising this user to "use an
+  // app password" points them at a credential Microsoft no longer honors — an
+  // endless loop. The working route is OAuth. Gmail's bad-app-password is 5.7.8,
+  // so this never fires for Gmail.
+  //
+  // This branch ALSO matches the app's own authored Microsoft steer ("sign in with
+  // microsoft" / "retired app passwords"), which the electron dead-host guards
+  // (sendAccountTest / verify-connection / save-account) return directly. Those
+  // messages are surfaced through this same function by the renderer (the Test
+  // button, the add-account and login verify handlers), and every one of them
+  // contains the word "password" — so without this, the generic branch below
+  // rewrote the correct OAuth steer straight back into "use an app password", the
+  // exact contradiction the guards exist to remove. Making the mapping idempotent
+  // for the Microsoft condition — however it is phrased, raw code or prior friendly
+  // text — keeps every surface consistent. A real Microsoft 535 never contains the
+  // literal phrase "sign in with microsoft", so this adds no false positives.
+  if (/5\.7\.139|basic auth\w* (?:is )?disabled|sign in with microsoft|retired app passwords/.test(msg)) {
     return 'Microsoft turned off password sign-in for this inbox. Connect it with the “Sign in with Microsoft” button on the Accounts screen — no password needed.';
   }
   if (/eauth|535|534|password|username|credential|authenticat/.test(msg)) {

@@ -35,6 +35,90 @@ Confirmed bugs from self-scan: **0.**
 
 Reviewer-confirmed false positives (agree): composite key is safe for existing single-account data (folds to `default`); the Microsoft dead-host guard in `sendAccountTest` correctly exempts `oauth-smtp` via the transport gate; the `verify-connection` guard lacks a transport gate but is only ever reached by password-candidate flows (login "other" tab + add-account form), never by an oauth-smtp account.
 
+## Post-ship hotfix — H1 (user-reported 2026-07-20, after b191a7c)
+
+**Symptom.** Clicking **Test** on an Outlook password account showed TWO contradictory
+messages: *"Email or app password didn't work — use an app password…"* AND *"Microsoft
+turned off password sign-in… Sign in with Microsoft…"*.
+
+**Verdict: CONFIRMED — bug introduced by the b191a7c dead-host guards.**
+
+**Root cause (traced against the running build, not a stale-dist guess).**
+`friendlySmtpError` (`src/smtpUtils.ts`) is a raw-error translator, but the renderer also
+feeds it strings electron already authored. The new dead-host guards (`sendAccountTest`,
+`verify-connection`) return *"Microsoft retired app passwords — connect… Sign in with
+Microsoft…"*. The renderer re-maps that through `friendlySmtpError` (Test `src/main.ts:3639`,
+add-account `:4302`, login `:5232`); because the authored string contains "password", the
+generic branch rewrote it back into "use an app password" — resurrecting the exact wrong
+advice. The correct Microsoft line came from a second surface hitting the raw `5.7.139`
+signature (background send-failure → `onSendFailure`, `electron/main.ts:390`). A single
+`friendlySmtpError` call returns one branch string, so the pair proves two funnel points —
+both through `friendlySmtpError`, so one idempotency fix corrects them all.
+
+**Investigation artifacts.** Active bundle `main-EjH99wNf.js` (loaded by `gui2.html`) held
+the correct single-return `friendlySmtpError` → confirmed the defect was DESIGN (double-map),
+not build staleness. `dist-electron/main.js` contained the guard ("retired app passwords" ×3)
+→ electron build fresh too.
+
+**Remediation (applied).** Made `friendlySmtpError`'s Microsoft branch idempotent: it now
+also matches the app's own steer phrasing (`sign in with microsoft` / `retired app passwords`),
+so re-mapping any Microsoft steer yields the canonical Microsoft OAuth message instead of the
+app-password advice — fixing Test, add-account, and login in one funnel point. `src/smtpUtils.ts`
++ 2 new idempotency tests in `src/__tests__/smtpUtils.test.ts`. Rebuilt `dist-vite`
+(`main-CLgVV_JD.js`) + `dist-electron`. Validation: tsc core+renderer clean; full suite
+**77 files / 615 tests** green. No false positives (raw SMTP errors never carry those phrases);
+Gmail `5.7.8` still correctly advises an app password.
+
+**Tracked follow-up (NOT fixed — deliberate scope hold).** The broader class remains: any
+OTHER authored electron message containing a trigger word (e.g. *"Add your email address and
+password in Settings first."*) is still re-clobbered if surfaced through `friendlySmtpError`.
+Proper fix = stop the renderer double-mapping (electron maps raw once; renderer shows authored
+messages verbatim), a ~6-site change held out of this hotfix to avoid regression surface.
+Also B9 (dead password primary keeps sending in the background) unchanged.
+
+## Post-ship hotfix — H2 (user-reported 2026-07-20, OAuth send loop)
+
+**Symptom.** User signed in with Microsoft (OAuth) for `kryshnn@outlook.com`, sent a
+test, and STILL got *"Microsoft turned off password sign-in… Sign in with Microsoft…"* —
+an infinite loop (told to do the thing they just did).
+
+**Verdict: CONFIRMED — genuine masking bug, exposed by the H1 idempotency fix.**
+
+**Root cause (from the raw SMTP error the user captured).**
+```
+535 5.7.139 Authentication unsuccessful, SmtpClientAuthentication is disabled for the
+Mailbox. Visit https://aka.ms/smtp_auth_disabled …   command: 'AUTH XOAUTH2'
+```
+`AUTH XOAUTH2` proves OAuth authenticated fine. The rejection is a DIFFERENT condition
+from basic-auth retirement: **SMTP client submission is turned off on the mailbox itself**,
+which OAuth cannot bypass — the only fix is enabling SMTP AUTH on the mailbox. But BOTH
+failures carry `535 5.7.139`, and `friendlySmtpError` matched `5.7.139` /
+`smtpclientauthentication` in the OAuth-steer branch → it told an already-OAuth user to
+"Sign in with Microsoft." The friendly mapping was masking the real, actionable cause.
+
+**Remediation (applied).** Added a FIRST, more-specific branch to `friendlySmtpError`
+matching `smtpclientauthentication is disabled` / `smtp_auth_disabled`, returning
+*"Your Microsoft mailbox has SMTP sending turned off. In Outlook settings, turn on 'Let
+devices and apps use SMTP AUTH' (see aka.ms/smtp_auth_disabled), then run the test again."*
+Removed `smtpclientauthentication` from the basic-auth/OAuth branch (kept `5.7.139` +
+`basic authentication is disabled` there). Ordering guarantees the mailbox-disabled error
+resolves to the correct message before the generic 5.7.139 can grab it. `src/smtpUtils.ts`
++ new distinguishing test (uses the user's exact raw error) in `src/__tests__/smtpUtils.test.ts`;
+corrected a now-outdated H1 assertion that had mapped "SmtpClientAuthentication is disabled"
+to the OAuth steer. Rebuilt `dist-vite` (`main-DF3xQ0AX.js`). Validation: tsc core+renderer
+clean; full suite **77 files / 616 tests** green.
+
+**User-side fix (not code — Microsoft mailbox setting).** Sending stays blocked until the
+mailbox enables SMTP AUTH: Outlook.com → Settings → Mail → Sync email → POP and IMAP →
+"Let devices and apps use SMTP AUTH" = Yes. (M365/business needs an admin.) Reply polling
+fails for the same reason — IMAP AUTH is off too.
+
+**Tracked follow-up (NOT fixed).** `oauth-login-microsoft` stamps
+`recordAccountStatus(id,{ok:true,kind:'test'})` on login (`electron/main.ts:1072`), so the
+UI shows *"Last test ok · just now"* with NO real send — misleading, and it masked this
+failure until a real test ran. Recommended: run a real verify on connect and record the
+true result (which would surface SMTP-AUTH-disabled immediately at sign-in). Separate change.
+
 ## Final status
 - Confirmed bugs: **2** (R1 BLOCKER, R2 MEDIUM) — both FIXED and covered by tests.
 - By-design / documented: R3 (reply gate), B8, B4, B11.

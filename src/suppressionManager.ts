@@ -4,6 +4,13 @@ import { readJsonState, StateFileError, reportStateFileError, clearStateFileErro
 
 export type SuppressionReason = 'bounce' | 'unsubscribe' | 'complaint' | 'manual';
 
+/** DLV-7: one normalization for every read and write — lower-cased AND trimmed, so a
+ *  padded address (hand-edited JSON, a CSV cell with a stray space) can never be
+ *  emailed straight past the list. */
+function keyOf(email: string | undefined | null): string {
+  return String(email ?? '').trim().toLowerCase();
+}
+
 export interface SuppressionEntry {
   email: string;
   reason: SuppressionReason;
@@ -55,7 +62,7 @@ export class SuppressionManager {
       console.error('Failed to load suppression.json:', this.loadError);
       return;
     }
-    for (const e of res.data) if (e && e.email) this.entries[e.email.toLowerCase()] = e;
+    for (const e of res.data) if (e && e.email) this.entries[keyOf(e.email)] = e;
   }
 
   /**
@@ -101,18 +108,18 @@ export class SuppressionManager {
   isSuppressed(email: string): boolean {
     this.load();
     this.assertReadable('check the suppression list');
-    return !!this.entries[(email || '').toLowerCase()];
+    return !!this.entries[keyOf(email)];
   }
 
   /** Deliberately does not reload: callers reach here immediately after an
    *  isSuppressed() that returned true, so the map is fresh and already vouched for. */
   reasonFor(email: string): SuppressionReason | undefined {
-    return this.entries[(email || '').toLowerCase()]?.reason;
+    return this.entries[keyOf(email)]?.reason;
   }
 
   /** @throws if the list exists but is unreadable — writing would destroy it. */
   add(email: string, reason: SuppressionReason, detail?: string) {
-    const key = (email || '').toLowerCase();
+    const key = keyOf(email);
     if (!key) return;
     this.load();
     this.assertReadable('add to the suppression list');
@@ -123,7 +130,7 @@ export class SuppressionManager {
 
   /** @throws if the list exists but is unreadable — writing would destroy it. */
   remove(email: string) {
-    const key = (email || '').toLowerCase();
+    const key = keyOf(email);
     this.load();
     this.assertReadable('remove from the suppression list');
     if (this.entries[key]) {

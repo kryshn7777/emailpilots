@@ -57,7 +57,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        gui2: resolve(__dirname, 'gui2.html'),
       },
     },
   },

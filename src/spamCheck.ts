@@ -61,70 +61,6 @@ export function sortedFindings(findings: readonly SpamFinding[]): SpamFinding[] 
   return [...findings].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 }
 
-/**
- * The label for each check, in the order they are shown — roughly the order a
- * reader meets the email: the subject first, then what it says, then what it
- * contains.
- *
- * `Record<SpamCategory, string>` is load-bearing: it makes a category with no
- * entry a compile error.
- */
-export const CATEGORY_LABEL: Record<SpamCategory, string> = {
-  subject: 'Subject',
-  wording: 'Wording',
-  links: 'Links',
-  content: 'Content',
-  format: 'Formatting',
-};
-
-/**
- * Display order, derived rather than written out a second time.
- *
- * A hand-written list would type-check happily while missing a category, and that
- * category's findings would then carry a valid `category`, compile clean, and
- * silently never appear in any row — the exact failure `category: SpamCategory`
- * being required exists to prevent, just one step further down. Deriving it from
- * {@link CATEGORY_LABEL} means the compiler enforces both halves.
- *
- * `Object.keys` returns own string keys in insertion order (ES2015+; none of these
- * are integer-like), so the literal above *is* the display order.
- */
-export const CATEGORY_ORDER = Object.keys(CATEGORY_LABEL) as SpamCategory[];
-
-export type CheckStatus = 'pass' | 'warn' | 'fail';
-
-export interface CategoryReport {
-  category: SpamCategory;
-  label: string;
-  status: CheckStatus;
-  findings: SpamFinding[];
-}
-
-/**
- * The report card: one row per category, **always all five**, whether or not
- * anything was wrong.
- *
- * Returning the passing rows too is the entire point. "Nothing stood out" cannot
- * be told apart from "this feature did nothing" — and on this screen that is not
- * hypothetical, it is what users actually concluded. Naming what was checked is
- * what makes a pass mean something.
- *
- * Pure: copies before sorting, so a caller still holding `report.findings` keeps
- * its order (`checkSpam`'s result is shared with the main process).
- */
-export function categorize(findings: readonly SpamFinding[]): CategoryReport[] {
-  return CATEGORY_ORDER.map(category => {
-    const mine = sortedFindings(findings.filter(f => f.category === category));
-    return {
-      category,
-      label: CATEGORY_LABEL[category],
-      // sortedFindings is worst-first, so the head is the worst by construction.
-      status: !mine.length ? 'pass' : mine[0].severity === 'high' ? 'fail' : 'warn',
-      findings: mine,
-    };
-  });
-}
-
 const SPAM_WORDS = [
   'free', 'guarantee', 'guaranteed', 'act now', 'limited time', 'winner',
   'congratulations', 'click here', 'buy now', 'order now', 'risk-free',
@@ -133,7 +69,54 @@ const SPAM_WORDS = [
   'apply now', 'exclusive deal', 'lowest price', 'this is not spam',
 ];
 
+/** DLV-16: whole words only. A plain substring test flagged "freelance",
+ *  "incoming" and "Cashman" — an advisory that cries wolf gets ignored. Lookarounds
+ *  rather than \b because entries like "100%" end in a non-word character. */
+const SPAM_WORD_RES = SPAM_WORDS.map(w =>
+  new RegExp(`(?<![a-z0-9])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z0-9])`, 'i'));
+
+/** DLV-18: subjects that say nothing about the message. "Hello" / "Hi" / "Test" sit
+ *  under more spam than any specific line ever will, so a content filter reads the
+ *  bare greeting itself as a similarity signal — the live report that added this
+ *  rule ("Hello" / "Hi cutie" → Gmail spam, "similar to messages identified as spam
+ *  in the past") was rated clean here. Compared after lower-casing, collapsing
+ *  whitespace and dropping trailing punctuation, so "Hello!" and "Hi there." match
+ *  while "Hello from the Acme design team" does not. */
+const GENERIC_SUBJECTS = new Set([
+  'hello', 'hi', 'hey', 'hi there', 'hello there', 'hey there', 'greetings',
+  'good morning', 'good afternoon', 'good evening',
+  'test', 'testing', 'test email', 'test mail', 'test message',
+  'important', 'info', 'information', 'update', 'question', 'quick question',
+  'checking in', 'touching base', 'no subject', '(no subject)',
+]);
+
+function isGenericSubject(subject: string): boolean {
+  const key = subject.toLowerCase().replace(/\s+/g, ' ').replace(/[\s!?.,:;-]+$/, '').trim();
+  return GENERIC_SUBJECTS.has(key);
+}
+
 const WEIGHT: Record<SpamSeverity, number> = { high: 3, med: 2, low: 1 };
+
+/** DLV-6: generic URL shorteners. Receivers score them because the destination is
+ *  hidden; in a personal note a full address also simply reads more honest. */
+const SHORTENER_HOSTS = new Set([
+  'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd', 'buff.ly', 'cutt.ly',
+  'rb.gy', 'tiny.cc', 'shorturl.at', 'rebrand.ly', 'bl.ink', 't.ly', 'shorte.st', 'adf.ly',
+]);
+
+/** Lower-cased hostname of a URL without a leading "www.", or '' when unparsable. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+/** Same site when equal or one is a subdomain of the other (acme.com ~ mail.acme.com). */
+function sameSite(a: string, b: string): boolean {
+  return a === b || a.endsWith('.' + b) || b.endsWith('.' + a);
+}
 
 function stripTags(html: string): string {
   return html.replace(/<style[\s\S]*?<\/style>/gi, ' ')
@@ -205,6 +188,9 @@ export function checkSpam(subject: string, html: string, hasPlainText: boolean):
       findings.push({ label: 'Your subject is in all capitals — this looks like shouting to spam filters', severity: 'high', category: 'subject' });
     }
     if (subject.length > 70) findings.push({ label: 'Your subject is long — it may get cut off on phones', severity: 'low', category: 'subject' });
+    if (isGenericSubject(subject)) {
+      findings.push({ label: `A subject like "${subject.trim()}" is what most spam uses — say what the email is about`, severity: 'med', category: 'subject' });
+    }
   } else {
     findings.push({ label: 'Your subject line is empty', severity: 'med', category: 'subject' });
   }
@@ -218,7 +204,7 @@ export function checkSpam(subject: string, html: string, hasPlainText: boolean):
   }
 
   // Spam vocabulary
-  const hits = SPAM_WORDS.filter(w => lcSubject.includes(w) || lcText.includes(w));
+  const hits = SPAM_WORDS.filter((_w, i) => SPAM_WORD_RES[i].test(lcSubject) || SPAM_WORD_RES[i].test(lcText));
   if (hits.length >= 4) findings.push({ label: `Several words spam filters watch for: ${hits.slice(0, 4).join(', ')}…`, severity: 'high', category: 'wording' });
   else if (hits.length > 0) findings.push({ label: `Words spam filters watch for: ${hits.join(', ')}`, severity: 'med', category: 'wording' });
 
@@ -229,6 +215,34 @@ export function checkSpam(subject: string, html: string, hasPlainText: boolean):
   const linkCount = (html.match(/<a\s[^>]*?href=(?:"(?!mailto:)|'(?!mailto:)|(?!["'])(?!mailto:))/gi) || []).length;
   if (linkCount > 8) findings.push({ label: `${linkCount} links is a lot — fewer links look more personal`, severity: 'high', category: 'links' });
   else if (linkCount > 4) findings.push({ label: `${linkCount} links — consider trimming to one or two`, severity: 'low', category: 'links' });
+
+  // DLV-6: phishing-shaped links. Bounded quantifiers + a per-anchor cap keep this
+  // linear on the 200 KB scan prefix (the link-count rule above already flags
+  // link-heavy mail, so nothing is lost by stopping early).
+  let shortener = false;
+  let mismatch = false;
+  let bareIp = false;
+  let seen = 0;
+  for (const m of html.matchAll(/<a\s[^>]*?href=["']?(https?:\/\/[^"'\s>]{1,500})["']?[^>]*>([^<]{0,300})/gi)) {
+    if (++seen > 200) break;
+    const hrefHost = hostOf(m[1]);
+    if (!hrefHost) continue;
+    if (SHORTENER_HOSTS.has(hrefHost)) shortener = true;
+    // DLV-16: a numeric host has no domain reputation to check — phishing kits use
+    // them because they are throwaway, so filters score the shape itself.
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hrefHost)) bareIp = true;
+    // Anchor text that itself reads as a web address ("acme.com/deck",
+    // "https://acme.com") but opens a different site is the classic phishing shape;
+    // ordinary words as link text never trigger this.
+    const bare = m[2].trim().replace(/^https?:\/\//i, '');
+    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:[/:?#]|$)/i.test(bare)) {
+      const textHost = hostOf(`http://${bare}`);
+      if (textHost && !sameSite(textHost, hrefHost)) mismatch = true;
+    }
+  }
+  if (mismatch) findings.push({ label: "A link's text shows a different address than it actually opens — filters read this as phishing", severity: 'high', category: 'links' });
+  if (bareIp) findings.push({ label: 'A link points at a bare IP address instead of a domain — a classic phishing shape', severity: 'high', category: 'links' });
+  if (shortener) findings.push({ label: 'A shortened link (bit.ly-style) hides where it goes — use the full address', severity: 'med', category: 'links' });
 
   // Image-heavy / thin text
   const imgCount = (html.match(/<img\s/gi) || []).length;

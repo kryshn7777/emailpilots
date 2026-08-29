@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Email Pilots — Windows mockup</title>
+<style>
+/* ============================================================
+   TOKENS
+   Institutional: neutral ground, one accent, hairline rules,
+   tabular numerals. Ornament is quiet — rules, monograms,
+   small caps — never chrome for its own sake.
+   ============================================================ */
+:root{
+  --accent:#3E5BB8;      --accent-hover:#35509F;  --accent-soft:#EAEEF9;
+  --accent-ink:#22336B;
+  --ink:#1A1B1E;         --ink-2:#5A5D66;         --ink-3:#8B8E98;
+  --bg:#EFF0F3;
+  --surface:#FFFFFF;
+  --surface-2:#F7F8FA;
+  --surface-3:#EDEEF2;
+  --line:#DFE1E7;
+  --line-soft:#EAEBEF;
+  --good:#1F6F45;        --good-soft:#E6F3EB;
+  --warn:#9A5A11;        --warn-soft:#FBF0E1;
+  --bad:#A3352A;         --bad-soft:#FAEAE7;
+
+  --r-1:4px; --r-2:6px; --r-3:8px; --r-4:12px; --r-5:16px;
+  --ease:220ms cubic-bezier(.16,1,.3,1);
+  --ease-slow:380ms cubic-bezier(.16,1,.3,1);
+
+  --font:"Segoe UI Variable Text","Segoe UI",-apple-system,Roboto,system-ui,sans-serif;
+  --display:"Segoe UI Variable Display","Segoe UI",var(--font);
+  --mono:"Cascadia Mono",Consolas,"SF Mono",monospace;
+
+  --sh-1:0 1px 2px rgba(26,27,30,.07), 0 0 0 1px rgba(26,27,30,.04);
+  --sh-2:0 6px 16px rgba(26,27,30,.10), 0 0 0 1px rgba(26,27,30,.05);
+  --sh-3:0 24px 56px rgba(26,27,30,.20), 0 0 0 1px rgba(26,27,30,.06);
+}
+body.dark{
+  --accent:#8DA4EE;      --accent-hover:#A3B5F3;  --accent-soft:#232941;
+  --accent-ink:#C9D5FA;
+  --ink:#E9EAEE;         --ink-2:#A7AAB4;         --ink-3:#787B85;
+  --bg:#131417;
+  --surface:#1B1C20;
+  --surface-2:#202126;
+  --surface-3:#282A30;
+  --line:#31333A;
+  --line-soft:#26282E;
+  --good:#7CC79B;        --good-soft:#17281F;
+  --warn:#DFAE6E;        --warn-soft:#2A2216;
+  --bad:#E79287;         --bad-soft:#2C1B18;
+  --sh-1:0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04);
+  --sh-2:0 6px 16px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.05);
+  --sh-3:0 24px 56px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font:14px/1.5 var(--font);color:var(--ink);background:var(--bg);
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+  font-variant-numeric:tabular-nums;
+}
+button,input,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--r-1)}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* ============================================================
+   WINDOW CHROME
+   ============================================================ */
+.win{height:100%;display:flex;flex-direction:column;background:var(--surface-2)}
+.titlebar{
+  height:40px;flex:none;display:flex;align-items:center;gap:12px;
+  padding-left:14px;background:var(--surface-2);
+  border-bottom:1px solid var(--line-soft);user-select:none;
+}
+.titlebar .mark{
+  width:22px;height:22px;border-radius:var(--r-2);background:var(--accent);
+  color:#fff;display:grid;place-items:center;font:600 11px var(--display);letter-spacing:.02em;
+}
+.titlebar .apptitle{font-size:12px;color:var(--ink-2)}
+.titlebar .apptitle b{color:var(--ink);font-weight:600}
+.titlebar .spacer{flex:1}
+.tb-btn{
+  height:40px;padding:0 10px;color:var(--ink-2);font-size:12px;
+  display:flex;align-items:center;gap:7px;transition:background var(--ease);
+}
+.tb-btn:hover{background:var(--surface-3)}
+.wc{display:flex;height:40px}
+.wc button{width:46px;height:40px;display:grid;place-items:center;color:var(--ink-2);
+  transition:background var(--ease),color var(--ease)}
+.wc button:hover{background:var(--surface-3)}
+.wc button.close:hover{background:#C42B1C;color:#fff}
+.wc svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.2}
+
+.body{flex:1;display:flex;min-height:0}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+.side{
+  width:232px;flex:none;background:var(--surface-2);
+  border-right:1px solid var(--line-soft);
+  display:flex;flex-direction:column;padding:10px 8px 8px;
+}
+.side .compose{
+  display:flex;align-items:center;gap:9px;width:100%;height:38px;padding:0 14px;
+  border-radius:var(--r-3);background:var(--accent);color:#fff;font-weight:600;font-size:14px;
+  box-shadow:var(--sh-1);transition:background var(--ease),transform var(--ease);margin-bottom:12px;
+}
+.side .compose:hover{background:var(--accent-hover)}
+.side .compose:active{transform:translateY(1px)}
+.navlabel{
+  font:600 11px var(--font);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  padding:10px 12px 6px;
+}
+.navitem{
+  width:100%;display:flex;align-items:center;gap:11px;height:34px;padding:0 12px;
+  border-radius:var(--r-2);color:var(--ink-2);font-size:14px;text-align:left;
+  transition:background var(--ease),color var(--ease);position:relative;
+}
+.navitem .ic{width:18px;text-align:center;font-size:14px;opacity:.85}
+.navitem .count{margin-left:auto;font-size:11px;color:var(--ink-3);font-weight:600}
+.navitem:hover{background:var(--surface-3)}
+.navitem.on{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.navitem.on .count{color:var(--accent-ink)}
+.side .foot{margin-top:auto;border-top:1px solid var(--line-soft);padding-top:8px}
+.side .who{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-2);
+  transition:background var(--ease);width:100%;text-align:left}
+.side .who:hover{background:var(--surface-3)}
+.side .who .av{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);
+  color:var(--accent-ink);display:grid;place-items:center;font:600 11px var(--font);flex:none}
+.side .who .m{min-width:0}
+.side .who .m div:first-child{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side .who .m div:last-child{font-size:11px;color:var(--ink-3)}
+
+/* ============================================================
+   MAIN
+   ============================================================ */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--surface);
+  border-top-left-radius:var(--r-4);border-left:1px solid var(--line-soft);overflow:hidden}
+.view{display:none;flex:1;min-height:0;flex-direction:column}
+.view.on{display:flex}
+
+/* --- page header: the one decorative moment --- */
+.ph{padding:22px 28px 0;position:relative;overflow:hidden;flex:none}
+.ph .wash{
+  position:absolute;right:-90px;top:-120px;width:320px;height:320px;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%, var(--accent-soft) 0%, transparent 68%);
+  opacity:.9;
+}
+.ph .eyebrow{font:600 11px var(--font);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.ph h1{font:600 24px/1.2 var(--display);letter-spacing:-.015em;margin-top:5px}
+.ph .lede{color:var(--ink-2);margin-top:4px;font-size:14px}
+.ph .rule{height:1px;background:linear-gradient(90deg,var(--line) 0%,var(--line) 62%,transparent 100%);margin-top:18px}
+.ph .actions{position:absolute;right:28px;top:24px;display:flex;gap:8px}
+
+/* --- toolbar --- */
+.toolbar{display:flex;align-items:center;gap:8px;padding:12px 28px;flex:none}
+.search{
+  display:flex;align-items:center;gap:8px;height:32px;padding:0 11px;min-width:230px;
+  border-radius:var(--r-2);background:var(--surface-2);border:1px solid var(--line);
+  transition:border-color var(--ease),background var(--ease);
+}
+.search:focus-within{border-color:var(--accent);background:var(--surface)}
+.search input{border:0;background:none;outline:none;width:100%;font-size:14px}
+.search input::placeholder{color:var(--ink-3)}
+.search .k{font:11px var(--mono);color:var(--ink-3);border:1px solid var(--line);
+  border-radius:var(--r-1);padding:1px 5px}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-2);overflow:hidden;background:var(--surface-2)}
+.seg button{padding:0 13px;height:32px;font-size:12px;color:var(--ink-2);
+  border-right:1px solid var(--line);transition:background var(--ease),color var(--ease)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+.seg button:hover:not(.on){background:var(--surface-3)}
+
+.btn{height:32px;padding:0 14px;border-radius:var(--r-2);font-size:14px;font-weight:600;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink);
+  transition:background var(--ease),border-color var(--ease),transform var(--ease)}
+.btn:hover{background:var(--surface-3)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:transparent;color:#fff}
+.btn.primary:hover{background:var(--accent-hover)}
+.btn.quiet{background:transparent;border-color:transparent;color:var(--ink-2)}
+.btn.quiet:hover{background:var(--surface-3);color:var(--ink)}
+.btn.danger{color:var(--bad);border-color:var(--line)}
+.btn.danger:hover{background:var(--bad-soft)}
+.btn .ic{margin-right:7px;opacity:.8}
+.push{margin-left:auto}
+
+.iconbtn{width:32px;height:32px;border-radius:var(--r-2);display:grid;place-items:center;
+  color:var(--ink-2);border:1px solid transparent;transition:background var(--ease),color var(--ease)}
+.iconbtn:hover{background:var(--surface-3);color:var(--ink)}
+
+/* --- scroll region --- */
+.scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.scroll::-webkit-scrollbar{width:10px}
+.scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px;border:3px solid transparent;background-clip:content-box}
+.scroll::-webkit-scrollbar-thumb:hover{background:var(--ink-3);background-clip:content-box}
+.pad{padding:0 28px 28px}
+
+/* ============================================================
+   INBOX: split list + reader
+   ============================================================ */
+.split{flex:1;min-height:0;display:flex}
+.list{width:340px;flex:none;border-right:1px solid var(--line-soft);display:flex;flex-direction:column}
+.list .lhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line-soft);flex:none}
+.list .lhead .n{font-size:12px;color:var(--ink-3)}
+.msg{
+  width:100%;text-align:left;display:flex;gap:11px;padding:11px 14px;
+  border-bottom:1px solid var(--line-soft);transition:background var(--ease);position:relative;
+}
+.msg:hover{background:var(--surface-2)}
+.msg.on{background:var(--accent-soft)}
+.msg .av{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font:600 11px var(--font);background:var(--surface-3);color:var(--ink-2)}
+.msg.on .av{background:var(--surface);color:var(--accent-ink)}
+.msg .m{min-width:0;flex:1}
+.msg .r1{display:flex;align-items:baseline;gap:8px}
+.msg .from{font-weight:600;font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg .t{font-size:11px;color:var(--ink-3);flex:none}
+.msg .subj{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.msg .prev{font-size:12px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg .unread{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none;align-self:center}
+.empty{padding:44px 20px;text-align:center;color:var(--ink-3);font-size:14px}
+
+.reader{flex:1;min-width:0;display:flex;flex-direction:column}
+.rhead{padding:20px 28px 16px;border-bottom:1px solid var(--line-soft);flex:none}
+.rhead h2{font:600 19px/1.3 var(--display);letter-spacing:-.01em}
+.rmeta{display:flex;align-items:center;gap:11px;margin-top:12px}
+.rmeta .av{width:36px;height:36px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);
+  display:grid;place-items:center;font:600 14px var(--font);flex:none}
+.rmeta .who{flex:1;min-width:0}
+.rmeta .who b{font-size:14px}
+.rmeta .who div{font-size:12px;color:var(--ink-3)}
+.rbody{padding:22px 28px;max-width:70ch;font-size:15px;line-height:1.65}
+.rbody p{margin-bottom:13px}
+.quoted{background:var(--surface-2);border-radius:var(--r-3);padding:13px 16px;color:var(--ink-2);
+  font-size:14px;margin-bottom:16px}
+.quoted .qh{font-size:11px;color:var(--ink-3);margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.replybox{margin:0 28px 24px;border:1px solid var(--line);border-radius:var(--r-4);
+  background:var(--surface-2);overflow:hidden;max-width:70ch}
+.replybox .rb-top{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--line-soft);
+  font-size:12px;color:var(--ink-2)}
+.replybox textarea{width:100%;min-height:92px;border:0;background:none;outline:none;resize:vertical;
+  padding:14px;font-size:14px;line-height:1.6}
+.replybox .rb-foot{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line-soft)}
+
+/* ============================================================
+   PILLS / TAGS / STATS
+   ============================================================ */
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+  padding:3px 9px;border-radius:99px;background:var(--surface-3);color:var(--ink-2)}
+.tag.good{background:var(--good-soft);color:var(--good)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.accent{background:var(--accent-soft);color:var(--accent-ink)}
+.tag .d{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:20px}
+.stat{border:1px solid var(--line);border-radius:var(--r-4);padding:16px 18px;background:var(--surface)}
+.stat .k{font:600 11px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.stat .v{font:600 30px/1.1 var(--display);letter-spacing:-.02em;margin:8px 0 3px}
+.stat .v small{font:600 14px var(--font);color:var(--ink-3);margin-left:5px;letter-spacing:0}
+.stat .sub{font-size:12px;color:var(--ink-3)}
+.meter{height:6px;border-radius:99px;background:var(--surface-3);overflow:hidden;margin-top:12px;display:flex;gap:2px}
+.meter i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.meter i.warn{background:var(--warn)}
+
+/* ============================================================
+   TABLE
+   ============================================================ */
+.panel{border:1px solid var(--line);border-radius:var(--r-4);background:var(--surface);overflow:hidden;margin-bottom:18px}
+.panel .pt{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line-soft);
+  background:var(--surface-2)}
+.panel .pt h3{font:600 14px var(--font)}
+.panel .pt .hint{font-size:12px;color:var(--ink-3)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font:600 11px var(--font);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  text-align:left;padding:10px 16px;border-bottom:1px solid var(--line-soft);background:var(--surface-2)}
+td{padding:12px 16px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+tbody tr{transition:background var(--ease)}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td .name{font-weight:600}
+td .sub{font-size:12px;color:var(--ink-3)}
+.right{text-align:right}
+
+/* ============================================================
+   ROWS (settings / accounts)
+   ============================================================ */
+.row{display:flex;align-items:center;gap:16px;padding:15px 16px;border-bottom:1px solid var(--line-soft)}
+.row:last-child{border-bottom:0}
+.row .rl{flex:1;min-width:0}
+.row .rl b{font-size:14px;font-weight:600;display:block}
+.row .rl span{font-size:12px;color:var(--ink-3)}
+
+/* switch */
+.sw{width:40px;height:22px;border-radius:99px;background:var(--surface-3);border:1px solid var(--line);
+  position:relative;flex:none;transition:background var(--ease),border-color var(--ease)}
+.sw i{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;
+  background:var(--ink-2);transition:left var(--ease),background var(--ease)}
+.sw.on{background:var(--accent);border-color:transparent}
+.sw.on i{left:21px;background:#fff}
+
+/* range: native element, styled */
+input[type=range]{-webkit-appearance:none;appearance:none;width:190px;height:20px;background:none;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:99px;background:var(--surface-3)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--accent);margin-top:-5px;box-shadow:0 0 0 3px var(--surface)}
+input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--accent)}
+.rangeval{font:600 14px var(--mono);color:var(--ink-2);min-width:64px;text-align:right}
+
+/* sequence steps */
+.steps{padding:6px 16px 14px}
+.stepline{display:flex;gap:14px}
+.stepline .rail{width:26px;flex:none;display:flex;flex-direction:column;align-items:center}
+.stepline .node{width:24px;height:24px;border-radius:50%;border:1px solid var(--line);
+  background:var(--surface-2);color:var(--ink-2);display:grid;place-items:center;font:600 11px var(--font);flex:none}
+.stepline .node.done{background:var(--accent);border-color:transparent;color:#fff}
+.stepline .node.live{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+.stepline .wire{flex:1;width:1px;background:var(--line);margin:4px 0}
+.stepline .sbody{flex:1;padding:1px 0 20px}
+.stepcard{border:1px solid var(--line);border-radius:var(--r-3);padding:13px 15px;background:var(--surface)}
+.stepcard .sh{display:flex;align-items:center;gap:9px;margin-bottom:5px}
+.stepcard .sh b{font-size:14px}
+.stepcard .sm{font-size:12px;color:var(--ink-3)}
+
+/* ============================================================
+   DIALOG + TOAST
+   ============================================================ */
+.scrim{position:fixed;inset:0;background:rgba(20,21,24,.34);display:none;z-index:40}
+.scrim.on{display:block;animation:fade var(--ease) both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.dialog{
+  position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(680px,92vw);background:var(--surface);border-radius:var(--r-5);
+  box-shadow:var(--sh-3);display:none;flex-direction:column;overflow:hidden;
+}
+.dialog.on{display:flex;animation:rise var(--ease-slow) both}
+@keyframes rise{from{opacity:0;transform:translate(-50%,-46%)}to{opacity:1;transform:translate(-50%,-50%)}}
+.dialog .dh{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line-soft)}
+.dialog .dh h3{font:600 16px var(--display);flex:1}
+.dialog .db{padding:6px 20px 14px}
+.dialog .df{display:flex;align-items:center;gap:9px;padding:14px 20px;border-top:1px solid var(--line-soft);
+  background:var(--surface-2)}
+.f{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+.f label{width:74px;flex:none;font-size:12px;color:var(--ink-3);font-weight:600}
+.f input,.f textarea{flex:1;border:0;background:none;outline:none;font-size:14px}
+.f textarea{min-height:150px;resize:vertical;line-height:1.6;padding-top:2px}
+.f.tall{align-items:flex-start}
+.chiprow{display:flex;gap:7px;flex-wrap:wrap;padding:12px 0 2px}
+.mchip{font:11px var(--mono);padding:4px 9px;border-radius:99px;border:1px solid var(--line);
+  color:var(--ink-2);transition:background var(--ease),border-color var(--ease)}
+.mchip:hover{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink)}
+
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:60;
+  display:flex;align-items:center;gap:12px;padding:11px 14px 11px 16px;
+  background:var(--ink);color:var(--bg);border-radius:var(--r-3);box-shadow:var(--sh-2);
+  font-size:14px;opacity:0;pointer-events:none;transition:opacity var(--ease),transform var(--ease);
+}
+.toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{color:var(--accent);font-weight:600;font-size:12px}
+body.dark .toast{background:var(--surface-3);color:var(--ink)}
+
+/* status bar */
+.statusbar{
+  height:26px;flex:none;display:flex;align-items:center;gap:16px;padding:0 14px;
+  border-top:1px solid var(--line-soft);background:var(--surface-2);
+  font-size:11px;color:var(--ink-3);
+}
+.statusbar .d{width:6px;height:6px;border-radius:50%;background:var(--good)}
+.statusbar .sep{flex:1}
+</style>
+</head>
+<body>
+
+<div class="win">
+
+  <!-- ============ TITLE BAR ============ -->
+  <div class="titlebar">
+    <div class="mark">EP</div>
+    <div class="apptitle"><b>Email Pilots</b> — kittu@emailpilots.app</div>
+    <div class="spacer"></div>
+    <button class="tb-btn" id="themeBtn">&#9681; Theme</button>
+    <div class="wc">
+      <button title="Minimize"><svg viewBox="0 0 10 10"><path d="M0 5h10"/></svg></button>
+      <button title="Maximize"><svg viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" rx="1"/></svg></button>
+      <button class="close" title="Close" id="closeBtn"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10"/></svg></button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- ============ SIDEBAR ============ -->
+    <nav class="side">
+      <button class="compose" id="composeBtn"><span>&#9998;</span> New message</button>
+      <div class="navlabel">Mail</div>
+      <button class="navitem on" data-view="inbox"><span class="ic">&#9993;</span> Inbox <span class="count" id="navUnread">3</span></button>
+      <button class="navitem" data-view="sent"><span class="ic">&#10132;</span> Sent <span class="count">412</span></button>
+      <div class="navlabel">Outreach</div>
+      <button class="navitem" data-view="campaigns"><span class="ic">&#9678;</span> Campaigns <span class="count">4</span></button>
+      <button class="navitem" data-view="sequences"><span class="ic">&#8646;</span> Sequences <span class="count">2</span></button>
+      <button class="navitem" data-view="recipients"><span class="ic">&#9635;</span> Recipients <span class="count">318</span></button>
+      <div class="navlabel">System</div>
+      <button class="navitem" data-view="accounts"><span class="ic">&#9711;</span> Accounts <span class="count">3</span></button>
+      <button class="navitem" data-view="settings"><span class="ic">&#9881;</span> Settings</button>
+      <div class="foot">
+        <button class="who">
+          <span class="av">KH</span>
+          <span class="m">
+            <div>Kittu H.</div>
+            <div>First Class</div>
+          </span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+
+      <!-- ---------- INBOX ---------- -->
+      <section class="view on" data-view="inbox">
+        <div class="ph">
+          <div class="wash"></div>
+          <div class="eyebrow">Mailbox</div>
+          <h1>Inbox</h1>
+          <div class="lede">Replies land here and pull the recipient out of every running sequence.</div>
+          <div class="actions">
+            <button class="btn quiet" data-toast="Checked for new mail">&#8635; Refresh</button>
+            <button class="btn" data-toast="Marked all as read" id="readAllBtn">Mark all read</button>
+          </div>
+          <div class="rule"></div>
+        </div>
+        <div class="toolbar">
+          <label class="search">
+            <span style="color:var(--ink-3)">&#9906;</span>
+            <input id="mailSearch" type="search" placeholder="Search sender, subject, body">
+            <span class="k">Ctrl K</span>
+          </label>
+          <div class="seg" id="mailSeg">
+            <button class="on" data-filter="all">All</button>
+            <button data-filter="unread">Unread</button>
+            <button data-filter="interested">Interested</button>
+            <button data-filter="bounced">Bounced</button>
+          </div>
+          <span class="push" style="font-size:12px;color:var(--ink-3)" id="mailCount"></span>
+        </div>
+        <div class="split">
+          <div class="list">
+            <div class="lhead">
+              <span class="n" id="listMeta">5 conversations</span>
+              <span class="push"></span>
+              <button class="iconbtn" title="Sort" data-toast="Sorted by newest">&#8645;</button>
+            </div>
+            <div class="scroll" id="mailList"></div>
+          </div>
+          <div class="reader">
+            <div class="scroll" id="reader"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- SENT ---------- -->
+      <section class="view" data-view="sent">
+        <div class="ph">
+          <div class="wash"></div>
+          <div class="eyebrow">Mailbox</div>
+          <h1>Sent</h1>
+          <div class="lede">Every delivered message, with the account and sequence step that produced it.</div>
+          <div class="rule"></div>
+        </div>
+        <div class="toolbar">
+          <label class="search">
+            <span style="color:var(--ink-3)">&#9906;</span>
+            <input type="search" placeholder="Search sent mail">
+          </label>
+          <button class="btn quiet push" data-toast="Exported 412 rows to CSV">&#8681; Export CSV</button>
+        </div>
+        <div class="scroll"><div class="pad">
+          <div class="panel">
+            <table>
+              <thead><tr><th>Recipient</th><th>Subject</th><th>Account</th><th>Step</th><th class="right">Sent</th></tr></thead>
+              <tbody>
+                <tr><td><div class="name">maya@northwind.io</div><div class="sub">Northwind Labs</div></td><td>Quick follow-up on Thursday</td><td>emailpilots.app</td><td><span class="tag accent">Step 2</span></td><td class="right num">09:04</td></tr>
+                <tr><td><div class="name">dan@fowler.co</div><div class="sub">Fowler &amp; Co</div></td><td>Quick follow-up on Thursday</td><td>emailpilots.app</td><td><span class="tag accent">Step 2</span></td><td class="right num">08:41</td></tr>
+                <tr><td><div class="name">a.lund@brightpath.se</div><div class="sub">Brightpath</div></td><td>Intro — Email Pilots</td><td>outlook.com</td><td><span class="tag">Step 1</span></td><td class="right num">08:22</td></tr>
+                <tr><td><div class="name">t.silva@merida.pt</div><div class="sub">Merida</div></td><td>Intro — Email Pilots</td><td>outlook.com</td><td><span class="tag">Step 1</span></td><td class="right num">08:03</td></tr>
+                <tr><td><div class="name">rhea@kapoor.design</div><div class="sub">Kapoor Design</div></td><td>Intro — Email Pilots</td><td>emailpilots.app</td><td><span class="tag">Step 1</span></td><td class="right num">Yest</td></tr>
+                <tr><td><div class="name">ops@vantagegrid.com</div><div class="sub">Vantage Grid</div></td><td>Intro — Email Pilots</td><td>emailpilots.app</td><td><span class="tag bad">Bounced</span></td><td class="right num">Yest</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div></div>
+      </section>
+
+      <!-- ---------- CAMPAIGNS ---------- -->
+      <section class="view" data-view="campaigns">
+        <div class="ph">
+          <div class="wash"></div>
+          <div class="eyebrow">Outreach</div>
+          <h1>Campaigns</h1>
+          <div class="lede">Each campaign carries its own subject line, template and recipient set.</div>
+          <div class="actions">
+            <button class="btn primary" data-toast="Campaign draft created">＋ New campaign</button>
+          </div>
+          <div class="rule"></div>
+        </div>
+        <div class="scroll"><div class="pad" style="padding-top:18px">
+          <div class="cards">
+            <div class="stat">
+              <div class="k">Sent today</div>
+              <div class="v num">38<small>/ 60 cap</small></div>
+              <div class="sub">Warm-up day 6 of 14</div>
+              <div class="meter"><i style="width:63%"></i></div>
+            </div>
+            <div class="stat">
+              <div class="k">Reply rate</div>
+              <div class="v num">14<small>%</small></div>
+              <div class="sub">+3 pts vs last week</div>
+              <div class="meter"><i style="width:14%"></i></div>
+            </div>
+            <div class="stat">
+              <div class="k">Bounced</div>
+              <div class="v num">2</div>
+              <div class="sub">Auto-suppressed</div>
+              <div class="meter"><i class="warn" style="width:4%"></i></div>
+            </div>
+            <div class="stat">
+              <div class="k">Next run</div>
+              <div class="v num">42<small>min</small></div>
+              <div class="sub">Founder intro · step 2</div>
+              <div class="meter"><i style="width:32%"></i></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="pt"><h3>All campaigns</h3><span class="hint">4 active · 318 recipients</span>
+              <span class="push"></span>
+              <button class="btn quiet" data-toast="Filters cleared">Filters</button></div>
+            <table>
+              <thead><tr><th>Campaign</th><th>Status</th><th>Recipients</th><th>Progress</th><th>Replies</th><th class="right">Actions</th></tr></thead>
+              <tbody id="campaignRows"></tbody>
+            </table>
+          </div>
+        </div></div>
+      </section>
+
+      <!-- ---------- SEQUENCES ---------- -->
+      <section class="view" data-view="sequences">
+        <div class="ph">
+          <div class="wash"></div>
+          <div class="eyebrow">Outreach</div>
+          <h1>Founder intro</h1>
+          <div class="lede">Three steps over seven days. A reply removes the recipient from every remaining step.</div>
+          <div class="actions">
+            <button class="btn" id="seqPauseBtn">&#10074;&#10074; Pause</button>
+            <button class="btn primary" data-toast="Sequence step added">＋ Add step</button>
+          </div>
+          <div class="rule"></div>
+        </div>
+        <div class="toolbar">
+          <span class="tag good" id="seqState"><span class="d"></span> Active</span>
+          <span class="tag">42 enrolled</span>
+          <span class="tag accent">3 replied</span>
+          <span class="tag warn">1 bounced</span>
+        </div>
+        <div class="scroll"><div class="pad">
+          <div class="panel">
+            <div class="pt"><h3>Steps</h3><span class="hint">Times are recipient-local</span></div>
+            <div class="steps">
+              <div class="stepline">
+                <div class="rail"><div class="node done">1</div><div class="wire"></div></div>
+                <div class="sbody"><div class="stepcard">
+                  <div class="sh"><b>Intro</b><span class="tag good">Sent 42</span></div>
+                  <div class="sm">Day 0 · 09:00 · subject “Intro — Email Pilots”</div>
+                </div></div>
+              </div>
+              <div class="stepline">
+                <div class="rail"><div class="node live">2</div><div class="wire"></div></div>
+                <div class="sbody"><div class="stepcard">
+                  <div class="sh"><b>Nudge</b><span class="tag accent">Sending 24 / 42</span></div>
+                  <div class="sm">Day 3 · 09:00 · skips anyone who replied</div>
+                  <div class="meter" style="margin-top:11px"><i style="width:57%"></i></div>
+                </div></div>
+              </div>
+              <div class="stepline">
+                <div class="rail"><div class="node">3</div></div>
+                <div class="sbody"><div class="stepcard">
+                  <div class="sh"><b>Last call</b><span class="tag">Queued</span></div>
+                  <div class="sm">Day 7 · 09:00 · closes the thread politely</div>
+                </div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="pt"><h3>Guardrails</h3><span class="hint">Applied to every step</span></div>
+            <div class="row"><div class="rl"><b>Stop on reply</b><span>Drop the recipient from all remaining steps</span></div><button class="sw on" role="switch" aria-checked="true"><i></i></button></div>
+            <div class="row"><div class="rl"><b>Skip weekends</b><span>No sends Saturday or Sunday</span></div><button class="sw on" role="switch" aria-checked="true"><i></i></button></div>
+            <div class="row"><div class="rl"><b>Respect suppression list</b><span>Shared across every account</span></div><button class="sw on" role="switch" aria-checked="true"><i></i></button></div>
+          </div>
+        </div></div>
+      </section>
+
+      <!-- ---------- RECIPIENTS ---------- -->
+      <section class="view" data-view="recipients">
+        <div class="ph">
+          <div class="wash"></div>
+          <div class="eyebrow">Outreach</div>
+          <h1>Recipients</h1>
+          <div class="lede">318 contacts across 4 campaigns. Suppressed addresses never receive another send.</div>
+          <div class="actions">
+            <button class="btn quiet" data-toast="Import dialog would open here">&#8593; Import CSV</button>
+            <button class="btn primary" data-toast="Recipient added">＋ Add recipient</button>
+          </div>
+          <div class="rule"></div>
+        </div>
+        <div class="toolbar">
+          <label class="search" style="min-width:280px">
+            <span style="color:var(--ink-3)">&#9906;</span>
+            <input id="recSearch" type="search" placeholder="Filter by name, email or company">
+          </label>
+          <span class="push" style="font-size:12px;color:var(--ink-3)" id="recCount"></span>
+        </div>
+        <div class="scroll"><div class="pad">
+          <div class="panel">
+            <table>
+              <thead><tr><th>Name</th><th>Email</th><th>Company</th><th>Campaign</th><th>Status</th></tr></thead>
+              <tbody id="recRows"></tbody>
+            </table>
+          </div>
+        </div></div>
+      </section>
+
+      <!-- ---------- ACCOUNTS ---------- -->
+      <section class="view" data-view="accounts">
+        <div class="ph">
+          <div class="wash"></div>
+          <div class="eyebrow">System</div>
+          <h1>Accounts</h1>
+          <div class="lede">Three mailboxes send in parallel, each with its own daily cap and warm-up curve.</div>
+          <div class="actions"><button class="btn primary" data-toast="Connect-mailbox wizard would open">＋ Add mailbox</button></div>
+          <div class="rule"></div>
+        </div>
+        <div class="scroll"><div class="pad" style="padding-top:18px">
+          <div class="panel">
+            <div class="pt"><h3>Mailboxes</h3><span class="hint">Toggle to pause sending without disconnecting</span></div>
+            <div class="row">
+              <div class="rl">
+                <b>kittu@emailpilots.app</b>
+                <span>Gmail · app password · SMTP</span>
+                <div class="meter" style="max-width:280px"><i style="width:63%"></i></div>
+              </div>
+              <span class="num" style="font-size:12px;color:var(--ink-3)">38 / 60</span>
+              <span class="tag good"><span class="d"></span> Sending</span>
+              <button class="sw on" role="switch" aria-checked="true"><i></i></button>
+            </div>
+            <div class="row">
+              <div class="rl">
+                <b>kittu@outlook.com</b>
+                <span>Microsoft · OAuth · Graph Mail.Send</span>
+                <div class="meter" style="max-width:280px"><i style="width:22%"></i></div>
+              </div>
+              <span class="num" style="font-size:12px;color:var(--ink-3)">11 / 50</span>
+              <span class="tag good"><span class="d"></span> Sending</span>
+              <button class="sw on" role="switch" aria-checked="true"><i></i></button>
+            </div>
+            <div class="row">
+              <div class="rl">
+                <b>hello@studio.dev</b>
+                <span>Self-hosted SMTP · credentials expired</span>
+              </div>
+              <button class="btn" data-toast="Reconnect flow would start">Reconnect</button>
+              <span class="tag warn">Paused</span>
+              <button class="sw" role="switch" aria-checked="false"><i></i></button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="pt"><h3>Domain authentication</h3><span class="hint">emailpilots.app · checked 12 min ago</span>
+              <span class="push"></span>
+              <button class="btn quiet" data-toast="Re-ran SPF, DKIM and DMARC lookups">&#8635; Re-check</button></div>
+            <div class="row"><div class="rl"><b>SPF</b><span>v=spf1 include:_spf.google.com ~all</span></div><span class="tag good">Pass</span></div>
+            <div class="row"><div class="rl"><b>DKIM</b><span>Selector google · 2048-bit key found</span></div><span class="tag good">Pass</span></div>
+            <div class="row"><div class="rl"><b>DMARC</b><span>No record at _dmarc.emailpilots.app</span></div><span class="tag warn">Missing</span></div>
+          </div>
+        </div></div>
+      </section>
+
+      <!-- ---------- SETTINGS ---------- -->
+      <section class="view" data-view="settings">
+        <div class="ph">
+          <div class="wash"></div>
+          <div class="eyebrow">System</div>
+          <h1>Settings</h1>
+          <div class="lede">Pace, safety and storage. Changes apply to the next scheduled run.</div>
+          <div class="rule"></div>
+        </div>
+        <div class="scroll"><div class="pad" style="padding-top:18px">
+          <div class="panel">
+            <div class="pt"><h3>Sending pace</h3><span class="hint">Warm-up raises the cap by 5 each day</span></div>
+            <div class="row">
+              <div class="rl"><b>Daily cap</b><span>Per mailbox, resets at local midnight</span></div>
+              <input type="range" min="10" max="200" step="5" value="60" data-out="capOut" data-unit=" / day">
+              <span class="rangeval" id="capOut">60 / day</span>
+            </div>
+            <div class="row">
+              <div class="rl"><b>Gap between sends</b><span>Randomised ±30% to look human</span></div>
+              <input type="range" min="15" max="300" step="5" value="75" data-out="gapOut" data-unit=" s">
+              <span class="rangeval" id="gapOut">75 s</span>
+            </div>
+            <div class="row">
+              <div class="rl"><b>Sending window</b><span>Recipient-local business hours</span></div>
+              <input type="range" min="6" max="12" step="1" value="9" data-out="winOut" data-unit=":00 start">
+              <span class="rangeval" id="winOut">9:00 start</span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="pt"><h3>Safety</h3><span class="hint">Deliverability guardrails</span></div>
+            <div class="row"><div class="rl"><b>Stop on reply</b><span>Remove the recipient from every sequence</span></div><button class="sw on" role="switch" aria-checked="true"><i></i></button></div>
+            <div class="row"><div class="rl"><b>Auto-suppress bounces</b><span>Hard bounces and DSN failures only</span></div><button class="sw on" role="switch" aria-checked="true"><i></i></button></div>
+            <div class="row"><div class="rl"><b>Verify MX before first send</b><span>Rejects null-MX and unroutable domains</span></div><button class="sw on" role="switch" aria-checked="true"><i></i></button></div>
+            <div class="row"><div class="rl"><b>Weekend sending</b><span>Saturday and Sunday</span></div><button class="sw" role="switch" aria-checked="false"><i></i></button></div>
+          </div>
+
+          <div class="panel">
+            <div class="pt"><h3>Data</h3><span class="hint">Everything is stored locally on this PC</span></div>
+            <div class="row"><div class="rl"><b>Storage folder</b><span style="font-family:var(--mono);font-size:12px">C:\Users\Kittu\AppData\Local\EmailPilots</span></div><button class="btn quiet" data-toast="Opened storage folder in Explorer">Open folder</button></div>
+            <div class="row"><div class="rl"><b>Export data</b><span>Recipients, campaigns and send history as CSV</span></div><button class="btn" data-toast="Exported 3 files">Export</button></div>
+            <div class="row"><div class="rl"><b>Sign out</b><span>Clears stored passwords from this device</span></div><button class="btn danger" data-toast="Signed out — stored passwords cleared">Sign out</button></div>
+          </div>
+        </div></div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============ STATUS BAR ============ -->
+  <div class="statusbar">
+    <span class="d"></span>
+    <span id="statusText">Scheduler armed — next run in 42 min</span>
+    <span class="sep"></span>
+    <span class="num">38 / 60 sent today</span>
+    <span>·</span>
+    <span>3 mailboxes</span>
+    <span>·</span>
+    <span>v1.4.0</span>
+  </div>
+</div>
+
+<!-- ============ COMPOSE DIALOG ============ -->
+<div class="scrim" id="scrim"></div>
+<div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-label="New message">
+  <div class="dh">
+    <h3>New message</h3>
+    <button class="iconbtn" id="dlgClose" aria-label="Close">&#10005;</button>
+  </div>
+  <div class="db">
+    <div class="f"><label for="dTo">To</label><input id="dTo" value="maya@northwind.io"></div>
+    <div class="f"><label for="dFrom">From</label><input id="dFrom" value="kittu@emailpilots.app"></div>
+    <div class="f"><label for="dSubj">Subject</label><input id="dSubj" value="Re: quick follow-up on Thursday"></div>
+    <div class="f tall"><label for="dBody">Message</label><textarea id="dBody">Hi Maya —
+
+Thursday at 3pm works. Sending the invite now, and yes — per-domain caps are supported: each mailbox carries its own daily limit and warm-up curve.
+
+— Kittu</textarea></div>
+    <div class="chiprow">
+      <button class="mchip">{{first_name}}</button>
+      <button class="mchip">{{company}}</button>
+      <button class="mchip">{{city}}</button>
+      <button class="mchip">{{sender_name}}</button>
+    </div>
+  </div>
+  <div class="df">
+    <button class="btn primary" id="dlgSend">Send</button>
+    <button class="btn" data-toast="Saved to drafts">Save draft</button>
+    <button class="btn quiet" data-toast="Schedule picker would open">Schedule…</button>
+    <span class="push" style="font-size:12px;color:var(--ink-3)">Sends via SMTP · counts toward today's cap</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastAction">Undo</button></div>
+
+<script>
+/* ============================================================
+   DATA
+   ============================================================ */
+const MAIL = [
+  { id:1, from:'Maya Rivera', addr:'maya@northwind.io', co:'Northwind Labs', t:'9:12',
+    subj:'Re: quick follow-up on Thursday', unread:true, tag:'interested',
+    quoted:'Thanks for taking a look last week. Thursday 3pm works on my end; I will send an invite unless another slot suits you better.',
+    body:['Hi Kittu —',
+          'Thursday at 3pm is good. Send the invite to this address and I will loop in Priya, who runs our outbound tooling. She will have sharper questions about deliverability than I do.',
+          'One thing ahead of the call: we send from two domains and want per-domain caps rather than one shared limit. Is that something the app handles today?',
+          '— Maya'] },
+  { id:2, from:'Dan Fowler', addr:'dan@fowler.co', co:'Fowler & Co', t:'8:47',
+    subj:'Re: quick follow-up on Thursday', unread:true, tag:'interested',
+    quoted:'Following up on my note from last week — worth a short call?',
+    body:['Kittu,',
+          'Thanks for the note. Forwarding this to our ops lead, who owns the mail stack. Expect a reply from her side this week.',
+          'Best, Dan'] },
+  { id:3, from:'Amara Lund', addr:'a.lund@brightpath.se', co:'Brightpath', t:'Yesterday',
+    subj:'Re: Intro — Email Pilots', unread:true, tag:'interested',
+    quoted:'A short intro to what we are building and why it might fit Brightpath.',
+    body:['Hello,',
+          'Interested — send over the pricing page when you get a moment, and whether there is a per-seat option for a team of four.',
+          'Amara'] },
+  { id:4, from:'Tomas Silva', addr:'t.silva@merida.pt', co:'Merida', t:'Yesterday',
+    subj:'Automatic reply: Intro — Email Pilots', unread:false, tag:'auto',
+    quoted:'A short intro to what we are building and why it might fit Merida.',
+    body:['I am out of the office until the 24th with limited access to email.',
+          'For anything urgent please contact ops@merida.pt.'] },
+  { id:5, from:'Rhea Kapoor', addr:'rhea@kapoor.design', co:'Kapoor Design', t:'Monday',
+    subj:'Re: Intro — Email Pilots', unread:false, tag:'interested',
+    quoted:'A short intro to what we are building and why it might fit your studio.',
+    body:['Hi there,',
+          'Who handles this on your side? Copying our head of growth so she can pick up the thread.',
+          'Rhea'] },
+  { id:6, from:'Mail Delivery Subsystem', addr:'postmaster@vantagegrid.com', co:'Vantage Grid', t:'Monday',
+    subj:'Undelivered Mail Returned to Sender', unread:false, tag:'bounced',
+    quoted:'A short intro to what we are building and why it might fit Vantage Grid.',
+    body:['This is the mail system at host mx1.vantagegrid.com.',
+          'Your message could not be delivered to ops@vantagegrid.com — the address does not exist (SMTP 550 5.1.1).',
+          'Email Pilots has added this address to the shared suppression list. No further sends will be attempted.'] }
+];
+
+const CAMPAIGNS = [
+  { name:'Founder intro', sub:'Personal intro to design studios', state:'Active', n:142, pct:57, replies:12 },
+  { name:'Conference follow-up', sub:'People met at Webbdagarna', state:'Active', n:64, pct:88, replies:9 },
+  { name:'Reconnect Q3', sub:'Dormant threads from last quarter', state:'Paused', n:88, pct:24, replies:3 },
+  { name:'Partner outreach', sub:'Agencies and resellers', state:'Draft', n:24, pct:0, replies:0 }
+];
+
+const RECIPIENTS = [
+  ['Maya Rivera','maya@northwind.io','Northwind Labs','Founder intro','replied'],
+  ['Dan Fowler','dan@fowler.co','Fowler & Co','Founder intro','replied'],
+  ['Amara Lund','a.lund@brightpath.se','Brightpath','Conference follow-up','replied'],
+  ['Tomas Silva','t.silva@merida.pt','Merida','Founder intro','sent'],
+  ['Rhea Kapoor','rhea@kapoor.design','Kapoor Design','Founder intro','sent'],
+  ['Priya Nayar','priya@northwind.io','Northwind Labs','Founder intro','queued'],
+  ['Jonas Mehl','jonas@axelhaus.de','Axelhaus','Conference follow-up','sent'],
+  ['Ines Ferreira','ines@estudio.pt','Estúdio Ferreira','Reconnect Q3','queued'],
+  ['Ops Desk','ops@vantagegrid.com','Vantage Grid','Founder intro','suppressed'],
+  ['Léa Marchand','lea@atelier-m.fr','Atelier M','Partner outreach','draft']
+];
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const initials = n => n.split(' ').filter(Boolean).slice(0,2).map(w => w[0]).join('').toUpperCase();
+
+let toastTimer;
+function toast(msg, actionLabel){
+  $('#toastMsg').textContent = msg;
+  const btn = $('#toastAction');
+  btn.textContent = actionLabel || 'Dismiss';
+  $('#toast').classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('#toast').classList.remove('on'), 3600);
+}
+$('#toastAction').addEventListener('click', () => $('#toast').classList.remove('on'));
+
+/* any element with data-toast fires one — keeps the mock honest without per-button wiring */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-toast]');
+  if (el) toast(el.dataset.toast);
+});
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+$$('.navitem').forEach(item => {
+  item.addEventListener('click', () => {
+    $$('.navitem').forEach(n => n.classList.remove('on'));
+    item.classList.add('on');
+    const v = item.dataset.view;
+    $$('.view').forEach(s => s.classList.toggle('on', s.dataset.view === v));
+    $$('.scroll').forEach(s => s.scrollTop = 0);
+  });
+});
+
+/* ============================================================
+   MAIL LIST + READER
+   ============================================================ */
+let filter = 'all', query = '', selected = 1;
+
+function visibleMail(){
+  return MAIL.filter(m => {
+    if (filter === 'unread'     && !m.unread)          return false;
+    if (filter === 'interested' && m.tag !== 'interested') return false;
+    if (filter === 'bounced'    && m.tag !== 'bounced') return false;
+    if (!query) return true;
+    const hay = (m.from + ' ' + m.addr + ' ' + m.subj + ' ' + m.body.join(' ')).toLowerCase();
+    return hay.includes(query);
+  });
+}
+
+function renderList(){
+  const rows = visibleMail();
+  $('#mailList').innerHTML = rows.length ? rows.map(m => `
+    <button class="msg ${m.id === selected ? 'on' : ''}" data-id="${m.id}">
+      <span class="av">${esc(initials(m.from))}</span>
+      <span class="m">
+        <span class="r1"><span class="from">${esc(m.from)}</span><span class="t">${esc(m.t)}</span></span>
+        <span class="subj">${esc(m.subj)}</span>
+        <span class="prev">${esc(m.body[1] || m.body[0])}</span>
+      </span>
+      ${m.unread ? '<span class="unread"></span>' : ''}
+    </button>`).join('')
+    : '<div class="empty">No conversations match this filter.</div>';
+
+  $('#listMeta').textContent = rows.length + (rows.length === 1 ? ' conversation' : ' conversations');
+  $('#mailCount').textContent = MAIL.filter(m => m.unread).length + ' unread';
+  $('#navUnread').textContent = MAIL.filter(m => m.unread).length;
+
+  $$('.msg').forEach(b => b.addEventListener('click', () => {
+    selected = +b.dataset.id;
+    const m = MAIL.find(x => x.id === selected);
+    if (m) m.unread = false;
+    renderList(); renderReader();
+  }));
+}
+
+function renderReader(){
+  const m = MAIL.find(x => x.id === selected);
+  if (!m){ $('#reader').innerHTML = '<div class="empty">Select a conversation.</div>'; return; }
+  const tagMap = {
+    interested: '<span class="tag good">Reply detected</span><span class="tag accent">Sequence stopped</span>',
+    bounced:    '<span class="tag bad">Hard bounce</span><span class="tag warn">Address suppressed</span>',
+    auto:       '<span class="tag">Auto-reply</span><span class="tag accent">Sequence held</span>'
+  };
+  $('#reader').innerHTML = `
+    <div class="rhead">
+      <h2>${esc(m.subj)}</h2>
+      <div class="rmeta">
+        <span class="av">${esc(initials(m.from))}</span>
+        <span class="who"><b>${esc(m.from)}</b><div>${esc(m.addr)} · ${esc(m.co)} · ${esc(m.t)}</div></span>
+        <button class="iconbtn" title="Reply" data-toast="Reply drafted">&#8617;</button>
+        <button class="iconbtn" title="Flag" data-toast="Conversation flagged">&#9873;</button>
+        <button class="iconbtn" title="More" data-toast="Context menu would open">&#8943;</button>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:12px">${tagMap[m.tag] || ''}</div>
+    </div>
+    <div class="rbody">
+      <div class="quoted"><div class="qh">You wrote · ${esc(m.t)}</div>${esc(m.quoted)}</div>
+      ${m.body.map(p => `<p>${esc(p)}</p>`).join('')}
+    </div>
+    <div class="replybox">
+      <div class="rb-top">Reply as <b>kittu@emailpilots.app</b> to ${esc(m.addr)}</div>
+      <textarea placeholder="Write a reply…"></textarea>
+      <div class="rb-foot">
+        <button class="btn primary" data-send-reply>Send</button>
+        <button class="btn" data-toast="Saved to drafts">Save draft</button>
+        <button class="btn quiet" data-toast="AI draft is a First Class feature">Draft with AI</button>
+      </div>
+    </div>`;
+  const send = $('[data-send-reply]', $('#reader'));
+  send.addEventListener('click', () => {
+    const ta = $('.replybox textarea');
+    if (!ta.value.trim()){ ta.focus(); toast('Write something first — the reply is empty'); return; }
+    ta.value = '';
+    toast('Reply sent to ' + m.addr, 'Undo');
+  });
+}
+
+$('#mailSearch').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); renderList(); });
+$$('#mailSeg button').forEach(b => b.addEventListener('click', () => {
+  $$('#mailSeg button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  filter = b.dataset.filter;
+  renderList();
+}));
+$('#readAllBtn').addEventListener('click', () => { MAIL.forEach(m => m.unread = false); renderList(); });
+
+/* Ctrl+K focuses search, Esc closes the dialog */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); $('#mailSearch').focus(); }
+  if (e.key === 'Escape') closeDialog();
+});
+
+/* ============================================================
+   CAMPAIGNS + RECIPIENTS
+   ============================================================ */
+const stateTag = s => ({
+  Active:'<span class="tag good"><span class="d"></span> Active</span>',
+  Paused:'<span class="tag warn">Paused</span>',
+  Draft :'<span class="tag">Draft</span>'
+}[s]);
+
+$('#campaignRows').innerHTML = CAMPAIGNS.map(c => `
+  <tr>
+    <td><div class="name">${esc(c.name)}</div><div class="sub">${esc(c.sub)}</div></td>
+    <td>${stateTag(c.state)}</td>
+    <td class="num">${c.n}</td>
+    <td style="min-width:150px">
+      <div class="meter" style="margin:0"><i style="width:${c.pct}%"></i></div>
+      <div class="sub num" style="margin-top:5px">${c.pct}% complete</div>
+    </td>
+    <td class="num">${c.replies}</td>
+    <td class="right">
+      <button class="btn quiet" data-toast="Opened ${esc(c.name)}">Open</button>
+      <button class="btn quiet" data-toast="${c.state === 'Active' ? 'Paused' : 'Resumed'} ${esc(c.name)}">${c.state === 'Active' ? 'Pause' : 'Resume'}</button>
+    </td>
+  </tr>`).join('');
+
+const recTag = s => ({
+  replied   :'<span class="tag good">Replied</span>',
+  sent      :'<span class="tag accent">Sent</span>',
+  queued    :'<span class="tag">Queued</span>',
+  draft     :'<span class="tag">Draft</span>',
+  suppressed:'<span class="tag bad">Suppressed</span>'
+}[s]);
+
+function renderRecipients(q = ''){
+  const rows = RECIPIENTS.filter(r => r.join(' ').toLowerCase().includes(q));
+  $('#recRows').innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td class="name">${esc(r[0])}</td>
+      <td style="font-family:var(--mono);font-size:12px">${esc(r[1])}</td>
+      <td>${esc(r[2])}</td>
+      <td>${esc(r[3])}</td>
+      <td>${recTag(r[4])}</td>
+    </tr>`).join('')
+    : '<tr><td colspan="5"><div class="empty">No recipients match “' + esc(q) + '”.</div></td></tr>';
+  $('#recCount').textContent = rows.length + ' of ' + RECIPIENTS.length + ' shown';
+}
+$('#recSearch').addEventListener('input', e => renderRecipients(e.target.value.trim().toLowerCase()));
+
+/* ============================================================
+   SWITCHES + SLIDERS
+   ============================================================ */
+document.addEventListener('click', e => {
+  const sw = e.target.closest('.sw');
+  if (!sw) return;
+  const on = sw.classList.toggle('on');
+  sw.setAttribute('aria-checked', String(on));
+  const label = sw.closest('.row')?.querySelector('.rl b')?.textContent || 'Setting';
+  toast(label + (on ? ' turned on' : ' turned off'));
+});
+
+$$('input[type=range]').forEach(r => {
+  const out = $('#' + r.dataset.out);
+  const paint = () => { out.textContent = r.value + (r.dataset.unit || ''); };
+  r.addEventListener('input', paint);
+  paint();
+});
+
+/* ============================================================
+   SEQUENCE PAUSE
+   ============================================================ */
+$('#seqPauseBtn').addEventListener('click', () => {
+  const btn = $('#seqPauseBtn'), tag = $('#seqState');
+  const paused = btn.dataset.paused === '1';
+  btn.dataset.paused = paused ? '0' : '1';
+  btn.innerHTML = paused ? '&#10074;&#10074; Pause' : '&#9654; Resume';
+  tag.className = 'tag ' + (paused ? 'good' : 'warn');
+  tag.innerHTML = (paused ? '<span class="d"></span> Active' : 'Paused');
+  $('#statusText').textContent = paused ? 'Scheduler armed — next run in 42 min' : 'Sequence paused — no sends queued';
+  toast(paused ? 'Founder intro resumed' : 'Founder intro paused');
+});
+
+/* ============================================================
+   DIALOG
+   ============================================================ */
+function openDialog(){ $('#scrim').classList.add('on'); $('#dialog').classList.add('on'); $('#dTo').focus(); }
+function closeDialog(){ $('#scrim').classList.remove('on'); $('#dialog').classList.remove('on'); }
+$('#composeBtn').addEventListener('click', openDialog);
+$('#dlgClose').addEventListener('click', closeDialog);
+$('#scrim').addEventListener('click', closeDialog);
+$('#dlgSend').addEventListener('click', () => {
+  const to = $('#dTo').value.trim();
+  if (!to){ $('#dTo').focus(); toast('Add a recipient before sending'); return; }
+  closeDialog();
+  toast('Message sent to ' + to, 'Undo');
+});
+$$('.mchip').forEach(c => c.addEventListener('click', () => {
+  const ta = $('#dBody');
+  const at = ta.selectionStart ?? ta.value.length;
+  ta.value = ta.value.slice(0, at) + c.textContent + ta.value.slice(ta.selectionEnd ?? at);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = at + c.textContent.length;
+}));
+
+/* ============================================================
+   CHROME
+   ============================================================ */
+$('#themeBtn').addEventListener('click', () => {
+  document.body.classList.toggle('dark');
+  toast(document.body.classList.contains('dark') ? 'Dark theme' : 'Light theme');
+});
+$('#closeBtn').addEventListener('click', () => toast('Close is inert in this mockup'));
+
+/* boot */
+renderList();
+renderReader();
+renderRecipients();
+</script>
+</body>
+</html>

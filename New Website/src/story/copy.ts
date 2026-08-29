@@ -87,7 +87,7 @@ export const HOME_CHAPTERS: ChapterCopy[] = [
     kicker: 'CH 10 · The Landing',
     title: 'The reply is the landing.',
     body: 'No open tracking, no hidden pixels, no rewritten links — success is measured the honest way: by replies, with reply-rate analytics built in. Contacts, history, and credentials stay in plain local files on your PC, protected by Windows’ own vault. Try the whole cockpit in explore mode, rehearse in Practice Mode, and your first real send gets confetti.',
-    chips: ['7-day free trial · no credit card', 'Everything stays on your PC', 'Sign out wipes it all'],
+    chips: ['First month free before 22 Nov · no credit card', 'Everything stays on your PC', 'Sign out wipes it all'],
   },
 ];
 
@@ -265,20 +265,20 @@ export const PRICING = {
   price: '$2.9',
   period: '/week',
   bullets: [
-    '7-day free trial — no credit card to start',
+    'Install before 22 Nov 2026 — first month free, no credit card',
     'Cancel anytime',
     'One subscription, your own mailbox',
     'No per-seat or per-contact fees',
     'Your mailbox + up to 5 more',
   ],
   note: 'Runs entirely on your PC. Your mailbox, your data.',
-  cta: { label: 'Start the free trial', href: '/download' },
+  cta: { label: 'Get the free month', href: '/download' },
 };
 
 export const FAQ = [
   { q: 'Do I need a new email address or server?', a: 'No. Email Pilots sends from your own mailbox — Gmail, Microsoft, or any custom SMTP host. Nothing to migrate, no shared sending pools.' },
   { q: 'Is my data stored in a cloud?', a: 'No. Contacts, history, replies, and settings are plain local files on your PC. No cloud account, no telemetry, no tracking.' },
-  { q: 'How does the free trial work?', a: '7 days, full app, no credit card to start. Cancel anytime.' },
+  { q: 'How does the free month work?', a: 'Install before 22 November 2026 and the full app is free for 30 days from your first launch — no credit card, nothing to enter. After that date, new installs get 7 days instead. Cancel anytime; there is nothing to cancel unless you subscribe.' },
   { q: 'Does the AI send my text to a server?', a: 'Never. The optional copilot runs 100% on your machine; its only network traffic is the one-time model download.' },
   { q: 'What happens when someone replies?', a: 'Their sequence stands down automatically — any of your connected inboxes counts — and the reply appears in your Replies view within 15 minutes.' },
 ];
@@ -287,8 +287,11 @@ export const DOWNLOAD = {
   kicker: 'The Runway',
   title: 'Land it on your desktop.',
   body: 'Email Pilots runs entirely on your Windows PC — your mailbox, your data, no cloud account. Download, connect a mailbox (or just explore with sample data), and rehearse in Practice Mode before anything real flies.',
-  requirements: 'Windows 10/11 · 64-bit',
+  requirements: 'Windows 10/11 · 64-bit · install before 22 Nov 2026 and your first month is free',
   smartScreenNote: 'Windows SmartScreen may warn about new publishers. Choose "More info" → "Run anyway" — the installer is unmodified from this page.',
-  // release URL lands with the deploy phase; the button is disabled until then
-  cta: { label: 'Download for Windows', href: '#', pending: true },
+  cta: {
+    label: 'Download for Windows',
+    href: 'https://github.com/kryshn7777/Email-Pilots/releases/download/1.0.0/Email.Pilots.Setup.1.0.0.exe',
+    pending: false,
+  },
 };

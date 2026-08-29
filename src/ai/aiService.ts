@@ -1,7 +1,7 @@
 import type { Config } from '../config';
-import type { AiProvider, AiProviderDeps } from './aiProvider';
+import type { AiProvider } from './aiProvider';
 import type { AiStatus, AiGenerateRequest, AiGenerateResult } from './types';
-import { makeAiProvider } from './factory';
+import { LocalLlamaProvider } from './providers/localLlama';
 
 /**
  * Thin facade over an `AiProvider` (mirrors `EmailService` over `SendStrategy`).
@@ -12,8 +12,8 @@ import { makeAiProvider } from './factory';
 export class AiService {
   private provider: AiProvider;
 
-  constructor(private config: Config, deps?: AiProviderDeps) {
-    this.provider = makeAiProvider(config, deps);
+  constructor(private config: Config) {
+    this.provider = new LocalLlamaProvider(config);
   }
 
   /** True only when the user enabled AI in config (cheap, no model load). */

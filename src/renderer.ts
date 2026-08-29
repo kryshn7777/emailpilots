@@ -14,22 +14,26 @@ export interface RenderedEmail {
 
 /** Crude HTML → text for the plain-text alternative part. */
 function htmlToText(html: string): string {
-  return html
+  const text = html
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     // Keep link targets so the plain-text unsubscribe link stays usable.
     .replace(/<a\s[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
              (_m, href, txt) => `${String(txt).replace(/<[^>]+>/g, '').trim()} (${href})`)
     .replace(/<\s*br\s*\/?>/gi, '\n')
-    .replace(/<\/\s*(p|div|tr|li|h[1-6])\s*>/gi, '\n')
+    // DLV-9: a block that OPENS after inline content needs a break too, or the
+    // message and the template's next paragraph run together ("…Tuesday?Best,").
+    .replace(/<\s*(p|div|tr|li|h[1-6]|blockquote)\b[^>]*>/gi, '\n')
+    .replace(/<\/\s*(p|div|tr|li|h[1-6]|blockquote)\s*>/gi, '\n')
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
     .replace(/\n{3,}/g, '\n\n')
     .replace(/[ \t]+\n/g, '\n')
     .trim();
+  // DLV-9: entities last (after tag stripping, so typed "&lt;b&gt;" stays text), and
+  // the FULL set Mustache escapes — "O&#39;Reilly" in the plain-text part is both
+  // ugly and a text/HTML mismatch filters notice.
+  return htmlUnescape(text);
 }
 
 /** Build the CAN-SPAM / unsubscribe footer appended to every email. */

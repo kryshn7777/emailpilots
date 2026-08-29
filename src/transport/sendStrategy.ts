@@ -56,6 +56,6 @@ export interface SendStrategy {
 export interface StrategyDeps {
   /** Build a browser-session strategy for a `transport: 'browser'` account. */
   createBrowserStrategy?: (config: Config, account: Account) => SendStrategy;
-  /** Acquire a fresh OAuth access token for a `transport: 'oauth-smtp'` account. */
-  getAccessToken?: (account: Account) => Promise<string>;
+  /** Acquire a fresh Graph (Mail.Send) access token for a `transport: 'graph'` account. */
+  getGraphAccessToken?: (account: Account) => Promise<string>;
 }

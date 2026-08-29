@@ -55,7 +55,13 @@ describe('microsoftIdentityWarning', () => {
     expect(w).toBeTruthy();
     expect(w).toContain('protonmail.com');
     expect(w).toContain('SPF');
-    expect(w).toContain('Proton Mail Bridge'); // names the actual fix
+    // DLV-19 (live headers 2026-08-29): Microsoft no longer sends the foreign From
+    // out to fail DMARC — it swaps in a placeholder outlook_<hex>@outlook.com, which
+    // authenticates and still goes to spam. The warning must describe THAT, and name
+    // the real fix (an @outlook.com alias set as primary) before the Bridge alternative.
+    expect(w).toContain('outlook_');
+    expect(w).toMatch(/alias/i);
+    expect(w).toContain('Proton Mail Bridge');
   });
 
   it('non-Proton foreign domain gets the generic remedy, not the Bridge line', () => {
@@ -63,6 +69,8 @@ describe('microsoftIdentityWarning', () => {
     expect(w).toBeTruthy();
     expect(w).not.toContain('Proton Mail Bridge');
     expect(w).toContain('customcorp.com');
+    expect(w).toContain('outlook_');
+    expect(w).toMatch(/alias/i);
   });
 
   it('silent for Microsoft consumer families — their SPF never carries the M365 include', () => {

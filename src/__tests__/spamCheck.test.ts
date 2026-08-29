@@ -4,9 +4,6 @@ import {
   spamVerdict,
   sortedFindings,
   htmlToReadableText,
-  categorize,
-  CATEGORY_ORDER,
-  CATEGORY_LABEL,
   type SpamFinding,
   type SpamCategory,
 } from '../spamCheck';
@@ -38,7 +35,7 @@ describe('checkSpam', () => {
     // even against a build with the exclusion removed. Five proves the rule.
     const body = '<p>Hello there, thanks for reading our update today.</p>';
     const mailtos = '<a href="mailto:me@x.com?subject=Unsubscribe">unsubscribe</a>'.repeat(5);
-    const r = checkSpam('Hello', body + mailtos, true);
+    const r = checkSpam('Following up on Tuesday', body + mailtos, true);
     // Structural, not prose-matched, so label copy can be reworded freely.
     expect(r.findings).toHaveLength(0);
     expect(r.level).toBe('clean');
@@ -47,14 +44,14 @@ describe('checkSpam', () => {
   it('does count http links, so the mailto: test above is not vacuous', () => {
     const body = '<p>Hello there, thanks for reading our update today.</p>';
     const links = '<a href="https://x.com/a">a</a>'.repeat(5);
-    const r = checkSpam('Hello', body + links, true);
+    const r = checkSpam('Following up on Tuesday', body + links, true);
     expect(r.findings).toHaveLength(1);
     expect(r.findings[0].severity).toBe('low');
   });
 
   it('warns when there is no plain-text alternative', () => {
-    const withText = checkSpam('Hello', '<p>Some body content here for the reader.</p>', true);
-    const noText = checkSpam('Hello', '<p>Some body content here for the reader.</p>', false);
+    const withText = checkSpam('Following up on Tuesday', '<p>Some body content here for the reader.</p>', true);
+    const noText = checkSpam('Following up on Tuesday', '<p>Some body content here for the reader.</p>', false);
     // The hasPlainText=false arg is the only difference, so it must be the only
     // finding — asserted by difference rather than by matching label wording.
     expect(withText.findings).toHaveLength(0);
@@ -119,11 +116,11 @@ describe('htmlToReadableText', () => {
     const withLinks = '<p>Hello there, thanks for reading our update today.</p>'
       + '<a href="https://x.com/a">a</a>'.repeat(5);
     // The HTML trips the link rule...
-    const fromHtml = checkSpam('Hi', withLinks, true).findings;
+    const fromHtml = checkSpam('Following up on Tuesday', withLinks, true).findings;
     expect(fromHtml).toHaveLength(1);
     expect(fromHtml[0].label).toMatch(/links/);
     // ...but the readable text cannot, which is exactly why analysis keeps the HTML.
-    expect(checkSpam('Hi', htmlToReadableText(withLinks), true).findings).toHaveLength(0);
+    expect(checkSpam('Following up on Tuesday', htmlToReadableText(withLinks), true).findings).toHaveLength(0);
   });
 });
 
@@ -192,11 +189,7 @@ describe('sortedFindings', () => {
   });
 });
 
-describe('categorize', () => {
-  const f = (severity: SpamFinding['severity'], category: SpamCategory, label = 'x'): SpamFinding =>
-    ({ label, severity, category });
-  const row = (rows: ReturnType<typeof categorize>, c: SpamCategory) => rows.find(r => r.category === c)!;
-
+describe('checkSpam rule routing', () => {
   // Every input that can make checkSpam emit a finding, and the category that
   // finding must land in. If a rule is ever added without a home, this table is
   // what fails — the compiler catches a missing field, this catches a wrong one.
@@ -205,76 +198,104 @@ describe('categorize', () => {
     ['long subject', () => checkSpam('x'.repeat(71), '<p>Some ordinary body text, long enough.</p>', true).findings, 'subject'],
     ['empty subject', () => checkSpam('', '<p>Some ordinary body text, long enough.</p>', true).findings, 'subject'],
     ['exclamations', () => checkSpam('Hi!!', '<p>Some ordinary body text, long enough.</p>', true).findings, 'wording'],
-    ['$$$ amounts', () => checkSpam('Hi', '<p>Send $$$ today please, this is long enough.</p>', true).findings, 'wording'],
-    ['spam words', () => checkSpam('Hi', '<p>A free discount, and this body is long enough.</p>', true).findings, 'wording'],
-    ['many spam words', () => checkSpam('Hi', '<p>free cash discount guarantee winner, long enough body.</p>', true).findings, 'wording'],
-    ['too many links', () => checkSpam('Hi', '<p>Body text long enough.</p>' + '<a href="https://x.com">a</a>'.repeat(9), true).findings, 'links'],
-    ['some links', () => checkSpam('Hi', '<p>Body text long enough.</p>' + '<a href="https://x.com">a</a>'.repeat(5), true).findings, 'links'],
-    ['image-only', () => checkSpam('Hi', '<img src="x.png"><p>tiny</p>', true).findings, 'content'],
-    ['empty body', () => checkSpam('Hi', '<p>hi</p>', true).findings, 'content'],
-    ['no plain text', () => checkSpam('Hi', '<p>Some ordinary body text, long enough.</p>', false).findings, 'format'],
+    ['$$$ amounts', () => checkSpam('Following up on Tuesday', '<p>Send $$$ today please, this is long enough.</p>', true).findings, 'wording'],
+    ['spam words', () => checkSpam('Following up on Tuesday', '<p>A free discount, and this body is long enough.</p>', true).findings, 'wording'],
+    ['many spam words', () => checkSpam('Following up on Tuesday', '<p>free cash discount guarantee winner, long enough body.</p>', true).findings, 'wording'],
+    ['too many links', () => checkSpam('Following up on Tuesday', '<p>Body text long enough.</p>' + '<a href="https://x.com">a</a>'.repeat(9), true).findings, 'links'],
+    ['some links', () => checkSpam('Following up on Tuesday', '<p>Body text long enough.</p>' + '<a href="https://x.com">a</a>'.repeat(5), true).findings, 'links'],
+    ['image-only', () => checkSpam('Following up on Tuesday', '<img src="x.png"><p>tiny</p>', true).findings, 'content'],
+    ['empty body', () => checkSpam('Following up on Tuesday', '<p>hi</p>', true).findings, 'content'],
+    ['no plain text', () => checkSpam('Following up on Tuesday', '<p>Some ordinary body text, long enough.</p>', false).findings, 'format'],
   ];
 
   it.each(RULES)('routes %s to its category', (_name, run, expected) => {
     const findings = run();
     expect(findings.length).toBeGreaterThan(0);
-    // Every finding this input produced is categorised, and the rule under test
-    // put at least one into the expected bucket.
-    for (const f of findings) expect(CATEGORY_ORDER).toContain(f.category);
     expect(findings.some(x => x.category === expected)).toBe(true);
   });
+});
 
-  it('covers every category — a new one cannot be added and silently never render', () => {
-    // CATEGORY_ORDER is derived from CATEGORY_LABEL, so the compiler already
-    // rejects a missing entry. This pins the half the compiler can't see: that
-    // Object.keys order is the intended display order, and that the derivation
-    // didn't quietly lose or reorder anything.
-    expect(CATEGORY_ORDER).toEqual(['subject', 'wording', 'links', 'content', 'format']);
-    expect(CATEGORY_ORDER).toHaveLength(Object.keys(CATEGORY_LABEL).length);
-    expect(new Set(CATEGORY_ORDER).size).toBe(CATEGORY_ORDER.length);
-    for (const c of CATEGORY_ORDER) expect(CATEGORY_LABEL[c]).toBeTruthy();
-    // Every category has a row, so no finding can land somewhere unrendered.
-    expect(categorize([]).map(r => r.category)).toEqual(CATEGORY_ORDER);
+// Deliverability audit DLV-6: two link shapes receivers treat as phishing signals
+// were invisible to the advisory scan — URL shorteners (SpamAssassin/Gmail flag
+// them: the destination is hidden) and anchor text that LOOKS like a URL but
+// points somewhere else (the classic phishing pattern). Structural assertions
+// (category + severity), not label prose, per the repo convention.
+describe('checkSpam — phishing-shaped links (DLV-6)', () => {
+  const body = '<p>Here is the deck I mentioned yesterday, have a look when you can.</p>';
+
+  it('flags a shortened link (bit.ly & co) as a medium links finding', () => {
+    const r = checkSpam('Following up on Tuesday', body + '<a href="https://bit.ly/3xYz">deck</a>', true);
+    expect(r.findings.filter(f => f.category === 'links')).toMatchObject([{ severity: 'med' }]);
   });
 
-  it('always returns all five rows, in fixed order, even for a clean email', () => {
-    const clean = checkSpam('Following up', '<p>Hi Sam, following up on our chat last week. Thanks.</p>', true);
-    expect(clean.findings).toHaveLength(0);
-    const rows = categorize(clean.findings);
-    // The whole point: a pass must enumerate what passed.
-    expect(rows).toHaveLength(5);
-    expect(rows.map(r => r.category)).toEqual([...CATEGORY_ORDER]);
-    expect(rows.map(r => r.label)).toEqual(CATEGORY_ORDER.map(c => CATEGORY_LABEL[c]));
-    expect(rows.every(r => r.status === 'pass')).toBe(true);
-    expect(rows.every(r => r.findings.length === 0)).toBe(true);
+  it('does not flag an ordinary full-length link', () => {
+    const r = checkSpam('Following up on Tuesday', body + '<a href="https://acme.com/deck">deck</a>', true);
+    expect(r.findings).toHaveLength(0);
   });
 
-  it('derives status from the worst severity in the row', () => {
-    const rows = categorize([f('low', 'subject'), f('med', 'wording'), f('high', 'links')]);
-    expect(row(rows, 'subject').status).toBe('warn');   // low  → Check
-    expect(row(rows, 'wording').status).toBe('warn');   // med  → Check
-    expect(row(rows, 'links').status).toBe('fail');     // high → Fix
-    expect(row(rows, 'content').status).toBe('pass');   // none → OK
+  it('flags link text that shows a different domain than the href points to', () => {
+    const r = checkSpam('Following up on Tuesday', body + '<a href="https://evil.example/x">https://acme.com/deck</a>', true);
+    expect(r.findings.filter(f => f.category === 'links')).toMatchObject([{ severity: 'high' }]);
   });
 
-  it('lets one high finding outrank a med in the same row', () => {
-    const rows = categorize([f('med', 'wording', 'mild'), f('high', 'wording', 'severe')]);
-    expect(row(rows, 'wording').status).toBe('fail');
-    // and worst-first within the row, so the severe one is read first
-    expect(row(rows, 'wording').findings.map(x => x.label)).toEqual(['severe', 'mild']);
+  it('does not flag link text that matches the href host, or that is not a URL', () => {
+    const same = checkSpam('Following up on Tuesday', body + '<a href="https://acme.com/deck">www.acme.com/deck</a>', true);
+    const words = checkSpam('Following up on Tuesday', body + '<a href="https://acme.com/deck">the deck</a>', true);
+    expect(same.findings).toHaveLength(0);
+    expect(words.findings).toHaveLength(0);
+  });
+});
+
+// Deliverability audit DLV-16: the vocabulary rule matched substrings, so
+// "freelance", "incoming" and "Cashman" tripped it on perfectly ordinary notes —
+// an advisory that cries wolf is one the user learns to ignore. Whole-word
+// matching only. Same pass adds the bare-IP link, a classic phishing shape
+// receivers score hard.
+describe('checkSpam — whole-word vocabulary + bare-IP links (DLV-16)', () => {
+  const body = '<p>Here is the deck I mentioned yesterday, have a look when you can.</p>';
+
+  it('does not flag words hiding inside ordinary ones (freelance, incoming, Cashman)', () => {
+    const r = checkSpam('Intro', '<p>I am a freelance designer handling incoming requests for Cashman Ltd.</p>', true);
+    expect(r.findings.filter(f => f.category === 'wording')).toHaveLength(0);
   });
 
-  it('does not mutate its input — the report is shared with the main process', () => {
-    const input = [f('low', 'wording', 'a'), f('high', 'wording', 'b')];
-    const snapshot = input.map(x => x.label);
-    categorize(input);
-    expect(input.map(x => x.label)).toEqual(snapshot);
+  it('still flags the same words when they stand alone', () => {
+    const r = checkSpam('Free guide', '<p>Buy now, 100% guaranteed. Act now.</p>', true);
+    expect(r.findings.filter(f => f.category === 'wording')).toMatchObject([{ severity: 'high' }]);
   });
 
-  it('keeps every finding — nothing is dropped between checkSpam and the card', () => {
-    const r = checkSpam('FREE MONEY ACT NOW!!!', '<p>hi</p>', false);
-    const total = categorize(r.findings).reduce((n, row) => n + row.findings.length, 0);
-    expect(total).toBe(r.findings.length);
-    expect(total).toBeGreaterThan(0);
+  it('flags a link that points at a bare IP address', () => {
+    const r = checkSpam('Following up on Tuesday', body + '<a href="http://203.0.113.5/deck">deck</a>', true);
+    expect(r.findings.filter(f => f.category === 'links')).toMatchObject([{ severity: 'high' }]);
+  });
+});
+
+// Deliverability audit DLV-18 (live report, 2026-08-29): subject "Hello", body
+// "Hi cutie", sent from an outlook.com mailbox via Graph, landed in Gmail's spam
+// folder with the banner "similar to messages that were identified as spam in the
+// past" — and this file had rated it clean (one medium "nearly empty" finding,
+// score 2, under the warn bar). A subject that says nothing is the single most
+// common spam subject; it is a similarity signal on its own.
+describe('checkSpam — generic subject (DLV-18)', () => {
+  const body = '<p>Hi Sam, thanks for the time on Tuesday. Attached is the deck we discussed.</p>';
+
+  it('rates the reported message ("Hello" / "Hi cutie") as warn, not clean', () => {
+    const r = checkSpam('Hello', 'Hi cutie', true);
+    expect(r.findings.filter(f => f.category === 'subject')).toMatchObject([{ severity: 'med' }]);
+    // Must clear the warn bar: mailProcessor.warnIfSpammy only logs a non-clean
+    // report, and the preview banner only lists findings when not clean.
+    expect(r.level).toBe('warn');
+  });
+
+  it('matches the greeting/test subjects regardless of case, spacing and punctuation', () => {
+    for (const s of ['hello', 'Hi!', ' Hey ', 'HI THERE', 'Hello there.', 'Test', 'testing', 'Quick question?', 'Important']) {
+      expect(checkSpam(s, body, true).findings.some(f => f.category === 'subject'), s).toBe(true);
+    }
+  });
+
+  it('leaves a specific subject alone, including one that merely starts with a greeting', () => {
+    for (const s of ['Following up on Tuesday', 'Hello from the Acme design team', 'Test results for the Q3 build', 'Quick question about your React role']) {
+      expect(checkSpam(s, body, true).findings, s).toHaveLength(0);
+    }
   });
 });

@@ -9,6 +9,7 @@ import {
   evaluateSpf,
   inferProvider,
   isConsumerDomain,
+  isDomainAuthClean,
   isValidDomain,
   type DnsAnswer,
   type DkimProbeResult,
@@ -60,6 +61,17 @@ describe('domain helpers', () => {
     expect(isConsumerDomain('OUTLOOK.com')).toBe(true);
     expect(isConsumerDomain('yahoo.com')).toBe(true);
     expect(isConsumerDomain('mycompany.com')).toBe(false);
+  });
+  // Deliverability audit DLV-8: Microsoft and Yahoo publish DNS for dozens of
+  // regional consumer domains (hotmail.fr, outlook.de, live.co.uk, yahoo.co.uk…).
+  // Treating them as custom domains produced a false "fix your SPF" card the user
+  // cannot act on — the exact misinformation that makes the card untrusted.
+  it('treats Microsoft / Yahoo regional consumer domains as consumer (user cannot edit that DNS)', () => {
+    for (const d of ['hotmail.fr', 'outlook.de', 'live.co.uk', 'hotmail.com.br', 'outlook.com.tr', 'yahoo.co.uk', 'yahoo.fr']) {
+      expect(isConsumerDomain(d), d).toBe(true);
+    }
+    expect(isConsumerDomain('outlook.mycompany.com')).toBe(false);
+    expect(isConsumerDomain('hotmailer.com')).toBe(false);
   });
 });
 
@@ -332,5 +344,45 @@ describe('report assembly', () => {
     });
     expect(r.checks.every(c => c.status === 'skipped')).toBe(true);
     expect(r.checks.every(c => c.findings.length === 0)).toBe(true);
+  });
+});
+
+describe('isDomainAuthClean', () => {
+  const passingInput = {
+    domain: 'example.com',
+    smtpHost: 'smtp.zoho.com',
+    spf: ok('v=spf1 include:zoho.com -all'),
+    dmarc: ok('v=DMARC1; p=reject; rua=mailto:x@example.com'),
+    dkim: [{ selector: 'zmail', txt: ['v=DKIM1; k=rsa; p=MIGf'] }],
+  };
+
+  it('is clean when every record passes', () => {
+    expect(isDomainAuthClean(buildDomainAuthReport(passingInput))).toBe(true);
+  });
+
+  it('treats an unfound DKIM selector (unknown) as clean', () => {
+    const r = buildDomainAuthReport({ ...passingInput, dkim: [{ selector: 'zmail', txt: [] }] });
+    expect(r.checks.find(c => c.record === 'dkim')?.status).toBe('unknown');
+    expect(isDomainAuthClean(r)).toBe(true);
+  });
+
+  it('is clean for consumer domains (all not-applicable)', () => {
+    expect(isDomainAuthClean(buildConsumerDomainReport('gmail.com', 'smtp.gmail.com', 0))).toBe(true);
+  });
+
+  it('is not clean while any record still carries work to do', () => {
+    const r = buildDomainAuthReport({ ...passingInput, spf: notfound });
+    expect(r.checks.find(c => c.record === 'spf')?.status).toBe('missing');
+    expect(isDomainAuthClean(r)).toBe(false);
+  });
+
+  it('never counts a skipped (transient DNS) check as verified', () => {
+    const r = buildDomainAuthReport({
+      domain: 'example.com',
+      spf: transient,
+      dmarc: transient,
+      dkim: [{ selector: 'default', txt: [], transient: true }],
+    });
+    expect(isDomainAuthClean(r)).toBe(false);
   });
 });

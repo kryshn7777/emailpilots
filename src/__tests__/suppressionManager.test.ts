@@ -37,4 +37,15 @@ describe('SuppressionManager', () => {
     new SuppressionManager(dir).add('a@x.com', 'complaint');
     expect(new SuppressionManager(dir).isSuppressed('a@x.com')).toBe(true);
   });
+
+  // Deliverability audit DLV-7: keys were lower-cased but never trimmed, so a
+  // padded address (hand-edited JSON, a CSV cell with a stray space) could be
+  // emailed straight past the list. Every caller routes through the same key.
+  it('normalizes surrounding whitespace so a padded address cannot slip past the list', () => {
+    const s = new SuppressionManager(tmpDir());
+    s.add('  Padded@X.com ', 'unsubscribe');
+    expect(s.isSuppressed('padded@x.com')).toBe(true);
+    expect(s.isSuppressed(' padded@x.com	')).toBe(true);
+    expect(s.list()[0].email).toBe('padded@x.com');
+  });
 });

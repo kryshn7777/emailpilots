@@ -208,3 +208,31 @@ Reviewer also confirmed the five explicit asks: send-time path byte-identical (`
 **Gate:** typecheck ×3 clean; suite **607/607** (+4 upcomingSends; gui2Parity covers `#upcoming-week-list`); `npx vite build` clean; send-path-reviewer on E2 (the only slice touching a trigger module) — F29 fixed same pass.
 
 **Scan notes:** duplicate-markup trap hit once mid-E3 (campaigns and sequences cards share identical createElement markup; an Edit matched both — caught immediately by the tool's uniqueness guard, fixed with tighter context, tsc confirmed). `upcomingSends` deliberately reads `seqNextDueAt` only (not `seqNextStepId` resolution) — display approximation, engine untouched.
+
+---
+
+## Sub-project #6 — licensing module (Lemon Squeezy License API, no backend)
+
+*2026-08-08. Rev 2 plan §Enforcement, ratified rules encoded verbatim. New `src/licensing/`: pure `entitlement.ts` (`decide(cache, now)` — grace for network failure only, confirmed-bad gets none, trial schema decided now for #9, every doubt ⇒ Free), `lsConfig.ts` (store/variant id guard — placeholder ids refuse activation LOUDLY, the anti-`REPLACE_WITH_ENTRA_CLIENT_ID` failure mode), `licensing.ts` (`LicenseManager`: activate/validateNow/deactivate/maybeRefresh; 5xx/throw/unparseable = network ⇒ cache untouched, any JSON verdict = clean ⇒ cache updated even when bad). Cache `license.json` encrypted whole via SecretBox (`{"v":1,"data":"ENC:…"}`), read via readJsonState, unreadable ⇒ warn-once + Free. Electron: 4 IPC (`get-license-status`, `license-activate/-validate/-deactivate`; renderer only ever sees a masked key tail — password-redaction contract analog), sign-out fires `deactivate()` (local clear is synchronous; only the LS slot-free call floats), `maybeRefresh()` at whenReady. Settings gains a Plan & License card. Privacy amendment SAME commit: `docs/privacy-policy.md` §1 + `landing/src/pages/privacy/main.tsx` — "Free makes no first-party requests; First Class sends the key + instance id to Lemon Squeezy, nothing else." `license.json` gitignored.*
+
+**Gate:** typecheck ×3 + landing tsc clean; suite **671/671** (33 new: 13 pure entitlement — grace boundary inclusive-exact, confirmed-invalid-bypasses-grace, tampered checkedAt ⇒ Free, trial edges; 20 manager — fetch stubbed, product-guard store AND variant, network-vs-verdict classification, corrupt/tampered cache ⇒ Free never throws, **Free tier zero-network-calls proven for maybeRefresh AND no-key deactivate**); `npx vite build` clean. send-path-reviewer NOT run — no trigger module touched (new module + electron IPC wiring + settings card); the tick() gate is #7, where it is MANDATORY.
+
+**Suspicions raised (recorded, none confirmed as bugs):**
+- **F-s1 (accepted):** activate against a foreign store's key burns one of THAT key's activation slots before the product guard rejects it. Their store, their slot; not deactivated. Harmless, deliberate.
+- **F-s2 (accepted):** deactivate on a dead network frees local state but leaks the LS slot (limit 3 absorbs; user can free it from the LS portal — surfaced in the returned message).
+- **F-s3 (watch for #7):** `licenseStatusView()` constructs no singleton race, but #7's tick() gate must consult `getLicenseManager().getEntitlement()` fresh per tick, never cache the Entitlement across ticks — downgrade-at-boundary depends on it.
+- **F-s4 (watch for #9):** trial grant lives inside license.json; sign-out's deactivate() wipes it. A trial user who signs out loses the remaining trial. Same accepted class as reinstall-resets-trial (Rev 2 risk #10), but #9 should confirm the copy doesn't promise otherwise.
+- **F-s5 (blocked on #2):** `lsConfig.ts` ships placeholder ids (0 / []). Activation refuses with an honest "not configured in this build" until real store/product/variant ids are pasted — the fail-safe direction, but launch REQUIRES the paste (one 3-line edit).
+
+### #6 addendum — founder window (user-ratified 2026-08-08)
+
+*Replaces the "first 2000 users" idea (rejected: a hardcoded per-user counter in a Notepad-readable local app is fabricated scarcity — kills the HN honesty narrative). Ratified shape: **any install whose first run lands before 2026-11-22 (UTC) gets First Class free for 183 days from that run** — rolling per install, chosen over global-end-date and lifetime via explicit user pick.*
+
+Mechanism: pure `founderGrant(now)` in entitlement.ts (`FOUNDER_CUTOFF_ISO`, `FOUNDER_FREE_DAYS=183`; `TrialGrant.kind: 'founder'|'trial'` added for card copy only — decide() treats all grants identically) + `LicenseManager.grantFounderIfEligible()` (one-shot: any existing grant, running or expired, is never overwritten — cannot re-arm free time; merges over stored license fields; keystore-throw ⇒ no grant, retries next launch) + whenReady stamp BEFORE maybeRefresh. Zero network — grant path proven fetch-free in tests. Card: "Founding pilot — First Class free until <date>."
+
+**Gate:** typecheck ×3 clean, suite **679/679** (8 new: full-period-past-cutoff for last-moment installs, one-shot/no-re-arm, expired-grant-stays-expired, post-cutoff writes nothing, license-outranks-grant), vite build clean.
+
+**Suspicions:**
+- **F-s6 (accepted):** clock rollback before Nov 22 mints the grant on any machine forever (constant ships in the binary). Rev 2 risk-#10 class, explicitly accepted.
+- **F-s7 (watch for #8/T-copy):** landing/installer copy must say "install and run before Nov 22" — the grant stamps at FIRST RUN, not download; a Nov-21 download first-run Nov-23 gets nothing. Copy must not over-promise "download".
+- **F-s8 (supersedes part of F-s4):** sign-out wipes the founder grant with license.json; re-launch re-grants ONLY while the window is open. Post-cutoff sign-out = founder status permanently lost on that machine. Same accepted local-state class, but #7's copy should avoid implying it survives sign-out.

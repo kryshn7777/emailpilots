@@ -9,14 +9,20 @@ import {
 } from './spamCheck';
 import { detectMapping, buildRecordsFromRows, type ColumnMapping } from './csvMapping';
 import { normalizeAppPassword, friendlySmtpError } from './smtpUtils';
-import { computeOnboardingSteps, isInboxConnected, accountHasCredentials, type ConnectedAccount } from './onboarding';
-import { deriveDomain, type DomainAuthReport, type RecordCheck } from './domainAuth';
+import { computeOnboardingSteps, computeLevelUpSteps, isInboxConnected, accountHasCredentials, type ConnectedAccount, type StepStatus } from './onboarding';
+import { deriveDomain, isDomainAuthClean, type DomainAuthReport, type RecordCheck } from './domainAuth';
 import { detectProviderFromDomain, detectProviderFromEmail, isMsBasicAuthDeadHost, type DetectedProvider } from './providerDetect';
 import { findNextRun, nextRunDayLabel, upcomingSends } from './nextRun';
 import { computeAwayDigest, digestLine, type DigestBaseline } from './digest';
+import { TOUR_STEPS, VIEW_HINTS, runTour, showHint } from './tour';
 
 const GS_DISMISS_KEY = 'eptGettingStartedDismissed';
-const SW_SKIP_KEY = 'eptSetupWizardSkipped';
+/** Post-activation Level-Up card, same one-shot dismissal convention. */
+const LU_DISMISS_KEY = 'eptLevelUpDismissed';
+/** Sticky: set the first time every sending domain checks out clean.
+ *  ponytail: DNS regression after a pass is not tracked — acceptable ceiling
+ *  for a nudge; upgrade path is re-evaluating on every domain-auth run. */
+const DA_OK_KEY = 'eptDomainAuthPassed';
 /** The local-AI offer is shown once. Same localStorage convention as the two above:
  *  a decision the user already made must not be re-asked on every launch. */
 const AI_ONBOARD_KEY = 'eptAiOnboardShown';
@@ -34,6 +40,10 @@ const DEMO_CONTACT_SEEN_KEY = 'eptDemoContactShown';
 const DEMO_SEQ_SEEN_KEY = 'eptDemoSequenceShown';
 /** U35: lifetime-totals snapshot the away-digest diffs against at boot. */
 const DIGEST_BASELINE_KEY = 'eptDigestBaseline';
+/** The spotlight tour auto-runs once, right after the first successful connect. */
+const TOUR_DONE_KEY = 'eptTourDone';
+/** JSON map view→1: each per-view hint callout shows once, ever. */
+const HINTS_SEEN_KEY = 'eptHintsSeen';
 
 function isExploring(): boolean {
   try { return localStorage.getItem(EXPLORE_KEY) === '1'; } catch { return false; }
@@ -117,6 +127,28 @@ interface SentLogEntryView {
   error?: string;
 }
 
+/** Plan & License card data, as the main process reports it (freemium #6).
+ *  Mirrors licenseStatusView in electron/main.ts — declared locally because
+ *  tsconfig.vite.json only includes this file (the SentLogEntryView precedent). */
+interface LicenseStatusView {
+  tier: 'free' | 'first-class';
+  reason: 'license' | 'grace' | 'trial' | 'none' | 'stale' | 'invalid';
+  needsRevalidate: boolean;
+  status?: string;
+  checkedAt?: string;
+  expiresAt?: string | null;
+  variantId?: number;
+  /** Resolved from variantId by lsConfig.planFor — undefined for Free/trial and
+   *  for a key whose variant isn't in the table. */
+  plan?: { name: string; price: string; interval: string };
+  /** Plans with a real buy URL. Empty while the LS ids are placeholders. */
+  plans?: Array<{ name: string; price: string; interval: string; buyUrl: string }>;
+  trialEndsAt?: string;
+  trialKind?: 'founder' | 'trial';
+  maskedKey?: string;
+  configured: boolean;
+}
+
 // Type definitions for the exposed Electron API
 declare global {
   interface Window {
@@ -140,7 +172,9 @@ declare global {
         windowsToday: number; maxWindowsPerDay: number;
         currentWindowCount: number; maxPerWindow: number;
         maxPerRecipientPerDay: number;
+        warmupOverriddenToday?: boolean;
       }>;
+      overrideWarmupToday: (accountId?: string) => Promise<{ ok: boolean }>;
       getSuppressions: () => Promise<{ email: string; reason: string; date: string; detail?: string }[]>;
       getReplies: () => Promise<{ email: string; repliedAt: string; accountId?: string; subject?: string; classification?: string }[]>;
       pollNow: () => Promise<{ ok: boolean; error?: string }>;
@@ -148,13 +182,15 @@ declare global {
       onRepliesUpdated: (cb: () => void) => (() => void);
       // Fires on an account-level BACKGROUND send failure (E1). Returns a disposer.
       onSendFailure: (cb: (p: { accountId: string; message: string }) => void) => (() => void);
-      // Fires when an async DSN bounce was auto-suppressed (E2). Returns a disposer.
-      onBounceDetected: (cb: (p: { email: string; accountId: string }) => void) => (() => void);
+      // Fires when an async DSN bounce was auto-suppressed (E2), an "Unsubscribe"
+      // reply was honored (DLV-4), or a 5.7.x policy refusal was surfaced without
+      // blocking (DLV-1) — `kind` says which. Returns a disposer.
+      onBounceDetected: (cb: (p: { email: string; accountId: string; kind?: 'bounce' | 'unsubscribe' | 'policy'; detail?: string }) => void) => (() => void);
       removeSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
       addSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
       sendTestEmail: (accountId?: string) => Promise<{ ok: boolean; error?: string; to?: string }>;
       verifyConnection: (candidate: { host?: string; port?: number; user?: string; pass?: string }) => Promise<{ ok: boolean; error?: string }>;
-      getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'oauth-smtp' | 'browser'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean }[]>;
+      getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'browser' | 'graph'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean; identityWarning?: string }[]>;
       saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean; copyToSent?: boolean }) => Promise<{ ok: boolean; error?: string; id?: string }>;
       deleteAccount: (id: string) => Promise<{ ok: boolean; error?: string }>;
       oauthLoginMicrosoft: () => Promise<{ ok: boolean; error?: string; id?: string; email?: string; identityWarning?: string }>;
@@ -166,8 +202,11 @@ declare global {
       saveSequence: (sequence: { id?: string; name?: string; steps?: { subject?: string; messageContent: string; delayDays: number; stopOnReply: boolean }[] }) => Promise<{ ok: boolean; error?: string; id?: string }>;
       deleteSequence: (id: string) => Promise<{ ok: boolean; error?: string }>;
       selectFile: (title: string, extensions: string[]) => Promise<string | null>;
-      previewEmail: (index: number) => Promise<{ subject?: string; body?: string; error?: string }>;
-      previewUnsavedEmail: (record: any) => Promise<{ subject?: string; body?: string; error?: string }>;
+      // `text` is the plain-text alternative part (renderer.ts htmlToText). It has
+      // always crossed the IPC — both handlers return the whole RenderedEmail — the
+      // declaration just never admitted it. The preview's Plain-text tab reads it.
+      previewEmail: (index: number) => Promise<{ subject?: string; body?: string; text?: string; error?: string }>;
+      previewUnsavedEmail: (record: any) => Promise<{ subject?: string; body?: string; text?: string; error?: string }>;
       verifyEmail: (email: string) => Promise<{ valid: boolean; reason?: string }>;
       checkDomainAuth: (arg: { domain: string; smtpHost?: string; userEmail?: string }) => Promise<DomainAuthReport | { error: string }>;
       detectProviderMx: (domain: string) => Promise<{ provider: DetectedProvider | null }>;
@@ -195,6 +234,11 @@ declare global {
       aiDownloadCancel: () => Promise<{ ok: boolean }>;
       // Separate channel from onAiLoadProgress: downloading the file, not loading it.
       onAiDownloadProgress: (cb: (p: { modelId: string; phase: string; receivedBytes: number; totalBytes: number; fraction: number }) => void) => (() => void);
+      // Licensing (freemium #6). The full key never crosses back to the renderer.
+      getLicenseStatus: () => Promise<LicenseStatusView>;
+      licenseActivate: (key: string) => Promise<{ ok: boolean; error?: string; status: LicenseStatusView }>;
+      licenseValidate: () => Promise<{ ok: boolean; error?: string; status: LicenseStatusView }>;
+      licenseDeactivate: () => Promise<{ ok: boolean; error?: string; status: LicenseStatusView }>;
       // Send history behind the "Sent" screen (merged across accounts, newest first).
       getSentLog: () => Promise<SentLogEntryView[]>;
       onSentLogUpdated: (cb: (entry: SentLogEntryView) => void) => (() => void);
@@ -209,23 +253,6 @@ declare global {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Feature flag for the BROWSER-SESSION transports (credential-less webmail
-  // connect). Hidden in the default GUI: that path automates webmail UIs
-  // (provider-ToS risk) and is unverified live. GUI2 (gui2.html,
-  // <body data-gui="2">) surfaces its buttons on the login gate + Accounts view.
-  //
-  // Microsoft OAuth-SMTP used to sit behind this flag too, but graduated out of
-  // it (freemium #3): Microsoft retired password SMTP across every mailbox
-  // (personal Sept 2024, M365 April 2026), so OAuth is the ONLY way a Microsoft
-  // address can connect — it must exist in the default GUI. The Entra app is
-  // registered ("Email Pilots"); its client id ships in
-  // electron/transport/oauthMicrosoft.ts.
-  //
-  // To delete the browser-session feature outright, remove the blocks marked
-  // "LOW-FRICTION TRANSPORTS" in index.html/gui2.html + this file, then the
-  // browser pieces of src/transport and electron/transport.
-  const SHOW_NO_PASSWORD_TRANSPORTS = document.body.dataset.gui === '2';
-
   // Adapter over the pure isInboxConnected(): maps the renderer's shapes onto it
   // and pins the transport flags in one place. Every "is the inbox connected?"
   // question goes through here — see the note on isInboxConnected for why the
@@ -235,10 +262,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     smtpUser: cfg?.smtp?.user,
     smtpHasPass: !!(cfg?.smtp?.hasPass || cfg?.smtp?.pass),
     accounts,
-    // OAuth accounts are first-class in every GUI (see the flag note above);
-    // browser-session accounts only count where their buttons exist.
+    // Microsoft OAuth is first-class: Microsoft retired password SMTP across every
+    // mailbox (personal Sept 2024, M365 April 2026), so OAuth is the ONLY way a
+    // Microsoft address can connect. The Entra app is registered ("Email Pilots");
+    // its client id ships in electron/transport/oauthMicrosoft.ts.
+    //
+    // allowBrowser stays false: the browser-session transports (credential-less
+    // webmail connect) only ever had buttons in GUI2, which is gone. The backend
+    // under src/transport + electron/transport is still there and inert — it
+    // automates webmail UIs (provider-ToS risk) and was never verified live.
     allowOauth: true,
-    allowBrowser: SHOW_NO_PASSWORD_TRANSPORTS,
+    allowBrowser: false,
   });
 
   // --- UI Navigation ---
@@ -267,6 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (targetViewId === 'deliverability') void initDeliverability();
     if (targetViewId === 'sent') void refreshSentLog();
     if (targetViewId === 'replies') void refreshReplies();
+    if (targetViewId) maybeShowViewHint(targetViewId);
   };
 
   navItems.forEach((link, i) => {
@@ -287,6 +322,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   });
+
+  // One-shot per-view hints (data + engine in src/tour.ts). Lives at closure
+  // top level — activateNav calls it, and it needs nothing from the init try.
+  function maybeShowViewHint(view: string) {
+    const hint = VIEW_HINTS[view];
+    if (!hint) return;
+    if (document.querySelector('.ept-tour')) return; // the tour owns the screen
+    const gate = document.getElementById('login-screen');
+    if (gate && gate.style.display !== 'none') return;
+    let seenMap: Record<string, 1> = {};
+    try { seenMap = JSON.parse(localStorage.getItem(HINTS_SEEN_KEY) || '{}') || {}; } catch { /* corrupt / private mode */ }
+    if (seenMap[view]) return;
+    showHint({
+      ...hint,
+      reducedMotion: prefersReducedMotion(),
+      onDismiss: () => {
+        seenMap[view] = 1;
+        try { localStorage.setItem(HINTS_SEEN_KEY, JSON.stringify(seenMap)); } catch { /* private mode */ }
+      },
+    });
+  }
 
   // --- Local AI (optional feature #1) ---
   const aiEnableToggle = document.getElementById('ai-enable-toggle') as HTMLInputElement | null;
@@ -350,10 +406,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshRecMsgAssistant(); // feature #3: reflect AI readiness on the composer toolbar
     refreshRecMsgPersonalizer(); // feature #5: reflect AI readiness on the personalize panel
     syncPersonalizeButtons(); // feature #5: show/hide the ✨ buttons in the recipients table
+    renderGettingStarted(); // Level-Up card: the "ai" step may have just flipped
   }
 
   // --- Model-load progress bar. Injected under the status line via createElement,
-  // so it carries no static id (no gui2-parity surface). Driven by the 0..1 values
+  // so it carries no static id. Driven by the 0..1 values
   // streamed over onAiLoadProgress while the model loads. ---
   let showLoadProgress: (p: number | null) => void = () => {};
   if (aiStatusLine) {
@@ -661,7 +718,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // open recipient's own fields + a stated goal, conditioned by few-shot winners the
   // main process builds from past positive replies. Advisory: Apply is an explicit
   // click; nothing here sends mail or mutates a recipient. All createElement, so no
-  // static id is added and the gui2 parity test needs no HTML edits.
+  // static id is added and no HTML edits are needed.
 
   // Show/hide the ✨ "Personalize" buttons in the recipients table from the cached
   // AI-ready flag (synchronous — never loads the model just to render the table).
@@ -803,18 +860,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const record = { ...currentRecipient(), messageType: 'text', messageContent: out.value };
       const result = await window.electronAPI.previewUnsavedEmail(record);
       if (result.error) { status.textContent = 'Preview error: ' + result.error; return; }
-      const pModal = document.getElementById('preview-modal') as HTMLElement | null;
-      const pSubject = document.getElementById('preview-subject') as HTMLElement | null;
-      const pFrame = document.getElementById('preview-frame') as HTMLIFrameElement | null;
-      if (pSubject) pSubject.textContent = result.subject || 'No Subject';
-      renderSpamBanner(result.subject || '', result.body || '');
-      renderPreviewAi(result.subject || '', result.body || '');
-      if (pFrame && pFrame.contentWindow) {
-        pFrame.contentWindow.document.open();
-        pFrame.contentWindow.document.write(result.body || '');
-        pFrame.contentWindow.document.close();
-      }
-      if (pModal) pModal.style.display = 'flex';
+      // currentRecipient() spreads recipientsData[idx], so name/email/accountId
+      // ride along on `record` — no second lookup needed.
+      openEmailPreview(result, record);
     });
     btnDismiss.addEventListener('click', () => { panel.style.display = 'none'; });
 
@@ -1058,7 +1106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let recipientsData: any[] = [];
   // All sending accounts (default + extras), refreshed from the main process.
   // Drives the Accounts view + the per-recipient "send from" selector.
-  let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'oauth-smtp' | 'browser'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean }[] = [];
+  let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'browser' | 'graph'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean; identityWarning?: string }[] = [];
   // Bulk-selection of extra accounts in the Accounts view (ids; default excluded).
   const selectedAccountIds = new Set<string>();
 
@@ -1152,6 +1200,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Functions ---
   
+  // DLV-11: the message is data, never markup. Log lines carry text lifted from
+  // inbound mail (a DSN's Diagnostic-Code, a reply subject, an SMTP response), so
+  // it is escaped here at the sink — the same rule toast() already follows.
   function addLog(msg: string, type: 'info' | 'error' | 'success' | 'system' = 'info') {
     const entry = document.createElement('div');
     entry.className = `timeline-item ${type}`;
@@ -1169,7 +1220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
       <div class="timeline-content">
         <span class="timeline-time">${timestamp}</span>
-        <span class="timeline-message">${msg}</span>
+        <span class="timeline-message">${escapeHTML(msg)}</span>
       </div>
     `;
 
@@ -1374,6 +1425,172 @@ document.addEventListener('DOMContentLoaded', async () => {
     })();
   }
 
+  // --- Email preview -----------------------------------------------------------
+  //
+  // One preview surface for all three entry points (AI personalizer, recipients-row
+  // eye button, recipient-form Preview). They used to each open the modal by hand
+  // and had already drifted: two disagreed on the empty-subject fallback, and the
+  // recipient form previewed under the wrong account because its record literal
+  // dropped accountId. Callers keep their own error UX and hand this a successful
+  // render.
+
+  /**
+   * Preview-only reading defaults for the iframe. Injected as the FIRST node of its
+   * <head>, so anything the email carries itself comes later in the cascade and
+   * wins; every selector is :where() → specificity 0, so even a bare
+   * `body { font-family: Arial }` from template.html beats it.
+   *
+   * Why this is not lying about the sent mail: with inboxPlacement 'primary',
+   * renderer.ts deliberately strips <head>/<style> so the message lands in the
+   * Primary tab, and a browser's unstyled default is Times New Roman. No real mail
+   * client renders unstyled HTML in Times — Gmail, Outlook and Apple Mail all
+   * impose a sans-serif reading default. This reproduces THAT. Nothing here
+   * reaches the wire.
+   *
+   * Values are hardcoded because the iframe is a separate document with no :root,
+   * where var(--…) silently resolves to nothing.
+   */
+  const PREVIEW_BASE_CSS = `
+    :where(body){margin:0;padding:24px;background:#fff;color:#1a1a1a;
+      font-family:'Segoe UI Variable','Segoe UI',system-ui,sans-serif;
+      font-size:15px;line-height:1.6;overflow-wrap:break-word;}
+    :where(p){margin:0 0 1em;}
+    :where(h1,h2,h3,h4,h5,h6){line-height:1.25;margin:1.4em 0 .5em;}
+    :where(a){color:#0067c0;}
+    :where(img){max-width:100%;height:auto;}
+    :where(table){max-width:100%;}
+    :where(blockquote){margin:0 0 1em;padding-left:12px;border-left:3px solid #e5e5e5;color:#5d5d5d;}
+    :where(hr){border:0;border-top:1px solid #e5e5e5;margin:1.5em 0;}`;
+
+  const previewText = document.getElementById('preview-text');
+  const previewTabHtml = document.getElementById('preview-tab-html');
+  const previewTabText = document.getElementById('preview-tab-text');
+  let previewFit: ResizeObserver | null = null;
+
+  /** Size the frame to its content so the modal scrolls ONCE, like a mail reader,
+   *  instead of nesting a scrollbar inside a fixed 400px box. */
+  function fitPreviewFrame() {
+    const doc = previewFrame.contentDocument;
+    if (!doc) return;
+    // body.scrollHeight, NOT documentElement's: the root element's scroll height is
+    // never less than the frame's own viewport, so measuring it pins a short email
+    // at whatever the frame already was and the card keeps a slab of dead white
+    // space. body is content-driven. (documentElement is the fallback for the
+    // degenerate no-body case.)
+    const h = doc.body?.scrollHeight || doc.documentElement?.scrollHeight || 0;
+    // ponytail: clamp + 2px deadband is what stops a template with `body{height:100%}`
+    // ratcheting the frame taller on every observation. Move to an off-screen
+    // measuring frame only if a real template ever defeats it.
+    const next = Math.min(Math.max(h, 160), 6000);
+    if (Math.abs(next - previewFrame.clientHeight) > 2) previewFrame.style.height = `${next}px`;
+  }
+
+  /** Swap between the HTML render and the plain-text alternative part. */
+  function setPreviewMode(mode: 'html' | 'text') {
+    const isText = mode === 'text';
+    previewFrame.hidden = isText;
+    if (previewText) previewText.hidden = !isText;
+    previewTabHtml?.classList.toggle('is-active', !isText);
+    previewTabText?.classList.toggle('is-active', isText);
+    previewTabHtml?.setAttribute('aria-selected', String(!isText));
+    previewTabText?.setAttribute('aria-selected', String(isText));
+    // Re-measure on the way back: a frame sized while hidden reports 0.
+    if (!isText) fitPreviewFrame();
+  }
+  previewTabHtml?.addEventListener('click', () => setPreviewMode('html'));
+  previewTabText?.addEventListener('click', () => setPreviewMode('text'));
+
+  function openEmailPreview(
+    result: { subject?: string; body?: string; text?: string },
+    to: { name?: string; email?: string; accountId?: string; [k: string]: any },
+  ) {
+    // The From here has to match what smtpSend actually puts on the wire —
+    // `userName <smtp.user>`, or a BARE address when userName is empty — and
+    // buildProcessors swaps config.smtp for the chosen account's credentials, so
+    // the address is that account's user, not any global one.
+    const acct = to.accountId && to.accountId !== 'default'
+      ? accountsCache.find(a => a.id === to.accountId)
+      : accountsCache.find(a => a.isDefault);
+    const fromAddr = acct?.user || inputUser?.value.trim() || '';
+    const fromName = currentUserName.trim();
+
+    const set = (id: string, text: string) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    };
+    // No display name configured ⇒ the real email goes out as a bare address.
+    // Show exactly that rather than inventing a sender.
+    set('preview-from-name', fromName || fromAddr || 'Your inbox');
+    set('preview-from-addr', fromName && fromAddr ? `<${fromAddr}>` : '');
+    // Some CSV imports capitalise their headers (cf. rec.email || rec.Email).
+    const toName = to.name || to.Name || '';
+    const toAddr = to.email || to.Email || '';
+    set('preview-to', toName && toAddr ? `${toName} <${toAddr}>` : (toAddr || toName || '—'));
+    previewSubject.textContent = result.subject || '(no subject)';
+
+    const d = new Date();
+    set('preview-date',
+      `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} `
+      + `${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`);
+
+    const av = document.getElementById('preview-avatar');
+    if (av) av.textContent = (fromName || fromAddr || '?').charAt(0).toUpperCase();
+
+    renderSpamBanner(result.subject || '', result.body || '');
+    renderPreviewAi(result.subject || '', result.body || '');   // must stay second
+
+    if (previewText) previewText.textContent = result.text || '';
+    setPreviewMode('html');   // every open starts on the HTML render
+
+    // Show BEFORE writing and measuring. A display:none iframe has no layout, so
+    // fitPreviewFrame() reads scrollHeight 0 and clamps to the 160px minimum — and
+    // with scrolling="no" that silently truncates the email. The ResizeObserver
+    // does correct it once the box appears, but only after a visible jump.
+    previewModal.style.display = 'flex';
+
+    const doc = previewFrame.contentWindow?.document;
+    if (doc) {
+      const body = result.body || '';
+      doc.open();
+      // A bare fragment (no template.html and no campaign template) carries no
+      // doctype, and without one the frame parses in quirks mode — where table
+      // layouts, which is most HTML email, go wrong.
+      doc.write(/^\s*<!doctype/i.test(body) ? body : `<!DOCTYPE html>${body}`);
+      doc.close();
+      // AFTER close, never prepended to the written string: a <style> ahead of the
+      // doctype pushes it out of first position and drops the frame into quirks
+      // mode — the exact thing the line above avoids. Inserting into head keeps
+      // the doctype first AND puts these rules earliest in the cascade, so they
+      // lose every tie.
+      const s = doc.createElement('style');
+      s.textContent = PREVIEW_BASE_CSS;
+      doc.head?.insertBefore(s, doc.head.firstChild);
+      previewFit?.disconnect();
+      // The observer catches late image loads and reflow; the synchronous fit
+      // below handles the common no-image case without a flash of the fallback.
+      previewFit = new ResizeObserver(fitPreviewFrame);
+      // Observe body for the same reason fitPreviewFrame measures it — and because
+      // observing the root would feed our own height change straight back in.
+      if (doc.body) previewFit.observe(doc.body);
+      fitPreviewFrame();
+    }
+    document.querySelector('.preview-scroll')?.scrollTo(0, 0);
+  }
+
+  function closeEmailPreview() {
+    previewModal.style.display = 'none';
+    previewFit?.disconnect();
+    previewFit = null;
+    // Don't leave the last recipient's email sitting in the frame until the next
+    // preview happens to overwrite it.
+    const doc = previewFrame.contentWindow?.document;
+    if (doc) { doc.open(); doc.write(''); doc.close(); }
+    previewFrame.style.height = '';
+    if (previewText) previewText.textContent = '';
+    const spam = document.getElementById('preview-spam');
+    if (spam) spam.innerHTML = '';
+  }
+
   // --- Suppressed addresses list (F7) ---
   async function renderSuppressions() {
     const section = document.getElementById('suppressed-section');
@@ -1481,6 +1698,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       rows.push({
         status: 'fail',
         label: `Sends failing on ${labels} — ${failingAccounts[0].status?.error || 'see System Logs'}`,
+        action: { label: 'Open Accounts', view: 'accounts' },
+      });
+    }
+    // DLV-19: a Microsoft account whose sign-in alias is a foreign domain goes out
+    // as a placeholder outlook_<hex>@outlook.com address — straight to spam. The
+    // sign-in toast said so once; this row says it every day until it is fixed.
+    for (const a of accountsCache.filter(a => a.identityWarning && a.enabled !== false)) {
+      rows.push({
+        status: 'warn',
+        label: `${a.label || a.user} sends as a placeholder outlook_…@outlook.com address — fix the Microsoft alias (details in Accounts)`,
         action: { label: 'Open Accounts', view: 'accounts' },
       });
     }
@@ -1596,9 +1823,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     card.style.display = result.visible ? 'block' : 'none';
-    if (!result.visible) return;
+    if (result.visible) paintChecklist(card, result.steps);
 
-    for (const step of result.steps) {
+    // Post-activation follow-on: the Level-Up card takes over once the starter
+    // card graduates (never co-visible — !graduated vs graduated).
+    const lu = document.getElementById('level-up-card');
+    if (lu) {
+      const luResult = computeLevelUpSteps({
+        totalSent,
+        hasSequence: sequencesCache.length > 0,
+        domainAuthPassed: localStorage.getItem(DA_OK_KEY) === '1',
+        aiEnabled: cfg?.ai?.enabled === true,
+        dismissed: localStorage.getItem(LU_DISMISS_KEY) === '1',
+      });
+      lu.style.display = luResult.visible ? 'block' : 'none';
+      if (luResult.visible) paintChecklist(lu, luResult.steps);
+    }
+  }
+
+  function paintChecklist(card: HTMLElement, steps: { key: string; status: StepStatus }[]) {
+    for (const step of steps) {
       const li = card.querySelector<HTMLElement>(`.gs-step[data-step="${step.key}"]`);
       if (!li) continue;
       li.classList.remove('done', 'active', 'todo');
@@ -2121,8 +2365,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // E2: an async DSN bounce was auto-suppressed — refresh the blocked list,
   // the recipients chips, and say it out loud.
-  window.electronAPI.onBounceDetected(({ email }) => {
-    toast(`${email} bounced and was removed from your sending list.`, 'error', 'Delivery failed');
+  window.electronAPI.onBounceDetected(({ email, kind, detail }) => {
+    if (kind === 'unsubscribe') {
+      toast(`${email} asked to unsubscribe — added to your blocked list.`, 'info', 'Unsubscribe honored');
+    } else if (kind === 'policy') {
+      // DLV-1: not blocked — the fix is on the sender's side (domain auth / content).
+      toast(`${email}'s mail server refused your message (${detail || 'policy'}). Not blocked — check Domain authentication under Accounts.`, 'error', 'Delivery refused');
+    } else {
+      toast(`${email} bounced and was removed from your sending list.`, 'error', 'Delivery failed');
+    }
     void renderSuppressions().then(() => renderRecipients());
   });
 
@@ -2912,6 +3163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch { sequencesCache = []; }
     populateSequenceSelects();
     renderSequencesList();
+    renderGettingStarted(); // Level-Up card: the "sequence" step may have just completed
   }
 
   /** Reload the replied-address set so the Replied column reflects the latest poll. */
@@ -3039,7 +3291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (detectProviderFromEmail(acct.user) === 'gmail' || /gmail|googlemail/i.test(acct.host)) {
       return `https://mail.google.com/mail/u/0/#search/from:${encodeURIComponent(replyEmail)}`;
     }
-    if (acct.transport === 'oauth-smtp' || /office365|outlook|hotmail|live/i.test(acct.host)) {
+    if (/office365|outlook|hotmail|live/i.test(acct.host)) {
       // Search deep-links are unreliable across MSA/M365 — open the mailbox root.
       return /@(outlook|hotmail|live|msn)\./i.test(acct.user)
         ? 'https://outlook.live.com/mail/'
@@ -3270,15 +3522,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           addLog(`Preview error: ${result.error}`, 'error');
           return;
         }
-        previewSubject.textContent = result.subject || 'No Subject';
-        renderSpamBanner(result.subject || '', result.body || '');
-        renderPreviewAi(result.subject || '', result.body || '');
-        if (previewFrame.contentWindow) {
-          previewFrame.contentWindow.document.open();
-          previewFrame.contentWindow.document.write(result.body || '');
-          previewFrame.contentWindow.document.close();
-        }
-        previewModal.style.display = 'flex';
+        openEmailPreview(result, rec);
       });
       
       const delBtn = document.createElement('button');
@@ -3298,7 +3542,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       // Feature #5: per-prospect "Personalize with AI" — opens the edit modal and
       // focuses the generate panel. Hidden unless AI is ready (cached flag, toggled
-      // by syncPersonalizeButtons); carries no id, so no gui2-parity impact.
+      // by syncPersonalizeButtons); carries no static id.
       const genBtn = document.createElement('button');
       genBtn.className = 'btn outline ai-gen-btn';
       genBtn.innerHTML = '<span class="material-symbols-outlined">auto_awesome</span>';
@@ -3345,7 +3589,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           toast('This recipient is already on every ready account.', 'info', 'Nothing to duplicate to');
           return;
         }
-        const clone: any = JSON.parse(JSON.stringify(recipientsData[index]));
+        const clone: any = structuredClone(recipientsData[index]);
         ['seqStep', 'seqLastSentAt', 'seqNextDueAt', 'seqDone', 'seqNextStepId'].forEach(k => delete clone[k]);
         if (other.id === 'default') delete clone.accountId; else clone.accountId = other.id;
         const newIdx = recipientsData.push(clone) - 1;
@@ -3568,6 +3812,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         `<div style="font-size:0.85em;color:var(--muted-foreground);">${escapeHTML(acc.user)} · ${escapeHTML(acc.host)}:${acc.port}</div>` +
         `<div class="acct-status" style="font-size:0.78em;color:var(--muted-foreground);margin-top:3px;" title="${escapeHTML(health.title)}">${escapeHTML(health.text)}</div>` +
         `<div class="acct-usage" style="font-size:0.8em;color:var(--muted-foreground);margin-top:2px;">…</div>`;
+      // DLV-19: the persisted sign-in identity warning, in full, where the user
+      // goes to fix it (textContent — the text is advisory prose, never markup).
+      if (acc.identityWarning) {
+        const warn = document.createElement('div');
+        warn.style.cssText = 'font-size:0.78em;color:var(--warning);margin-top:4px;line-height:1.4;';
+        warn.textContent = `⚠ ${acc.identityWarning}`;
+        info.appendChild(warn);
+      }
       left.appendChild(info);
 
       const right = document.createElement('div');
@@ -3669,7 +3921,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       // we know the daily count, re-evaluate health so the dot can go amber.
       window.electronAPI.getUsage(acc.id).then(u => {
         const usageEl = row.querySelector('.acct-usage') as HTMLElement | null;
-        if (usageEl) usageEl.textContent = `Today: ${u.emailsToday}/${u.maxPerDay} sent`;
+        if (usageEl) {
+          usageEl.textContent = u.warmupOverriddenToday
+            ? `Today: ${u.emailsToday}/${u.maxPerDay} sent — warm-up bypassed`
+            : `Today: ${u.emailsToday}/${u.maxPerDay} sent`;
+          // Warm-up wall hit (blocked by the ramp, not the real daily cap) → offer the
+          // one-day override behind a risk warning.
+          if (u.warmupActive && u.emailsToday >= u.maxPerDay && !u.warmupOverriddenToday) {
+            const btn = document.createElement('button');
+            btn.className = 'btn outline';
+            btn.style.cssText = 'margin-left:8px;height:24px;padding:0 8px;font-size:0.72em;';
+            btn.textContent = 'Send past warm-up today';
+            btn.addEventListener('click', async () => {
+              const ok = await confirmDialog(
+                `This lifts today's limit from ${u.maxPerDay} to ${u.hardMaxPerDay ?? u.maxPerDay}. A new domain that sends too fast gets flagged as spam — only do this on a warmed-up mailbox.`,
+                { title: 'Bypass warm-up for today?', confirmLabel: 'Send past warm-up', danger: true });
+              if (!ok) return;
+              await window.electronAPI.overrideWarmupToday(acc.id);
+              refreshAccounts();
+            });
+            usageEl.appendChild(btn);
+          }
+        }
         const h2 = accountHealth(acc, u);
         const dot = row.querySelector('.acct-dot') as HTMLElement | null;
         if (dot) dot.style.background = h2.color;
@@ -3940,6 +4213,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  /** Level-Up card: once every sending domain has a clean report, remember it. */
+  function maybeMarkDomainAuthPassed() {
+    if (localStorage.getItem(DA_OK_KEY) === '1') return;
+    const targets = domainAuthTargets();
+    if (!targets.length) return;
+    const reports = targets.map(t => domainAuthCache.get(t.domain));
+    if (!reports.every(r => r && isDomainAuthClean(r))) return;
+    localStorage.setItem(DA_OK_KEY, '1');
+    renderGettingStarted(); // tick the step the moment the last domain passes
+  }
+
   async function checkDomain(t: DomainAuthTarget, force = false) {
     if (domainAuthChecking.has(t.domain)) return;
     if (!force && domainAuthCache.has(t.domain)) return;
@@ -3954,6 +4238,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } finally {
       domainAuthChecking.delete(t.domain);
       renderDomainAuth();
+      maybeMarkDomainAuthPassed();
     }
   }
 
@@ -4231,13 +4516,21 @@ document.addEventListener('DOMContentLoaded', async () => {
    *  magic moment is seeing follow-ups laid out on a timeline. Form state only:
    *  sequences.json is untouched unless they press Create themselves. One-shot,
    *  and never over a form they've started typing into. */
-  function maybeSeedSequenceDemo() {
-    if (!isExploring()) return;
-    if (sequencesCache.length > 0) return;
+  function maybeSeedSequenceDemo(force = false) {
+    if (!force && !isExploring()) return;
+    if (!force && sequencesCache.length > 0) return;
     const nameInput = document.getElementById('sequence-name') as HTMLInputElement | null;
-    if (!nameInput || nameInput.value.trim() !== '') return;
-    try { if (localStorage.getItem(DEMO_SEQ_SEEN_KEY) === '1') return; } catch { /* private mode */ }
-    try { localStorage.setItem(DEMO_SEQ_SEEN_KEY, '1'); } catch { /* private mode */ }
+    if (!nameInput) return;
+    if (nameInput.value.trim() !== '') {
+      // Never overwrite something the user typed. On an explicit replay, say
+      // why nothing happened instead of looking dead.
+      if (force) toast('Clear or save your draft sequence first, then try the sample again.', 'info');
+      return;
+    }
+    if (!force) {
+      try { if (localStorage.getItem(DEMO_SEQ_SEEN_KEY) === '1') return; } catch { /* private mode */ }
+      try { localStorage.setItem(DEMO_SEQ_SEEN_KEY, '1'); } catch { /* private mode */ }
+    }
     nameInput.value = DEMO_SEQUENCE_NAME;
     const container = document.getElementById('sequence-steps');
     if (container) container.innerHTML = '';
@@ -4322,10 +4615,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // "Sign in with Microsoft" — password-less OAuth-SMTP account, available in
-  // every GUI (Microsoft mailboxes are OAuth-only; see the
-  // SHOW_NO_PASSWORD_TRANSPORTS note). Opens the system browser (main process);
-  // we just reflect status and refresh the list.
+  // "Sign in with Microsoft" — password-less OAuth account. Microsoft mailboxes
+  // are OAuth-only, so this is not optional. Opens the system browser (main
+  // process); we just reflect status and refresh the list.
   /** Identity-alignment warning from oauth-login-microsoft (a Microsoft account
    *  whose alias lives on a foreign domain — e.g. @protonmail.com — sends mail
    *  that fails SPF/DMARC at receivers). Surfaced loudly at every connect
@@ -4364,44 +4656,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // ===== LOW-FRICTION TRANSPORTS (Accounts view) — browser-session connect only,
-  //        gated behind SHOW_NO_PASSWORD_TRANSPORTS. Safe to delete. =====
-  if (SHOW_NO_PASSWORD_TRANSPORTS) {
-  const acctNoPwBlock = document.getElementById('acct-nopw-block');
-  if (acctNoPwBlock) acctNoPwBlock.style.display = 'block';
-
-  // "Connect Gmail/Outlook (browser)" — credential-less webmail session. Opens a
-  // sign-in window (main process); reflect status and refresh the list.
-  const wireBrowserConnect = (btnId: string, provider: 'gmail' | 'outlook', waiting: string) => {
-    document.getElementById(btnId)?.addEventListener('click', async () => {
-      const btn = document.getElementById(btnId) as HTMLButtonElement;
-      const statusEl = document.getElementById('ms-oauth-status') as HTMLElement;
-      const setStatus = (m: string, color = 'var(--muted-foreground)') => {
-        if (statusEl) { statusEl.textContent = m; statusEl.style.color = color; statusEl.style.display = 'block'; }
-      };
-      btn.disabled = true;
-      const original = btn.innerHTML;
-      btn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Waiting for sign-in…';
-      setStatus(waiting);
-      try {
-        const res = await window.electronAPI.connectBrowserAccount(provider);
-        if (!res.ok) { setStatus(res.error || 'Could not connect the account.', 'var(--destructive)'); return; }
-        const who = res.email || `${provider} account`;
-        setStatus(`${who} connected.`, '#16a34a');
-        toast(`${who} connected.`, 'success', 'Account added');
-        fireConfetti();
-        await refreshAccounts();
-      } catch {
-        setStatus('Hit some turbulence — give it another go.', 'var(--destructive)');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = original;
-      }
-    });
-  };
-  wireBrowserConnect('connect-gmail-btn', 'gmail', 'A window opened — sign in to Gmail there.');
-  wireBrowserConnect('connect-outlook-btn', 'outlook', 'A window opened — sign in to Outlook there.');
-  } // ===== END LOW-FRICTION TRANSPORTS (Accounts view) =====
 
   // --- Initialization ---
 
@@ -4446,8 +4700,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (welcomeTitle) welcomeTitle.textContent = `Welcome, ${formattedName}`;
         document.getElementById('onboarding-modal')!.style.display = 'none';
         refreshSetupState();
-        // Queue the AI offer behind this one rather than stacking two dialogs.
-        void maybeOfferLocalAi();
+        // Queue the tour, then the AI offer, behind this one — never stack dialogs.
+        maybeStartTour(() => { void maybeOfferLocalAi(); });
     });
 
     // U9: the name is a greeting/sender-name nicety, not a wall — skipping is
@@ -4455,7 +4709,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // connected inbox and the once-key).
     document.getElementById('onboard-skip-btn')?.addEventListener('click', () => {
         document.getElementById('onboarding-modal')!.style.display = 'none';
-        void maybeOfferLocalAi();
+        maybeStartTour(() => { void maybeOfferLocalAi(); });
     });
 
     // --- Local AI offer (one-time, post-sign-in) ---------------------------------
@@ -4478,6 +4732,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const aiOnboardProgressLabel = document.getElementById('ai-onboard-progress-label');
     const aiOnboardError = document.getElementById('ai-onboard-error');
 
+    const aiOnboardBackgroundBtn = document.getElementById('ai-onboard-background-btn') as HTMLButtonElement | null;
+    const aiDlPill = document.getElementById('ai-dl-pill');
+    const aiDlPillPct = document.getElementById('ai-dl-pill-pct');
+    const aiDlPillFill = document.getElementById('ai-dl-pill-fill') as HTMLElement | null;
+    const aiDlPillSub = document.getElementById('ai-dl-pill-sub');
+
     let aiOnboardModel: { id: string; name: string; sizeBytes: number } | null = null;
     let aiOnboardBusy = false;
 
@@ -4487,12 +4747,144 @@ document.addEventListener('DOMContentLoaded', async () => {
       return b >= gb ? `${(b / gb).toFixed(1)} GB` : `${Math.round(b / (1024 * 1024))} MB`;
     };
 
+    // --- Backgroundable download -------------------------------------------------
+    //
+    // The download runs in the MAIN process, so the dialog was never what kept it
+    // alive — but every trace of it (the progress subscription, the busy flag, the
+    // completion handling) lived inside the button's click handler, so the only exits
+    // from this dialog were "wait here" and "cancel". Lifting that state up here is
+    // the whole feature: one run at a time, rendered into whichever surfaces happen
+    // to exist right now — the dialog while it's open, the corner pill when it isn't.
+    type AiDlState = {
+      phase: string;
+      fraction: number;
+      totalBytes: number;
+      /** Cancel requested. Pins the label, since ticks keep arriving until the current
+       *  phase unwinds and "42%" after you pressed Cancel reads as a dead button. */
+      stopping?: boolean;
+      error?: string;
+      done?: boolean;
+    };
+    let aiDlState: AiDlState | null = null;
+
+    const aiDlLabel = (s: AiDlState): string => {
+      if (s.error) return s.error;
+      if (s.done) return 'Installed and ready';
+      if (s.stopping) return 'Stopping…';
+      // 'verifying' is not 'downloading': hashing gigabytes takes real time, and a bar
+      // parked at 100% with no explanation reads as a hang.
+      return s.phase === 'verifying' ? 'Checking file…'
+        : s.phase === 'resuming' ? 'Resuming…'
+        : s.phase === 'checking' ? 'Starting…'
+        : `${Math.round((s.fraction || 0) * 100)}% of ${fmtBytes(s.totalBytes)}`;
+    };
+
+    /**
+     * Repaint every surface that shows the download. Safe to call at any time,
+     * including with no download running (which hides all of them).
+     */
+    function paintAiDownload(): void {
+      const s = aiDlState;
+      const modalOpen = !!aiOnboardModal && aiOnboardModal.style.display !== 'none';
+      const pct = Math.round((s?.fraction || 0) * 100);
+
+      if (aiOnboardProgress) aiOnboardProgress.style.display = s && !s.done && !s.error ? 'block' : 'none';
+      if (s && aiOnboardProgressBar) aiOnboardProgressBar.value = pct;
+      if (s && aiOnboardProgressLabel) aiOnboardProgressLabel.textContent = aiDlLabel(s);
+
+      // The pill stands IN for the dialog; showing both at once would just be the same
+      // number twice, with the pill dimmed behind the modal backdrop.
+      if (!aiDlPill) return;
+      if (!s || modalOpen) { aiDlPill.style.display = 'none'; return; }
+      aiDlPill.style.display = 'flex';
+      aiDlPill.classList.toggle('is-verifying', s.phase === 'verifying' && !s.done && !s.error && !s.stopping);
+      aiDlPill.classList.toggle('is-error', !!s.error);
+      aiDlPill.classList.toggle('is-done', !!s.done);
+      if (aiDlPillPct) aiDlPillPct.textContent = s.error ? 'Failed' : s.done ? 'Done' : `${pct}%`;
+      if (aiDlPillFill) aiDlPillFill.style.transform = `scaleX(${s.error || s.done ? 1 : pct / 100})`;
+      if (aiDlPillSub) aiDlPillSub.textContent = aiDlLabel(s);
+    }
+
+    /**
+     * Point the dialog's buttons at the current run state. Needed as its own function
+     * because the dialog can now be REOPENED mid-download from the pill, and nothing
+     * else on that path knows a download is in flight.
+     */
+    function syncAiOnboardButtons(): void {
+      if (aiOnboardDownloadBtn) aiOnboardDownloadBtn.disabled = aiOnboardBusy;
+      if (aiOnboardSkipBtn) aiOnboardSkipBtn.disabled = aiOnboardBusy;
+      if (aiOnboardCancelBtn) aiOnboardCancelBtn.style.display = aiOnboardBusy ? '' : 'none';
+      if (aiOnboardBackgroundBtn) aiOnboardBackgroundBtn.style.display = aiOnboardBusy ? '' : 'none';
+    }
+
+    /**
+     * Run the download. Owns the progress subscription for its entire life rather than
+     * for as long as the dialog is open, which is what lets the dialog close, reopen,
+     * or never be looked at again without touching the transfer.
+     */
+    async function startAiDownload(): Promise<void> {
+      if (!aiOnboardModel || aiOnboardBusy) return;
+      aiOnboardBusy = true;
+      aiDlState = { phase: 'checking', fraction: 0, totalBytes: aiOnboardModel.sizeBytes };
+      if (aiOnboardError) aiOnboardError.style.display = 'none';
+      syncAiOnboardButtons();
+      paintAiDownload();
+
+      const fail = (msg: string) => {
+        aiDlState = { phase: 'error', fraction: aiDlState?.fraction ?? 0, totalBytes: aiDlState?.totalBytes ?? 0, error: msg };
+        if (aiOnboardError) { aiOnboardError.textContent = msg; aiOnboardError.style.display = 'block'; }
+        // A backgrounded failure has no dialog to show the message in, and the pill has
+        // room for a phase, not a sentence.
+        if (aiOnboardModal && aiOnboardModal.style.display === 'none') toast(msg, 'error', 'AI download failed');
+      };
+
+      const off = window.electronAPI.onAiDownloadProgress((p) => {
+        if (!aiDlState) return;
+        aiDlState.fraction = p.fraction || 0;
+        aiDlState.totalBytes = p.totalBytes || aiDlState.totalBytes;
+        if (!aiDlState.stopping) aiDlState.phase = p.phase;
+        paintAiDownload();
+      });
+
+      try {
+        const res = await window.electronAPI.aiDownloadModel(aiOnboardModel.id);
+        if (res?.ok) {
+          aiDlState = { phase: 'done', fraction: 1, totalBytes: aiDlState?.totalBytes ?? 0, done: true };
+          toast('Local AI is ready. Look for the ✨ buttons.', 'success', 'AI installed');
+          closeAiOnboard();
+          await refreshAiStatus();
+          // Hold the finished pill briefly. Someone who backgrounded this may have been
+          // in another view when the toast came and went, and a bar that simply vanishes
+          // is indistinguishable from one that died.
+          window.setTimeout(() => { if (aiDlState?.done) { aiDlState = null; paintAiDownload(); } }, 8000);
+        } else if (res?.canceled) {
+          // Cancelling a download is not declining the feature, so don't record an
+          // answer: the partial file survives for resume, and burying the offer here
+          // would strand those gigabytes with nothing left able to finish them.
+          aiDlState = null;
+          closeAiOnboard(false);
+        } else {
+          fail(res?.error || 'The download failed.');
+        }
+      } catch (e: any) {
+        fail(e?.message || 'The download failed.');
+      } finally {
+        off();
+        aiOnboardBusy = false;
+        syncAiOnboardButtons();
+        paintAiDownload();
+      }
+    }
+
     /** @param remember false ⇒ close without answering, so it can be offered again. */
     function closeAiOnboard(remember = true) {
       if (remember) {
         try { localStorage.setItem(AI_ONBOARD_KEY, '1'); } catch { /* private mode */ }
       }
       if (aiOnboardModal) aiOnboardModal.style.display = 'none';
+      // Hand any still-running download over to the pill on the way out — closing this
+      // dialog no longer means losing sight of it.
+      paintAiDownload();
     }
 
     /**
@@ -4527,6 +4919,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       aiOnboardDownloadBtn.textContent = `Download (${fmtBytes(model.sizeBytes)})`;
       if (aiOnboardHw) aiOnboardHw.textContent = 'Checking what this computer can run…';
       aiOnboardModal.style.display = 'flex';
+      // Reopened from the pill while a download is running? Nothing else on this path
+      // knows that, so restore the running state instead of showing an idle dialog with
+      // a live transfer behind it.
+      syncAiOnboardButtons();
+      paintAiDownload();
 
       // Probe after showing: it's fast, but the dialog shouldn't wait on it.
       try {
@@ -4565,61 +4962,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       // (during the disk-space check or a long re-hash of an existing part file), so a
       // click always lands. Acknowledge it immediately — cancelling a 2.5 GB download
       // shouldn't leave the button looking dead while the current phase finishes.
-      if (aiOnboardProgressLabel) aiOnboardProgressLabel.textContent = 'Stopping…';
+      if (aiDlState) aiDlState.stopping = true;
+      paintAiDownload();
       try { await window.electronAPI.aiDownloadCancel(); } catch { /* nothing running */ }
     });
 
-    aiOnboardDownloadBtn?.addEventListener('click', async () => {
-      if (!aiOnboardModel || aiOnboardBusy) return;
-      aiOnboardBusy = true;
-      aiOnboardDownloadBtn.disabled = true;
-      if (aiOnboardSkipBtn) aiOnboardSkipBtn.disabled = true;
-      if (aiOnboardCancelBtn) aiOnboardCancelBtn.style.display = '';
-      if (aiOnboardProgress) aiOnboardProgress.style.display = 'block';
-      if (aiOnboardError) aiOnboardError.style.display = 'none';
+    // Hide the dialog, keep the transfer. Nothing is signalled to the main process —
+    // there is nothing to signal, the download was never coupled to this window in the
+    // first place. Burning the once-key is right: they accepted the offer.
+    aiOnboardBackgroundBtn?.addEventListener('click', () => closeAiOnboard());
 
-      const off = window.electronAPI.onAiDownloadProgress((p) => {
-        if (aiOnboardProgressBar) aiOnboardProgressBar.value = Math.round((p.fraction || 0) * 100);
-        if (!aiOnboardProgressLabel) return;
-        // 'verifying' is not 'downloading': hashing gigabytes takes real time, and a bar
-        // parked at 100% with no explanation reads as a hang.
-        const pct = Math.round((p.fraction || 0) * 100);
-        aiOnboardProgressLabel.textContent =
-          p.phase === 'verifying' ? 'Checking file…'
-          : p.phase === 'resuming' ? 'Resuming…'
-          : p.phase === 'checking' ? 'Starting…'
-          : `${pct}% of ${fmtBytes(p.totalBytes)}`;
-      });
-
-      try {
-        const res = await window.electronAPI.aiDownloadModel(aiOnboardModel.id);
-        if (res?.ok) {
-          toast('Local AI is ready. Look for the ✨ buttons.', 'success', 'AI installed');
-          closeAiOnboard();
-          await refreshAiStatus();
-        } else if (res?.canceled) {
-          // Cancelling a download is not declining the feature, so don't record an
-          // answer: the partial file survives for resume, and burying the offer here
-          // would strand those gigabytes with nothing left able to finish them.
-          closeAiOnboard(false);
-        } else if (aiOnboardError) {
-          aiOnboardError.textContent = res?.error || 'The download failed.';
-          aiOnboardError.style.display = 'block';
-        }
-      } catch (e: any) {
-        if (aiOnboardError) {
-          aiOnboardError.textContent = e?.message || 'The download failed.';
-          aiOnboardError.style.display = 'block';
-        }
-      } finally {
-        off();
-        aiOnboardBusy = false;
-        aiOnboardDownloadBtn.disabled = false;
-        if (aiOnboardSkipBtn) aiOnboardSkipBtn.disabled = false;
-        if (aiOnboardCancelBtn) aiOnboardCancelBtn.style.display = 'none';
-        if (aiOnboardProgress) aiOnboardProgress.style.display = 'none';
-      }
+    // The pill is the only handle on a backgrounded download, so it reopens the dialog
+    // — which is where Cancel, the error text and the hardware note live.
+    const reopenAiOnboard = () => {
+      // force: a finished download flips the catalog entry to `installed`, and the
+      // unforced path silently closes on that — from a click that would look dead.
+      void maybeOfferLocalAi(true);
+    };
+    aiDlPill?.addEventListener('click', reopenAiOnboard);
+    aiDlPill?.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key;
+      if (key === 'Enter' || key === ' ') { e.preventDefault(); reopenAiOnboard(); }
     });
+
+    aiOnboardDownloadBtn?.addEventListener('click', () => { void startAiDownload(); });
 
     // Dashboard fleet rollup → jump to the Accounts view for the detail.
     document.getElementById('fleet-strip-dash')?.addEventListener('click', () => {
@@ -4673,9 +5039,149 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Pre-flight re-check button
     document.getElementById('preflight-recheck')?.addEventListener('click', () => renderPreflight());
 
+    // ===== GUIDED TOUR + VIEW HINTS (engine in src/tour.ts) ===================
+    // The tour auto-runs exactly once, and only via runPostConnectFlow — the
+    // name modal, the tour, and the AI offer form one chain so dialogs never
+    // stack. Help replays call startTourNow directly, ignoring the one-shot.
+
+    function runPostConnectFlow() {
+      if (!config.userName) { document.getElementById('onboarding-modal')!.style.display = 'flex'; return; }
+      maybeStartTour(() => { void maybeOfferLocalAi(); });
+    }
+
+    function maybeStartTour(done: () => void) {
+      let seen = false;
+      try { seen = localStorage.getItem(TOUR_DONE_KEY) === '1'; } catch { /* private mode */ }
+      // Explorers already get the guided demo on entry; for them the tour stays
+      // a replayable option under Help rather than a second auto-guide.
+      if (seen || isExploring()) { done(); return; }
+      startTourNow(done);
+    }
+
+    function startTourNow(done: () => void = () => { /* replay */ }) {
+      runTour({
+        steps: TOUR_STEPS,
+        gate: {
+          connected: inboxConnected(config, accountsCache),
+          exploring: isExploring(),
+          hasRecipients: recipientsData.length > 0,
+          hasSequences: sequencesCache.length > 0,
+        },
+        actions: {
+          recipients: () => maybeStartGuidedDemo(true),
+          sequences: () => openFlowDemo('sequence'),
+          autopilot: () => {
+            const cb = document.getElementById('test-mode-checkbox') as HTMLInputElement | null;
+            // The change handler persists the flag and announces itself.
+            if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+          },
+        },
+        activateView: (v) => document.querySelector<HTMLElement>(`.nav-links li[data-view="${v}"]`)?.click(),
+        reducedMotion: prefersReducedMotion(),
+        onExit: () => {
+          try { localStorage.setItem(TOUR_DONE_KEY, '1'); } catch { /* private mode */ }
+          done();
+        },
+      });
+    }
+
+    // ===== FLOW DEMOS (CSS replicas — markup in both HTMLs, loops in onboarding.css)
+    const FLOW_DEMO_META: Record<string, { title: string; caption: string }> = {
+      contact: { title: 'Watch: add your first contact', caption: 'The cursor and typing are a replay — your real form is one click away.' },
+      sequence: { title: 'Watch: follow-ups that stop on reply', caption: 'The moment a reply arrives, the remaining steps stand down automatically.' },
+      send: { title: 'Watch: your first send, safely', caption: 'Practice mode delivers everything to your own inbox — real contacts get nothing.' },
+    };
+    function openFlowDemo(kind: 'contact' | 'sequence' | 'send') {
+      // Never leave two modals open: setupModalA11y's Escape targets the first
+      // visible .modal in DOM order.
+      const helpEl = document.getElementById('help-modal');
+      if (helpEl) helpEl.style.display = 'none';
+      const m = document.getElementById('flow-demo-modal');
+      if (!m) return;
+      m.setAttribute('data-demo', kind);
+      const meta = FLOW_DEMO_META[kind];
+      const t = document.getElementById('flow-demo-title');
+      if (t) t.textContent = meta.title;
+      const c = document.getElementById('flow-demo-caption');
+      if (c) c.textContent = meta.caption;
+      m.style.display = 'none'; // drop from the render tree so the CSS loops restart at 0
+      void (m as HTMLElement).offsetWidth;
+      m.style.display = 'flex';
+    }
+    // Entry buttons anywhere in either GUI: any element carrying data-flow-demo.
+    document.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-flow-demo]');
+      if (b) openFlowDemo(b.dataset.flowDemo as 'contact' | 'sequence' | 'send');
+    });
+    document.getElementById('flow-demo-try')?.addEventListener('click', () => {
+      const m = document.getElementById('flow-demo-modal');
+      const kind = m?.getAttribute('data-demo');
+      if (m) m.style.display = 'none';
+      if (kind === 'contact') {
+        document.querySelector<HTMLElement>('.nav-links li[data-view="recipients"]')?.click();
+        maybeStartGuidedDemo(true);
+      } else if (kind === 'sequence') {
+        document.querySelector<HTMLElement>('.nav-links li[data-view="sequences"]')?.click();
+        maybeSeedSequenceDemo(true);
+      } else {
+        document.querySelector<HTMLElement>('.nav-links li[data-view="dashboard"]')?.click();
+        const cb = document.getElementById('test-mode-checkbox') as HTMLInputElement | null;
+        if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+      }
+    });
+
+    // ===== HELP & REPLAY SURFACE ==============================================
+    const helpModalEl = document.getElementById('help-modal');
+    const openHelp = () => {
+      // The connect ramp only makes sense while nothing is connected (explore mode).
+      const connect = document.getElementById('hm-connect');
+      if (connect) connect.style.display = inboxConnected(config, accountsCache) ? 'none' : 'flex';
+      if (helpModalEl) helpModalEl.style.display = 'flex';
+    };
+    const navHelp = document.getElementById('nav-help');
+    navHelp?.addEventListener('click', openHelp);
+    navHelp?.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHelp(); }
+    });
+    const closeHelp = () => { if (helpModalEl) helpModalEl.style.display = 'none'; };
+    document.getElementById('hm-replay-tour')?.addEventListener('click', () => { closeHelp(); startTourNow(); });
+    document.getElementById('hm-apppw-guide')?.addEventListener('click', () => {
+      closeHelp();
+      showPwSlide(1);
+      const pw = document.getElementById('app-pw-modal');
+      if (pw) pw.style.display = 'flex';
+    });
+    document.getElementById('hm-sample-contact')?.addEventListener('click', () => {
+      closeHelp();
+      try { localStorage.removeItem(DEMO_CONTACT_SEEN_KEY); } catch { /* private mode */ }
+      document.querySelector<HTMLElement>('.nav-links li[data-view="recipients"]')?.click();
+      maybeStartGuidedDemo(true);
+    });
+    document.getElementById('hm-sample-sequence')?.addEventListener('click', () => {
+      closeHelp();
+      try { localStorage.removeItem(DEMO_SEQ_SEEN_KEY); } catch { /* private mode */ }
+      document.querySelector<HTMLElement>('.nav-links li[data-view="sequences"]')?.click();
+      maybeSeedSequenceDemo(true);
+    });
+    document.getElementById('hm-restore-cards')?.addEventListener('click', () => {
+      try {
+        localStorage.removeItem(GS_DISMISS_KEY);
+        localStorage.removeItem(LU_DISMISS_KEY);
+      } catch { /* private mode */ }
+      closeHelp();
+      void renderGettingStarted();
+      document.querySelector<HTMLElement>('.nav-links li[data-view="dashboard"]')?.click();
+      toast('Checklists restored.', 'success');
+    });
+    document.getElementById('hm-connect')?.addEventListener('click', () => {
+      closeHelp();
+      const gate = document.getElementById('login-screen');
+      if (gate) gate.style.display = 'flex';
+    });
+
     // Getting-Started checklist: dismiss + step CTAs
     document.getElementById('gs-dismiss')?.addEventListener('click', () => {
-      localStorage.setItem(GS_DISMISS_KEY, '1');
+      try { localStorage.setItem(GS_DISMISS_KEY, '1'); } catch { /* private mode */ }
       const card = document.getElementById('getting-started-card');
       if (card) card.style.display = 'none';
     });
@@ -4688,6 +5194,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else if (action === 'start-sending' && !schedulerActiveUI) {
         toggleSchedulerBtn.click();
       }
+    });
+
+    // Level-Up checklist: dismiss + step CTAs (each CTA is a plain view jump).
+    document.getElementById('lu-dismiss')?.addEventListener('click', () => {
+      try { localStorage.setItem(LU_DISMISS_KEY, '1'); } catch { /* private mode */ }
+      const card = document.getElementById('level-up-card');
+      if (card) card.style.display = 'none';
+    });
+    document.getElementById('lu-steps')?.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('.gs-cta');
+      if (!btn?.dataset.view) return;
+      document.querySelector(`[data-view="${btn.dataset.view}"]`)?.dispatchEvent(new Event('click'));
     });
 
     if (inputUserName) inputUserName.value = currentUserName;
@@ -5011,25 +5529,43 @@ document.addEventListener('DOMContentLoaded', async () => {
       showPwSlide(1);
       if (appPwModal) appPwModal.style.display = 'flex';
     });
-    // U2: never show three layers (gate → wizard → guide). When the guide is
-    // opened FROM the wizard, the wizard hides and every close path restores
-    // it — the user only ever sees one modal above the gate. All three close
-    // routes (button, backdrop, Esc — via data-close-modal on the button)
-    // funnel through here, which also resets the legacy z-index bump.
-    let pwOpenedFromWizard = false;
+    // All three close routes (button, backdrop, Esc — via data-close-modal on the
+    // button) funnel through here, which also resets the legacy z-index bump.
     const closePwModal = () => {
       if (!appPwModal) return;
       appPwModal.style.display = 'none';
       appPwModal.style.zIndex = '';
-      if (pwOpenedFromWizard) {
-        pwOpenedFromWizard = false;
-        const wiz = document.getElementById('setup-wizard-modal');
-        if (wiz) wiz.style.display = 'flex';
-      }
     };
     document.getElementById('app-pw-close')?.addEventListener('click', closePwModal);
     appPwModal?.addEventListener('click', (e) => {
       if (e.target === appPwModal) closePwModal();
+    });
+
+    // Accounts view "Sign in with Google": reuses the same walkthrough modal, but
+    // the login gate's setLoginProvider() never runs here, so force Google mode
+    // (replica + title + the "open the real page" link) before showing it.
+    document.getElementById('google-apppw-btn')?.addEventListener('click', () => {
+      const gGoogle = document.getElementById('guide-google');
+      const gOutlook = document.getElementById('guide-outlook');
+      if (gGoogle) gGoogle.style.display = 'flex';
+      if (gOutlook) gOutlook.style.display = 'none';
+      const pwTitle = document.getElementById('app-pw-title');
+      if (pwTitle) pwTitle.textContent = 'How to get a Google app password';
+      const pwOpen = document.getElementById('app-pw-open-link') as HTMLAnchorElement | null;
+      if (pwOpen) {
+        pwOpen.href = PROVIDER_PRESETS.gmail.help;
+        pwOpen.style.display = 'flex';
+      }
+      const pwOpenText = document.getElementById('app-pw-open-text');
+      if (pwOpenText) pwOpenText.textContent = 'Open Google App passwords ↗';
+      // Preselect Gmail on the manual form so the password lands in the right place.
+      const provSel = document.getElementById('acct-provider') as HTMLSelectElement | null;
+      if (provSel && provSel.value !== 'gmail') {
+        provSel.value = 'gmail';
+        provSel.dispatchEvent(new Event('change'));
+      }
+      showPwSlide(1);
+      if (appPwModal) appPwModal.style.display = 'flex';
     });
 
     // "Connected" = the .env primary has a password OR any extra account is
@@ -5057,10 +5593,14 @@ document.addEventListener('DOMContentLoaded', async () => {
      *  closing the modal leaves zero state. Saving it is the user's own act and
      *  harmless — the address is RFC 2606-reserved. Skipped when real recipients
      *  already exist: don't play-act at someone who has data. */
-    function maybeStartGuidedDemo() {
-      try { if (localStorage.getItem(DEMO_CONTACT_SEEN_KEY) === '1') return; } catch { /* private mode */ }
-      try { localStorage.setItem(DEMO_CONTACT_SEEN_KEY, '1'); } catch { /* private mode */ }
-      if (recipientsData.length > 0) return;
+    function maybeStartGuidedDemo(force = false) {
+      // force (tour action / Help replay): the user explicitly asked — skip the
+      // one-shot key and the "already has data" guard.
+      if (!force) {
+        try { if (localStorage.getItem(DEMO_CONTACT_SEEN_KEY) === '1') return; } catch { /* private mode */ }
+        try { localStorage.setItem(DEMO_CONTACT_SEEN_KEY, '1'); } catch { /* private mode */ }
+        if (recipientsData.length > 0) return;
+      }
       openRecipientModal(-1);
       const title = document.getElementById('recipient-modal-title');
       if (title) title.textContent = 'Sample contact — hit Preview to see it rendered';
@@ -5070,15 +5610,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       (document.getElementById('rec-msg-text') as HTMLTextAreaElement).value = DEMO_CONTACT.message;
     }
 
-    // The explore door itself. Not inside the SHOW_NO_PASSWORD_TRANSPORTS block —
-    // exploring is for every GUI, not a low-friction-transport feature.
+    // The explore door itself.
     document.getElementById('login-explore-btn')?.addEventListener('click', () => {
       try { localStorage.setItem(EXPLORE_KEY, '1'); } catch { /* private mode */ }
       loginScreen.style.display = 'none';
-      // Choosing to explore is also waving the setup wizard off (it layers over
-      // the gate; leaving it up would wall the app right back off).
-      const wiz = document.getElementById('setup-wizard');
-      if (wiz) wiz.style.display = 'none';
       toast('Sending stays locked until you connect an inbox — everything else is yours to try.', 'success', 'Welcome aboard');
       maybeStartGuidedDemo();
     });
@@ -5105,7 +5640,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await refreshAccounts();
       refreshSetupState();
       renderPreflight();
-      if (!config.userName) document.getElementById('onboarding-modal')!.style.display = 'flex';
+      runPostConnectFlow();
     };
     const wireNoPwLogin = (
       btnId: string,
@@ -5142,22 +5677,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
     };
-    // Microsoft OAuth — always wired, every GUI. It is the only connect route
-    // that works for a Microsoft mailbox (see the SHOW_NO_PASSWORD_TRANSPORTS
-    // note), so it cannot live behind an experimental-UI flag.
+    // Microsoft OAuth — always wired. It is the only connect route that works for
+    // a Microsoft mailbox, so it can never sit behind a flag.
     wireNoPwLogin('login-ms-btn', 'A browser window opened — finish signing in with Microsoft there.',
       () => window.electronAPI.oauthLoginMicrosoft(), 'Microsoft account');
 
-    // ===== LOW-FRICTION TRANSPORTS (login gate) — browser-session connect only,
-    //        gated behind SHOW_NO_PASSWORD_TRANSPORTS. Safe to delete. =====
-    if (SHOW_NO_PASSWORD_TRANSPORTS) {
-    const loginNoPwBlock = document.getElementById('login-nopw-block');
-    if (loginNoPwBlock) loginNoPwBlock.style.display = 'block';
-    wireNoPwLogin('login-gmail-btn', 'A window opened — sign in to Gmail there.',
-      () => window.electronAPI.connectBrowserAccount('gmail'), 'Gmail account');
-    wireNoPwLogin('login-outlook-btn', 'A window opened — sign in to Outlook there.',
-      () => window.electronAPI.connectBrowserAccount('outlook'), 'Outlook account');
-    } // ===== END LOW-FRICTION TRANSPORTS (login gate) =====
 
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -5261,10 +5785,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         refreshAccounts();
 
         // No display name yet → run the existing name onboarding next; its submit
-        // handler offers the AI afterwards, so the two never stack. Otherwise offer
-        // the AI straight away, now that the inbox is proven.
-        if (!config.userName) document.getElementById('onboarding-modal')!.style.display = 'flex';
-        else void maybeOfferLocalAi();
+        // handler chains the tour and the AI offer, so nothing ever stacks.
+        runPostConnectFlow();
       } catch {
         showLoginError('Couldn\'t save your login — try again in a moment.');
       } finally {
@@ -5274,204 +5796,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    // ===== First-run setup wizard (additive) — drives the EXISTING login controls.
-    //        Reuses setLoginProvider + PROVIDER_PRESETS for step content and the
-    //        loginForm's verified submit for the actual sign-in, so it can never
-    //        diverge from the working path. The login screen stays intact beneath;
-    //        closing the wizard reveals it. Logic classes are sw-* (NOT the recipient
-    //        wizard's document-wide .wizard-*), so the two wizards never collide. =====
-    const setupWizard = document.getElementById('setup-wizard-modal') as HTMLElement | null;
-    if (setupWizard) {
-      let swStep = 1;
-      let swProvider = 'gmail';
-      const swSteps = Array.from(setupWizard.querySelectorAll('.sw-step')) as HTMLElement[];
-      const swBackBtn = document.getElementById('sw-back') as HTMLButtonElement | null;
-      const swNextBtn = document.getElementById('sw-next') as HTMLButtonElement | null;
-      const swFinishBtn = document.getElementById('sw-finish') as HTMLButtonElement | null;
-
-      const swRender = () => {
-        swSteps.forEach(s => {
-          const n = parseInt(s.getAttribute('data-sw-step') || '1', 10);
-          s.classList.toggle('active', n === swStep);
-          s.classList.toggle('completed', n < swStep);
-        });
-        setupWizard.querySelectorAll('.sw-panel').forEach(p => { (p as HTMLElement).style.display = 'none'; });
-        const panel = document.getElementById(`sw-panel-${swStep}`);
-        if (panel) panel.style.display = 'block';
-        if (swBackBtn) swBackBtn.style.display = swStep > 1 ? 'inline-flex' : 'none';
-        // Outlook's flow ends at step 2 — the OAuth panel signs you in right
-        // there, so there is no Next and step 3 is unreachable.
-        if (swNextBtn) swNextBtn.style.display = swStep === 2 && swProvider !== 'outlook' ? 'inline-flex' : 'none';
-        if (swFinishBtn) swFinishBtn.style.display = swStep === 3 ? 'inline-flex' : 'none';
-      };
-      const swGoTo = (n: number) => { swStep = Math.max(1, Math.min(3, n)); swRender(); };
-
-      // Step-2 instructions + step-3 fields follow the chosen provider. Reuse the
-      // login screen's provider wiring so the animated guide + steps stay in sync.
-      const swApplyProvider = (p: string) => {
-        swProvider = p;
-        setLoginProvider(p);
-        // Outlook swaps the app-password education for the OAuth panel and
-        // collapses the flow to two steps: Microsoft retired app passwords, so
-        // there is nothing to teach and nothing to paste — sign-in happens
-        // inside step 2. Labels restored for every other provider.
-        const msOnly = p === 'outlook';
-        const pwEdu = document.getElementById('sw-pw-edu');
-        if (pwEdu) pwEdu.style.display = msOnly ? 'none' : '';
-        const msPanel = document.getElementById('sw-ms-panel');
-        if (msPanel) msPanel.style.display = msOnly ? 'block' : 'none';
-        if (swSteps[1]) swSteps[1].textContent = msOnly ? '2. Sign in with Microsoft' : '2. App password';
-        if (swSteps[2]) swSteps[2].style.display = msOnly ? 'none' : '';
-        const preset = PROVIDER_PRESETS[p];
-        const stepsOl = document.getElementById('sw-steps');
-        if (stepsOl) stepsOl.innerHTML = preset.steps.map(s => `<li>${s}</li>`).join('');
-        const openHelp = document.getElementById('sw-open-help') as HTMLAnchorElement | null;
-        if (openHelp) {
-          if (preset.help) { openHelp.style.display = 'inline-flex'; openHelp.href = preset.help; }
-          else openHelp.style.display = 'none';
-        }
-        const showGuide = document.getElementById('sw-show-guide') as HTMLElement | null;
-        // No animated guide for 'other' (nothing to show) or 'outlook' (the
-        // app-password walkthrough it replays documents a flow Microsoft
-        // retired — showing it would teach a dead end).
-        if (showGuide) showGuide.style.display = p === 'other' || p === 'outlook' ? 'none' : 'inline-flex';
-        const customNote = document.getElementById('sw-custom-note');
-        if (customNote) customNote.style.display = p === 'other' ? 'block' : 'none';
-        const customFields = document.getElementById('sw-custom-fields');
-        if (customFields) customFields.style.display = p === 'other' ? 'grid' : 'none';
-        const swEmailInput = document.getElementById('sw-email') as HTMLInputElement | null;
-        if (swEmailInput) swEmailInput.placeholder = preset.placeholder;
-      };
-
-      setupWizard.querySelectorAll('.sw-provider-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          // Picking a provider here is as explicit as clicking a gate tab, so it
-          // must pin the choice against auto-detect: swFinishBtn assigns
-          // loginEmail.value programmatically (no input/blur) and calls
-          // requestSubmit(), whose flush would otherwise override this pick —
-          // including overriding a *correct* one with 'other' when the MX probe
-          // is merely offline. Set here, not in swApplyProvider(), which
-          // showSetupWizard() calls to reset the wizard on every open.
-          loginProviderTouched = true;
-          swApplyProvider(btn.getAttribute('data-sw-provider') || 'gmail');
-          swGoTo(2);
-        });
-      });
-      swNextBtn?.addEventListener('click', () => swGoTo(swStep + 1));
-      swBackBtn?.addEventListener('click', () => swGoTo(swStep - 1));
-
-      // "Show me first (animated)" reuses the existing app-pw modal. The wizard
-      // hides while the guide is up (U2: never three stacked layers) and
-      // closePwModal() re-shows it on ANY close route — button, backdrop, or
-      // Esc, which reaches the button via its data-close-modal attribute.
-      document.getElementById('sw-show-guide')?.addEventListener('click', () => {
-        if (!appPwModal) return;
-        showPwSlide(1);
-        // U2: hide the wizard while the guide is up (instead of z-stacking a
-        // third layer above it); closePwModal() restores it on any close.
-        pwOpenedFromWizard = true;
-        setupWizard.style.display = 'none';
-        appPwModal.style.display = 'flex';
-      });
-
-      // Finish → hand the typed credentials to the existing verified login flow.
-      // requestSubmit() runs the same verifyConnection → saveConfig → boot path,
-      // including the post-login name onboarding, so there is no duplicated logic.
-      swFinishBtn?.addEventListener('click', () => {
-        const email = (document.getElementById('sw-email') as HTMLInputElement).value.trim();
-        const pass = (document.getElementById('sw-password') as HTMLInputElement).value;
-        // Microsoft is OAuth-only — hand off to the gate's "Sign in with
-        // Microsoft" button instead of requestSubmit'ing a password that can
-        // never authenticate. Close without SW_SKIP_KEY: if they bail on the
-        // OAuth flow the wizard may return next launch; steering isn't skipping.
-        if (swProvider === 'outlook' || detectProviderFromEmail(email) === 'outlook') {
-          setupWizard.style.display = 'none';
-          toast('Microsoft retired app passwords — use the blue "Sign in with Microsoft" button on the sign-in screen. No password needed.', 'error', 'Microsoft sign-in changed');
-          return;
-        }
-        if (!email || !pass) { toast('Enter your email and app password to connect.', 'error', 'Almost there'); return; }
-        setLoginProvider(swProvider);
-        loginEmail.value = email;
-        loginPassword.value = pass;
-        if (swProvider === 'other') {
-          loginHost.value = (document.getElementById('sw-host') as HTMLInputElement).value.trim();
-          loginPort.value = (document.getElementById('sw-port') as HTMLInputElement).value.trim();
-        }
-        setupWizard.style.display = 'none';
-        loginForm.requestSubmit();
-      });
-
-      // Wizard "Sign in with Microsoft" — the same OAuth flow as the gate
-      // button. Success means the wizard finished its job (finishing, not
-      // skipping — no SW_SKIP_KEY), and the app boots via the shared connect
-      // path so the banner/checklist see the new account.
-      const swMsBtn = document.getElementById('sw-ms-btn') as HTMLButtonElement | null;
-      const swMsStatus = document.getElementById('sw-ms-status') as HTMLElement | null;
-      swMsBtn?.addEventListener('click', async () => {
-        const setStatus = (m: string, color = 'var(--muted-foreground)') => {
-          if (swMsStatus) { swMsStatus.textContent = m; swMsStatus.style.color = color; swMsStatus.style.display = 'block'; }
-        };
-        swMsBtn.disabled = true;
-        const original = swMsBtn.innerHTML;
-        swMsBtn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Waiting for sign-in…';
-        setStatus('A browser window opened — finish signing in with Microsoft there.');
-        try {
-          const res = await window.electronAPI.oauthLoginMicrosoft();
-          if (!res.ok) {
-            setStatus(res.error || 'Microsoft sign-in failed.', 'var(--destructive)');
-            toast(res.error || 'Microsoft sign-in failed.', 'error', 'Sign-in failed');
-            return;
-          }
-          setupWizard.style.display = 'none';
-          await enterAppAfterConnect(res.email || 'Microsoft account');
-          showIdentityWarningIfAny(res);
-        } catch {
-          setStatus('Hit some turbulence — give it another go.', 'var(--destructive)');
-        } finally {
-          swMsBtn.disabled = false;
-          swMsBtn.innerHTML = original;
-        }
-      });
-
-      // Skip / close (and Esc, via setupModalA11y) → reveal the untouched login form.
-      // All three routes land here — #setup-wizard-close carries .close-modal, which
-      // is what the Esc handler clicks — so remembering the choice here covers them
-      // all. swFinishBtn hides the wizard directly instead, which is correct:
-      // finishing is not skipping.
-      //
-      // Persisted because the wizard is layered over a login screen that stays
-      // fully usable underneath: a user who dismissed it wants the plain form, and
-      // re-shoving the wizard at them on every launch until they connect is not a
-      // safety net, it is nagging. Mirrors GS_DISMISS_KEY.
-      const swClose = () => {
-        setupWizard.style.display = 'none';
-        try { localStorage.setItem(SW_SKIP_KEY, '1'); } catch { /* private mode / quota */ }
-      };
-      document.getElementById('sw-skip')?.addEventListener('click', swClose);
-      document.getElementById('setup-wizard-close')?.addEventListener('click', swClose);
-
-      const showSetupWizard = () => {
-        // Make the wizard the only visible modal so setupModalA11y's focus-trap +
-        // Esc target IT, not the name-onboarding modal that may be shown (z2000)
-        // behind the login screen on a first run. The login handler re-shows the
-        // onboarding modal after a successful sign-in (when no userName), so hiding
-        // it here is safe and non-destructive.
-        const onboardingModal = document.getElementById('onboarding-modal');
-        if (onboardingModal) onboardingModal.style.display = 'none';
-        swStep = 1;
-        swApplyProvider('gmail');
-        swRender();
-        setupWizard.style.display = 'flex';
-      };
-      // First run only, and only until the user waves it off: layer the wizard over
-      // the (still-present) login screen. An explorer has no login screen under it —
-      // they already chose "look around first", and the wizard popping over the app
-      // would re-erect the wall they just declined.
-      const swSkipped = (() => {
-        try { return localStorage.getItem(SW_SKIP_KEY) === '1'; } catch { return false; }
-      })();
-      if (!hasAccount && !swSkipped && !exploring) showSetupWizard();
-    }
 
     const isRunning = await window.electronAPI.getSchedulerStatus();
     updateStatusUI(isRunning);
@@ -5547,9 +5871,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         await window.electronAPI.stopScheduler();
         toast('Autopilot off. Holding on the tarmac.', 'info', 'Paused');
       } else {
-        await window.electronAPI.startScheduler();
-        toast("Autopilot engaged. I'll fly the schedule from here.", 'success', 'On autopilot');
-        fireConfetti();
+        // start-scheduler answers false (no exception) when the main process has no
+        // scheduler to start; celebrating anyway left the card on "Paused" with a
+        // success toast and confetti — "cannot enable" with no clue why.
+        const started = await window.electronAPI.startScheduler();
+        if (!started) {
+          addLog('The scheduler did not start — see the error above.', 'error');
+          toast('Couldn\'t start the schedule. Check System Logs.', 'error');
+        } else {
+          toast("Autopilot engaged. I'll fly the schedule from here.", 'success', 'On autopilot');
+          fireConfetti();
+        }
       }
     } catch (err) {
       addLog(`Failed to toggle scheduler: ${err}`, 'error');
@@ -5703,21 +6035,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (result.error) {
           toast(result.error, 'error', 'Preview failed');
       } else {
-          const previewModal = document.getElementById('preview-modal') as HTMLElement;
-          const previewSubject = document.getElementById('preview-subject') as HTMLElement;
-          const previewFrame = document.getElementById('preview-frame') as HTMLIFrameElement;
-          
-          previewSubject.textContent = result.subject || '';
-          renderSpamBanner(result.subject || '', result.body || '');
-          renderPreviewAi(result.subject || '', result.body || '');
-
-          const doc = previewFrame.contentWindow?.document;
-          if (doc) {
-              doc.open();
-              doc.write(result.body || '');
-              doc.close();
-          }
-          previewModal.style.display = 'flex';
+          // `record` above omits accountId, so the From line would have shown the
+          // default account for a recipient assigned to another one. Read the same
+          // selector the save path reads.
+          const selAccountRaw = (document.getElementById('rec-account') as HTMLSelectElement | null)?.value;
+          openEmailPreview(result, { name, email, accountId: selAccountRaw || 'default' });
       }
   });
   
@@ -5916,6 +6238,115 @@ document.addEventListener('DOMContentLoaded', async () => {
     } finally {
       btn.disabled = false;
       btn.innerHTML = original;
+    }
+  });
+
+  // Plan & License card (freemium #6)
+  const licenseStatusLine = document.getElementById('license-status-line');
+  const licenseKeyInput = document.getElementById('license-key-input') as HTMLInputElement | null;
+  const licenseActivateBtn = document.getElementById('license-activate-btn') as HTMLButtonElement | null;
+  const licenseRefreshBtn = document.getElementById('license-refresh-btn') as HTMLButtonElement | null;
+  const licenseRemoveBtn = document.getElementById('license-remove-btn') as HTMLButtonElement | null;
+  const licensePlans = document.getElementById('license-plans');
+  const licensePlansButtons = document.getElementById('license-plans-buttons');
+
+  function renderLicenseCard(s: LicenseStatusView) {
+    if (!licenseStatusLine) return;
+    const until = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString() : '';
+    // "Weekly plan, $2.90/week" — falls back to the plan-blind wording when the
+    // key's variant isn't in LS_PLANS, so an unrecognized purchase still reads
+    // like an active subscription instead of a blank card.
+    const planLabel = s.plan ? `${s.plan.name} plan, ${s.plan.price}/${s.plan.interval}` : 'subscription active';
+    const renews = s.expiresAt ? ` Renews ${until(s.expiresAt)}.` : '';
+    let line: string;
+    if (s.tier === 'first-class') {
+      if (s.reason === 'trial' && s.trialKind === 'founder') line = `Founding pilot — First Class free until ${until(s.trialEndsAt)}. Thanks for flying early.`;
+      else if (s.reason === 'trial') line = `First Class trial — ends ${until(s.trialEndsAt)}.`;
+      else if (s.reason === 'grace') line = `First Class — Lemon Squeezy hasn't been reachable, so you're flying on the last good check.`;
+      else line = `First Class — ${planLabel}.${renews}`;
+    } else if (s.reason === 'invalid') {
+      line = `Free — your First Class subscription shows as “${s.status || 'inactive'}”. Renew it, then press Refresh status.`;
+    } else if (s.reason === 'stale') {
+      line = `Free — your subscription couldn't be verified for over a week. Press Refresh status once you're online.`;
+    } else {
+      line = `Free plan — you fly it. First Class runs your follow-ups on autopilot.`;
+    }
+    if (s.maskedKey) line += ` Key ${s.maskedKey}.`;
+    licenseStatusLine.textContent = line;
+    const hasKey = !!s.maskedKey;
+    if (licenseRefreshBtn) licenseRefreshBtn.style.display = hasKey ? '' : 'none';
+    if (licenseRemoveBtn) licenseRemoveBtn.style.display = hasKey ? '' : 'none';
+
+    // Upgrade path. Shown exactly while there is something to upgrade FROM —
+    // the free month, the trial week, or after either ran out — and hidden once
+    // a subscription is live. Anchors with target="_blank" ride the main
+    // process's setWindowOpenHandler out to the default browser; no IPC, and no
+    // in-app window ever renders a checkout page.
+    if (licensePlans && licensePlansButtons) {
+      const offer = s.plans || [];
+      const wantsUpgrade = s.tier === 'free' || s.reason === 'trial';
+      licensePlans.style.display = wantsUpgrade && offer.length ? '' : 'none';
+      licensePlansButtons.replaceChildren(...offer.map(p => {
+        const a = document.createElement('a');
+        a.className = 'btn primary';
+        a.href = p.buyUrl;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = `${p.name} — ${p.price}/${p.interval}`;
+        return a;
+      }));
+    }
+  }
+
+  async function refreshLicenseCard() {
+    try { renderLicenseCard(await window.electronAPI.getLicenseStatus()); } catch { /* card stays as-is */ }
+  }
+  void refreshLicenseCard();
+
+  licenseActivateBtn?.addEventListener('click', async () => {
+    const key = licenseKeyInput?.value.trim() || '';
+    if (!key) { toast('Paste your license key first.', 'error'); return; }
+    licenseActivateBtn.disabled = true;
+    try {
+      const res = await window.electronAPI.licenseActivate(key);
+      renderLicenseCard(res.status);
+      if (res.ok) {
+        if (licenseKeyInput) licenseKeyInput.value = '';
+        toast('Welcome aboard First Class.', 'success', 'License activated');
+      } else {
+        toast(res.error || 'Activation failed.', 'error', 'License');
+      }
+    } catch {
+      toast('Activation failed.', 'error', 'License');
+    } finally {
+      licenseActivateBtn.disabled = false;
+    }
+  });
+
+  licenseRefreshBtn?.addEventListener('click', async () => {
+    licenseRefreshBtn.disabled = true;
+    try {
+      const res = await window.electronAPI.licenseValidate();
+      renderLicenseCard(res.status);
+      if (res.ok) toast(res.status.tier === 'first-class' ? 'Subscription confirmed.' : 'Checked — the subscription is not active.', res.status.tier === 'first-class' ? 'success' : 'info', 'License');
+      else toast(res.error || 'Could not check the subscription.', 'error', 'License');
+    } catch {
+      toast('Could not check the subscription.', 'error', 'License');
+    } finally {
+      licenseRefreshBtn.disabled = false;
+    }
+  });
+
+  licenseRemoveBtn?.addEventListener('click', async () => {
+    licenseRemoveBtn.disabled = true;
+    try {
+      const res = await window.electronAPI.licenseDeactivate();
+      renderLicenseCard(res.status);
+      toast(res.error || 'The key was removed from this machine.', res.error ? 'info' : 'success', 'License');
+    } catch {
+      toast('Could not remove the key.', 'error', 'License');
+    } finally {
+      licenseRemoveBtn.disabled = false;
     }
   });
 
@@ -6195,16 +6626,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Modal Listeners
+  // Modal Listeners. Escape needs no third handler: setupModalA11y clicks
+  // .close-modal precisely so cleanup like this runs.
   if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', () => {
-      previewModal.style.display = 'none';
-    });
+    closeModalBtn.addEventListener('click', closeEmailPreview);
   }
   window.addEventListener('click', (e) => {
-    if (e.target === previewModal) {
-      previewModal.style.display = 'none';
-    }
+    if (e.target === previewModal) closeEmailPreview();
   });
 
 });

@@ -8,7 +8,7 @@ import { upsertAccount } from '../../src/accountStore';
 import { makeSecretBox } from '../../src/crypto/factory';
 
 /**
- * Microsoft OAuth for SMTP/IMAP (XOAUTH2). Uses the authorization-code + PKCE
+ * Microsoft OAuth for the 'graph' transport. Uses the authorization-code + PKCE
  * flow in the user's SYSTEM browser (Google/Microsoft both block OAuth inside
  * embedded webviews) with a transient loopback redirect — the standard desktop
  * pattern. No client secret: this is a public client.
@@ -18,7 +18,7 @@ import { makeSecretBox } from '../../src/crypto/factory';
  * §8.5) — it identifies the app, it grants nothing by itself. MS_OAUTH_CLIENT_ID
  * remains as an override seam for forks and tests.
  * Required delegated permissions on that app:
- *   Office 365 Exchange Online → SMTP.Send, IMAP.AccessAsUser.All
+ *   Microsoft Graph → Mail.Send, Mail.ReadWrite
  *   plus offline_access (for refresh tokens).
  */
 
@@ -27,20 +27,12 @@ const DEFAULT_CLIENT_ID = '98e5ce29-bb3b-4da9-9065-d89d87c9f517';
 const CLIENT_ID = process.env.MS_OAUTH_CLIENT_ID || DEFAULT_CLIENT_ID;
 const AUTHORITY = 'https://login.microsoftonline.com/common';
 
-// SMTP.Send + IMAP.AccessAsUser.All share one Exchange Online resource, so a
-// single access token covers both. The resource URI must be the
-// `outlook.office.com` alias: Entra registers Exchange Online under both
-// outlook.office365.com and outlook.office.com, but PERSONAL (MSA) accounts
-// only resolve the latter — the office365 form dies at the authorize step with
-// AADSTS70011 "The provided resource value for the input parameter 'scope' is
-// not valid" (verified live 2026-07-18). The office.com form works for both
-// account worlds (the Thunderbird pattern), and the tokens it mints are
-// accepted by smtp.office365.com/outlook.office365.com servers unchanged.
-// offline_access yields the refresh token; the OIDC scopes give us the
-// signed-in address.
-const SCOPES = [
-  'https://outlook.office.com/SMTP.Send',
-  'https://outlook.office.com/IMAP.AccessAsUser.All',
+// Graph resource scopes for the 'graph' transport (Mail.Send now; Mail.ReadWrite
+// consented ahead of a future Graph reply reader so it needs no second re-consent).
+// Personal Microsoft accounts support delegated Mail.Send (verified in Graph docs).
+const GRAPH_SCOPES = [
+  'https://graph.microsoft.com/Mail.Send',
+  'https://graph.microsoft.com/Mail.ReadWrite',
   'offline_access',
   'openid',
   'profile',
@@ -121,7 +113,7 @@ export async function loginMicrosoft(timeoutMs = 5 * 60_000): Promise<MicrosoftL
         if (!code) { res.end('Waiting for sign-in…'); return; }
 
         const redirectUri = `http://localhost:${(server.address() as AddressInfo).port}`;
-        const result = await cca.acquireTokenByCode({ code, scopes: SCOPES, redirectUri, codeVerifier: verifier });
+        const result = await cca.acquireTokenByCode({ code, scopes: GRAPH_SCOPES, redirectUri, codeVerifier: verifier });
         const email = result?.account?.username || '';
         const oauthToken = encryptSecret(cca.getTokenCache().serialize());
         res.end('Signed in. You can close this tab and return to Email Pilots.');
@@ -136,7 +128,7 @@ export async function loginMicrosoft(timeoutMs = 5 * 60_000): Promise<MicrosoftL
       try {
         const redirectUri = `http://localhost:${(server.address() as AddressInfo).port}`;
         const authUrl = await cca.getAuthCodeUrl({
-          scopes: SCOPES,
+          scopes: GRAPH_SCOPES,
           redirectUri,
           codeChallenge: challenge,
           codeChallengeMethod: 'S256',
@@ -153,11 +145,11 @@ export async function loginMicrosoft(timeoutMs = 5 * 60_000): Promise<MicrosoftL
 }
 
 /**
- * Acquire a fresh access token for an oauth-smtp account (silent). Deserializes
+ * Acquire a fresh Graph access token for a 'graph' account (silent). Deserializes
  * the stored cache, refreshes via the refresh token, and persists the (possibly
  * rotated) cache back to accounts.json. Throws if the account must sign in again.
  */
-export async function getAccessToken(account: Account): Promise<string> {
+export async function getGraphAccessToken(account: Account): Promise<string> {
   const serialized = decryptSecret(account.oauthToken);
   if (!serialized) throw new Error(`Account ${account.user} needs to sign in with Microsoft again.`);
 
@@ -167,7 +159,7 @@ export async function getAccessToken(account: Account): Promise<string> {
   const msAccount = cached.find(a => a.username?.toLowerCase() === account.user.toLowerCase()) || cached[0];
   if (!msAccount) throw new Error(`Account ${account.user} needs to sign in with Microsoft again.`);
 
-  const result = await cca.acquireTokenSilent({ account: msAccount, scopes: SCOPES }).catch((e) => {
+  const result = await cca.acquireTokenSilent({ account: msAccount, scopes: GRAPH_SCOPES }).catch((e) => {
     throw new Error(`Microsoft token refresh failed for ${account.user}: ${e?.message || e}`);
   });
 

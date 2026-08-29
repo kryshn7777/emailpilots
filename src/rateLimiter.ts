@@ -28,6 +28,9 @@ interface LimitState {
   deliveredPerRecipientToday: { [email: string]: number };
   // Account-age anchor for the warmup ramp; set once, survives daily rollover.
   warmupStartDate: string;
+  // Per-day warm-up override: when === today, effectiveMaxPerDay ignores the ramp and
+  // uses maxPerDay. Today-only — not carried across rollover, so it self-clears.
+  warmupOverrideDate?: string;
 }
 
 export interface CheckResult {
@@ -100,6 +103,7 @@ export class RateLimiter {
         // anchor warmup far in the past so we don't re-throttle it to day-1.
         // Only a brand-new install (no file at all) starts the ramp today.
         warmupStartDate: data.warmupStartDate || '2000-01-01',
+        warmupOverrideDate: data.warmupOverrideDate,
       };
     } catch (e) {
       // SIM-1: present-but-unreadable must FAIL CLOSED, not restart the day at
@@ -167,6 +171,8 @@ export class RateLimiter {
   private effectiveMaxPerDay(): number {
     const { warmupEnabled, warmupCurve, maxPerDay } = this.limits;
     if (!warmupEnabled || !warmupCurve || warmupCurve.length === 0) return maxPerDay;
+    // Per-day override: user knowingly pushed past the ramp for today (soft-block).
+    if (this.state.warmupOverrideDate === todayStr()) return maxPerDay;
     const idx = Math.min(this.warmupDay(), warmupCurve.length - 1);
     return Math.min(maxPerDay, warmupCurve[idx]);
   }
@@ -337,6 +343,17 @@ export class RateLimiter {
     return true;
   }
 
+  /** Soft-block override: lift the warm-up ramp to maxPerDay for TODAY only. Persists to
+   *  limits.<id>.json so the next (possibly automated) send reads it; self-clears at the
+   *  next local-midnight rollover. No-op (false) on an unreadable file (SIM-1). */
+  overrideWarmupToday(): boolean {
+    this.reloadState();
+    if (this.loadFailed) return false;
+    this.state.warmupOverrideDate = todayStr();
+    this.save();
+    return true;
+  }
+
   getState(): LimitState {
     this.reloadState();
     return this.state;
@@ -357,6 +374,7 @@ export class RateLimiter {
       currentWindowCount: this.state.currentWindowCount,
       maxPerWindow: this.limits.maxPerWindow,
       maxPerRecipientPerDay: this.limits.maxPerRecipientPerDay,
+      warmupOverriddenToday: this.state.warmupOverrideDate === todayStr(),
     };
   }
 }

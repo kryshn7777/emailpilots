@@ -46,11 +46,16 @@ function normalize(a: any): Account | null {
   // Boolean check (not truthy): an explicit false must survive the round-trip,
   // or "don't copy to Sent" silently reverts to the provider default on reload.
   if (typeof a.copyToSent === 'boolean') acc.copyToSent = a.copyToSent;
-  if (a.transport === 'oauth-smtp' || a.transport === 'browser') acc.transport = a.transport;
+  // Legacy migration: pre-Graph Microsoft accounts stored 'oauth-smtp'. They map
+  // to 'graph' on read; the first token use may ask the user to sign in again
+  // (the old cache was consented for SMTP/IMAP scopes, not Graph).
+  if (a.transport === 'oauth-smtp') a.transport = 'graph';
+  if (a.transport === 'browser' || a.transport === 'graph') acc.transport = a.transport;
   if (a.oauthProvider) acc.oauthProvider = a.oauthProvider;
   if (a.oauthToken) acc.oauthToken = String(a.oauthToken);
   if (a.browserProvider) acc.browserProvider = a.browserProvider;
   if (a.browserPartition) acc.browserPartition = String(a.browserPartition);
+  if (a.identityWarning) acc.identityWarning = String(a.identityWarning);
   return acc;
 }
 

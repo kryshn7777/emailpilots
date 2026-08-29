@@ -21,15 +21,15 @@ import { detectProviderFromEmail } from './providerDetect';
  */
 
 /** Provider policy: should this account's real sends be copied to Sent?
- *  An explicit account.copyToSent always wins; otherwise on for oauth-smtp
- *  (Microsoft never auto-saves) and generic SMTP hosts, off for Gmail (its
- *  SMTP auto-saves — a copy would duplicate) and browser accounts (no IMAP
- *  credentials at all). */
+ *  An explicit account.copyToSent always wins; otherwise on for generic SMTP
+ *  hosts, off for Gmail (its SMTP auto-saves — a copy would duplicate) and
+ *  browser accounts (no IMAP credentials at all). 'graph' sends never reach
+ *  the copier at all: Graph auto-saves to Sent Items and GraphStrategy
+ *  returns no raw bytes to copy. */
 export function shouldCopyToSent(account: Account | undefined | null): boolean {
   if (!account || !account.user) return false;
   if (account.transport === 'browser') return false;
   if (typeof account.copyToSent === 'boolean') return account.copyToSent;
-  if (account.transport === 'oauth-smtp') return true;
   if (detectProviderFromEmail(account.user) === 'gmail') return false;
   if (/gmail|googlemail/i.test(String(account.host || ''))) return false;
   return true;
@@ -47,12 +47,6 @@ export class SentFolderCopier {
    *  SMTP. One session at a time per account; different accounts still overlap. */
   private queues = new Map<string, Promise<void>>();
 
-  constructor(
-    /** Electron-injected XOAUTH2 token getter for oauth-smtp accounts. Absent
-     *  (CLI) ⇒ oauth copies are skipped; classic-password copies still work. */
-    private getAccessToken?: (account: Account) => Promise<string>
-  ) {}
-
   /** Test seam — mirrors ReplyPoller.createClient. */
   protected createClient(opts: ConstructorParameters<typeof ImapFlow>[0]): ImapFlow {
     return new ImapFlow(opts);
@@ -69,16 +63,11 @@ export class SentFolderCopier {
   }
 
   private async doCopy(account: Account, raw: Buffer): Promise<void> {
-    const isOAuth = account.transport === 'oauth-smtp';
-    if (isOAuth && !this.getAccessToken) return; // no token seam here (CLI)
-    // Client build mirrors ReplyPoller.scanAccount: Microsoft's IMAP endpoint
-    // is outlook.office365.com (not an imap.* swap); classic accounts use the
-    // derived or overridden host, implicit TLS on 993.
-    const host = account.imapHost || (isOAuth ? 'outlook.office365.com' : deriveImapHost(account.host));
+    // Client build mirrors ReplyPoller.scanAccount: the derived or overridden
+    // host, implicit TLS on 993, password auth.
+    const host = account.imapHost || deriveImapHost(account.host);
     const port = account.imapPort || 993;
-    const auth = isOAuth
-      ? { user: account.user, accessToken: await this.getAccessToken!(account) }
-      : { user: account.user, pass: account.pass };
+    const auth = { user: account.user, pass: account.pass };
     const client = this.createClient({ host, port, secure: true, auth, logger: false });
     await client.connect();
     try {

@@ -21,6 +21,17 @@ function makeCanvas(size: number): [HTMLCanvasElement, CanvasRenderingContext2D]
   return [canvas, ctx];
 }
 
+/** makeCanvas for maps whose plane is not square (drawing space = w × h). */
+function makeCanvasWH(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
+  const canvas = document.createElement('canvas');
+  canvas.width = w * BAKE_SCALE;
+  canvas.height = h * BAKE_SCALE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.scale(BAKE_SCALE, BAKE_SCALE);
+  return [canvas, ctx];
+}
+
 /**
  * The dart's sheet, UV-mapped to the flat crease pattern: paper grain, the
  * email's ruled handwriting, and the fold diagonals radiating from the nose
@@ -320,63 +331,130 @@ export function replyTexture(): CanvasTexture {
   return texture;
 }
 
-/** Laptop display: compose window mid-send — the shot the flight launches from. */
-export function laptopScreenTexture(): CanvasTexture {
-  const [canvas, ctx] = makeCanvas(512);
-  ctx.fillStyle = '#0b101d';
-  ctx.fillRect(0, 0, 512, 512);
+/**
+ * Where the firing strip's track sits on the display, as fractions of the
+ * face (`x` = left edge, `y` = centre line measured from the top).
+ *
+ * The FILL is not baked — scroll drives it, so it is a mesh in `Desk`. Both
+ * ends read this so the bar can never drift off its own track.
+ */
+export const LAPTOP_BAR = { x: 0.1, y: 0.905, w: 0.8, h: 0.032 } as const;
 
-  // title bar
+/**
+ * Laptop display: the Email Pilots app mid-send — the shot the flight
+ * launches from. Drawn on a 1.4839:1 canvas, the display plane's own aspect,
+ * so the logo lockup is not stretched onto it.
+ */
+export function laptopScreenTexture(): CanvasTexture {
+  const W = 1024;
+  const H = 690;
+  const [canvas, ctx] = makeCanvasWH(W, H);
+
+  // desktop: deep navy, with a cool pool of light behind the brand
+  ctx.fillStyle = '#0b101d';
+  ctx.fillRect(0, 0, W, H);
+  const pool = ctx.createRadialGradient(W * 0.57, H * 0.42, 20, W * 0.57, H * 0.42, W * 0.52);
+  pool.addColorStop(0, 'rgba(64, 146, 226, 0.26)');
+  pool.addColorStop(1, 'rgba(11, 16, 29, 0)');
+  ctx.fillStyle = pool;
+  ctx.fillRect(0, 0, W, H);
+
+  // title bar + window controls
   ctx.fillStyle = '#141c30';
-  ctx.fillRect(0, 0, 512, 54);
+  ctx.fillRect(0, 0, W, 62);
   ctx.fillStyle = '#9be8ff';
-  ctx.font = '700 24px monospace';
-  ctx.fillText('EMAIL PILOTS', 24, 36);
-  for (let i = 0; i < 3; i++) {
-    ctx.fillStyle = 'rgba(155, 232, 255, 0.4)';
+  ctx.font = '700 26px monospace';
+  ctx.fillText('EMAIL PILOTS', 30, 41);
+  (['#ff6b6b', '#ffc861', '#5fe08f'] as const).forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.globalAlpha = 0.8;
     ctx.beginPath();
-    ctx.arc(452 + i * 20, 27, 5, 0, Math.PI * 2);
+    ctx.arc(W - 108 + i * 32, 31, 7, 0, Math.PI * 2);
     ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // sidebar: nav rails only. The room is meant to read the LOGO across four
+  // metres of desk, not a menu — every other label stays off by request.
+  const SIDE = 196;
+  ctx.fillStyle = '#0e1526';
+  ctx.fillRect(0, 62, SIDE, H - 62);
+  ctx.fillStyle = 'rgba(155, 232, 255, 0.08)';
+  ctx.fillRect(SIDE - 2, 62, 2, H - 62);
+  for (let i = 0; i < 6; i++) {
+    const y = 108 + i * 52;
+    const active = i === 1;
+    ctx.fillStyle = active ? 'rgba(155, 232, 255, 0.55)' : 'rgba(155, 232, 255, 0.16)';
+    ctx.beginPath();
+    ctx.roundRect(34, y, active ? 126 : 96 + (i % 3) * 18, 15, 7);
+    ctx.fill();
+    if (active) {
+      ctx.fillStyle = '#9be8ff';
+      ctx.fillRect(18, y - 4, 4, 23);
+    }
   }
 
-  // clean face: just the brand centered above the firing strip — every other
-  // text hidden by request
-  ctx.fillStyle = '#9be8ff';
-  ctx.font = '900 52px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('EMAIL PILOTS', 256, 220);
-  ctx.strokeStyle = 'rgba(155, 232, 255, 0.35)';
-  ctx.lineWidth = 2;
+  // — the brand lockup: badge, dart, wordmark —
+  const cx = SIDE + (W - SIDE) / 2;
+  const cy = 268;
+  ctx.strokeStyle = 'rgba(155, 232, 255, 0.38)';
+  ctx.lineWidth = 3;
+  ctx.fillStyle = 'rgba(155, 232, 255, 0.07)';
   ctx.beginPath();
-  ctx.moveTo(96, 250);
-  ctx.lineTo(416, 250);
+  ctx.roundRect(cx - 84, cy - 84, 168, 168, 38);
+  ctx.fill();
   ctx.stroke();
-  // paper-dart emblem under the wordmark
-  ctx.fillStyle = 'rgba(155, 232, 255, 0.9)';
+  // paper dart, nose up-right, with the shaded keel fold
+  ctx.fillStyle = 'rgba(155, 232, 255, 0.92)';
   ctx.beginPath();
-  ctx.moveTo(216, 330);
-  ctx.lineTo(296, 296);
-  ctx.lineTo(232, 352);
-  ctx.lineTo(240, 322);
+  ctx.moveTo(cx - 52, cy + 26);
+  ctx.lineTo(cx + 54, cy - 44);
+  ctx.lineTo(cx - 8, cy + 52);
+  ctx.lineTo(cx - 16, cy + 12);
   ctx.closePath();
   ctx.fill();
-  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(64, 146, 226, 0.75)';
+  ctx.beginPath();
+  ctx.moveTo(cx - 16, cy + 12);
+  ctx.lineTo(cx + 54, cy - 44);
+  ctx.lineTo(cx - 8, cy + 52);
+  ctx.closePath();
+  ctx.fill();
 
-  // firing strip
-  ctx.fillStyle = '#101a2e';
-  ctx.fillRect(0, 408, 512, 104);
-  ctx.fillStyle = '#7fe8d8';
-  ctx.font = '700 34px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('FIRING EMAIL…', 256, 450);
-  ctx.textAlign = 'left';
-  ctx.strokeStyle = 'rgba(127, 232, 216, 0.35)';
+  ctx.fillStyle = '#9be8ff';
+  ctx.font = '900 58px monospace';
+  ctx.fillText('EMAIL PILOTS', cx, cy + 158);
+  ctx.strokeStyle = 'rgba(155, 232, 255, 0.3)';
   ctx.lineWidth = 2;
-  ctx.strokeRect(56, 468, 400, 18);
-  ctx.fillRect(58, 470, 396 * 0.82, 14);
+  ctx.beginPath();
+  ctx.moveTo(cx - 196, cy + 186);
+  ctx.lineTo(cx + 196, cy + 186);
+  ctx.stroke();
+
+  // firing strip — the track only; the fill is a scroll-driven mesh
+  ctx.fillStyle = '#101a2e';
+  ctx.fillRect(0, H - 150, W, 150);
+  ctx.fillStyle = 'rgba(127, 232, 216, 0.22)';
+  ctx.fillRect(0, H - 150, W, 2);
+  ctx.fillStyle = '#7fe8d8';
+  ctx.font = '700 32px monospace';
+  ctx.fillText('FIRING EMAIL…', W / 2, H - 98);
+  ctx.textAlign = 'left';
+  const bx = LAPTOP_BAR.x * W;
+  const bh = LAPTOP_BAR.h * H;
+  const by = LAPTOP_BAR.y * H - bh / 2;
+  ctx.fillStyle = '#081120';
+  ctx.strokeStyle = 'rgba(127, 232, 216, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, LAPTOP_BAR.w * W, bh, bh / 2);
+  ctx.fill();
+  ctx.stroke();
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 8;
   return texture;
 }
 

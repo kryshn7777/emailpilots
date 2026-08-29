@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeOnboardingSteps,
+  computeLevelUpSteps,
   isInboxConnected,
   type OnboardingState,
+  type LevelUpState,
 } from '../onboarding';
 
 const base: OnboardingState = {
@@ -61,6 +63,56 @@ describe('computeOnboardingSteps', () => {
   });
 });
 
+describe('computeLevelUpSteps', () => {
+  const luBase: LevelUpState = {
+    totalSent: 1,
+    hasSequence: false,
+    domainAuthPassed: false,
+    aiEnabled: false,
+    dismissed: false,
+  };
+
+  function luStatus(r: ReturnType<typeof computeLevelUpSteps>, key: string) {
+    return r.steps.find(s => s.key === key)?.status;
+  }
+
+  it('stays hidden until the first email has been sent', () => {
+    expect(computeLevelUpSteps({ ...luBase, totalSent: 0 }).visible).toBe(false);
+  });
+
+  it('appears after the first send with the sequence step active', () => {
+    const r = computeLevelUpSteps(luBase);
+    expect(r.visible).toBe(true);
+    expect(luStatus(r, 'sequence')).toBe('active');
+    expect(luStatus(r, 'domain-auth')).toBe('todo');
+    expect(luStatus(r, 'ai')).toBe('todo');
+  });
+
+  it('advances to domain-auth once a sequence exists', () => {
+    const r = computeLevelUpSteps({ ...luBase, hasSequence: true });
+    expect(luStatus(r, 'sequence')).toBe('done');
+    expect(luStatus(r, 'domain-auth')).toBe('active');
+  });
+
+  it('keeps the first undone step active when a later one completes first', () => {
+    const r = computeLevelUpSteps({ ...luBase, aiEnabled: true });
+    expect(luStatus(r, 'ai')).toBe('done');
+    expect(luStatus(r, 'sequence')).toBe('active');
+    expect(luStatus(r, 'domain-auth')).toBe('todo');
+  });
+
+  it('retires itself once every step is done', () => {
+    const r = computeLevelUpSteps({
+      ...luBase, hasSequence: true, domainAuthPassed: true, aiEnabled: true,
+    });
+    expect(r.visible).toBe(false);
+  });
+
+  it('stays hidden when dismissed, even with steps remaining', () => {
+    expect(computeLevelUpSteps({ ...luBase, dismissed: true }).visible).toBe(false);
+  });
+});
+
 describe('isInboxConnected — .env primary account', () => {
   it('is connected with a user and a stored password', () => {
     expect(isInboxConnected({ smtpUser: 'a@b.com', smtpHasPass: true })).toBe(true);
@@ -80,7 +132,7 @@ describe('isInboxConnected — .env primary account', () => {
 });
 
 describe('isInboxConnected — accounts.json', () => {
-  const oauth = { enabled: true, hasPass: false, transport: 'oauth-smtp' };
+  const oauth = { enabled: true, hasPass: false, transport: 'graph' };
   const browser = { enabled: true, hasPass: false, transport: 'browser' };
   const extraPw = { enabled: true, hasPass: true, transport: 'smtp' };
 
@@ -117,7 +169,7 @@ describe('isInboxConnected — accounts.json', () => {
   });
 
   it('treats a missing enabled field as enabled', () => {
-    expect(isInboxConnected({ accounts: [{ transport: 'oauth-smtp' }], allowOauth: true })).toBe(true);
+    expect(isInboxConnected({ accounts: [{ transport: 'graph' }], allowOauth: true })).toBe(true);
   });
 
   it('counts an extra password account only under the browser flag', () => {

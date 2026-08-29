@@ -30,8 +30,8 @@ describe('CSA-5: accountHasCredentials agrees with the backend for every transpo
     expect(accountHasCredentials({ hasPass: true, transport: 'smtp' })).toBe(true);
   });
 
-  it('counts a password-less OAuth-SMTP account — the whole point of the fix', () => {
-    expect(accountHasCredentials({ hasPass: false, transport: 'oauth-smtp' })).toBe(true);
+  it('counts a password-less Graph account — the whole point of the fix', () => {
+    expect(accountHasCredentials({ hasPass: false, transport: 'graph' })).toBe(true);
   });
 
   it('counts a password-less browser-session account', () => {
@@ -52,7 +52,7 @@ describe('CSA-5: the renderer DTO rule and the backend rule cannot diverge', () 
   // The bug was precisely that these two answered differently for the same account.
   const cases: Array<{ name: string; account: Account }> = [
     { name: 'password SMTP', account: { id: 'a', user: 'a@x.com', pass: 'pw', host: 'h', port: 587, enabled: true } },
-    { name: 'OAuth-SMTP',    account: { id: 'b', user: 'b@x.com', pass: '', host: 'h', port: 587, enabled: true, transport: 'oauth-smtp' } },
+    { name: 'Graph',         account: { id: 'b', user: 'b@x.com', pass: '', host: 'h', port: 587, enabled: true, transport: 'graph' } },
     { name: 'browser',       account: { id: 'c', user: 'c@x.com', pass: '', host: 'h', port: 587, enabled: true, transport: 'browser' } },
     { name: 'no creds',      account: { id: 'd', user: 'd@x.com', pass: '', host: 'h', port: 587, enabled: true } },
   ];

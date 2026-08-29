@@ -192,3 +192,30 @@ describe('renderEmail merge-var defaults', () => {
     expect(out.subject).toBe('Re: Acme');
   });
 });
+
+// Deliverability audit DLV-9: the text/plain alternative is derived from the
+// rendered HTML, so Mustache's HTML-escaping leaked into it verbatim (a merge
+// var "O'Reilly" arrived as "O&#39;Reilly" in the plain-text part) and an opening
+// <p> after inline content produced no line break ("Tuesday?Best,"). Text/HTML
+// parity is both a readability and a spam-filter signal.
+describe('renderEmail — plain-text part parity (DLV-9)', () => {
+  const tpl = () => tmpFile('<body><p>Hi {{name}},</p>{{{message}}}<p>Best,<br>Jane</p></body>');
+
+  it('decodes Mustache-escaped entities in the text part while the HTML part stays escaped', () => {
+    const out = renderEmail(
+      { email: 's@x.com', name: "Bob O'Reilly", messageType: 'text', messageContent: 'Re: "growth" & scale' },
+      makeConfig({ templateHtml: tpl(), inboxPlacement: 'primary' }),
+    );
+    expect(out.text).toContain("Hi Bob O'Reilly,");
+    expect(out.text).toContain('Re: "growth" & scale');
+    expect(out.body).toContain('O&#39;Reilly'); // HTML must keep its escaping
+  });
+
+  it('breaks the line before an opening block tag, not only after a closing one', () => {
+    const out = renderEmail(
+      { email: 's@x.com', name: 'Sam', messageType: 'text', messageContent: 'Are you free Tuesday?' },
+      makeConfig({ templateHtml: tpl(), inboxPlacement: 'primary' }),
+    );
+    expect(out.text).toContain('Tuesday?\nBest,\nJane');
+  });
+});

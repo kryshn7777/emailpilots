@@ -143,9 +143,19 @@ export function hardBounce550(): any {
   });
 }
 
-/** Transient network-ish failure — retried next run, never suppressed. */
+/** Transient network-ish failure — never suppressed. Account-level, so since DLV-14
+ *  it ENDS a batch run (the next recipient would time out the same way). */
 export function transientErr(): any {
   return Object.assign(new Error('connection timed out'), { code: 'ETIMEDOUT' });
+}
+
+/** Transient PER-RECIPIENT refusal — Gmail's RCPT-stage receive-rate limit. Never
+ *  suppressed (4xx), retried next run, and the batch continues past it (DLV-14). */
+export function transientRcpt450(): any {
+  return Object.assign(new Error('Mail command failed: 450-4.2.1 The user you are trying to contact is receiving mail at a rate that prevents additional messages from being delivered.'), {
+    code: 'EENVELOPE', responseCode: 450, command: 'RCPT TO',
+    response: '450-4.2.1 The user you are trying to contact is receiving mail at a rate that prevents additional messages from being delivered.',
+  });
 }
 
 export const acceptAll = (): SendPlan => ({ kind: 'accept' });

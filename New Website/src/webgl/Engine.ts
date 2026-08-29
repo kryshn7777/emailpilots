@@ -33,6 +33,7 @@ import { ZoomBlurEffect } from './post/ZoomBlur';
 import {
   CONTRAIL_FROM,
   FOLD_WINDOW,
+  LAUNCH_T,
   TOUCHDOWN_T,
   UNFOLD_WINDOW,
   gradeBlendAt,
@@ -135,6 +136,14 @@ export class Engine {
 
   private fog: Fog;
   private scrollT = 0;
+  /**
+   * The pre-flight beat: 0→1 across the first `LAUNCH_T` of page scroll, with
+   * the world parked at story-t 0 the whole way. It fills the laptop's
+   * "FIRING EMAIL…" bar, and the dart leaves the screen when it lands on 1.
+   * Read straight off the scroll rather than off the damped `renderT` — the
+   * bar should track the wheel exactly, the world is what has weight.
+   */
+  private launch = 0;
   /**
    * What the frame actually renders: scrollT chased with a frame-rate-
    * independent damp. Wheel detents, scrollbar drags, PageDown, and anchor
@@ -334,8 +343,11 @@ export class Engine {
   start(): void {
     this.director = new ScrollDirector({
       reducedMotion: this.options.reducedMotion,
-      onProgress: (t) => {
-        this.scrollT = t;
+      onProgress: (raw) => {
+        this.launch = Math.min(raw / LAUNCH_T, 1);
+        // the launch beat is spent, not stolen: the rest of the page still
+        // covers the whole story, so no chapter loses scroll to it
+        this.scrollT = Math.max(0, (raw - LAUNCH_T) / (1 - LAUNCH_T));
         if (this.options.reducedMotion) this.renderFrame();
       },
     });
@@ -561,12 +573,14 @@ export class Engine {
     this.prevT = t;
 
     this.rig.update(t, time, dt);
-    // the plane "comes out of the screen": hidden until the launch thread
-    // has drawn a little way out of the laptop (sub-pages always show it)
-    this.plane.group.visible = this.idlePreset !== null || t > 0.012;
+    // the plane comes OUT OF THE SCREEN: nothing exists until the app's
+    // firing bar has filled, then the dart bursts up to size at the display
+    // and rides the thread out of it (sub-pages always show it)
+    this.plane.group.visible = this.idlePreset !== null || this.launch >= 1;
+    const popped = this.idlePreset ? 1 : MathUtils.smoothstep(t, 0, 0.016);
     // the dart is swallowed by the arrival screen it flies into
     const absorbed = this.idlePreset ? 0 : MathUtils.smoothstep(t, 0.982, 0.998);
-    this.plane.group.scale.setScalar(1 - absorbed);
+    this.plane.group.scale.setScalar((1 - absorbed) * popped);
     this.launchString.update(this.idlePreset ? 1 : t, this.path);
     this.plane.flex(time, t > CONTRAIL_FROM || this.idlePreset ? 1 : 0);
 
@@ -679,7 +693,9 @@ export class Engine {
     this.rooftops.group.visible = t > 0.06 && t < 0.33 && deckClose < 0.99;
     this.rooftops.update(time);
 
-    if (nearDesk) this.desk.update(time); // 250-mote dust loop, pointless offscreen
+    // 250-mote dust loop, pointless offscreen — and the firing bar, which
+    // only exists while the laptop is in frame anyway
+    if (nearDesk) this.desk.update(time, this.idlePreset ? 1 : this.launch);
     this.panel.update(t);
     this.clouds.update(time, this.sunScreenDir, this.fog.near, this.fog.far, t);
     this.envelopes.update(

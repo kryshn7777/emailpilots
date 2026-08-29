@@ -9,15 +9,17 @@ function tmpDir(): string {
 }
 
 describe('accountStore transport persistence', () => {
-  it('round-trips an oauth-smtp account with its provider and token', () => {
+  it('migrates a legacy oauth-smtp row to graph on read, keeping provider and token', () => {
     const dir = tmpDir();
-    upsertAccount(dir, {
+    // Written raw: upsertAccount can no longer produce this shape — only a
+    // pre-Graph accounts.json can, which is exactly what the migration is for.
+    fs.writeFileSync(path.join(dir, 'accounts.json'), JSON.stringify([{
       id: 'a1', user: 'x@outlook.com', host: 'smtp.office365.com', port: 587,
       pass: '', enabled: true,
       transport: 'oauth-smtp', oauthProvider: 'microsoft', oauthToken: 'ENC:abc',
-    });
+    }]));
     const [acc] = readAccounts(dir);
-    expect(acc.transport).toBe('oauth-smtp');
+    expect(acc.transport).toBe('graph');
     expect(acc.oauthProvider).toBe('microsoft');
     expect(acc.oauthToken).toBe('ENC:abc');
   });

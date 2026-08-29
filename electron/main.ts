@@ -2,7 +2,7 @@ import { app, BrowserWindow, shell, ipcMain, dialog, Tray, Menu, nativeImage, se
 import path from 'path';
 import fs from 'fs';
 import dns from 'dns';
-import { loadConfig, getBasePath, Account } from '../src/config';
+import { loadConfig, getBasePath, loadEnvInto, Account } from '../src/config';
 import { EmailService } from '../src/emailService';
 import { MailProcessor } from '../src/mailProcessor';
 import { Scheduler } from '../src/scheduler';
@@ -15,13 +15,15 @@ import {
 import { renderEmail } from '../src/renderer';
 import { readCsvFile } from '../src/csvImport';
 import { normalizeAppPassword } from '../src/smtpUtils';
-import { buildProcessors, runAllAccounts, hasCredentials } from '../src/campaignRunner';
+import { buildProcessors, runAllAccounts, hasCredentials, sendableAccounts } from '../src/campaignRunner';
 import type { StrategyDeps } from '../src/transport/sendStrategy';
-import { loginMicrosoft, getAccessToken as msGetAccessToken, isMicrosoftOAuthConfigured } from './transport/oauthMicrosoft';
+import { loginMicrosoft, getGraphAccessToken as msGetGraphAccessToken, isMicrosoftOAuthConfigured } from './transport/oauthMicrosoft';
 import { connectBrowser, createBrowserStrategy } from './transport/browserSession';
 import { readAccounts, upsertAccount, removeAccount, accountsFilePath, MAX_EXTRA_ACCOUNTS } from '../src/accountStore';
 import { accountStateFileName, DEFAULT_ACCOUNT_STATE_FILES } from '../src/accountFiles';
 import { SentLog, type SentLogEntry } from '../src/sentLog';
+import { upcomingSends } from '../src/nextRun';
+import { computeIdleNudge } from '../src/idleNudge';
 import { shouldCopyToSent } from '../src/sentCopy';
 import { syncLedgerOwner, writeLedgerOwner } from '../src/sentLedgerOwner';
 import { readCampaigns, upsertCampaign, removeCampaign } from '../src/campaignStore';
@@ -41,7 +43,8 @@ import {
 import type { DnsAnswer, DkimProbeResult } from '../src/domainAuth';
 import { classifyMxRecords } from '../src/mxValidation';
 import { detectProviderFromMx, detectProviderFromEmail, isMsBasicAuthDeadHost } from '../src/providerDetect';
-import dotenv from 'dotenv';
+import { LicenseManager } from '../src/licensing/licensing';
+import { lsConfigured, planFor, buyablePlans } from '../src/licensing/lsConfig';
 
 // Writing to a closed stdout/stderr pipe raises EPIPE. With no listener Node
 // throws it as an uncaught exception → Electron's "A JavaScript error occurred
@@ -193,14 +196,11 @@ function createWindow() {
     }
   });
 
-  // EPT_GUI=2 selects the GUI2 (landing-style) renderer entry; anything else
-  // loads the default GUI so existing launch paths are untouched.
-  const useGui2 = process.env.EPT_GUI === '2';
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(useGui2 ? new URL('gui2.html', VITE_DEV_SERVER_URL).toString() : VITE_DEV_SERVER_URL);
+    win.loadURL(VITE_DEV_SERVER_URL);
     // win.webContents.openDevTools();
   } else {
-    win.loadFile(path.join(__dirname, useGui2 ? '../dist-vite/gui2.html' : '../dist-vite/index.html'));
+    win.loadFile(path.join(__dirname, '../dist-vite/index.html'));
   }
 
   win.webContents.setWindowOpenHandler((details) => {
@@ -285,22 +285,33 @@ function createTray() {
 }
 
 // --- Scheduler enabled-state persistence (lets background autostart resume sending) ---
+// Also carries the idle-nudge throttle stamps; writes read-merge so neither
+// writer clobbers the other's fields.
+interface SchedulerState { enabled?: boolean; lastIdleNudgeAt?: string; idleNudgeCount?: number; }
+
 function schedulerStateFile(): string {
   return path.join(getBasePath(), 'scheduler.json');
 }
-function readSchedulerEnabled(): boolean {
+function readSchedulerState(): SchedulerState {
   try {
-    return JSON.parse(fs.readFileSync(schedulerStateFile(), 'utf-8')).enabled === true;
+    const d = JSON.parse(fs.readFileSync(schedulerStateFile(), 'utf-8'));
+    return d && typeof d === 'object' && !Array.isArray(d) ? d : {};
   } catch {
-    return false;
+    return {};
   }
 }
-function writeSchedulerEnabled(enabled: boolean) {
+function writeSchedulerState(patch: SchedulerState) {
   try {
-    atomicWriteFileSync(schedulerStateFile(), JSON.stringify({ enabled }, null, 2));
+    atomicWriteFileSync(schedulerStateFile(), JSON.stringify({ ...readSchedulerState(), ...patch }, null, 2));
   } catch (e: any) {
     sendLog(`Could not persist scheduler state: ${e?.message || e}`, 'error');
   }
+}
+function readSchedulerEnabled(): boolean {
+  return readSchedulerState().enabled === true;
+}
+function writeSchedulerEnabled(enabled: boolean) {
+  writeSchedulerState({ enabled });
 }
 
 /** Register the app to launch on user login, starting in the tray (--hidden). */
@@ -375,7 +386,21 @@ function statsOnFailure(accountId: string | undefined, error: any) {
   const mode = globalConfig?.testMode ? ' (practice)' : '';
   sendLog(`Send failed${tag}${mode}: ${msg}`, 'error');
   const code = String(error?.code || '');
-  const accountLevel = ['EAUTH', 'ECONNECTION', 'ESOCKET', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'EDNS'].includes(code);
+  // Graph is 202-or-throw (no per-recipient reject path), so ANY graph failure — a
+  // send-API error (EGRAPHSEND) or a token error needing re-sign-in — is account-level
+  // and must be surfaced loudly. Without this a failed background Graph send reddens
+  // nothing and looks like it "fired" (the reported bug: showed firing, no mail sent,
+  // only delivered on a manual retry). SMTP keeps its per-recipient ENOTACCEPTED as
+  // log-only via the code list below.
+  // ponytail: all graph failures treated account-level; a transient 429/5xx reddens
+  // briefly then self-heals on the next successful send. Split codes if noise matters.
+  const isGraph = globalConfig?.accounts?.find((a: Account) => a.id === (accountId || 'default'))?.transport === 'graph';
+  // DLV-14: a DATA-stage refusal (EMESSAGE — Gmail's "550 5.4.5 Daily user sending
+  // limit exceeded", a content/size rejection) and a TLS/protocol failure are the
+  // ACCOUNT's problem too: every later send fails the same way, and on the
+  // scheduler path nothing else would make the stall loud (K3). Self-heals on the
+  // next accepted send like every other account-level status.
+  const accountLevel = isGraph || ['EAUTH', 'ECONNECTION', 'ESOCKET', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'EDNS', 'EMESSAGE', 'ETLS', 'EPROTOCOL'].includes(code);
   if (accountLevel) recordAccountStatus(accountId, { ok: false, error: msg, at: Date.now(), kind: 'send' });
 
   // E1: an unattended install whose background sends persistently fail must not
@@ -523,7 +548,7 @@ function notifyBounce(email: string, accountId: string, detail: string) {
     const tag = accountId && accountId !== 'default' ? ` [${accountId}]` : '';
     sendLog(`Delivery failed${tag}: ${email} bounced and was moved to the blocked list${detail ? ` (${detail})` : ''}.`, 'error');
     if (win && !win.isDestroyed()) {
-      win.webContents.send('bounce-detected', { email, accountId });
+      win.webContents.send('bounce-detected', { email, accountId, kind: 'bounce' });
     }
     if (Notification.isSupported()) {
       const n = new Notification({
@@ -534,6 +559,102 @@ function notifyBounce(email: string, accountId: string, detail: string) {
       n.show();
     }
   } catch (e: any) { console.error('E2: could not surface the bounce:', e?.message || e); }
+}
+
+/** DLV-1: a receiving server refused a message for POLICY reasons (5.7.x — SPF/
+ *  DKIM/DMARC, reputation, content). The recipient is NOT blocked; the user has
+ *  something to fix on their side. System-Log line + live push, and an OS ping
+ *  throttled to once per account per hour: a broken DNS setup refuses a whole
+ *  run, and fifty toasts would train the user to ignore them. */
+const POLICY_REJECT_NOTIFY_WINDOW_MS = 60 * 60 * 1000;
+const policyRejectNotifiedAt = new Map<string, number>();
+function notifyPolicyReject(email: string, accountId: string, detail: string) {
+  try {
+    const tag = accountId && accountId !== 'default' ? ` [${accountId}]` : '';
+    sendLog(
+      `Delivery refused${tag}: the message to ${email} was rejected for a reason that is about you or the message, not the address (${detail}). ` +
+      `Not blocked — check the reason: your account's sending limits or restrictions, the message size/content, or your domain's SPF/DKIM/DMARC (Accounts → Domain authentication).`,
+      'error',
+    );
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('bounce-detected', { email, accountId, kind: 'policy', detail });
+    }
+    const key = accountId || 'default';
+    const last = policyRejectNotifiedAt.get(key) || 0;
+    if (Date.now() - last > POLICY_REJECT_NOTIFY_WINDOW_MS && Notification.isSupported()) {
+      policyRejectNotifiedAt.set(key, Date.now());
+      const n = new Notification({
+        title: 'Delivery refused ✈',
+        body: `${email}'s mail server refused your message (policy). Click to see what to fix.`,
+      });
+      n.on('click', () => showWindow());
+      n.show();
+    }
+  } catch (e: any) { console.error('DLV-1: could not surface the policy refusal:', e?.message || e); }
+}
+
+/** DLV-4: an "Unsubscribe" reply was honored (address added to the blocked list).
+ *  Say so — the user should see the app did the right thing — and refresh the
+ *  blocked list + recipient chips through the same renderer channel as bounces. */
+function notifyUnsubscribe(email: string, accountId: string) {
+  try {
+    const tag = accountId && accountId !== 'default' ? ` [${accountId}]` : '';
+    sendLog(`Unsubscribe honored${tag}: ${email} asked to stop receiving your emails and was added to the blocked list.`, 'info');
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('bounce-detected', { email, accountId, kind: 'unsubscribe' });
+    }
+  } catch (e: any) { console.error('DLV-4: could not surface the unsubscribe:', e?.message || e); }
+}
+
+/** Idle nudge: one OS ping when a healthy setup has sent before but gone quiet.
+ *  Runs on its own always-on timer — the poller/sequence timers stop with the
+ *  scheduler, which is precisely the idle state this must survive. All decision
+ *  logic (threshold, per-episode cap, repeat spacing) lives in src/idleNudge.ts. */
+const IDLE_NUDGE_BOOT_DELAY_MS = 2 * 60 * 1000;   // let a boot autostart settle first
+const IDLE_NUDGE_CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
+
+function lastSentAtAcrossAccounts(): string | null {
+  // Same ids loop as the get-sent-log handler; list() is read-only.
+  const ids = new Set<string>(['default']);
+  for (const a of globalConfig?.accounts || []) if (a?.id) ids.add(String(a.id));
+  let max: string | null = null;
+  for (const id of ids) {
+    for (const e of new SentLog(getBasePath(), id).list()) {
+      if (e.status === 'sent' && (!max || e.at > max)) max = e.at; // ISO strings compare lexically
+    }
+  }
+  return max;
+}
+
+function maybeSendIdleNudge() {
+  try {
+    if (!globalConfig) return;
+    let recipients: any[] = [];
+    try {
+      const raw = JSON.parse(fs.readFileSync(globalConfig.paths.recipientsJson, 'utf8'));
+      if (Array.isArray(raw)) recipients = raw;
+    } catch { /* missing/corrupt list → recipientCount 0 → no nudge */ }
+    const schedulerEnabled = readSchedulerEnabled();
+    const state = readSchedulerState();
+    const now = new Date();
+    const nudge = computeIdleNudge({
+      now,
+      lastSentAt: lastSentAtAcrossAccounts(),
+      hasSendableAccount: sendableAccounts(globalConfig).length > 0,
+      recipientCount: recipients.length,
+      schedulerEnabled,
+      hasUpcomingSends: schedulerEnabled && upcomingSends(recipients, now, 7).length > 0,
+      lastIdleNudgeAt: state.lastIdleNudgeAt ?? null,
+      idleNudgeCount: state.idleNudgeCount,
+    });
+    if (!nudge || !Notification.isSupported()) return;
+    // Stamp BEFORE showing: a throw past this point can only under-nudge, never nag.
+    writeSchedulerState({ lastIdleNudgeAt: now.toISOString(), idleNudgeCount: nudge.nudgeNumber });
+    const n = new Notification({ title: 'Pick up where you left off ✈', body: nudge.body });
+    n.on('click', () => showWindow());
+    n.show();
+    sendLog(`Idle for ${nudge.daysIdle} days (${nudge.reason === 'scheduler-off' ? 'schedule switched off' : 'nothing scheduled'}) — sent a desktop reminder.`, 'info');
+  } catch (e: any) { console.error('Idle nudge check failed:', e?.message || e); }
 }
 
 /**
@@ -622,7 +743,7 @@ function genAccountId(seed?: string): string {
  * code (CLI) gets none of these, so only classic SMTP works there.
  */
 function strategyDeps(): StrategyDeps {
-  return { getAccessToken: msGetAccessToken, createBrowserStrategy };
+  return { getGraphAccessToken: msGetGraphAccessToken, createBrowserStrategy };
 }
 
 function rebuildProcessors() {
@@ -643,9 +764,11 @@ function rebuildProcessors() {
   }
   // Keep the reply poller pointed at the fresh config (new/removed accounts).
   if (globalReplyPoller) globalReplyPoller.config = globalConfig;
-  else globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetAccessToken);
+  else globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetGraphAccessToken);
   globalReplyPoller.onNewReply = notifyNewReply; // U33: OS ping on fresh replies
   globalReplyPoller.onBounce = notifyBounce; // E2: surface async DSN bounces
+  globalReplyPoller.onPolicyReject = notifyPolicyReject; // DLV-1: 5.7.x refusals, not blocked
+  globalReplyPoller.onUnsubscribe = notifyUnsubscribe; // DLV-4: honored unsubscribe replies
   // Same for the sequence runner: refresh config + processor set, re-arm if live.
   if (globalSequenceRunner) {
     globalSequenceRunner.config = globalConfig;
@@ -653,7 +776,7 @@ function rebuildProcessors() {
     globalSequenceRunner.processors = globalProcessors;
     if (isSchedulerRunning) globalSequenceRunner.start(); else globalSequenceRunner.stop();
   } else {
-    globalSequenceRunner = new SequenceRunner(globalConfig, globalMailProcessor, globalProcessors);
+    globalSequenceRunner = new SequenceRunner(globalConfig, globalMailProcessor, globalProcessors, isFirstClass);
   }
   // Refresh the optional Local AI service so a changed model path / enable flag
   // takes effect. Close the old one (frees any loaded model); the new loads lazily.
@@ -666,7 +789,7 @@ function initServices() {
   try {
     setupDataDir();
     const basePath = getBasePath();
-    dotenv.config({ path: path.join(basePath, '.env'), override: true });
+    loadEnvInto(path.join(basePath, '.env'), true);
 
     globalConfig = loadConfig();
     globalStatsManager = new StatsManager(basePath);
@@ -677,12 +800,14 @@ function initServices() {
       ?? new MailProcessor(globalConfig, new EmailService(globalConfig), statsOnSent, 'default', statsOnFailure, onSentEntry);
 
     globalScheduler = new Scheduler(globalConfig, globalMailProcessor, globalProcessors, sendLog);
-    globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetAccessToken);
-    globalSequenceRunner = new SequenceRunner(globalConfig, globalMailProcessor, globalProcessors);
+    globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetGraphAccessToken);
+    globalSequenceRunner = new SequenceRunner(globalConfig, globalMailProcessor, globalProcessors, isFirstClass);
     globalAiService = new AiService(globalConfig);
     globalReplyPoller.ai = globalAiService; // feature #2: enable reply classification
     globalReplyPoller.onNewReply = notifyNewReply; // U33: OS ping on fresh replies
-  globalReplyPoller.onBounce = notifyBounce; // E2: surface async DSN bounces
+    globalReplyPoller.onBounce = notifyBounce; // E2: surface async DSN bounces
+    globalReplyPoller.onPolicyReject = notifyPolicyReject; // DLV-1: 5.7.x refusals, not blocked
+    globalReplyPoller.onUnsubscribe = notifyUnsubscribe; // DLV-4: honored unsubscribe replies
 
     sendLog('Services initialized successfully.', 'system');
   } catch (err: any) {
@@ -741,6 +866,15 @@ ipcMain.handle('get-usage', (_event, accountId?: string) => {
     // No accountId ⇒ legacy limits.json (the default account) = today's behavior.
     const limiter = new RateLimiter(getBasePath(), globalConfig.limits, accountId);
     return limiter.getUsage();
+});
+
+// Soft-block override: lift the warm-up ramp to maxPerDay for today only (per-account).
+// Persists to limits.<id>.json so the next send — including automated scheduler/campaign
+// runs — reads it; self-clears at midnight. False when the limits file is unreadable.
+ipcMain.handle('override-warmup-today', (_event, accountId?: string) => {
+    if (!globalConfig) initServices();
+    const ok = new RateLimiter(getBasePath(), globalConfig.limits, accountId).overrideWarmupToday();
+    return { ok };
 });
 
 // K3: which state files are currently unreadable (empty ⇒ all clear). The PULL half
@@ -832,14 +966,14 @@ async function sendAccountTest(account: Account): Promise<{ ok: boolean; to?: st
     try {
         // Microsoft retired basic-auth SMTP, so a PASSWORD account aimed at a dead
         // Microsoft host can never authenticate — the raw 535 would surface as "use
-        // an app password", a loop. Steer to OAuth up front. Gate on transport: an
-        // oauth-smtp account uses the same office365 host but a token, and must pass.
+        // an app password", a loop. Steer to OAuth up front. Gate on transport: a
+        // 'graph' account uses the same Microsoft host but a token, and must pass.
         if ((account.transport ?? 'smtp') === 'smtp' && isMsBasicAuthDeadHost(account.host)) {
             return { ok: false, error: 'Microsoft retired app passwords — connect this inbox with "Sign in with Microsoft" instead. No password needed.' };
         }
         // Direct send (bypasses rate limits) so a config check is instant and free.
         // Config slice + account => correct From/footer AND the right transport
-        // (SMTP password, OAuth-SMTP, or browser) for this specific account.
+        // (SMTP password, Graph, or browser) for this specific account.
         const svc = new EmailService({
             ...globalConfig,
             smtp: { host: account.host, port: account.port, user: account.user, pass: account.pass },
@@ -902,6 +1036,9 @@ ipcMain.handle('get-accounts', () => {
         // the resolved policy so the UI can show what will actually happen.
         copyToSent: a.copyToSent,
         copyToSentEffective: shouldCopyToSent(a),
+        // DLV-19: persisted sign-in identity warning (foreign-alias Microsoft
+        // account) — plain advisory text, no credential in it.
+        identityWarning: a.identityWarning,
     }));
 });
 
@@ -1027,7 +1164,7 @@ ipcMain.handle('save-account', async (_event, acc) => {
 
 /**
  * Interactive "Sign in with Microsoft": runs the system-browser OAuth flow, then
- * stores a password-less oauth-smtp account. No app password is ever typed — the
+ * stores a password-less 'graph' account. No app password is ever typed — the
  * survival path for Microsoft 365 once basic-auth SMTP is rejected.
  */
 ipcMain.handle('oauth-login-microsoft', async () => {
@@ -1053,30 +1190,16 @@ ipcMain.handle('oauth-login-microsoft', async () => {
         }
         const id = existing?.id || genAccountId(email);
 
-        const account: Account = {
-            id,
-            label: existing?.label || email,
-            host: 'smtp.office365.com',
-            port: 587,
-            user: email,
-            pass: '',
-            enabled: existing?.enabled !== false,
-            transport: 'oauth-smtp',
-            oauthProvider: 'microsoft',
-            oauthToken,
-        };
-        upsertAccount(basePath, account);
-
-        globalConfig = loadConfig();
-        rebuildProcessors();
-        recordAccountStatus(id, { ok: true, at: Date.now(), kind: 'test' });
-
         // Identity-alignment guard (send-triage Slice C): a Microsoft account
         // whose sign-in alias lives on a FOREIGN domain (e.g. @protonmail.com)
-        // sends From that domain through Microsoft's servers — SPF/DMARC fail at
-        // every enforcing receiver and the mail is junked or dropped while the
-        // app reports "sent". Advisory only: DNS failure stays silent, M365
-        // custom domains pass the SPF check, Microsoft's own families are exempt.
+        // cannot send as that domain through Microsoft's servers. Observed live
+        // 2026-08-29 (DLV-19): Microsoft swaps the From for a placeholder
+        // outlook_<hex>@outlook.com, SPF/DKIM/DMARC pass, and the mail lands in
+        // spam anyway because the sender is a random address. Advisory only: DNS
+        // failure stays silent, M365 custom domains pass the SPF check,
+        // Microsoft's own families are exempt. Computed before the upsert so it
+        // is persisted on the account — the dashboard and the account card keep
+        // saying it after this one toast is gone.
         let identityWarning: string | undefined;
         try {
             const domain = deriveDomain(email);
@@ -1090,6 +1213,27 @@ ipcMain.handle('oauth-login-microsoft', async () => {
             identityWarning = microsoftIdentityWarning(email, records) || undefined;
             if (identityWarning) sendLog(identityWarning, 'error');
         } catch { /* advisory only — never block a successful sign-in */ }
+
+        const account: Account = {
+            id,
+            label: existing?.label || email,
+            host: 'smtp.office365.com',
+            port: 587,
+            user: email,
+            pass: '',
+            enabled: existing?.enabled !== false,
+            transport: 'graph',
+            oauthProvider: 'microsoft',
+            oauthToken,
+            // Rebuilt from scratch on every sign-in, so the warning clears itself
+            // once the alias is fixed and the user reconnects.
+            ...(identityWarning ? { identityWarning } : {}),
+        };
+        upsertAccount(basePath, account);
+
+        globalConfig = loadConfig();
+        rebuildProcessors();
+        recordAccountStatus(id, { ok: true, at: Date.now(), kind: 'test' });
 
         return { ok: true, id, email, identityWarning };
     } catch (e: any) {
@@ -1397,7 +1541,7 @@ ipcMain.handle('delete-sequence', (_event, id: string) => {
 ipcMain.handle('get-config', () => {
   if (!globalConfig) {
       const basePath = getBasePath();
-      dotenv.config({ path: path.join(basePath, '.env'), override: true });
+      loadEnvInto(path.join(basePath, '.env'), true);
       globalConfig = loadConfig();
   }
   // Never hand decrypted passwords to the renderer. The primary is reported as
@@ -1541,7 +1685,7 @@ IMAP_PORT=${envText(defaultAcct?.imapPort ? String(defaultAcct.imapPort) : '')}
     delete process.env.OUTLOOK_PASS;
 
     // Reload config
-    dotenv.config({ path: envFilePath, override: true });
+    loadEnvInto(envFilePath, true);
     globalConfig = loadConfig();
 
     // Rebuild per-account processors (the default account's creds/host may have
@@ -1647,6 +1791,11 @@ ipcMain.handle('sign-out', () => {
     accountStatus.clear();
     sendFailureNotifiedAt.clear(); // E1 throttle map — same cleanup rule
 
+    // #6: sign-out forgets the license key with everything else. The local file
+    // clears synchronously inside deactivate(); only the best-effort LS call
+    // (freeing this machine's activation slot) floats behind the returned promise.
+    try { void getLicenseManager().deactivate(); } catch { /* never blocks sign-out */ }
+
     const ok = saveConfigToEnv({
       user: '',
       pass: '',
@@ -1657,6 +1806,78 @@ ipcMain.handle('sign-out', () => {
   } catch (e: any) {
     return { ok: false, error: e?.message || 'Sign out failed' };
   }
+});
+
+// --- Licensing (freemium #6) — Lemon Squeezy License API, no backend ---
+// One instance per app run: it carries the warn-once flag for a corrupt
+// license.json. Construction is cheap and reads nothing.
+let globalLicense: LicenseManager | null = null;
+function getLicenseManager(): LicenseManager {
+  if (!globalLicense) globalLicense = new LicenseManager(getBasePath());
+  return globalLicense;
+}
+
+/** Freemium #7's gate input, read fresh at each sequence tick so an activation
+ *  or an expiry takes effect within the hour without a restart. A function
+ *  declaration on purpose: both `new SequenceRunner` sites sit above this line
+ *  and rely on hoisting. Anything that cannot be read decides Free. */
+let gateNoticeShown = false;
+function isFirstClass(): boolean {
+  let ok = false;
+  try { ok = getLicenseManager().getEntitlement().tier === 'first-class'; } catch { ok = false; }
+  // A gated tick sends nothing at all, so say why once per run — a packaged
+  // build has no console, and K3's whole lesson is that a silent stall reads as
+  // a broken app rather than as an upgrade prompt.
+  if (!ok && !gateNoticeShown) {
+    gateNoticeShown = true;
+    sendLog('Follow-up sequences are a First Class feature — drips are paused on the Free plan. Open Settings → Plan & License.', 'info');
+  }
+  return ok;
+}
+
+/** What the renderer's Plan & License card shows. Never includes the full key. */
+function licenseStatusView() {
+  const m = getLicenseManager();
+  const cache = m.load();
+  const ent = m.getEntitlement();
+  return {
+    ...ent,
+    status: cache?.status,
+    checkedAt: cache?.checkedAt,
+    expiresAt: cache?.expiresAt ?? null,
+    variantId: cache?.variantId,
+    /** Which paid plan this key belongs to — undefined for Free/trial, and for a
+     *  key whose variant is not in LS_PLANS (older purchase, ids not pasted yet).
+     *  The card degrades to generic copy rather than blanking. */
+    plan: planFor(cache?.variantId),
+    /** What the user can buy right now. Empty while the buy URLs are placeholders,
+     *  which is what stops dead upgrade buttons from rendering. The renderer cannot
+     *  import lsConfig (tsconfig.vite.json includes only src/main.ts), so the plan
+     *  table has to travel over IPC. */
+    plans: buyablePlans(),
+    trialEndsAt: cache?.trial?.endsAt,
+    trialKind: cache?.trial?.kind,
+    /** Last 8 chars only — enough to recognize, useless to steal. */
+    maskedKey: cache?.licenseKey ? `…${cache.licenseKey.slice(-8)}` : undefined,
+    configured: lsConfigured(),
+  };
+}
+
+ipcMain.handle('get-license-status', () => licenseStatusView());
+
+ipcMain.handle('license-activate', async (_e, key: string) => {
+  const res = await getLicenseManager().activate(String(key ?? ''));
+  return { ok: res.ok, error: res.error, status: licenseStatusView() };
+});
+
+ipcMain.handle('license-validate', async () => {
+  const res = await getLicenseManager().validateNow();
+  return { ok: res.ok, error: res.error, status: licenseStatusView() };
+});
+
+ipcMain.handle('license-deactivate', async () => {
+  const res = await getLicenseManager().deactivate();
+  return { ok: res.ok, error: res.error, status: licenseStatusView() };
 });
 
 let isSchedulerRunning = false;
@@ -1675,6 +1896,10 @@ ipcMain.handle('start-scheduler', () => {
         sendLog(`Scheduler started with cron: ${globalConfig.cronSchedule}`, 'success');
         return true;
     }
+    // No scheduler ⇒ initServices() threw at boot, before the renderer was listening,
+    // so its "Failed to initialize services" line was never seen. Say it here, at the
+    // click, instead of returning a silent false the toggle used to celebrate.
+    sendLog('Cannot start the scheduler: services failed to initialize on launch. Open Settings, save once to reinitialize, then try again.', 'error');
     return false;
 });
 
@@ -1723,17 +1948,27 @@ ipcMain.handle('run-test-send', async () => {
     // Override console temporarily to capture logs to UI
     const originalLog = console.log;
     const originalError = console.error;
-    
+    const originalWarn = console.warn;
+
     console.log = (...args) => {
         sendLog(args.join(' '), 'info');
         originalLog(...args);
     };
-    
+
     console.error = (...args) => {
         sendLog(args.join(' '), 'error');
         originalError(...args);
     };
-    
+
+    // Every "Skipping <email>: <reason>" and "Stopping run: <reason>" in
+    // mailProcessor is a console.warn. Without this bridge a packaged build (no
+    // console) shows only "sent=0 skipped=N" and the user is left guessing why —
+    // the exact report that added this line.
+    console.warn = (...args) => {
+        sendLog(args.join(' '), 'error');
+        originalWarn(...args);
+    };
+
     let summary: any = { total: 0, sent: 0, skipped: 0, failed: 0 };
     try {
         // Run every sendable account in parallel (one account ⇒ identical to the
@@ -1750,6 +1985,7 @@ ipcMain.handle('run-test-send', async () => {
         // Restore console
         console.log = originalLog;
         console.error = originalError;
+        console.warn = originalWarn;
         testRunInProgress = false;
     }
     return summary;
@@ -2236,6 +2472,22 @@ if (!gotTheLock) {
       sendStatus(true);
       sendLog('Scheduler resumed (was enabled on last exit).', 'success');
     }
+
+    // Idle nudge: boot check (the money path for a tray-only autostart) + 6h
+    // sweep. No cleanup needed — app.quit() exits regardless of pending timers.
+    setTimeout(maybeSendIdleNudge, IDLE_NUDGE_BOOT_DELAY_MS);
+    setInterval(maybeSendIdleNudge, IDLE_NUDGE_CHECK_EVERY_MS);
+
+    // Launch promo: first run before the founder cutoff stamps one month of
+    // First Class into the local cache (7 days after it). Purely local — grant
+    // first, THEN the network freshness check below (which still no-ops
+    // without a stored key).
+    getLicenseManager().grantSignupTrial();
+
+    // #6: launch-time license freshness. Returns immediately with no stored key
+    // (the Free tier's zero-network-calls contract) and swallows every failure —
+    // grace/stale handling is decide()'s job, not launch's.
+    void getLicenseManager().maybeRefresh();
 
     app.on('activate', () => {
       showWindow();

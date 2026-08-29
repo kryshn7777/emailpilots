@@ -3,8 +3,8 @@ import type { AiStatus, AiGenerateRequest, AiGenerateResult } from './types';
 /**
  * One local-AI backend. node-llama-cpp is the first (and currently only)
  * implementation; the interface mirrors `transport/SendStrategy` so additional
- * providers (a remote llama.cpp server, a different runtime) drop in behind the
- * same factory without touching callers.
+ * providers (a remote llama.cpp server, a different runtime) drop in behind
+ * `AiService` without touching callers.
  *
  * Providers must be safe to *construct* even when the underlying runtime/model is
  * absent — availability is reported via `status()`, never thrown at construction.
@@ -21,15 +21,4 @@ export interface AiProvider {
    *  a load bar instead of blocking silently on first use. Idempotent; a no-op for
    *  providers that have no local model to load. */
   preload?(onProgress?: (loadProgress: number) => void): Promise<void>;
-}
-
-/**
- * Electron-only capabilities a provider might need, injected from the main
- * process (mirrors `transport/StrategyDeps`). Empty today — node-llama-cpp runs in
- * the main process with no extra host capability — but the seam keeps a future
- * `utilityProcess`/worker swap non-breaking.
- */
-export interface AiProviderDeps {
-  // reserved for future injection (e.g. a worker spawner)
-  readonly _reserved?: never;
 }

@@ -137,8 +137,15 @@ export function isValidDomain(domain: string): boolean {
   return /^(?!-)[a-z0-9-]{1,63}(?<!-)(?:\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/i.test(domain);
 }
 
+// DLV-8: Microsoft (outlook.de, hotmail.fr, live.co.uk, …) and Yahoo (yahoo.co.uk,
+// yahoo.fr, …) publish DNS for dozens of regional consumer domains the user cannot
+// edit; a "fix your SPF" card for those is misinformation. Tight suffix shape (a
+// TLD, or co/com/net + country code) so outlook.mycompany.com is NOT swallowed.
+const CONSUMER_FAMILY = /^(?:outlook|hotmail|live|msn|yahoo|ymail|rocketmail)\.(?:[a-z]{2,4}|(?:co|com|net)\.[a-z]{2})$/;
+
 export function isConsumerDomain(domain: string): boolean {
-  return CONSUMER_DOMAINS.has((domain || '').toLowerCase());
+  const d = (domain || '').toLowerCase();
+  return CONSUMER_DOMAINS.has(d) || CONSUMER_FAMILY.test(d);
 }
 
 /** Microsoft's own consumer mailbox families (outlook.com, hotmail.fr,
@@ -166,12 +173,14 @@ export function spfAuthorizesMicrosoft(records: string[]): boolean {
  * Identity-alignment guard for Microsoft OAuth sign-ins (send-triage Slice C).
  *
  * A Microsoft account's sign-in alias can live on a FOREIGN domain (the
- * triggering case: an MSA whose username is @protonmail.com). The transport
- * forces From = the authenticated user, so mail leaves Microsoft's servers
- * carrying a From domain whose SPF excludes Microsoft — SPF fails, DKIM can't
- * align, and a strict DMARC (protonmail.com publishes p=quarantine; aspf=s;
- * adkim=s) junks or drops it at every enforcing receiver. The app would report
- * "sent" (Microsoft 250-accepts the submission) while nothing ever arrives.
+ * triggering case: an MSA whose username is @protonmail.com). The app hands
+ * Graph a From on that domain, whose SPF excludes Microsoft. In July 2026 that
+ * mail left Microsoft's servers as-is and died on SPF/DMARC (protonmail.com
+ * publishes p=quarantine; aspf=s; adkim=s). By 2026-08-29 (DLV-19, live Gmail
+ * headers) Microsoft instead REWRITES the From to the mailbox's placeholder
+ * address — `outlook_<16 hex>@outlook.com` — so SPF/DKIM/DMARC all pass and the
+ * message still lands in spam: the recipient sees a random address, and so does
+ * every filter. Either way the app reports "sent" for mail nobody will read.
  *
  * Returns the user-facing warning, or null when aligned or unknowable:
  * Microsoft's own consumer families are exempt; a legitimate M365 custom
@@ -187,11 +196,13 @@ export function microsoftIdentityWarning(email: string, spfRecords: string[] | n
   const protonFix = domain === 'protonmail.com' || domain === 'proton.me' || domain === 'pm.me';
   return (
     `This Microsoft account signs in as ${email}, but ${domain} does not authorize Microsoft's ` +
-    `servers to send its mail (SPF). Messages sent from here fail SPF/DKIM/DMARC at most providers ` +
-    `and land in spam — or vanish without a bounce. ` +
+    `servers to send its mail (SPF), so Microsoft sends your messages from a placeholder address ` +
+    `(outlook_…@outlook.com — a random string). Recipients see a stranger and spam filters agree. ` +
+    `Fix: in your Microsoft account (account.microsoft.com → Your info → Manage how you sign in) ` +
+    `add an @outlook.com alias, make it the primary alias, then reconnect here. ` +
     (protonFix
-      ? `To send as this Proton address, use Proton Mail Bridge instead (Accounts → add manually, host 127.0.0.1).`
-      : `Send through ${domain}'s real mail provider instead, or use an @outlook.com address here.`)
+      ? `To send as ${email} itself, use Proton Mail Bridge instead (Accounts → add manually, host 127.0.0.1).`
+      : `To send as ${email} itself, send through ${domain}'s real mail provider instead.`)
   );
 }
 
@@ -201,10 +212,6 @@ export function inferProvider(smtpHost?: string): AuthProvider {
   if (/(^|\.)(office365|outlook|hotmail|live)\.com$/.test(host)) return 'microsoft';
   if (/(^|\.)zoho(mail)?\.[a-z.]+$/.test(host)) return 'zoho';
   return 'unknown';
-}
-
-export function providerLabel(provider: AuthProvider): string {
-  return PROVIDER_LABEL[provider];
 }
 
 /** Probe order: provider-specific selectors first, then the generic tail. */
@@ -499,6 +506,16 @@ export function buildConsumerDomainReport(domain: string, smtpHost?: string, now
     checks: [check('spf'), check('dkim'), check('dmarc')],
     checkedAt: now ?? Date.now(),
   };
+}
+
+/** True when a report leaves nothing for the user to act on. 'unknown' (DKIM
+ *  selector not found — explicitly not a failure) and 'not-applicable'
+ *  (consumer domains) count as clean; 'warn'/'missing'/'misconfigured' carry
+ *  instructions, and 'skipped' verified nothing — a resolver hiccup must not
+ *  tick a "domain verified" box. */
+export function isDomainAuthClean(r: DomainAuthReport): boolean {
+  return r.checks.every(c =>
+    c.status === 'pass' || c.status === 'unknown' || c.status === 'not-applicable');
 }
 
 export function buildDomainAuthReport(input: DomainAuthInput, now?: number): DomainAuthReport {

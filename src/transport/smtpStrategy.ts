@@ -16,6 +16,13 @@ export class SmtpStrategy implements SendStrategy {
       host: config.smtp.host,
       port: config.smtp.port,
       secure: config.smtp.port === 465, // implicit TLS on 465, STARTTLS on 587
+      // DLV-5: 587 is the submission port (RFC 6409) and every provider the app
+      // targets offers STARTTLS there — so REQUIRE it. nodemailer's default is
+      // opportunistic: a server (or a downgrade attack stripping STARTTLS from
+      // EHLO) that offers no TLS would get the app password in plaintext. Other
+      // ports keep the opportunistic default so a port-25 relay / local bridge
+      // configured by hand is not broken.
+      requireTLS: config.smtp.port === 587,
       auth: {
         user: config.smtp.user,
         pass: config.smtp.pass,

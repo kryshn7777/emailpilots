@@ -2,18 +2,21 @@
 //
 // Script by index mod 5:
 //   0 → throw hard bounce (EENVELOPE/550/RCPT TO)  → failed + suppressed
-//   1 → throw transient   (ETIMEDOUT, no SMTP shape) → failed, NOT suppressed
+//   1 → throw transient   (EENVELOPE/450/RCPT TO)   → failed, NOT suppressed
 //   2 → rejected:[to]     (synchronous bounce)      → failed + suppressed
 //   3 → accepted:[]       (never accepted)          → failed, NOT suppressed
 //   4 → accept                                       → sent + ledger + delivered
 //
 // Cross-validates the accept/reject/throw triage (mailProcessor.ts:281-308),
 // exact refunds, suppression membership, and which cohorts retry on a re-run.
+// Cohort 1 is a RCPT-stage 4xx (Gmail's per-recipient receive-rate limit): since
+// DLV-14 an account-level transient (ETIMEDOUT) ends the run instead, so the
+// "transient, retried next run" cohort must be a per-recipient one.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MailProcessor } from '../../mailProcessor';
 import {
   makeStressConfig, seedRecipients, scriptedService, acceptAll, hardBounce550,
-  transientErr, stressDir, setDataDir, rmDir, readLimits, readLedger,
+  transientRcpt450, stressDir, setDataDir, rmDir, readLimits, readLedger,
   readSuppression, verifyStateIntegrity, silenceConsole,
 } from './helpers';
 import type { SendPlan } from './helpers';
@@ -44,7 +47,7 @@ describe('S04 — 20/20/20/20/20 failure injection over 100 recipients', () => {
     const plan = (i: number): SendPlan => {
       switch (cohort(i)) {
         case 0: return { kind: 'throw', error: hardBounce550() };
-        case 1: return { kind: 'throw', error: transientErr() };
+        case 1: return { kind: 'throw', error: transientRcpt450() };
         case 2: return { kind: 'reject' };
         case 3: return { kind: 'notAccepted' };
         default: return { kind: 'accept' };
@@ -67,8 +70,7 @@ describe('S04 — 20/20/20/20/20 failure injection over 100 recipients', () => {
       return m;
     }, {});
     expect(byCode).toEqual({
-      EENVELOPE: 20,    // hard bounces
-      ETIMEDOUT: 20,    // transient throws
+      EENVELOPE: 40,    // hard bounces (550) + transient per-recipient refusals (450)
       ENOTACCEPTED: 40, // synchronous reject + never-accepted
     });
 

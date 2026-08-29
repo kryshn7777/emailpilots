@@ -6,6 +6,7 @@ import {
   BufferGeometry,
   CylinderGeometry,
   DoubleSide,
+  ExtrudeGeometry,
   Float32BufferAttribute,
   Group,
   InstancedMesh,
@@ -20,6 +21,7 @@ import {
   Quaternion,
   Points,
   PointsMaterial,
+  Shape,
   TorusGeometry,
   Vector3,
 } from 'three';
@@ -27,6 +29,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   BOOK_SPINE_CELLS,
+  LAPTOP_BAR,
   bookSpineTexture,
   floorPlankTexture,
   frameArtTexture,
@@ -39,6 +42,45 @@ import {
 } from '../bake/CanvasTextures';
 import { asset } from '../asset';
 import { requestCompile } from '../warm';
+
+/** The display plane's world size — the bar mesh maps texture fractions onto it. */
+const SCREEN_W = 1.38;
+const SCREEN_H = 0.93;
+
+/**
+ * A slab with rounded corners and a bevelled edge, lying flat: `w` on X, `d`
+ * on Z, `h` on Y, centred on its origin.
+ *
+ * This is the difference between a laptop and a box. At the CH1 close-up the
+ * lens is a metre off the machine and a hard 90° corner reads as a prop; the
+ * bevel is also what gives the shell a specular line to catch the lamp on.
+ */
+function roundedSlab(w: number, d: number, h: number, r: number): BufferGeometry {
+  const shape = new Shape();
+  const hw = w / 2 - r;
+  const hd = d / 2 - r;
+  shape.moveTo(-hw, -d / 2);
+  shape.lineTo(hw, -d / 2);
+  shape.quadraticCurveTo(w / 2, -d / 2, w / 2, -hd);
+  shape.lineTo(w / 2, hd);
+  shape.quadraticCurveTo(w / 2, d / 2, hw, d / 2);
+  shape.lineTo(-hw, d / 2);
+  shape.quadraticCurveTo(-w / 2, d / 2, -w / 2, hd);
+  shape.lineTo(-w / 2, -hd);
+  shape.quadraticCurveTo(-w / 2, -d / 2, -hw, -d / 2);
+  const bevel = Math.min(h * 0.3, 0.01);
+  const geometry = new ExtrudeGeometry(shape, {
+    depth: h - bevel * 2,
+    bevelEnabled: true,
+    bevelThickness: bevel,
+    bevelSize: bevel,
+    bevelSegments: 2,
+    curveSegments: 6,
+  });
+  geometry.rotateX(-Math.PI / 2); // shape plane → XZ, extrusion axis → +Y
+  geometry.center();
+  return geometry;
+}
 
 /**
  * CH1: the night desk. The laptop mid-send is the story's launchpad — the
@@ -53,6 +95,8 @@ export class Desk {
   private cradleArms: Group[] = [];
 
   private screenLight: PointLight;
+  /** the firing strip's fill — scroll-driven, so it can't be baked in */
+  private screenBar: Mesh;
   private dust: Points;
   private dustBase: Float32Array;
   private dustGeometry = new BufferGeometry();
@@ -224,9 +268,9 @@ export class Desk {
     seg(1.9, 3.4, 2.0, 3.55); // right of opening
 
     // the laptop mid-send — screen faces +X, into the flight line, so the
-    // reverse-angle CH1 camera reads "SENDING EMAIL…" as the plane exits it
+    // reverse-angle CH1 camera reads the Email Pilots app as the plane exits it
     const shell = new MeshStandardMaterial({ color: '#242a3a', roughness: 0.5, metalness: 0.55 });
-    const deck = new Mesh(new BoxGeometry(1.0, 0.06, 1.5), shell);
+    const deck = new Mesh(roundedSlab(1.0, 1.5, 0.058, 0.055), shell);
     deck.position.set(-0.45, -0.07, 0);
     const keysMat = new MeshStandardMaterial({ map: laptopKeysTexture(), roughness: 0.7 });
     const keys = new Mesh(new PlaneGeometry(0.9, 1.4), keysMat);
@@ -236,12 +280,34 @@ export class Desk {
     const screen = new Group();
     screen.position.set(-0.93, -0.06, 0); // hinge at the deck's back edge
     screen.rotation.z = 0.24; // leans back, opening toward the flight line
-    const lid = new Mesh(new BoxGeometry(0.04, 1.05, 1.5), shell);
+    // the lid is the same rounded slab stood on edge: thickness on X, so its
+    // corners round in the plane the camera actually sees them
+    const lidGeometry = roundedSlab(1.05, 1.5, 0.04, 0.05);
+    lidGeometry.rotateZ(Math.PI / 2);
+    const lid = new Mesh(lidGeometry, shell);
     lid.position.y = 0.52;
     const displayMat = new MeshBasicMaterial({ map: laptopScreenTexture() });
-    const display = new Mesh(new PlaneGeometry(1.38, 0.93), displayMat);
+    const display = new Mesh(new PlaneGeometry(SCREEN_W, SCREEN_H), displayMat);
     display.rotation.y = Math.PI / 2;
     display.position.set(0.021, 0.52, 0);
+    // the firing bar rides in its own frame, aligned with the display's, so
+    // its coordinates are the texture's own fractions of the face
+    const screenUi = new Group();
+    screenUi.rotation.y = Math.PI / 2;
+    screenUi.position.set(0.022, 0.52, 0);
+    // left-anchored: scaling X grows the fill rightward out of the track's end
+    const barGeometry = new PlaneGeometry(1, LAPTOP_BAR.h * SCREEN_H);
+    barGeometry.translate(0.5, 0, 0);
+    this.screenBar = new Mesh(barGeometry, new MeshBasicMaterial({ color: '#7fe8d8' }));
+    this.screenBar.position.set(
+      (LAPTOP_BAR.x - 0.5) * SCREEN_W,
+      (0.5 - LAPTOP_BAR.y) * SCREEN_H,
+      0.002,
+    );
+    this.screenBar.scale.x = 0.0001;
+    screenUi.add(this.screenBar);
+    screen.add(screenUi);
+    this.disposables.push(barGeometry, this.screenBar.material as MeshBasicMaterial);
     // screen bezel + webcam dot above the glass
     const bezelMaterial = new MeshStandardMaterial({ color: '#10141f', roughness: 0.4 });
     const bezel = new Mesh(new BoxGeometry(0.012, 1.0, 1.46), bezelMaterial);
@@ -266,7 +332,10 @@ export class Desk {
 
     // — deck detail: real keycaps, trackpad, hinges, ports, feet, LED —
     const capGeometry = new BoxGeometry(0.075, 0.014, 0.075);
-    const capMaterial = new MeshStandardMaterial({ color: '#2e3547', roughness: 0.6 });
+    // faint backlight bleed around the caps — the machine is awake
+    const capMaterial = new MeshStandardMaterial({
+      color: '#2e3547', roughness: 0.6, emissive: '#1d3f6b', emissiveIntensity: 0.55,
+    });
     const ROWS = 5;
     const COLS = 13;
     const caps = new InstancedMesh(capGeometry, capMaterial, ROWS * COLS + 1);
@@ -288,7 +357,7 @@ export class Desk {
     this.disposables.push(capGeometry, capMaterial, caps);
 
     const padMaterial = new MeshStandardMaterial({ color: '#1c2231', roughness: 0.35, metalness: 0.2 });
-    const pad = new Mesh(new BoxGeometry(0.3, 0.008, 0.44), padMaterial);
+    const pad = new Mesh(roundedSlab(0.3, 0.44, 0.008, 0.022), padMaterial);
     pad.position.set(-0.16, -0.036, 0);
     this.group.add(pad);
     this.disposables.push(pad.geometry, padMaterial);
@@ -301,9 +370,19 @@ export class Desk {
       this.group.add(hinge);
       this.disposables.push(hinge.geometry);
     }
+    // machined end caps on the hinge barrels
+    const laptopSteel = new MeshStandardMaterial({ color: '#aab2c2', roughness: 0.2, metalness: 0.9 });
+    this.disposables.push(laptopSteel);
+    for (const hz of [-0.665, 0.665]) {
+      const cap = new Mesh(new CylinderGeometry(0.037, 0.03, 0.02, 10), laptopSteel);
+      cap.rotation.x = Math.PI / 2;
+      cap.position.set(-0.93, -0.06, hz);
+      this.group.add(cap);
+      this.disposables.push(cap.geometry);
+    }
     this.disposables.push(hingeMaterial);
 
-    // side ports on the near edge
+    // side ports, both edges: three on the near flank, USB-C + jack on the far
     for (const pz of [0.35, 0.48, 0.61]) {
       const port = new Mesh(new BoxGeometry(0.05, 0.02, 0.07), bezelMaterial);
       port.position.set(-0.45, -0.075, pz + 0.15);
@@ -311,6 +390,59 @@ export class Desk {
       this.group.add(port);
       this.disposables.push(port.geometry);
     }
+    for (const pz of [-0.5, -0.66]) {
+      const port = new Mesh(new BoxGeometry(0.05, 0.016, 0.06), bezelMaterial);
+      port.position.set(-0.45, -0.075, pz);
+      this.group.add(port);
+      this.disposables.push(port.geometry);
+    }
+    const jack = new Mesh(new CylinderGeometry(0.013, 0.013, 0.05, 8), bezelMaterial);
+    jack.rotation.x = Math.PI / 2;
+    jack.position.set(-0.2, -0.073, -0.755);
+    this.group.add(jack);
+    this.disposables.push(jack.geometry);
+
+    // exhaust slits along the rear edge, under the hinge line
+    for (const vz of [-0.34, 0, 0.34]) {
+      const vent = new Mesh(new BoxGeometry(0.012, 0.014, 0.24), bezelMaterial);
+      vent.position.set(-0.952, -0.072, vz);
+      this.group.add(vent);
+      this.disposables.push(vent.geometry);
+    }
+
+    // speaker grilles flanking the keyboard — real perforations, one draw
+    // call. A pair of dark strips reads as a decal from a metre away; these
+    // catch the lamp individually, which is the whole point of the close-up.
+    const holeGeometry = new CylinderGeometry(0.0055, 0.0055, 0.008, 6);
+    const HOLE_COLS = 16;
+    const grille = new InstancedMesh(holeGeometry, bezelMaterial, HOLE_COLS * 6);
+    const holeM = new Matrix4();
+    const holeQ = new Quaternion();
+    const holeS = new Vector3(1, 1, 1);
+    const holeP = new Vector3();
+    let holeIndex = 0;
+    for (const gz of [-0.65, 0.65]) {
+      for (let row = 0; row < 3; row++) {
+        for (let c = 0; c < HOLE_COLS; c++) {
+          holeP.set(-0.82 + c * 0.0253, -0.038, gz - 0.028 + row * 0.028);
+          grille.setMatrixAt(holeIndex++, holeM.compose(holeP, holeQ, holeS));
+        }
+      }
+    }
+    this.group.add(grille);
+    this.disposables.push(holeGeometry, grille);
+
+    // rubber feet: the machine stands on the desk instead of sinking into it
+    const footMaterial = new MeshStandardMaterial({ color: '#0b0e16', roughness: 0.95 });
+    for (const fx of [-0.87, -0.05] as const) {
+      for (const fz of [-0.62, 0.62] as const) {
+        const foot = new Mesh(new CylinderGeometry(0.022, 0.02, 0.012, 10), footMaterial);
+        foot.position.set(fx, -0.104, fz);
+        this.group.add(foot);
+        this.disposables.push(foot.geometry);
+      }
+    }
+    this.disposables.push(footMaterial);
 
     // power LED: a live coal on the deck edge
     const ledMaterial = new MeshStandardMaterial({
@@ -840,9 +972,20 @@ export class Desk {
     }
   }
 
-  update(time: number): void {
-    // live-screen flicker: the send is happening right now
-    this.screenLight.intensity = 2.5 + Math.sin(time * 2.6) * 0.6;
+  /**
+   * @param launch 0→1: how far the send has got. Scroll drives it, the
+   * firing bar reads it, and the dart leaves the screen when it reaches 1.
+   */
+  update(time: number, launch: number): void {
+    // the send is happening right now; the screen swells as it completes
+    this.screenLight.intensity = 2.5 + Math.sin(time * 2.6) * 0.6 + launch * 2.4;
+    this.screenLight.color.setHex(launch >= 1 ? 0x9fffd8 : 0x9fc4ff);
+    // a zero X-scale collapses the matrix, so the empty bar is hidden instead
+    this.screenBar.visible = launch > 0.002;
+    this.screenBar.scale.x = LAPTOP_BAR.w * SCREEN_W * launch;
+    (this.screenBar.material as MeshBasicMaterial).color.setHex(
+      launch >= 1 ? 0x5fe08f : 0x7fe8d8,
+    );
 
     // Newton's cradle: only the end balls move, and only one at a time —
     // the middle three hang dead, which is the whole reason it reads as one

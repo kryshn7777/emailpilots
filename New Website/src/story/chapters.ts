@@ -117,6 +117,16 @@ export const CHAPTERS: Chapter[] = [
   },
 ];
 
+/**
+ * Scroll spent on the laptop before the dart is fired out of the screen.
+ *
+ * This is page scroll, NOT story-t: the world holds still while the app's
+ * firing bar loads, and story-t 0 is the instant it completes. The engine
+ * remaps the remaining scroll onto the whole flight, so every chapter window
+ * below stays exactly where it was authored.
+ */
+export const LAUNCH_T = 0.035;
+
 /** The letter folds into the plane across this t-window inside CH1. */
 export const FOLD_WINDOW = { start: 0.03, end: 0.08 };
 

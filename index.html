@@ -3,12 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
+    <!-- img-src includes https: so hosted logos in an email template render in the
+         preview instead of showing a broken-image icon. This is document-wide, not
+         iframe-scoped: opening a preview pings the image host, which learns the IP
+         and that the preview happened. script-src/default-src stay 'self'. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:;">
     <title>Email Pilots</title>
     <link rel="stylesheet" href="/src/style.css">
+    <link rel="stylesheet" href="/src/onboarding.css">
+    <link rel="stylesheet" href="/src/preview.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   </head>
   <body>
@@ -64,6 +69,12 @@
           <li data-view="logs" title="Diagnostic flight log of everything the app has done.">
             <span class="material-symbols-outlined" aria-hidden="true">list_alt</span>
             System Logs
+          </li>
+          <!-- No data-view: inert to the tab machinery; opens the Help modal.
+               Also the target of the tour's final step. -->
+          <li id="nav-help" role="button" tabindex="0" title="Tour, demos and guides — everything replays.">
+            <span class="material-symbols-outlined" aria-hidden="true">help</span>
+            Help
           </li>
         </ul>
       </nav>
@@ -194,6 +205,40 @@
             <p class="gs-foot help-text">When you're ready to grow: a Sequence follows up automatically and stops the moment someone replies.</p>
           </div>
 
+          <div class="card getting-started" id="level-up-card" style="display: none; margin-bottom: 24px;">
+            <div class="gs-head">
+              <h3 style="margin: 0;"><span class="material-symbols-outlined" aria-hidden="true">flight_takeoff</span> Level up your outreach</h3>
+              <button type="button" id="lu-dismiss" class="gs-dismiss">Dismiss</button>
+            </div>
+            <p class="gs-sub">Your first emails are away. Three upgrades that make every send count.</p>
+            <ol class="gs-steps" id="lu-steps">
+              <li class="gs-step" data-step="sequence">
+                <span class="gs-check material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span>
+                <div class="gs-step-body">
+                  <span class="gs-step-title">Set up automatic follow-ups</span>
+                  <span class="gs-step-desc">A sequence follows up for you — and stops the moment someone replies.</span>
+                </div>
+                <button type="button" class="btn primary gs-cta" data-view="sequences">Create a sequence</button>
+              </li>
+              <li class="gs-step" data-step="domain-auth">
+                <span class="gs-check material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span>
+                <div class="gs-step-body">
+                  <span class="gs-step-title">Confirm your domain is set up</span>
+                  <span class="gs-step-desc">SPF, DKIM and DMARC records help your emails land in the inbox, not spam.</span>
+                </div>
+                <button type="button" class="btn primary gs-cta" data-view="accounts">Check my domain</button>
+              </li>
+              <li class="gs-step" data-step="ai">
+                <span class="gs-check material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span>
+                <div class="gs-step-body">
+                  <span class="gs-step-title">Try the on-device AI assistant</span>
+                  <span class="gs-step-desc">Drafting help and reply insights that run locally — nothing leaves your computer.</span>
+                </div>
+                <button type="button" class="btn primary gs-cta" data-view="ai">Turn on AI</button>
+              </li>
+            </ol>
+          </div>
+
           <div class="card" id="how-it-works-card" style="display: none; margin-bottom: 24px;">
             <h3 style="margin-top: 0;">How Email Pilots works</h3>
             <figure class="concept-diagram" style="margin: 4px 0 0;">
@@ -220,12 +265,13 @@
                 <text x="470" y="98" text-anchor="middle" font-size="11" font-weight="600">Reply?</text>
                 <line x1="470" y1="79" x2="470" y2="98" class="cd-line s-success"/>
                 <path d="M470 98l-4-7h8z" class="cd-success"/>
-                <circle cx="470" cy="128" r="13" class="cd-success" opacity="0.13"/>
+                <circle cx="470" cy="128" r="13" class="cd-success cda-reply" opacity="0.13"/>
                 <path d="M464 128l4 4 8-9" class="cd-line s-success" stroke-width="2"/>
                 <text x="470" y="160" text-anchor="middle" font-size="9" font-weight="600" class="cd-success">Replied → stop</text>
                 <path d="M453 66C404 100 398 150 338 150 300 150 304 100 330 82" class="cd-line s-primary" stroke-dasharray="5 3"/>
                 <path d="M330 82l9-2-3 8z" class="cd-primary"/>
                 <text x="372" y="174" text-anchor="middle" font-size="9" class="cd-muted">No reply → follow up in a few days</text>
+                <g class="cda-plane" aria-hidden="true"><path d="M-7 0l14-5-5 14-2.5-5z" class="cd-primary"/></g>
               </svg>
               <figcaption class="cd-caption">Add the people you want to reach, choose when to send, and Email Pilots delivers automatically. No reply? It follows up a few days later — and stops the moment someone answers.</figcaption>
             </figure>
@@ -357,6 +403,10 @@
             <button id="empty-add-recipient-btn" class="btn primary" onclick="document.getElementById('add-recipient-btn').click()">
               <span class="material-symbols-outlined">add</span>
               Add Your First Recipient
+            </button>
+            <button type="button" class="btn outline" data-flow-demo="contact" style="margin-left: 8px;">
+              <span class="material-symbols-outlined">smart_display</span>
+              Watch how (20s)
             </button>
           </div>
 
@@ -604,6 +654,10 @@
               </div>
               <h3>No sequences yet</h3>
               <p>A sequence is an automatic follow-up series that stops the moment someone replies. Create one below, then assign recipients from the Recipients tab.</p>
+              <button type="button" class="btn outline" data-flow-demo="sequence">
+                <span class="material-symbols-outlined">smart_display</span>
+                Watch how it stops on reply (20s)
+              </button>
             </div>
 
             <div id="sequences-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;"></div>
@@ -773,6 +827,13 @@
               </button>
             </div>
             <!-- ===== END LOW-FRICTION TRANSPORTS (Accounts view) ===== -->
+            <!-- Gmail has no OAuth route here (SMTP + app password only), so this
+                 opens the animated app-password walkthrough forced into Google mode
+                 and preselects the Gmail provider on the form below. -->
+            <button type="button" class="btn" id="google-apppw-btn" style="width: 100%; justify-content: center; margin-bottom: 12px;">
+              <span class="material-symbols-outlined">key</span>
+              Sign in with Google &mdash; app password
+            </button>
             <div style="text-align: center; color: var(--muted-foreground); font-size: 0.8em; margin-bottom: 16px;">&mdash; or add manually with an app password &mdash;</div>
             <form id="add-account-form">
               <div class="form-group">
@@ -879,6 +940,34 @@
               </div>
 
               </div> <!-- End Primary Account Card -->
+
+              <div class="card settings-chunk" style="margin-bottom: 24px;">
+                <h3 style="margin-top: 0; margin-bottom: 16px;">Plan &amp; License</h3>
+                <p id="license-status-line" class="help-text" style="margin-bottom: 16px;">Free plan.</p>
+                <div id="license-plans" class="license-plans" style="display: none;">
+                  <div id="license-plans-buttons" class="license-plans-row"></div>
+                  <p class="help-text">Checkout opens in your browser. Lemon Squeezy emails you a license key — paste it below to unlock First Class.</p>
+                </div>
+                <div class="form-group">
+                  <label for="license-key-input">First Class license key</label>
+                  <input type="text" id="license-key-input" placeholder="Paste the key from your purchase email" autocomplete="off" spellcheck="false">
+                  <p class="help-text">Free needs no key — and makes no network requests. Activating checks your subscription with Lemon Squeezy.</p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" id="license-activate-btn" class="btn outline">
+                    <span class="material-symbols-outlined">workspace_premium</span>
+                    Activate
+                  </button>
+                  <button type="button" id="license-refresh-btn" class="btn outline" style="display: none;">
+                    <span class="material-symbols-outlined">refresh</span>
+                    Refresh status
+                  </button>
+                  <button type="button" id="license-remove-btn" class="btn outline" style="display: none; color: var(--destructive); border-color: rgba(196,43,28,0.35);">
+                    <span class="material-symbols-outlined">key_off</span>
+                    Remove key
+                  </button>
+                </div>
+              </div> <!-- End Plan & License Card -->
 
               <div class="card settings-chunk" style="margin-bottom: 24px;">
                 <h3 style="margin-top: 0; margin-bottom: 16px;">Email Content</h3>
@@ -1325,10 +1414,11 @@
           Look around first — connect when you're ready to&nbsp;send&nbsp;→
         </button>
 
-        <p class="login-footnote">
-          <span class="material-symbols-outlined" style="font-size:16px;">lock</span>
-          Credentials are stored locally on this device. We never see them.
-        </p>
+        <div class="trust-row" title="Credentials are stored locally on this device. We never see them.">
+          <span class="trust-chip"><span class="material-symbols-outlined" aria-hidden="true">lock</span>Stays on this PC</span>
+          <span class="trust-chip"><span class="material-symbols-outlined" aria-hidden="true">key</span>Password encrypted</span>
+          <span class="trust-chip"><span class="material-symbols-outlined" aria-hidden="true">undo</span>Revoke anytime</span>
+        </div>
       </div>
     </div>
 
@@ -1348,9 +1438,7 @@
 
     <!-- Local AI offer — one-time, shown AFTER the first successful sign-in (so the
          account is proven before we ask anyone to wait for a multi-GB download).
-         z-index clears the login gate (3000); the setup wizard (3200) only runs
-         pre-login, so the two can't collide. Markup is mirrored verbatim in
-         gui2.html — src/__tests__/gui2Parity.test.ts fails otherwise. -->
+         z-index clears the login gate (3000). -->
     <div id="ai-onboard-modal" class="modal" style="display: none; z-index: 3100;">
       <div class="modal-content" style="max-width: 680px;">
         <h2 style="margin-top: 0;">Add a local AI assistant?</h2>
@@ -1406,6 +1494,14 @@
         <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
           <button type="button" class="btn ghost" id="ai-onboard-skip-btn">Not now</button>
           <button type="button" class="btn outline" id="ai-onboard-cancel-btn" style="display: none;">Cancel</button>
+          <!-- Only shown mid-download. The download lives in the main process, so hiding
+               this dialog never interrupted it — there was simply no way out of here
+               except Cancel, and nothing left rendering progress. Both are fixed by this
+               button plus the corner pill below. -->
+          <button type="button" class="btn outline" id="ai-onboard-background-btn" style="display: none;">
+            <span class="material-symbols-outlined" aria-hidden="true">picture_in_picture</span>
+            Continue in background
+          </button>
           <button type="button" class="btn primary" id="ai-onboard-download-btn">Download</button>
         </div>
       </div>
@@ -1413,15 +1509,41 @@
 
     <!-- Preview Modal -->
     <div id="preview-modal" class="modal" style="display: none; z-index: 1500;">
-      <div class="modal-content">
+      <div class="modal-content preview-shell">
         <span class="close-modal" id="close-modal-btn" role="button" tabindex="0" aria-label="Close dialog">&times;</span>
         <h2>Email Preview</h2>
-        <div class="preview-header" style="margin-bottom: 12px; font-size: 1.1rem;">
-          <strong>Subject:</strong> <span id="preview-subject"></span>
-        </div>
-        <div id="preview-spam"></div>
-        <div class="preview-body-container">
-          <iframe id="preview-frame" style="width: 100%; height: 400px; border: 1px solid var(--border); border-radius: 6px; background: white;"></iframe>
+        <div class="preview-scroll">
+          <!-- App chrome, not mail: the deliverability verdict and the AI check sit on
+               the layer background OUTSIDE the card, so they never read as part of the
+               message. Keeps its id, so both banner functions are unchanged. -->
+          <div id="preview-spam" class="preview-advisory"></div>
+          <article class="mail-card">
+            <h3 class="mail-subject" id="preview-subject"></h3>
+            <header class="mail-head">
+              <div class="mail-avatar" id="preview-avatar" aria-hidden="true"></div>
+              <div class="mail-ident">
+                <div class="mail-from">
+                  <span id="preview-from-name"></span>
+                  <span class="mail-from-addr" id="preview-from-addr"></span>
+                </div>
+                <div class="mail-to">to <span id="preview-to"></span></div>
+              </div>
+              <span class="mail-date" id="preview-date"></span>
+            </header>
+            <div class="mail-viewmode" role="tablist" aria-label="Message format">
+              <button type="button" role="tab" id="preview-tab-html" class="mail-viewmode-btn is-active" aria-selected="true">HTML</button>
+              <button type="button" role="tab" id="preview-tab-text" class="mail-viewmode-btn" aria-selected="false">Plain text</button>
+            </div>
+            <div class="mail-body">
+              <!-- allow-same-origin ONLY. It is required — without it the frame gets an
+                   opaque origin and contentWindow.document throws cross-origin, breaking
+                   the write. The absent allow-scripts is what blocks scripts inside.
+                   Never add allow-scripts alongside it: a frame with both can strip its
+                   own sandbox attribute. -->
+              <iframe id="preview-frame" title="Email message body" sandbox="allow-same-origin" scrolling="no"></iframe>
+              <pre class="mail-text" id="preview-text" hidden></pre>
+            </div>
+          </article>
         </div>
       </div>
     </div>
@@ -1828,145 +1950,101 @@
       </div>
     </div>
 
-    <!-- First-run Setup Wizard — guides provider → app password → sign in.
-         Layers OVER the login screen (z-index above it + the app-pw modal). The login
-         form stays intact underneath; closing this wizard reveals it. Logic classes are
-         sw-* (NOT the recipient wizard's .wizard-* which are queried document-wide). -->
-    <div id="setup-wizard-modal" class="modal" style="display: none; z-index: 3200;">
+
+    <!-- Flow demos: three CSS-animated replicas of the app's own flows (add a
+         contact / sequence stops on reply / safe first send). Zero media files —
+         same technique as the app-password walkthrough above; the modal's
+         data-demo attribute picks the scene (rules in src/onboarding.css). -->
+    <div id="flow-demo-modal" class="modal" data-demo="contact" style="display: none; z-index: 3100;">
       <div class="modal-content" style="max-width: 560px;">
-        <span class="close-modal" id="setup-wizard-close" role="button" tabindex="0" aria-label="Skip setup and use the sign-in form">&times;</span>
-        <h2 id="setup-wizard-title" style="margin-top: 0;">Let's get you sending</h2>
-        <p class="help-text" style="margin-bottom: 16px;">Three quick steps to connect your inbox. You can close this anytime and use the sign-in form instead.</p>
+        <span class="close-modal" role="button" tabindex="0" aria-label="Close demo">&times;</span>
+        <h2 id="flow-demo-title" style="margin-top: 0;">Watch: add your first contact</h2>
 
-        <div class="sw-progress">
-          <div class="sw-step active" data-sw-step="1">1. Provider</div>
-          <div class="sw-step" data-sw-step="2">2. App password</div>
-          <div class="sw-step" data-sw-step="3">3. Sign in</div>
-        </div>
-
-        <!-- STEP 1: Provider -->
-        <div class="sw-panel" id="sw-panel-1">
-          <p style="margin-top: 0;">Which email account will you send from?</p>
-          <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button type="button" class="btn outline sw-provider-btn" data-sw-provider="gmail" style="justify-content: flex-start; gap: 10px; height: 48px;">
-              <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
-              Gmail
-            </button>
-            <button type="button" class="btn outline sw-provider-btn" data-sw-provider="outlook" style="justify-content: flex-start; gap: 10px; height: 48px;">
-              <svg viewBox="0 0 21 21" width="18" height="18" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>
-              Outlook / Office 365
-            </button>
-            <button type="button" class="btn outline sw-provider-btn" data-sw-provider="other" style="justify-content: flex-start; gap: 10px; height: 48px;">
-              <span class="material-symbols-outlined" style="font-size:18px;">mail</span>
-              Other (custom SMTP)
-            </button>
-          </div>
-        </div>
-
-        <!-- STEP 2: App password -->
-        <div class="sw-panel" id="sw-panel-2" style="display: none;">
-          <!-- Password-provider education (Gmail/custom). Hidden for Outlook, whose
-               panel below replaces the whole app-password flow (OAuth-only). -->
-          <div id="sw-pw-edu">
-          <p style="margin-top: 0;">Email providers need a one-time <strong>app password</strong> — not your normal login:</p>
-          <details class="sw-why">
-            <summary>Why an app password? <span class="sw-why-tag">it's safe</span></summary>
-            <figure class="concept-diagram">
-            <svg class="cd" viewBox="0 0 480 152" role="img" aria-labelledby="cd-apppw-t">
-              <title id="cd-apppw-t">Your email provider creates a send-only app password that you paste into Email Pilots. It is not your real password and you can revoke it anytime.</title>
-              <rect x="18" y="26" width="98" height="62" rx="8" class="cd-paper s-border" stroke-width="1.5"/>
-              <circle cx="67" cy="50" r="11" class="cd-subtle s-primary" stroke-width="1.5"/>
-              <path d="M51 76c0-9 7-14 16-14s16 5 16 14" class="cd-line s-primary"/>
-              <text x="67" y="104" text-anchor="middle" font-size="11" font-weight="600">Your account</text>
-              <text x="67" y="116" text-anchor="middle" font-size="9" class="cd-muted">Gmail / Outlook</text>
-              <line x1="120" y1="57" x2="176" y2="57" class="cd-line s-muted"/>
-              <path d="M176 57l-8-4v8z" class="cd-muted"/>
-              <text x="148" y="48" text-anchor="middle" font-size="9" class="cd-muted">creates</text>
-              <circle cx="208" cy="57" r="12" fill="none" stroke="currentColor" stroke-width="3"/>
-              <rect x="218" y="54" width="42" height="6" rx="2" fill="currentColor"/>
-              <rect x="246" y="54" width="5" height="12" rx="1" fill="currentColor"/>
-              <rect x="236" y="54" width="5" height="10" rx="1" fill="currentColor"/>
-              <text x="232" y="90" text-anchor="middle" font-size="11" font-weight="600">App password</text>
-              <text x="232" y="102" text-anchor="middle" font-size="9" class="cd-muted">a send-only key</text>
-              <line x1="284" y1="57" x2="340" y2="57" class="cd-line s-muted"/>
-              <path d="M340 57l-8-4v8z" class="cd-muted"/>
-              <text x="312" y="48" text-anchor="middle" font-size="9" class="cd-muted">paste</text>
-              <rect x="362" y="26" width="98" height="62" rx="8" class="cd-paper s-border" stroke-width="1.5"/>
-              <path d="M362 34a8 8 0 0 1 8-8h82a8 8 0 0 1 8 8v8H362z" class="cd-subtle"/>
-              <rect x="374" y="54" width="56" height="6" rx="3" class="cd-muted"/>
-              <rect x="374" y="66" width="40" height="6" rx="3" class="cd-muted"/>
-              <path d="M418 70l26-11-11 26-4-11z" fill="currentColor"/>
-              <text x="411" y="104" text-anchor="middle" font-size="11" font-weight="600">Email Pilots</text>
-              <rect x="96" y="130" width="150" height="18" rx="9" class="cd-subtle"/>
-              <text x="171" y="142" text-anchor="middle" font-size="9" class="cd-muted">✕ not your real password</text>
-              <rect x="258" y="130" width="120" height="18" rx="9" class="cd-success" opacity="0.12"/>
-              <text x="318" y="142" text-anchor="middle" font-size="9" class="cd-success" font-weight="600">↻ revoke anytime</text>
-            </svg>
-            <figcaption class="cd-caption">An app password is a one-purpose key your provider issues. It can only send mail — never reads your inbox, changes your account, or replaces your real password.</figcaption>
-          </figure>
-          </details>
-          <ol id="sw-steps" class="login-steps"></ol>
-          <div id="sw-custom-note" style="display:none; margin: 8px 0; font-size: 0.85em; color: var(--muted-foreground);">For a custom provider, use your mailbox password (or an app password if they require one). You'll enter the SMTP host and port on the next step.</div>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-            <a id="sw-open-help" class="btn primary" href="#" target="_blank" rel="noopener" style="font-size: 0.85rem; text-decoration: none;">
-              <span class="material-symbols-outlined" style="font-size:18px;">open_in_new</span> Open the app passwords page
-            </a>
-            <button type="button" id="sw-show-guide" class="btn outline" style="font-size: 0.85rem;">
-              <span class="material-symbols-outlined" style="font-size:18px;">smart_display</span> Show me first (animated)
-            </button>
-          </div>
-          </div>
-          <!-- Microsoft OAuth panel — swApplyProvider('outlook') swaps this in for
-               the app-password education: Microsoft retired password sign-in
-               (personal accounts 2024, Microsoft 365 April 2026), so there is no
-               password to teach or collect. -->
-          <div id="sw-ms-panel" style="display:none;">
-            <p style="margin-top: 0;">Microsoft retired app passwords, so there's nothing to create or paste. One click signs you in on Microsoft's own page.</p>
-            <ol class="login-steps">
-              <li>Click <strong>Sign in with Microsoft</strong> — your browser opens Microsoft's sign-in.</li>
-              <li>Approve the mail permission. Email Pilots never sees your password.</li>
-              <li>You're connected — revoke access anytime from your Microsoft account.</li>
-            </ol>
-            <button type="button" id="sw-ms-btn" class="btn primary" style="width:100%; justify-content:center; margin-top:12px; background:#2563eb; border-color:#2563eb;">
-              <span class="material-symbols-outlined">login</span>
-              Sign in with Microsoft
-            </button>
-            <p id="sw-ms-status" style="display:none; font-size:0.85em; margin-top:10px;"></p>
-          </div>
-        </div>
-
-        <!-- STEP 3: Sign in -->
-        <div class="sw-panel" id="sw-panel-3" style="display: none;">
-          <p style="margin-top: 0;">Paste what you just created and you're done.</p>
-          <div id="sw-custom-fields" style="display:none; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div class="login-field">
-              <label for="sw-host">SMTP Host</label>
-              <input id="sw-host" type="text" placeholder="smtp.example.com">
-            </div>
-            <div class="login-field">
-              <label for="sw-port">Port</label>
-              <input id="sw-port" type="number" placeholder="587">
+        <div id="fd-scene-contact" class="fd-scene" role="img" aria-label="Animated replay: filling the add-recipient form and saving">
+          <div class="fd-frame">
+            <div class="fd-side"></div>
+            <div class="fd-main">
+              <div class="fd-label">Name</div>
+              <div class="fd-input fd-in-name"><span class="fd-ph">Jane Doe</span><span class="fd-typed">Maya</span></div>
+              <div class="fd-label">Email</div>
+              <div class="fd-input fd-in-email"><span class="fd-ph">jane@company.com</span><span class="fd-typed">maya@example.com</span></div>
+              <div class="fd-label">Message</div>
+              <div class="fd-input fd-in-msg"><span class="fd-typed">Hi {{name}} — loved your latest post…</span></div>
+              <div class="fd-btn fd-save">Save recipient</div>
+              <div class="fd-row"><span class="fd-chip">Maya</span> maya@example.com <span class="fd-ok">scheduled ✓</span></div>
             </div>
           </div>
-          <div class="login-field">
-            <label for="sw-email">Email address</label>
-            <input id="sw-email" type="email" placeholder="you@gmail.com" autocomplete="username">
-          </div>
-          <div class="login-field" style="margin-top: 12px;">
-            <label for="sw-password">App password</label>
-            <input id="sw-password" type="password" placeholder="••••••••••••••••" autocomplete="current-password">
+          <svg class="fd-cursor fd-cursor-a" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 3l14 8-6 1-3 6z" fill="#1a1a1a" stroke="#fff" stroke-width="1.5"/></svg>
+        </div>
+
+        <div id="fd-scene-sequence" class="fd-scene" role="img" aria-label="Animated replay: a three-step sequence stopping the moment a reply arrives">
+          <div class="fd-frame">
+            <div class="fd-side"></div>
+            <div class="fd-main fd-timeline">
+              <div class="fd-tstep fd-t1"><span class="fd-tday">Day 0</span> First hello</div>
+              <div class="fd-tstep fd-t2"><span class="fd-tday">Day 3</span> Gentle nudge</div>
+              <div class="fd-tstep fd-t3"><span class="fd-tday">Day 7</span> Last check-in</div>
+              <div class="fd-reply">Maya replied!</div>
+              <div class="fd-stopped">Remaining follow-ups stopped — she answered.</div>
+            </div>
           </div>
         </div>
 
-        <!-- Footer -->
-        <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 16px;">
-          <button type="button" id="sw-skip" class="btn ghost" style="font-size: 0.85rem; color: var(--muted-foreground);">Use the sign-in form instead</button>
-          <div style="display: flex; gap: 8px;">
-            <button type="button" id="sw-back" class="btn outline" style="display: none;">Back</button>
-            <button type="button" id="sw-next" class="btn primary" style="display: none;">Next</button>
-            <button type="button" id="sw-finish" class="btn primary" style="display: none;">Connect inbox</button>
+        <div id="fd-scene-send" class="fd-scene" role="img" aria-label="Animated replay: practice mode delivering the send to your own inbox">
+          <div class="fd-frame">
+            <div class="fd-side"></div>
+            <div class="fd-main">
+              <div class="fd-practice"><span class="fd-swtrack"><span class="fd-swknob"></span></span> Practice mode</div>
+              <div class="fd-btn fd-testsend">Send test</div>
+              <div class="fd-inbox"><span class="material-symbols-outlined" aria-hidden="true">inbox</span>your own inbox</div>
+              <span class="fd-mail material-symbols-outlined" aria-hidden="true">mail</span>
+              <div class="fd-okline">Delivered to you — no real contact received anything.</div>
+            </div>
           </div>
         </div>
+
+        <div class="fd-nav">
+          <p id="flow-demo-caption" class="help-text">The cursor and typing are a replay — your real form is one click away.</p>
+          <button type="button" id="flow-demo-try" class="btn primary">Try it now</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help & replay: the permanent re-entry point for every guide, demo and
+         sample — nothing in onboarding is once-only anymore. -->
+    <div id="help-modal" class="modal" style="display: none; z-index: 1500;">
+      <div class="modal-content" style="max-width: 480px;">
+        <span class="close-modal" role="button" tabindex="0" aria-label="Close help">&times;</span>
+        <h2 style="margin-top: 0;">Help &amp; guides</h2>
+        <p class="help-text" style="margin: 0;">Everything replays — nothing here is once-only.</p>
+        <div class="help-list">
+          <button type="button" id="hm-replay-tour" class="btn outline"><span class="material-symbols-outlined" aria-hidden="true">tour</span>Replay the product tour</button>
+          <button type="button" class="btn outline" data-flow-demo="contact"><span class="material-symbols-outlined" aria-hidden="true">smart_display</span>Watch: add your first contact</button>
+          <button type="button" class="btn outline" data-flow-demo="sequence"><span class="material-symbols-outlined" aria-hidden="true">smart_display</span>Watch: follow-ups that stop on reply</button>
+          <button type="button" class="btn outline" data-flow-demo="send"><span class="material-symbols-outlined" aria-hidden="true">smart_display</span>Watch: your first send, safely</button>
+          <button type="button" id="hm-apppw-guide" class="btn outline"><span class="material-symbols-outlined" aria-hidden="true">key</span>App password walkthrough (animated)</button>
+          <hr class="help-sep">
+          <button type="button" id="hm-sample-contact" class="btn outline"><span class="material-symbols-outlined" aria-hidden="true">person_add</span>Show me the sample contact again</button>
+          <button type="button" id="hm-sample-sequence" class="btn outline"><span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>Show me the sample sequence again</button>
+          <button type="button" id="hm-restore-cards" class="btn outline"><span class="material-symbols-outlined" aria-hidden="true">checklist</span>Bring back the dashboard checklists</button>
+          <button type="button" id="hm-connect" class="btn primary" style="display: none;"><span class="material-symbols-outlined" aria-hidden="true">flight_takeoff</span>Connect an inbox</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Backgrounded model download. Fixed to the window, not parked in a view, because
+         it has to survive every tab switch for the length of a multi-GB download. Click
+         reopens the dialog (where Cancel lives). -->
+    <div id="ai-dl-pill" class="ai-dl-pill" style="display: none;" role="button" tabindex="0"
+         aria-live="polite" title="Local AI download — click for details">
+      <span class="material-symbols-outlined ai-dl-pill-icon" aria-hidden="true">downloading</span>
+      <div class="ai-dl-pill-body">
+        <div class="ai-dl-pill-top">
+          <span class="ai-dl-pill-title">Local AI</span>
+          <span class="ai-dl-pill-pct" id="ai-dl-pill-pct">0%</span>
+        </div>
+        <div class="ai-dl-pill-track"><div class="ai-dl-pill-fill" id="ai-dl-pill-fill"></div></div>
+        <span class="ai-dl-pill-sub" id="ai-dl-pill-sub">Starting…</span>
       </div>
     </div>
 

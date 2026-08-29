@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import { parseEnv } from 'util';
 import path from 'path';
 import fs from 'fs';
 import { readAccounts } from './accountStore';
@@ -16,7 +16,30 @@ export function getBasePath(): string {
   return isExe ? path.dirname(process.execPath) : process.cwd();
 }
 
-dotenv.config({ path: path.join(getBasePath(), '.env') });
+/**
+ * Load KEY=VALUE pairs from an .env file into process.env via Node's
+ * `util.parseEnv` (same quoted-value rules as the dotenv package this replaced).
+ * A missing file is a no-op. `override: false` keeps values already present in
+ * the environment (dotenv's default); `override: true` mirrors dotenv's
+ * `override` option for reloading after the file is rewritten. Either way keys
+ * are only ever *assigned*, never removed — callers that drop keys from the
+ * .env (sign-out) must still delete the stale process.env entries themselves.
+ */
+export function loadEnvInto(envPath: string, override: boolean): void {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(envPath, 'utf8');
+  } catch {
+    return;
+  }
+  for (const [key, value] of Object.entries(parseEnv(raw))) {
+    if (value !== undefined && (override || process.env[key] === undefined)) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadEnvInto(path.join(getBasePath(), '.env'), false);
 
 /**
  * One sending identity. The primary account (id 'default') is derived in memory
@@ -44,28 +67,38 @@ export interface Account {
    * Copy each accepted REAL send into this mailbox's Sent folder over IMAP
    * (raw SMTP submission does not file anything there — Microsoft never
    * auto-saves; Gmail does). Absent ⇒ provider default via shouldCopyToSent():
-   * on for oauth-smtp + generic hosts, off for Gmail (would duplicate) and
-   * browser accounts (no IMAP credentials).
+   * on for generic hosts, off for Gmail (would duplicate) and browser accounts
+   * (no IMAP credentials). Graph sends never reach the copier (auto-saved).
    */
   copyToSent?: boolean;
   /**
    * How this account puts mail on the wire. Absent ⇒ 'smtp' (classic password
    * SMTP — the only path before low-friction transports were added), so every
    * existing account keeps working untouched.
-   *  - 'smtp'       : nodemailer + host/port/user/pass
-   *  - 'oauth-smtp' : nodemailer XOAUTH2 (Microsoft) — `user` set, no `pass`
-   *  - 'browser'    : drive the provider's webmail UI — no `pass`, no IMAP
+   *  - 'smtp'    : nodemailer + host/port/user/pass
+   *  - 'browser' : drive the provider's webmail UI — no `pass`, no IMAP
+   *  - 'graph'   : Microsoft Graph Mail.Send (HTTPS) — `user` set, no `pass`
+   * ('oauth-smtp', the pre-Graph Microsoft path, is migrated to 'graph' on
+   * read by accountStore.)
    */
-  transport?: 'smtp' | 'oauth-smtp' | 'browser';
-  /** OAuth provider for 'oauth-smtp' accounts. */
+  transport?: 'smtp' | 'browser' | 'graph';
+  /** OAuth provider for 'graph' accounts. */
   oauthProvider?: 'microsoft';
-  /** Encrypted (ENC:) MSAL refresh-token cache for 'oauth-smtp' accounts. */
+  /** Encrypted (ENC:) MSAL refresh-token cache for 'graph' accounts. */
   oauthToken?: string;
   /** Which webmail to automate for 'browser' accounts. */
   browserProvider?: 'gmail' | 'outlook';
   /** Electron persistent session partition ('persist:acct-<id>') holding the
    *  logged-in cookies for a 'browser' account. */
   browserPartition?: string;
+  /**
+   * DLV-19: the identity-alignment warning from the Microsoft sign-in (a 'graph'
+   * account whose sign-in alias is a foreign domain goes out as a placeholder
+   * outlook_<hex>@outlook.com address). Persisted so the dashboard preflight and
+   * the account card keep saying it — the sign-in toast alone was forgotten.
+   * Rewritten on every sign-in; absent ⇒ aligned or never checked.
+   */
+  identityWarning?: string;
 }
 
 /**

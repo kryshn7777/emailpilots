@@ -23,12 +23,8 @@ describe('shouldCopyToSent (provider policy)', () => {
   });
 
   it('an explicit user choice always wins over the provider default', () => {
-    expect(shouldCopyToSent(acct({ transport: 'oauth-smtp', copyToSent: false }))).toBe(false);
+    expect(shouldCopyToSent(acct({ copyToSent: false }))).toBe(false);
     expect(shouldCopyToSent(acct({ user: 'x@gmail.com', host: 'smtp.gmail.com', copyToSent: true }))).toBe(true);
-  });
-
-  it('oauth-smtp (Microsoft) defaults ON — SMTP submission never reaches Sent Items', () => {
-    expect(shouldCopyToSent(acct({ transport: 'oauth-smtp', pass: '' }))).toBe(true);
   });
 
   it('Gmail defaults OFF by address AND by host — its SMTP auto-saves, a copy would duplicate', () => {
@@ -48,8 +44,8 @@ describe('shouldCopyToSent (provider policy)', () => {
 
 /** Copier with an injectable fake IMAP client (createClient seam). */
 class TestCopier extends SentFolderCopier {
-  constructor(private client: any, getToken?: (a: Account) => Promise<string>) {
-    super(getToken);
+  constructor(private client: any) {
+    super();
   }
   public lastOpts: any = null;
   protected createClient(opts: any): any {
@@ -155,23 +151,6 @@ describe('SentFolderCopier', () => {
     await copier.copyAndSettle(acct(), RAW);
     await copier.copyAndSettle(acct(), RAW);
     expect(warn).toHaveBeenCalledTimes(1);
-  });
-
-  it('oauth account without a token seam is skipped entirely (CLI)', async () => {
-    const client = fakeClient([{ path: 'Sent Items', name: 'Sent Items', specialUse: '\\Sent' }]);
-    const copier = new TestCopier(client); // no getAccessToken
-    await copier.copyAndSettle(acct({ transport: 'oauth-smtp', pass: '' }), RAW);
-    expect(client.connect).not.toHaveBeenCalled();
-  });
-
-  it('oauth account builds an XOAUTH2 client against outlook.office365.com', async () => {
-    const client = fakeClient([{ path: 'Sent Items', name: 'Sent Items', specialUse: '\\Sent' }]);
-    const copier = new TestCopier(client, async () => 'tok-123');
-    await copier.copyAndSettle(acct({ transport: 'oauth-smtp', pass: '', user: 'u@outlook.com' }), RAW);
-    expect(copier.lastOpts.host).toBe('outlook.office365.com');
-    expect(copier.lastOpts.port).toBe(993);
-    expect(copier.lastOpts.auth).toEqual({ user: 'u@outlook.com', accessToken: 'tok-123' });
-    expect(client.append).toHaveBeenCalledTimes(1);
   });
 
   it('classic account derives imap.<domain> from the SMTP host (imapHost override wins)', async () => {

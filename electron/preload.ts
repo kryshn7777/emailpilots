@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getStats: () => ipcRenderer.invoke('get-stats'),
   // accountId optional — omit for the default account (legacy behavior).
   getUsage: (accountId?: string) => ipcRenderer.invoke('get-usage', accountId),
+  overrideWarmupToday: (accountId?: string) => ipcRenderer.invoke('override-warmup-today', accountId),
   getSuppressions: () => ipcRenderer.invoke('list-suppressions'),
   // Recipients who replied (reply-rate widget + Replied column).
   getReplies: () => ipcRenderer.invoke('list-replies'),
@@ -27,8 +28,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('send-failure', listener);
     return () => ipcRenderer.removeListener('send-failure', listener);
   },
-  // Fires when an async DSN bounce was auto-suppressed (E2). Returns a disposer.
-  onBounceDetected: (cb: (p: { email: string; accountId: string }) => void) => {
+  // Fires when an async DSN bounce was auto-suppressed (E2), an "Unsubscribe" reply
+  // was honored (DLV-4), or a 5.7.x policy refusal was surfaced without blocking
+  // (DLV-1) — `kind` says which. Returns a disposer.
+  onBounceDetected: (cb: (p: { email: string; accountId: string; kind?: 'bounce' | 'unsubscribe' | 'policy'; detail?: string }) => void) => {
     const listener = (_e: any, p: any) => cb(p);
     ipcRenderer.on('bounce-detected', listener);
     return () => ipcRenderer.removeListener('bounce-detected', listener);
@@ -71,6 +74,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('sent-log-updated', listener);
     return () => ipcRenderer.removeListener('sent-log-updated', listener);
   },
+
+  // Licensing (freemium #6). Free needs none of these; the key never crosses
+  // back to the renderer once stored (status carries a masked tail only).
+  getLicenseStatus: () => ipcRenderer.invoke('get-license-status'),
+  licenseActivate: (key: string) => ipcRenderer.invoke('license-activate', key),
+  licenseValidate: () => ipcRenderer.invoke('license-validate'),
+  licenseDeactivate: () => ipcRenderer.invoke('license-deactivate'),
 
   startScheduler: () => ipcRenderer.invoke('start-scheduler'),
   stopScheduler: () => ipcRenderer.invoke('stop-scheduler'),

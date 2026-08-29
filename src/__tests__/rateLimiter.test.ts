@@ -46,6 +46,39 @@ describe('RateLimiter', () => {
     expect(rl.tryConsume('same@x.com', 0).allowed).toBe(false);
   });
 
+  it('warm-up override lifts today\'s cap to maxPerDay, persists, and is today-only', () => {
+    const dir = tmpDir();
+    const L = limits({ maxPerDay: 50, warmupEnabled: true, warmupCurve: [2] }); // day-0 ramp cap = 2
+    const rl = new RateLimiter(dir, L);
+    expect(rl.tryConsume('a@x.com', 0).allowed).toBe(true);
+    expect(rl.tryConsume('b@x.com', 0).allowed).toBe(true);
+    expect(rl.tryConsume('c@x.com', 0).allowed).toBe(false); // warm-up wall at 2
+
+    expect(rl.overrideWarmupToday()).toBe(true);
+    expect(rl.getUsage().warmupOverriddenToday).toBe(true);
+    expect(rl.getUsage().maxPerDay).toBe(50);                 // ramp bypassed
+    expect(rl.tryConsume('c@x.com', 0).allowed).toBe(true);   // now allowed
+
+    // Persists for the automated path: a fresh limiter on the same file sees it.
+    expect(new RateLimiter(dir, L).getUsage().maxPerDay).toBe(50);
+
+    // Today-only: a stale override date is inert → the ramp resumes.
+    const file = path.join(dir, 'limits.json');
+    const state = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    state.warmupOverrideDate = '2000-01-01';
+    fs.writeFileSync(file, JSON.stringify(state));
+    const stale = new RateLimiter(dir, L);
+    expect(stale.getUsage().warmupOverriddenToday).toBe(false);
+    expect(stale.getUsage().maxPerDay).toBe(2);
+  });
+
+  it('warm-up override is a no-op on an unreadable limits file (SIM-1 fail-closed)', () => {
+    const dir = tmpDir();
+    fs.writeFileSync(path.join(dir, 'limits.json'), '{ not json');
+    const rl = new RateLimiter(dir, limits({ warmupEnabled: true, warmupCurve: [2] }));
+    expect(rl.overrideWarmupToday()).toBe(false);
+  });
+
   it('exhausts the window budget', () => {
     const rl = new RateLimiter(tmpDir(), limits({ maxPerWindow: 2, maxWindowsPerDay: 1 }));
     expect(rl.tryConsume('a@x.com', 0).allowed).toBe(true);

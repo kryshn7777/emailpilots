@@ -5,6 +5,15 @@ import type { StrategyDeps } from './transport/sendStrategy';
 import { MailProcessor } from './mailProcessor';
 import type { SentLogEntry } from './sentLog';
 import { SentFolderCopier } from './sentCopy';
+import { GRAPH_MAX_ATTACHMENT_BYTES } from './transport/graphStrategy';
+
+/** DLV-15: the per-account rate limits, with the attachment cap clamped to what the
+ *  account's transport can actually carry (Graph: ~4 MB request ⇒ 2 MiB raw). The
+ *  user's own tighter cap always wins; SMTP and browser accounts are untouched. */
+export function limitsForTransport(limits: Config['limits'], account: Account): Config['limits'] {
+  if (account?.transport !== 'graph') return limits;
+  return { ...limits, maxAttachmentBytes: Math.min(limits.maxAttachmentBytes, GRAPH_MAX_ATTACHMENT_BYTES) };
+}
 
 export interface RunSummary {
   total: number;
@@ -47,15 +56,14 @@ export function buildProcessors(
 ): Map<string, MailProcessor> {
   const map = new Map<string, MailProcessor>();
   // One copier per processor set: its Sent-folder discovery cache lives exactly
-  // as long as the processors, so account changes rebuild both together. The
-  // OAuth token seam comes from the same strategyDeps as sending; without it
-  // (CLI) oauth copies are skipped inside the copier, password copies still work.
-  const copier = new SentFolderCopier(strategyDeps?.getAccessToken);
+  // as long as the processors, so account changes rebuild both together.
+  const copier = new SentFolderCopier();
   for (const account of sendableAccounts(config)) {
     const perAccountConfig: Config = {
       ...config,
       smtp: { host: account.host, port: account.port, user: account.user, pass: account.pass },
       account, // carries transport + OAuth/browser fields so EmailService picks the strategy
+      limits: limitsForTransport(config.limits, account), // DLV-15
     };
     const emailService = new EmailService(perAccountConfig, strategyDeps);
     const processor = new MailProcessor(perAccountConfig, emailService, onSuccess, account.id, onFailure, onSent, copier);

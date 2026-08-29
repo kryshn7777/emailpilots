@@ -53,7 +53,7 @@ function makeConfig(recipientsJson: string): Config {
 function stageFailure(command: string): EmailService {
   return {
     sendMail: async (): Promise<never> => {
-      throw Object.assign(new Error(`Mail command failed: 550 5.7.1 denied`), {
+      throw Object.assign(new Error(`Mail command failed: 550 5.1.1 User unknown`), {
         code: 'EENVELOPE', responseCode: 550, command,
       });
     },

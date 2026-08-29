@@ -8,6 +8,7 @@ import { atomicWriteFileSync } from './atomicWrite';
 import { accountStateFileName } from './accountFiles';
 import { SuppressionManager } from './suppressionManager';
 import { parseBounce, looksLikeBounce } from './bounceParser';
+import { listInboxSince, getMimeSource } from './graphMailReader';
 import { classifyReply, type ReplyClassification } from './ai/replyClassifier';
 import type { AiService } from './ai/aiService';
 
@@ -32,10 +33,21 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
 }
 
 /**
- * Reads each sending account's own INBOX over IMAP and records replies from
- * recipients. Read-only — no Gmail API / Graph / ESP; raw IMAP only, matching
- * the SMTP-only-transport stance for the outbound side. Drives both the
- * reply-rate metric and the "stop the drip if they replied" gate.
+ * DLV-4: the subject our own mailto: List-Unsubscribe link / footer generates
+ * ("Unsubscribe"), as sent by Gmail's unsubscribe button, Apple Mail, Outlook, or
+ * a plain click on the link — optionally behind Re:/Fwd:-style prefixes.
+ * Deterministic and AI-independent; body-only requests ("please remove me")
+ * stay with the optional classifier.
+ */
+export function isUnsubscribeSubject(subject?: string): boolean {
+  return /^\s*(?:(?:re|fwd?|aw|wg|sv)\s*:\s*)*unsubscribe\b/i.test(String(subject ?? ''));
+}
+
+/**
+ * Reads each sending account's own INBOX and records replies from recipients.
+ * Read-only. Classic SMTP accounts read over IMAP; 'graph' accounts read
+ * over Microsoft Graph Mail.Read (scanAccountGraph). Drives both the reply-rate
+ * metric and the "stop the drip if they replied" gate.
  *
  * Lifecycle is tied to the scheduler (start/stop) so the app never opens
  * mailboxes while the user has sending paused. An incremental UID cursor per
@@ -81,12 +93,27 @@ export class ReplyPoller {
    */
   public onBounce?: (email: string, accountId: string, detail: string) => void;
 
+  /**
+   * DLV-1: fired when a DSN reports a 5.7.x POLICY refusal — the receiving server
+   * rejected the message because of the sender (SPF/DKIM/DMARC, reputation,
+   * content), not because the address is bad. The recipient is deliberately NOT
+   * suppressed; the host tells the user what to fix. Same containment contract.
+   */
+  public onPolicyReject?: (email: string, accountId: string, detail: string) => void;
+
+  /**
+   * DLV-4: fired after an "Unsubscribe" reply (the subject our own mailto:
+   * List-Unsubscribe link generates) was honored by suppressing the sender.
+   * Same containment contract as onBounce.
+   */
+  public onUnsubscribe?: (email: string, accountId: string) => void;
+
   constructor(
     public config: Config,
     private stats: StatsManager | null,
-    /** Electron-injected: yields an XOAUTH2 access token for an oauth-smtp
-     *  account. Absent ⇒ OAuth accounts are skipped (e.g. pure-Node contexts). */
-    private getAccessToken?: (account: Account) => Promise<string>,
+    /** Electron-injected: yields a Graph (Mail.Send/Read) token for a 'graph'
+     *  account. Absent ⇒ graph accounts are skipped (pure-Node contexts). */
+    private getGraphAccessToken?: (account: Account) => Promise<string>,
     /** Optional Local AI service (feature #2). When present + enabled + the
      *  classifyReplies toggle is on, each new reply is classified. Absent ⇒
      *  classification never runs and the poller behaves exactly as before. */
@@ -146,6 +173,25 @@ export class ReplyPoller {
     }
   }
 
+  // Graph accounts store an ISO receivedDateTime cursor in the same imap.<id>.json
+  // (gitignored); a graph account never carries a {lastUid}, so the two never clash.
+  private readIsoCursor(accountId: string): string {
+    try {
+      const raw = JSON.parse(fs.readFileSync(this.cursorPath(accountId), 'utf-8'));
+      return typeof raw?.lastReceived === 'string' ? raw.lastReceived : '';
+    } catch {
+      return '';
+    }
+  }
+
+  private writeIsoCursor(accountId: string, lastReceived: string): void {
+    try {
+      atomicWriteFileSync(this.cursorPath(accountId), JSON.stringify({ lastReceived }, null, 2));
+    } catch (e) {
+      console.error('Failed to write Graph cursor:', e);
+    }
+  }
+
   /** Lowercased set of recipient emails currently in recipients.json. */
   private recipientEmails(): Set<string> {
     const set = new Set<string>();
@@ -176,14 +222,14 @@ export class ReplyPoller {
       const recipients = this.recipientEmails();
       if (recipients.size === 0) return; // nothing to match — skip all connections
       const store = new ReplyStore(getBasePath());
-      // Reply detection reads the inbox over IMAP. Classic SMTP accounts use the
-      // stored password; oauth-smtp accounts use an XOAUTH2 token (only when a
-      // token getter was injected); 'browser' accounts have no IMAP credentials
-      // and are skipped (their replies aren't auto-detected).
+      // Reply detection reads the inbox over IMAP with the stored password;
+      // 'graph' accounts read over Graph (only when a token getter was
+      // injected); 'browser' accounts have no IMAP credentials and are
+      // skipped (their replies aren't auto-detected).
       const accounts: Account[] = (this.config.accounts || []).filter(a => {
         if (!a.enabled || !a.user) return false;
         if (a.transport === 'browser') return false;
-        if (a.transport === 'oauth-smtp') return !!this.getAccessToken;
+        if (a.transport === 'graph') return !!this.getGraphAccessToken;
         return !!a.pass;
       });
       for (const account of accounts) {
@@ -199,14 +245,10 @@ export class ReplyPoller {
   }
 
   private async scanAccount(account: Account, recipients: Set<string>, store: ReplyStore, gen = this.generation): Promise<void> {
-    const isOAuth = account.transport === 'oauth-smtp';
-    // Microsoft's IMAP endpoint is outlook.office365.com (not the imap.* swap of
-    // the SMTP host). Classic accounts keep the derived/overridden host.
-    const host = account.imapHost || (isOAuth ? 'outlook.office365.com' : deriveImapHost(account.host));
+    if (account.transport === 'graph') return this.scanAccountGraph(account, recipients, store, gen);
+    const host = account.imapHost || deriveImapHost(account.host);
     const port = account.imapPort || 993;
-    const auth = isOAuth
-      ? { user: account.user, accessToken: await this.getAccessToken!(account) }
-      : { user: account.user, pass: account.pass };
+    const auth = { user: account.user, pass: account.pass };
     const client = this.createClient({
       host,
       port,
@@ -271,6 +313,7 @@ export class ReplyPoller {
               try { this.onNewReply?.(key, account.id, repliedAt, lastUid === 0); } catch { /* UI hook must never abort the sweep */ }
             }
             console.log(`Reply detected from ${key} (account ${account.id}).`);
+            if (isUnsubscribeSubject(msg.envelope?.subject)) this.honorUnsubscribe(key, account.id, msg.envelope?.subject);
             if (doClassify) toClassify.push({ uid, key, subject: msg.envelope?.subject });
           }
         }
@@ -338,40 +381,137 @@ export class ReplyPoller {
     try {
       const msg: any = await client.fetchOne(String(item.uid), { source: true }, { uid: true });
       if (!msg?.source) return;
-      // Reuse the lazy mailparser dep already used by the classify path.
-      const { simpleParser } = await import('mailparser');
-      const parsed = await simpleParser(msg.source as Buffer);
-      const headers: Record<string, string> = {};
-      for (const hl of parsed.headerLines || []) {
-        const i = hl.line.indexOf(':');
-        if (i > 0) headers[hl.key.toLowerCase()] = hl.line.slice(i + 1).trim();
-      }
-      const res = parseBounce({
-        from: String(parsed.from?.value?.[0]?.address || '').toLowerCase(),
-        subject: parsed.subject || item.subject,
-        headers,
-        // Raw source so the Final-Recipient line in the delivery-status part is visible.
-        body: String(msg.source),
-      });
-      if (!res) return;
-      // Safety: only suppress an address genuinely on our list — a spoofed or
-      // forwarded DSN naming a stranger must not poison suppression.json.
-      if (!recipients.has(res.failedRecipient)) return;
-      new SuppressionManager(getBasePath()).add(res.failedRecipient, 'bounce', `async DSN: ${(item.subject || '').trim()}`.trim());
-      console.log(`Async bounce suppressed ${res.failedRecipient}.`);
-      // E2: tell the host AFTER the suppression write succeeded. Contained —
-      // a throwing hook must not be mistaken for a failed suppression.
-      try {
-        this.onBounce?.(res.failedRecipient, accountId, (item.subject || '').trim());
-      } catch (e) {
-        console.error('onBounce hook failed:', (e as any)?.message || e);
-      }
+      await this.processRawBounce(String(msg.source), item.subject, recipients, accountId);
     } catch (e) {
-      // Covers both the parse and the suppression write. An unreadable suppression
-      // list reports itself here as "Bounce parse failed", which points the operator
-      // at the wrong file — carry the real message through (S2).
+      // Covers the fetch AND the parse/suppression write. An unreadable suppression
+      // list reports itself here (carry the real message through — S2).
       console.error('Bounce auto-suppress failed:', (e as any)?.message || e);
     }
+  }
+
+  /**
+   * Parse a raw DSN/NDR source and, only when the failed recipient is genuinely on
+   * our list, suppress it as a bounce. Transport-agnostic: the IMAP path (fetchOne
+   * source) and the Graph path ($value MIME) both feed it. Reuses the pure parseBounce.
+   * Does not catch — the caller's try/catch owns parse + suppression-write failures.
+   */
+  private async processRawBounce(rawSource: string, subject: string | undefined, recipients: Set<string>, accountId: string): Promise<void> {
+    const { simpleParser } = await import('mailparser');
+    const parsed = await simpleParser(rawSource);
+    const headers: Record<string, string> = {};
+    for (const hl of parsed.headerLines || []) {
+      const i = hl.line.indexOf(':');
+      if (i > 0) headers[hl.key.toLowerCase()] = hl.line.slice(i + 1).trim();
+    }
+    const res = parseBounce({
+      from: String(parsed.from?.value?.[0]?.address || '').toLowerCase(),
+      subject: parsed.subject || subject,
+      headers,
+      // Raw source so the Final-Recipient line in the delivery-status part is visible.
+      body: rawSource,
+    });
+    if (!res) return;
+    // Safety: only suppress an address genuinely on our list — a spoofed or
+    // forwarded DSN naming a stranger must not poison suppression.json.
+    if (!recipients.has(res.failedRecipient)) return;
+    if (res.policy) {
+      // DLV-1 / DLV-13: the status is about US — authentication / reputation /
+      // content (5.7.x), a restricted or over-quota sending account (5.1.8, 5.2.2
+      // "Submission quota exceeded"), a message too large — not the address.
+      // Suppressing would blacklist valid people over one broken DKIM setup or one
+      // over-quota day, and fixing the cause could never bring them back. Surface it.
+      const detail = `${res.status} ${res.diagnostic || (subject || '').trim()}`.trim();
+      console.warn(
+        `Delivery to ${res.failedRecipient} failed for a reason that is not about the address (${detail}) — NOT blocked; ` +
+        `check the reason: account limits or restrictions, message size/content, or the sending domain's SPF/DKIM/DMARC.`,
+      );
+      try {
+        this.onPolicyReject?.(res.failedRecipient, accountId, detail);
+      } catch (e) {
+        console.error('onPolicyReject hook failed:', (e as any)?.message || e);
+      }
+      return;
+    }
+    new SuppressionManager(getBasePath()).add(res.failedRecipient, 'bounce', `async DSN: ${(subject || '').trim()}`.trim());
+    console.log(`Async bounce suppressed ${res.failedRecipient}.`);
+    // E2: tell the host AFTER the suppression write succeeded. Contained.
+    try {
+      this.onBounce?.(res.failedRecipient, accountId, (subject || '').trim());
+    } catch (e) {
+      console.error('onBounce hook failed:', (e as any)?.message || e);
+    }
+  }
+
+  /**
+   * DLV-4: honor an "Unsubscribe" reply by suppressing the sender. Idempotent —
+   * an address already on the list (a re-scanned sweep, a manual block) gets no
+   * second write and no second notification. Contained: an unreadable list (S2)
+   * is logged and never aborts the sweep — the reply itself is already recorded.
+   */
+  private honorUnsubscribe(email: string, accountId: string, subject: string | undefined): void {
+    try {
+      const sup = new SuppressionManager(getBasePath());
+      if (sup.isSuppressed(email)) return;
+      sup.add(email, 'unsubscribe', `unsubscribe reply: ${(subject || '').trim()}`.trim());
+      console.log(`Unsubscribe honored for ${email} (account ${accountId}).`);
+      try {
+        this.onUnsubscribe?.(email, accountId);
+      } catch (e) {
+        console.error('onUnsubscribe hook failed:', (e as any)?.message || e);
+      }
+    } catch (e) {
+      console.error('Could not honor an unsubscribe reply:', (e as any)?.message || e);
+    }
+  }
+
+  /**
+   * Graph Mail.Read equivalent of scanAccount for a 'graph' account. Same shape —
+   * list new inbox mail, record recipient replies, divert DSNs to auto-suppress —
+   * but over HTTPS (no IMAP lock/logout) with an ISO receivedDateTime cursor. Reuses
+   * every downstream: recordReply, stats, onNewReply/onBounce, processRawBounce, and
+   * the CSA-3 generation gate. Never throws past poll()'s per-account catch.
+   */
+  private async scanAccountGraph(account: Account, recipients: Set<string>, store: ReplyStore, gen: number): Promise<void> {
+    const token = await this.getGraphAccessToken!(account);
+    const cursor = this.readIsoCursor(account.id);
+    const isBackfill = !cursor;
+    const sinceIso = cursor || new Date(Date.now() - FIRST_RUN_LOOKBACK_DAYS * 86400 * 1000).toISOString();
+    const { messages, newestIso } = await listInboxSince(token, sinceIso);
+
+    const bounceCandidates: Array<{ id: string; subject?: string }> = [];
+    for (const m of messages) {
+      // A DSN's From is mailer-daemon/postmaster — never a recipient — so gate on
+      // NOT-a-recipient, mirroring the IMAP path.
+      if (!recipients.has(m.from) && looksLikeBounce(m.from, m.subject)) {
+        bounceCandidates.push({ id: m.id, subject: m.subject });
+        continue;
+      }
+      if (!m.from || !recipients.has(m.from)) continue;
+      const repliedAt = m.receivedDateTime || new Date().toISOString();
+      if (store.recordReply(m.from, repliedAt, account.id, m.subject)) {
+        this.stats?.incrementReplies(account.id);
+        try { this.onNewReply?.(m.from, account.id, repliedAt, isBackfill); } catch { /* UI hook must never abort the sweep */ }
+      }
+      console.log(`Reply detected from ${m.from} (account ${account.id}).`);
+      if (isUnsubscribeSubject(m.subject)) this.honorUnsubscribe(m.from, account.id, m.subject);
+    }
+
+    // Advance the cursor unless a stop() (sign-out) disowned this sweep — the same
+    // generation gate as the IMAP path (CSA-3).
+    if (gen === this.generation) this.writeIsoCursor(account.id, newestIso);
+
+    // Async DSN bounces, after the cursor advance so a slow MIME fetch/parse can
+    // never block or revert it. Each is time-bounded and contained.
+    for (const item of bounceCandidates) {
+      try {
+        const raw = await withTimeout(getMimeSource(token, item.id), BOUNCE_PARSE_TIMEOUT_MS);
+        if (raw) await this.processRawBounce(raw, item.subject, recipients, account.id);
+      } catch (e) {
+        console.error('Graph bounce auto-suppress failed:', (e as any)?.message || e);
+      }
+    }
+    // ponytail: AI reply classification (classifyAndAct) is not wired for graph —
+    // gated feature #2; add a getMimeSource→classifyReply branch here when needed.
   }
 
   /** Fetch one message's body (best-effort) and classify it. Body-fetch/parse

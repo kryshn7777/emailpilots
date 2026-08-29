@@ -1,0 +1,173 @@
+/* Email preview. index.html <link>s this after src/style.css. Same contract as
+   src/onboarding.css: every rule is written against token NAMES (--primary,
+   --card-bg, --space-*, --text-*, …) rather than raw values, so a theme change
+   lands here for free.
+
+   Shape: the modal is app chrome, the card inside it is the message. The
+   deliverability banner deliberately sits OUTSIDE the card, on the layer
+   background, so it can never be mistaken for part of the email. */
+
+/* ── Shell ────────────────────────────────────────────────────────────────
+   (1,0,1) beats style.css's `.modal-content` (0,1,0), so that sheet needs no
+   editing and no !important is required. */
+#preview-modal .modal-content {
+  max-width: 850px;
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  /* The scroller moves inside, to .preview-scroll — so the title and the close
+     button stay put while a long email scrolls, the way a mail reader works. */
+  overflow: hidden;
+}
+#preview-modal .modal-content > h2 { flex: 0 0 auto; }
+
+.preview-scroll {
+  flex: 1 1 auto;
+  min-height: 0;                          /* without this a flex child never shrinks */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Pull out to the shell edge so the scrollbar rides the wall, then pad back
+     in so the content keeps its inset. */
+  margin: 0 calc(var(--space-6) * -1);
+  padding: 0 var(--space-6);
+}
+
+/* The banners bring their own inline margin-bottom, so no gap is set here —
+   a class rule could not override those inline margins without !important. */
+.preview-advisory:empty { display: none; }
+
+/* ── The message card ─────────────────────────────────────────────────── */
+.mail-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+
+.mail-subject {
+  margin: 0;
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  color: var(--brand-ink);
+  overflow-wrap: anywhere;
+}
+
+.mail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 0 var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.mail-avatar {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  user-select: none;
+}
+
+.mail-ident { flex: 1 1 auto; min-width: 0; }
+
+.mail-from {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+/* Empty when no display name is configured — the real email goes out as a bare
+   address, and the header says so rather than inventing a sender. */
+.mail-from-addr {
+  font-weight: var(--weight-normal);
+  color: var(--text-muted);
+}
+.mail-from-addr:empty { display: none; }
+
+.mail-to {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+.mail-date {
+  flex: 0 0 auto;
+  padding-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── HTML / Plain text switch ─────────────────────────────────────────────
+   A viewer control, so it is quiet: it belongs to the card but must not
+   compete with the message. */
+.mail-viewmode {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.mail-viewmode-btn {
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.mail-viewmode-btn:hover { color: var(--foreground); }
+.mail-viewmode-btn.is-active {
+  background: var(--accent-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.mail-viewmode-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────────
+   Both panes are hardcoded to the same reading stack on purpose. This is a
+   mail viewport, not app chrome, and switching tabs must not switch typeface.
+   The iframe is a separate document with no :root, so it cannot read the
+   tokens — matching those values here is what keeps the two panes one surface. */
+.mail-body { background: #fff; }
+
+#preview-frame {
+  display: block;
+  width: 100%;
+  height: 320px;              /* pre-measure fallback; JS sets the real height */
+  border: 0;
+  background: #fff;
+}
+/* Must out-specify the display:block above, or the hidden attribute is ignored. */
+#preview-frame[hidden] { display: none; }
+
+.mail-text {
+  margin: 0;
+  padding: 24px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1a1a1a;
+  background: #fff;
+}
