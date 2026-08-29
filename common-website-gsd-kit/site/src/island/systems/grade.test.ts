@@ -69,7 +69,7 @@ test('the four stages run in the order DoF → S-curve → vignette → grain (R
   assert.ok(main !== null, 'positive control: the fragment shader’s main() must be found');
   const body = main[1];
 
-  const at = ['dofGather', 'filmicSCurve', 'vignette', 'grain'].map((stage) => {
+  const at = ['dofGather', 'displayTransfer', 'filmicSCurve', 'vignette', 'grain'].map((stage) => {
     const i = body.indexOf(`${stage}(`);
     assert.ok(i >= 0, `stage "${stage}" is not called in main()`);
     return { stage, i };
@@ -80,19 +80,126 @@ test('the four stages run in the order DoF → S-curve → vignette → grain (R
       `${at[i].stage} runs before ${at[i - 1].stage}. ` +
         (at[i].stage === 'grain'
           ? 'Grain blurred by DoF reads as compression noise, not as film.'
-          : 'DoF is the only depth-reading stage and must come first.'),
+          : at[i].stage === 'displayTransfer'
+            ? 'DoF gathers scene-LINEAR samples; everything after the transfer is ' +
+              'display-referred, which is the domain the S-curve toe was authored in.'
+            : 'DoF is the only depth-reading stage and must come first.'),
     );
   }
 
-  // Exposure is deliberately NOT in this list: it lives on renderer.toneMappingExposure per
-  // FB-5, so mobile gets it for free. Applying it here too would double it AND deny mobile
-  // the one finish item that costs it nothing.
+  // **Ruling 9's rule -- invert, don't delete -- applied to this file's own history.**
+  //
+  // What stood here forbade the string `toneMappingExposure` anywhere in the pass, citing
+  // FB-5's "exposure lives on the renderer". FB-5 says exposure has one AUTHOR; it does not
+  // say the pass may not READ it -- and in three r185 the pass is the only place the authored
+  // value can reach a desktop pixel, because the renderer skips tone mapping entirely while
+  // drawing into a non-XR render target (the premise gate below pins that). So the assertion
+  // required the very defect it was written to prevent, exactly as Ruling 10 §5's two
+  // castShadow assertions did.
+  //
+  // The invariant worth keeping is ONE AUTHOR: the pass may consume the renderer's authored
+  // exposure, and may never declare a level of its own.
+  const src = strip(GRADE_FRAGMENT);
   assert.doesNotMatch(
-    strip(GRADE_FRAGMENT),
-    /uExposure|toneMappingExposure/,
-    'FB-5 puts exposure on the renderer, never in the pass — mobile runs 0 passes and must ' +
-      'still get it',
+    src,
+    /uniform\s+float\s+\w*[Ee]xposure/,
+    'a second exposure input into the pass is a second answer to how bright the frame is. ' +
+      'The one author is dayWheel SKY_EXPOSURE, written by Room to the renderer field, and ' +
+      'three own toneMappingExposure uniform is what carries it into this shader.',
   );
+  assert.doesNotMatch(
+    src,
+    /toneMappingExposure\s*=/,
+    'the pass reads the authored exposure; it never writes one (Room is the single writer)',
+  );
+});
+
+/* ------------------------------------------- the transfer three skips for a target --- */
+
+/**
+ * **The defect this pair of gates exists for, stated as the fact that was assumed and never
+ * checked.**
+ *
+ * `grade.ts` was built on one sentence — *"RenderPass (scene -> composer RT, RGBA8,
+ * **tone-mapped at scene shading**)"*. In three r185 that sentence is false, and measurably
+ * so: rendering a MeshBasicMaterial of exactly 0.5 scene-linear with
+ * `toneMapping = ACESFilmic, toneMappingExposure = 1` reads back **128** from a plain
+ * `WebGLRenderTarget` and **197** from the default framebuffer. 128 is the raw linear value:
+ * neither ACES nor the sRGB transfer ran. 197 is both of them.
+ *
+ * So on the desktop (post) cut the frame reached the canvas as scene-LINEAR pixels displayed
+ * as if they were sRGB — a missing ~2.2 gamma — and FB-5's authored exposure, which three
+ * applies *inside* the tone-mapping step, reached no pixel at all. `Room` wrote it, three
+ * never read it, and every gate in the suite was watching the write.
+ *
+ * The fix restores both transfers inside the one ShaderPass, using **three's own two injected
+ * functions** rather than a transcribed copy: `toneMapping()` (the ACES fit plus three's own
+ * `toneMappingExposure` uniform, which the renderer refreshes per draw) and
+ * `linearToOutputTexel()` (the transfer for whatever `renderer.outputColorSpace` is set to).
+ * Nothing is transcribed, so nothing can drift.
+ */
+test('the pass restores BOTH transfers three skips for a render target (FB-5)', () => {
+  const transfer = /vec3 displayTransfer\(vec3 c\) \{([\s\S]*?)\n\}/.exec(strip(GRADE_FRAGMENT));
+  assert.ok(
+    transfer !== null,
+    'the display transfer is gone. Without it the composer RT reaches the canvas as ' +
+      'scene-linear pixels displayed as sRGB, and renderer.toneMappingExposure reaches ' +
+      'nothing — measured: 128/255 into a render target against 197/255 to the screen.',
+  );
+  const body = transfer[1];
+  assert.match(
+    body,
+    /toneMapping\(/,
+    'the ACES step is missing. three applies it only when drawing to the default ' +
+      'framebuffer, so on the post cut this call IS FB-5 — it is where the authored ' +
+      'exposure becomes light.',
+  );
+  assert.match(
+    body,
+    /linearToOutputTexel\(/,
+    'the output transfer is missing. Tone-mapped is not display-ENCODED: tone mapping runs ' +
+      'in <tonemapping_fragment> and the transfer function in <colorspace_fragment>, and a ' +
+      'non-XR render target gets neither.',
+  );
+  // Positive control: the matchers must SEE their absence in a shader that lacks them.
+  assert.doesNotMatch('vec3 displayTransfer(vec3 c) { return c; }', /toneMapping\(/);
+});
+
+/**
+ * **The premise gate.** The fix above is only correct while three keeps skipping both
+ * transfers for a non-XR render target. If a future three starts applying them there, the
+ * pass would apply them a *second* time and the frame would go wrong silently — the exact
+ * failure mode this whole ruling exists to stop. So the premise is pinned against three's own
+ * shipped build, quoted verbatim, and a version bump that changes it goes RED here first.
+ *
+ * Re-verify with `node tools/fb5-capture.mjs` before touching this: it is the only instrument
+ * that can answer the question in pixels.
+ */
+test('three still skips tone mapping AND the output transfer for a non-XR render target', () => {
+  const build = path.resolve(HERE, '../../../node_modules/three/build/three.module.js');
+  assert.ok(fs.existsSync(build), `positive control: three's build must be readable at ${build}`);
+  const norm = fs.readFileSync(build, 'utf8').replace(/\s+/g, ' ');
+
+  assert.match(
+    norm,
+    /let toneMapping = NoToneMapping; if \( material\.toneMapped \) \{ if \( currentRenderTarget === null \|\| currentRenderTarget\.isXRRenderTarget === true \) \{ toneMapping = renderer\.toneMapping;/,
+    'three no longer skips tone mapping for a render target. grade.ts compensates for that ' +
+      'skip by calling toneMapping() itself, so this change means the pass now DOUBLE-' +
+      'applies ACES and the authored exposure. Re-measure with tools/fb5-capture.mjs and ' +
+      'remove the compensation before making this green again.',
+  );
+  assert.match(
+    norm,
+    /outputColorSpace: \( currentRenderTarget === null \) \? renderer\.outputColorSpace : \( currentRenderTarget\.isXRRenderTarget === true \? currentRenderTarget\.texture\.colorSpace : ColorManagement\.workingColorSpace \)/,
+    'three no longer skips the output transfer for a render target — same warning: the ' +
+      'pass would now encode a second time. Note the branch ignores the target texture own ' +
+      'colorSpace for non-XR targets, so setting SRGBColorSpace on grade.rt is NOT a fix.',
+  );
+  // And the two functions the pass leans on must still be the ones three injects for a
+  // non-raw ShaderMaterial — a rename there is the same class of silent break.
+  assert.match(norm, /getToneMappingFunction\( 'toneMapping', parameters\.toneMapping \)/);
+  assert.match(norm, /getTexelEncodingFunction\( 'linearToOutputTexel', parameters\.outputColorSpace \)/);
+  assert.match(norm, /uniform float toneMappingExposure;/);
 });
 
 test('the authored constants are the ruling’s own numbers, in the shader', () => {

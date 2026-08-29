@@ -271,6 +271,63 @@ test('LOOK 3b — Room drives the renderer from that authored state, through one
   }
 });
 
+/**
+ * **LOOK 3c — the half of FB-5 that was never gated, and the half that cannot be.**
+ *
+ * LOOK 3 checks the authored numbers exist. LOOK 3b checks `Room` writes them to the renderer.
+ * Between them they gate **the write and nothing else** — and for the whole window in which
+ * the desktop cut ran a composer, the write went nowhere. three r185 skips tone mapping
+ * whenever it is drawing into a non-XR render target, and `toneMappingExposure` is applied
+ * *inside* that step, so the authored value landed on the mobile cut and was dropped on the
+ * desktop one. Measured 2026-08-29 against three 0.185.1: a MeshBasicMaterial of exactly 0.5
+ * scene-linear reads back **128/255** from a `WebGLRenderTarget` and **197/255** from the
+ * default framebuffer — raw linear against ACES-then-sRGB.
+ *
+ * That is Ruling 10 §4's own meta-rule one level up from where it was aimed — *a settings
+ * field that no code reads is a failed gate* — with `renderer.toneMappingExposure` as the
+ * field and the shipping desktop cut as the reader that was not there. So this gate asserts
+ * the **read**, once per cut:
+ *
+ *  - **no-post cut** (mobile, and desktop below ladder rung 2): `Stage` must leave the
+ *    renderer on a real tone mapping, because three applies it on the screen path.
+ *  - **post cut** (desktop): the pass must apply it, because three will not.
+ *
+ * **What this file still cannot do, said plainly.** FB-5's other three clauses — ≥2% of pixels
+ * under luma 0.06, ≥0.5% over 0.94, mid-tone 0.35–0.55 — are a histogram over a *rendered*
+ * frame. `node --test` has no GPU and no compositor, so any version of that check written here
+ * would be a pixel gate that cannot see pixels, and this phase has shipped enough of those.
+ * It is enforced by **capture**: `node tools/fb5-capture.mjs` drives the production preview,
+ * pins a beat by document-space progress, waits for the draw-call count to settle and for the
+ * HUD to report a live composer, and prints the three numbers. The chapter plan's LOOK block
+ * records them. The gap is on the record as a decision, not left as an omission.
+ */
+test('LOOK 3c — the authored exposure reaches a pixel on BOTH cuts, not just the write', () => {
+  const STAGE = strip(read('systems/Stage.ts'));
+  assert.match(
+    STAGE,
+    /renderer\.toneMapping = \w*ToneMapping/,
+    'positive control plus the no-post cut: with no composer, three tone-maps on the screen ' +
+      'path and that is where FB-5 lands for mobile',
+  );
+  assert.doesNotMatch(
+    STAGE,
+    /renderer\.toneMapping = NoToneMapping/,
+    'NoToneMapping drops the authored exposure on the no-post cut AND removes the ' +
+      'toneMapping() three injects into the pass — it breaks FB-5 on both cuts at once',
+  );
+
+  const GRADE = strip(read('systems/grade.ts'));
+  const shader = /export const GRADE_FRAGMENT = \/\* glsl \*\/ `([\s\S]*?)`;/.exec(GRADE);
+  assert.ok(shader !== null, 'positive control: the pass’s fragment source must be found');
+  assert.match(
+    shader[1],
+    /\btoneMapping\(/,
+    'the post cut applies no tone mapping, so renderer.toneMappingExposure is written by ' +
+      'Room and read by NOTHING on the cut that ships the finish. That is the meta-rule’s ' +
+      'own failure with the renderer field as the subject.',
+  );
+});
+
 /* ----------------------------------------------------- the rejected mechanisms (§2) --- */
 
 /**
