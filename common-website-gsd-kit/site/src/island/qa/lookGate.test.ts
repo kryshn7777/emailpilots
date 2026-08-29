@@ -318,7 +318,10 @@ test('LOOK 3c — the authored exposure reaches a pixel on BOTH cuts, not just t
   );
 
   // The shader itself, not a regex over its host file: the pass IS the read on this cut.
-  const shader = strip(GRADE_FRAGMENT);
+  // Comments AND the preprocessor come out first - the shader's own `#error` guard names
+  // `toneMapping()` in its message, and a bare match on that is a gate satisfied by prose.
+  const shader = strip(GRADE_FRAGMENT).replace(/^\s*#.*$/gm, '');
+  assert.doesNotMatch(shader, /#error/, 'positive control: the directive must be stripped');
   assert.ok(shader.includes('void main()'), 'positive control: the pass’s shader must be found');
   assert.match(
     shader,

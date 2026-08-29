@@ -23,6 +23,17 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel: string): string => fs.readFileSync(path.resolve(HERE, rel), 'utf8');
 const strip = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
+/**
+ * GLSL, with the comments AND the preprocessor removed.
+ *
+ * `strip` alone was not enough, and the mutation is what proved it: the `#error` guard inside
+ * `displayTransfer` names `toneMapping()` in its message, so deleting the actual ACES call
+ * left a bare `/toneMapping\(/` matching the error *prose*, and the gate stayed green through
+ * the exact defect it was written for. That is `grep -c "raw"` matching "drawing buffer" one
+ * more time, in a gate written the same day the lesson was quoted. A directive is not a call.
+ */
+const glsl = (s: string): string => strip(s).replace(/^\s*#.*$/gm, '');
+
 const GRADE = read('grade.ts');
 const STAGE = read('Stage.ts');
 
@@ -139,7 +150,13 @@ test('the four stages run in the order DoF → S-curve → vignette → grain (R
  * Nothing is transcribed, so nothing can drift.
  */
 test('the pass restores BOTH transfers three skips for a render target (FB-5)', () => {
-  const transfer = /vec3 displayTransfer\(vec3 c\) \{([\s\S]*?)\n\}/.exec(strip(GRADE_FRAGMENT));
+  const code = glsl(GRADE_FRAGMENT);
+  assert.doesNotMatch(
+    code,
+    /#error|#ifndef/,
+    'positive control: the preprocessor must be stripped before anything below counts a call',
+  );
+  const transfer = /vec3 displayTransfer\(vec3 c\) \{([\s\S]*?)\n\}/.exec(code);
   assert.ok(
     transfer !== null,
     'the display transfer is gone. Without it the composer RT reaches the canvas as ' +
