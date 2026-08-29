@@ -12,18 +12,24 @@
  * ## The recipe. Order is fixed and each position has a reason.
  *
  * ```
- * RenderPass  (scene -> composer RT, RGBA8, tone-mapped at scene shading)
+ * RenderPass  (scene -> composer RT, RGBA8, scene-LINEAR: three skips both transfers)
  *   +- CommonGradePass  (ONE ShaderPass, ONE fullscreen draw)
  *      1. DoF gather     - 6-tap ring, radius = CoC from linearized depth vs authored focus
+ *      1.5 Display transfer - ACES + the output transfer, which three does NOT run into
+ *                          a render target. Not a fifth stage: the step the line above
+ *                          assumed had happened, put where it actually can happen.
  *      2. Filmic S-curve - toe 0.055, shoulder 0.92; reclaims the black point ACES leaves milky
  *      3. Vignette       - smoothstep(0.55, 1.15, r), strength 0.28
  *      4. Grain          - value noise x 0.018, stepped at 24 Hz (film cadence, NOT per-frame)
  * ```
  *
- * - **Exposure is not in that list.** It lives on `renderer.toneMappingExposure` per FB-5, is
- *   authored per sky in `dayWheel.ts` and written by `Room`. Applying it here as well would
- *   double it *and* deny mobile — which runs zero passes — the one finish item that costs it
- *   nothing.
+ * - **Exposure has one author and it is not this file.** It lives on
+ *   `renderer.toneMappingExposure` per FB-5, is authored per sky in `dayWheel.ts` and
+ *   written by `Room`; mobile, which runs zero passes, reads it straight off the
+ *   renderer. The display transfer below is where that one authored value *lands* on the
+ *   post cut, because three applies tone mapping only when drawing to the default
+ *   framebuffer. Reading it there is not a second opinion about it; writing a level
+ *   there would be.
  * - **DoF is first** because it is the only stage that reads scene depth; everything after it
  *   is display-referred.
  * - **Grain is last** because grain that gets blurred by DoF stops reading as film grain and
@@ -44,10 +50,17 @@
  *
  * ## The bytes, booked before they are allocated (BUDGETS §Amendments B3)
  *
- * The composer's RT is **RGBA8, not half-float**: tone mapping already happened at scene
- * shading, so the buffer holds display-referred pixels and 16-bit storage buys nothing.
- * three's `EffectComposer` defaults to `HalfFloatType`, so the target is constructed here and
- * passed in rather than left to the default.
+ * The composer's RT is **RGBA8, not half-float**, per B3. three's `EffectComposer`
+ * defaults to `HalfFloatType`, so the target is constructed here and passed in rather
+ * than left to that default.
+ *
+ * **B3's stated reason for the choice is wrong, and the consequence is real.** The buffer
+ * is *not* display-referred (see `displayTransfer`): it holds scene-linear radiance, so
+ * 8 bits carry it clamped to [0, 1] and **every highlight above linear 1.0 is gone before
+ * the pass can roll it off**. At the authored sunrise exposure the brightest pixel the
+ * post cut can produce is luma ~0.90, which puts FB-5's *">= 0.5% of pixels over 0.94"*
+ * out of reach on desktop while the no-post cut can still meet it. Escalated rather than
+ * fixed here: the remedy is a `HalfFloatType` target, and that is a B3 byte line.
  *
  * The **DoF colour and depth attachments run at half resolution** and upsample: DoF output is
  * by definition low-frequency, and in-focus regions are taken from the full-res colour by
@@ -65,7 +78,6 @@
 
 import {
   DepthTexture,
-  NoToneMapping,
   UnsignedByteType,
   UnsignedIntType,
   Vector2,
@@ -132,7 +144,7 @@ export function postBytes(width: number, height: number, dof: boolean): number {
  * than against a comment describing it. GLSL comments are stripped before that check.
  */
 export const GRADE_FRAGMENT = /* glsl */ `
-uniform sampler2D tDiffuse;   // full-res, tone-mapped, display-referred
+uniform sampler2D tDiffuse;   // full-res, scene-LINEAR — see displayTransfer below
 uniform sampler2D tDoF;       // half-res colour, bound only while DoF is enabled
 uniform sampler2D tDepth;     // half-res depth, ditto
 uniform vec2 uResolution;     // full-res drawing buffer, in pixels
@@ -179,6 +191,52 @@ vec3 dofGather(vec3 sharp, vec2 uv) {
 }
 
 /**
+ * **Stage 1.5 - the transfer three does not run for a render target.**
+ *
+ * This module was written on Ruling 10's sentence "RenderPass (scene -> composer RT, RGBA8,
+ * tone-mapped at scene shading)". In three r185 that is false. WebGLPrograms reads
+ *
+ *     let toneMapping = NoToneMapping;
+ *     if ( material.toneMapped ) {
+ *       if ( currentRenderTarget === null || currentRenderTarget.isXRRenderTarget === true ) {
+ *         toneMapping = renderer.toneMapping;
+ *
+ * and its outputColorSpace sibling falls to the working (linear) space on the same branch. A
+ * plain WebGLRenderTarget is neither null nor an XR target, so BOTH transfers are skipped and
+ * grade.rt holds raw scene-linear radiance. Measured, 0.5 scene-linear at exposure 1:
+ * 128/255 into a render target, 197/255 to the default framebuffer.
+ *
+ * Two consequences shipped together, and they are the whole exposure defect:
+ *
+ *   - the linear buffer reached the canvas unencoded - a missing ~2.2 gamma, which is what
+ *     crushed a dusk beat toward black and over-saturated everything that survived;
+ *   - toneMappingExposure is applied INSIDE three's tone-mapping step, so FB-5's authored
+ *     exposure reached no pixel at all on the desktop cut. Room wrote it, and the write was
+ *     the only thing anyone gated.
+ *
+ * Restoring it here rather than at scene shading is not a preference - three offers no way to
+ * ask for it on a non-XR target, and isXRRenderTarget carries three's own "TODO Remove this
+ * when possible" beside its only real assignment. Both functions below are THREE'S OWN,
+ * injected into every non-raw ShaderMaterial prefix: toneMapping() is the ACES fit plus the
+ * toneMappingExposure uniform the renderer refreshes per draw, and linearToOutputTexel() is
+ * the transfer for whatever renderer.outputColorSpace says. Nothing here is transcribed, so
+ * nothing here can drift out of step with the no-post cut.
+ *
+ * It stays exactly ONE AUTHOR. FB-5 puts the level on the renderer and mobile still reads it
+ * there for free; this is the read, not a second opinion.
+ *
+ * Position: after the DoF gather, because a defocus is an optical operation and belongs in
+ * linear - and before the S-curve, whose toe and shoulder were authored as display-domain
+ * constants. That is the domain Ruling 10's recipe always assumed; it just never arrived.
+ */
+vec3 displayTransfer(vec3 c) {
+#ifndef TONE_MAPPING
+  #error grade: renderer.toneMapping is NoToneMapping, so three injected no toneMapping() and FB-5 exposure would reach no pixel on the post cut. Loud beats a linear frame nobody notices.
+#endif
+  return linearToOutputTexel(vec4(toneMapping(c), 1.0)).rgb;
+}
+
+/**
  * Stage 2 — reclaims the black point ACES leaves milky, then rolls the top off asymptotically
  * so the window can blow out without banding at the clip.
  */
@@ -205,6 +263,7 @@ vec3 grain(vec3 c, vec2 uv) {
 void main() {
   vec3 c = texture2D(tDiffuse, vUv).rgb;
   if (uDoF > 0.5) c = dofGather(c, vUv);
+  c = displayTransfer(c);
   c = filmicSCurve(c);
   c = vignette(c, vUv);
   c = grain(c, vUv);
@@ -251,9 +310,10 @@ export function createGrade(deps: GradeDeps): Grade {
   let width = Math.max(1, size.x);
   let height = Math.max(1, size.y);
 
-  // RGBA8, not the HalfFloatType three would default to: the scene is tone-mapped at shading,
-  // so this buffer is display-referred and the extra 8 bits per channel would be 33 MB of
-  // headroom nothing can use (B3).
+  // RGBA8, not the HalfFloatType three would default to (B3). NOTE the buffer is
+  // scene-LINEAR and NOT display-referred - three runs neither transfer into a render
+  // target - so those 8 bits are spent on radiance clamped at 1.0. See the module
+  // docblock: that clamp caps the post cut's highlight, and moving it is a budget call.
   const target = new WebGLRenderTarget(width, height, {
     type: UnsignedByteType,
     depthBuffer: true,
@@ -360,8 +420,9 @@ export function createGrade(deps: GradeDeps): Grade {
         // if Ch5 ever runs the full dressed room under DoF and the traversal shows up in the
         // frame budget, the upgrade path is MRT — write depth out of the main RenderPass and
         // downsample it — not a second composer.
-        const toneMapping = renderer.toneMapping;
-        renderer.toneMapping = toneMapping; // display-referred both times; kept explicit
+        // No tone-mapping dance here: three skips the transfers for BOTH targets, so
+        // the half-res source and the full-res one are in the same (linear) space by
+        // construction, and the gather mixes like with like.
         renderer.setRenderTarget(dof);
         renderer.render(scene, camera);
         renderer.setRenderTarget(null);
@@ -377,5 +438,3 @@ export function createGrade(deps: GradeDeps): Grade {
   };
 }
 
-/** Re-exported so a reader of this module can see the one constant it deliberately never sets. */
-export const NEVER_TONE_MAPPED_TWICE = NoToneMapping;

@@ -45,6 +45,7 @@ import {
   type Shadowable,
 } from '../set/props.ts';
 import { SKY_EXPOSURE, skyExposureForEnv, type SkyId } from '../choreo/dayWheel.ts';
+import { GRADE_FRAGMENT } from '../systems/grade.ts';
 
 const ISLAND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string): string => fs.readFileSync(path.join(ISLAND, rel), 'utf8');
@@ -316,11 +317,11 @@ test('LOOK 3c — the authored exposure reaches a pixel on BOTH cuts, not just t
       'toneMapping() three injects into the pass — it breaks FB-5 on both cuts at once',
   );
 
-  const GRADE = strip(read('systems/grade.ts'));
-  const shader = /export const GRADE_FRAGMENT = \/\* glsl \*\/ `([\s\S]*?)`;/.exec(GRADE);
-  assert.ok(shader !== null, 'positive control: the pass’s fragment source must be found');
+  // The shader itself, not a regex over its host file: the pass IS the read on this cut.
+  const shader = strip(GRADE_FRAGMENT);
+  assert.ok(shader.includes('void main()'), 'positive control: the pass’s shader must be found');
   assert.match(
-    shader[1],
+    shader,
     /\btoneMapping\(/,
     'the post cut applies no tone mapping, so renderer.toneMappingExposure is written by ' +
       'Room and read by NOTHING on the cut that ships the finish. That is the meta-rule’s ' +
