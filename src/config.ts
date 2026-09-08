@@ -76,14 +76,16 @@ export interface Account {
    * SMTP — the only path before low-friction transports were added), so every
    * existing account keeps working untouched.
    *  - 'smtp'    : nodemailer + host/port/user/pass
+   *                (+ `oauthProvider: 'google'` ⇒ same wire, XOAUTH2 instead of `pass`)
    *  - 'browser' : drive the provider's webmail UI — no `pass`, no IMAP
    *  - 'graph'   : Microsoft Graph Mail.Send (HTTPS) — `user` set, no `pass`
    * ('oauth-smtp', the pre-Graph Microsoft path, is migrated to 'graph' on
    * read by accountStore.)
    */
   transport?: 'smtp' | 'browser' | 'graph';
-  /** OAuth provider for 'graph' accounts. */
-  oauthProvider?: 'microsoft';
+  /** OAuth provider: 'microsoft' for 'graph' accounts; 'google' for an 'smtp'
+   *  account that authenticates with SASL XOAUTH2 (Gmail) instead of a password. */
+  oauthProvider?: 'microsoft' | 'google';
   /** Encrypted (ENC:) MSAL refresh-token cache for 'graph' accounts. */
   oauthToken?: string;
   /** Which webmail to automate for 'browser' accounts. */

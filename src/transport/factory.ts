@@ -1,6 +1,7 @@
 import type { Config } from '../config';
 import type { SendStrategy, StrategyDeps } from './sendStrategy';
 import { SmtpStrategy } from './smtpStrategy';
+import { OAuthSmtpStrategy } from './oauthSmtpStrategy';
 import { GraphStrategy } from './graphStrategy';
 
 /**
@@ -13,11 +14,20 @@ import { GraphStrategy } from './graphStrategy';
  * pure-Node CLI). The main process supplies them via `deps`:
  *  - 'browser' needs `deps.createBrowserStrategy`
  *  - 'graph'   needs `deps.getGraphAccessToken`
+ *  - 'smtp' + oauthProvider 'google' needs `deps.getGoogleAccessToken`
  */
 export function makeStrategy(config: Config, deps?: StrategyDeps): SendStrategy {
   const transport = config.account?.transport ?? 'smtp';
   switch (transport) {
     case 'smtp':
+      // A Gmail account connected with "Sign in with Google" is still plain SMTP
+      // on the wire; only AUTH differs (XOAUTH2 bearer instead of a password).
+      if (config.account?.oauthProvider === 'google') {
+        if (!deps?.getGoogleAccessToken) {
+          throw new Error('Google OAuth SMTP requires a Google token getter (Electron only).');
+        }
+        return new OAuthSmtpStrategy(config, config.account, deps.getGoogleAccessToken);
+      }
       return new SmtpStrategy(config);
 
     case 'browser':

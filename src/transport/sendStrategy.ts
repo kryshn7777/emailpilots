@@ -58,4 +58,6 @@ export interface StrategyDeps {
   createBrowserStrategy?: (config: Config, account: Account) => SendStrategy;
   /** Acquire a fresh Graph (Mail.Send) access token for a `transport: 'graph'` account. */
   getGraphAccessToken?: (account: Account) => Promise<string>;
+  /** Acquire a fresh Gmail access token for an `oauthProvider: 'google'` SMTP account. */
+  getGoogleAccessToken?: (account: Account) => Promise<string>;
 }
