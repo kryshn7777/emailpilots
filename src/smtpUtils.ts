@@ -51,6 +51,22 @@ export function friendlySmtpError(raw?: string): string {
   if (/5\.7\.139|basic auth\w* (?:is )?disabled|sign in with microsoft|retired app passwords/.test(msg)) {
     return 'Microsoft turned off password sign-in for this inbox. Connect it with the “Sign in with Microsoft” button on the Accounts screen — no password needed.';
   }
+  // Gmail: the user typed their real Google password. Gmail's SMTP answers with
+  // 534 5.7.9 "Application-specific password required" — a precise signal the
+  // generic branch below flattened into "check your app password", which reads
+  // as "you typed it wrong" when the fix is "that is the wrong KIND of password".
+  // Checked before the generic branch (this message also contains "password").
+  if (/5\.7\.9|application-specific password required/.test(msg)) {
+    return 'That looks like your normal Google password — Gmail needs an app password instead. Open myaccount.google.com/apppasswords (2-Step Verification must be on), create one, and paste the 16 characters here.';
+  }
+  // A previously working app password that is suddenly rejected. Providers
+  // (Google explicitly) revoke every app password when the account password
+  // changes, so an install that sent fine for weeks fails with the same
+  // 535 5.7.8 as a typo. Naming the likely cause makes the unattended E1 alert
+  // actionable without a support round-trip.
+  if (/5\.7\.8/.test(msg)) {
+    return 'Your app password was rejected. If you changed your email account\'s password recently, the provider revoked all app passwords — create a new one (Gmail: myaccount.google.com/apppasswords) and paste it here.';
+  }
   if (/eauth|535|534|password|username|credential|authenticat/.test(msg)) {
     return "Email or app password didn't work — use an app password, not your normal sign-in password.";
   }

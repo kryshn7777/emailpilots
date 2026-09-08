@@ -80,4 +80,18 @@ describe('friendlySmtpError', () => {
   it('has a generic fallback when empty', () => {
     expect(friendlySmtpError('')).toMatch(/try again/i);
   });
+  it('tells a user who typed their real Google password that Gmail wants an app password (534 5.7.9)', () => {
+    const m = friendlySmtpError('Invalid login: 534-5.7.9 Application-specific password required. Learn more at https://support.google.com/mail/?p=InvalidSecondFactor');
+    expect(m).toMatch(/normal google password/i);
+    expect(m).toMatch(/apppasswords/);
+    expect(m).toMatch(/2-step verification/i);
+  });
+  it('names the password-change revocation when an app password is rejected (535 5.7.8)', () => {
+    const m = friendlySmtpError('Invalid login: 535-5.7.8 Username and Password not accepted');
+    expect(m).toMatch(/changed .* password/i);
+    expect(m).toMatch(/app password/i);
+  });
+  it('keeps the Microsoft steer ahead of the Gmail branches', () => {
+    expect(friendlySmtpError('535 5.7.139 Authentication unsuccessful, basic authentication is disabled')).toMatch(/sign in with microsoft/i);
+  });
 });
