@@ -37,7 +37,12 @@ export function sendableAccounts(config: Config): Account[] {
  *  from every recipient-routing surface while this function kept building them a
  *  processor (audit CSA-5). */
 export function hasCredentials(a: Account): boolean {
-  return accountHasCredentials({ hasPass: !!a.pass, transport: a.transport });
+  // Every field the predicate reads must be forwarded. `oauthProvider` was the
+  // second field to be added and was nearly dropped here — a Google OAuth
+  // account (pass:'', transport:'smtp') would have passed the renderer's
+  // "connected" gates while getting NO processor here, i.e. silently sending
+  // nothing. That is the CSA-5 drift the docblock above describes, reopened.
+  return accountHasCredentials({ hasPass: !!a.pass, transport: a.transport, oauthProvider: a.oauthProvider });
 }
 
 /**

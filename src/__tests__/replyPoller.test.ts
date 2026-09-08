@@ -648,3 +648,51 @@ describe('ReplyPoller — onNewReply UI hook (U33)', () => {
     expect(new ReplyStore(dir).hasReplied('a@x.com')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Google OAuth (XOAUTH2) accounts
+// ---------------------------------------------------------------------------
+
+/** Captures the ImapFlow options the poller builds — TestPoller above ignores
+ *  them, and the auth object is exactly what these tests are about. */
+class OptsPoller extends ReplyPoller {
+  opts: any[] = [];
+  constructor(config: Config, private spec: MailboxSpec) {
+    super(config, null);
+  }
+  protected createClient(opts: any): any {
+    this.opts.push(opts);
+    return new FakeClient(this.spec);
+  }
+}
+
+function googleConfig(d: string): Config {
+  const c = makeConfig(d) as any;
+  c.accounts = [{
+    id: 'g1', host: 'smtp.gmail.com', port: 587, user: 'me@gmail.com', pass: '',
+    enabled: true, transport: 'smtp', oauthProvider: 'google', oauthToken: 'ENC:opaque',
+  }];
+  return c as Config;
+}
+
+describe('ReplyPoller — Google OAuth accounts', () => {
+  it('are skipped when no Google token getter is injected (pure-Node contexts)', async () => {
+    writeRecipients(dir, ['a@x.com']);
+    const p = new OptsPoller(googleConfig(dir), { uidNext: 1, messages: [] });
+    await p.pollNow();
+    expect(p.opts).toHaveLength(0);
+  });
+
+  it('connect to IMAP with the access token instead of a password', async () => {
+    writeRecipients(dir, ['a@x.com']);
+    const p = new OptsPoller(googleConfig(dir), { uidNext: 1, messages: [] });
+    const asked: string[] = [];
+    p.getGoogleAccessToken = async (a) => { asked.push(a.user); return 'ya29.token'; };
+    await p.pollNow();
+    expect(asked).toEqual(['me@gmail.com']);
+    expect(p.opts).toHaveLength(1);
+    expect(p.opts[0].host).toBe('imap.gmail.com');
+    expect(p.opts[0].auth).toEqual({ user: 'me@gmail.com', accessToken: 'ya29.token' });
+    expect(p.opts[0].auth.pass).toBeUndefined();
+  });
+});

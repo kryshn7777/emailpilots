@@ -3,6 +3,7 @@ import {
   computeOnboardingSteps,
   computeLevelUpSteps,
   isInboxConnected,
+  accountHasCredentials,
   type OnboardingState,
   type LevelUpState,
 } from '../onboarding';
@@ -199,5 +200,21 @@ describe('isInboxConnected — accounts.json', () => {
   it('survives malformed account entries', () => {
     expect(isInboxConnected({ accounts: [null as any, undefined as any], allowOauth: true })).toBe(false);
     expect(isInboxConnected({ accounts: [{} as any], allowOauth: true, allowBrowser: true })).toBe(false);
+  });
+});
+
+describe('Google OAuth accounts (oauthProvider: "google", pass: "")', () => {
+  const google = { enabled: true, hasPass: false, transport: 'smtp', oauthProvider: 'google' };
+
+  it('count as connected when OAuth is allowed', () => {
+    expect(isInboxConnected({ accounts: [google], allowOauth: true })).toBe(true);
+    expect(isInboxConnected({ accounts: [google], allowOauth: false })).toBe(false);
+  });
+  it('do not count when disabled', () => {
+    expect(isInboxConnected({ accounts: [{ ...google, enabled: false }], allowOauth: true })).toBe(false);
+  });
+  it('have credentials for the send-from pickers', () => {
+    expect(accountHasCredentials(google)).toBe(true);
+    expect(accountHasCredentials({ enabled: true, hasPass: false, transport: 'smtp' })).toBe(false);
   });
 });

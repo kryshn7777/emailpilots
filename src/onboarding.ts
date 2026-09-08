@@ -12,6 +12,8 @@ export interface ConnectedAccount {
   enabled?: boolean;
   hasPass?: boolean;
   transport?: string;
+  /** 'google' ⇒ an smtp account that sends with an OAuth token (pass is ''). */
+  oauthProvider?: string;
 }
 
 export interface ConnectedInput {
@@ -21,7 +23,7 @@ export interface ConnectedInput {
   smtpHasPass?: boolean;
   /** accounts.json entries, redacted. Absent/empty = fall back to the .env check. */
   accounts?: ConnectedAccount[];
-  /** Microsoft OAuth-SMTP accounts count as connected. */
+  /** Microsoft (graph) and Google (XOAUTH2 smtp) OAuth accounts count as connected. */
   allowOauth?: boolean;
   /** Browser-session accounts (and extra password accounts) count as connected. */
   allowBrowser?: boolean;
@@ -45,7 +47,7 @@ export interface ConnectedInput {
  * question from listing it).
  */
 export function accountHasCredentials(a?: ConnectedAccount): boolean {
-  return !!a?.hasPass || a?.transport === 'browser' || a?.transport === 'graph';
+  return !!a?.hasPass || a?.transport === 'browser' || a?.transport === 'graph' || a?.oauthProvider === 'google';
 }
 
 /**
@@ -66,7 +68,7 @@ export function isInboxConnected(i: ConnectedInput): boolean {
   if (i.smtpUser && i.smtpHasPass) return true;
   return (i.accounts || []).some(a =>
     a?.enabled !== false && (
-      (!!i.allowOauth && a?.transport === 'graph') ||
+      (!!i.allowOauth && (a?.transport === 'graph' || a?.oauthProvider === 'google')) ||
       (!!i.allowBrowser && (!!a?.hasPass || a?.transport === 'browser'))
     )
   );

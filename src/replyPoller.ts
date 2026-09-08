@@ -108,6 +108,11 @@ export class ReplyPoller {
    */
   public onUnsubscribe?: (email: string, accountId: string) => void;
 
+  /** Electron-injected: yields a Gmail access token for an `oauthProvider:
+   *  'google'` smtp account (IMAP XOAUTH2 — same token as the send path).
+   *  Absent ⇒ those accounts are skipped, like graph accounts without a getter. */
+  public getGoogleAccessToken?: (account: Account) => Promise<string>;
+
   constructor(
     public config: Config,
     private stats: StatsManager | null,
@@ -230,6 +235,7 @@ export class ReplyPoller {
         if (!a.enabled || !a.user) return false;
         if (a.transport === 'browser') return false;
         if (a.transport === 'graph') return !!this.getGraphAccessToken;
+        if (a.oauthProvider === 'google') return !!this.getGoogleAccessToken;
         return !!a.pass;
       });
       for (const account of accounts) {
@@ -248,7 +254,10 @@ export class ReplyPoller {
     if (account.transport === 'graph') return this.scanAccountGraph(account, recipients, store, gen);
     const host = account.imapHost || deriveImapHost(account.host);
     const port = account.imapPort || 993;
-    const auth = { user: account.user, pass: account.pass };
+    // imapflow takes either {user, pass} or {user, accessToken} (SASL XOAUTH2).
+    const auth = account.oauthProvider === 'google'
+      ? { user: account.user, accessToken: await this.getGoogleAccessToken!(account) }
+      : { user: account.user, pass: account.pass };
     const client = this.createClient({
       host,
       port,
