@@ -50,6 +50,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Password-less Microsoft sign-in (OAuth-SMTP). Opens the system browser;
   // resolves { ok, id, email } once the account is connected.
   oauthLoginMicrosoft: () => ipcRenderer.invoke('oauth-login-microsoft'),
+  // Password-less Google sign-in (XOAUTH2 over SMTP/IMAP). Opens the system
+  // browser; resolves { ok, id, email } once the account is connected.
+  oauthLoginGoogle: () => ipcRenderer.invoke('oauth-login-google'),
   // Credential-less webmail connect (browser-session). Opens a sign-in window;
   // resolves { ok, id, email } once the session is captured.
   connectBrowserAccount: (provider: 'gmail' | 'outlook') => ipcRenderer.invoke('browser-connect', provider),

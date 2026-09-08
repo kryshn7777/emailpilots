@@ -18,6 +18,7 @@ import { normalizeAppPassword } from '../src/smtpUtils';
 import { buildProcessors, runAllAccounts, hasCredentials, sendableAccounts } from '../src/campaignRunner';
 import type { StrategyDeps } from '../src/transport/sendStrategy';
 import { loginMicrosoft, getGraphAccessToken as msGetGraphAccessToken, isMicrosoftOAuthConfigured } from './transport/oauthMicrosoft';
+import { loginGoogle, getGoogleAccessToken, isGoogleOAuthConfigured } from './transport/oauthGoogle';
 import { connectBrowser, createBrowserStrategy } from './transport/browserSession';
 import { readAccounts, upsertAccount, removeAccount, accountsFilePath, MAX_EXTRA_ACCOUNTS } from '../src/accountStore';
 import { accountStateFileName, DEFAULT_ACCOUNT_STATE_FILES } from '../src/accountFiles';
@@ -743,7 +744,7 @@ function genAccountId(seed?: string): string {
  * code (CLI) gets none of these, so only classic SMTP works there.
  */
 function strategyDeps(): StrategyDeps {
-  return { getGraphAccessToken: msGetGraphAccessToken, createBrowserStrategy };
+  return { getGraphAccessToken: msGetGraphAccessToken, getGoogleAccessToken, createBrowserStrategy };
 }
 
 function rebuildProcessors() {
@@ -765,6 +766,7 @@ function rebuildProcessors() {
   // Keep the reply poller pointed at the fresh config (new/removed accounts).
   if (globalReplyPoller) globalReplyPoller.config = globalConfig;
   else globalReplyPoller = new ReplyPoller(globalConfig, globalStatsManager, msGetGraphAccessToken);
+  globalReplyPoller.getGoogleAccessToken = getGoogleAccessToken; // Gmail IMAP XOAUTH2
   globalReplyPoller.onNewReply = notifyNewReply; // U33: OS ping on fresh replies
   globalReplyPoller.onBounce = notifyBounce; // E2: surface async DSN bounces
   globalReplyPoller.onPolicyReject = notifyPolicyReject; // DLV-1: 5.7.x refusals, not blocked
@@ -804,6 +806,7 @@ function initServices() {
     globalSequenceRunner = new SequenceRunner(globalConfig, globalMailProcessor, globalProcessors, isFirstClass);
     globalAiService = new AiService(globalConfig);
     globalReplyPoller.ai = globalAiService; // feature #2: enable reply classification
+    globalReplyPoller.getGoogleAccessToken = getGoogleAccessToken; // Gmail IMAP XOAUTH2
     globalReplyPoller.onNewReply = notifyNewReply; // U33: OS ping on fresh replies
     globalReplyPoller.onBounce = notifyBounce; // E2: surface async DSN bounces
     globalReplyPoller.onPolicyReject = notifyPolicyReject; // DLV-1: 5.7.x refusals, not blocked
@@ -1030,6 +1033,9 @@ ipcMain.handle('get-accounts', () => {
         // Transport lets the renderer treat OAuth/browser accounts as "connected"
         // even though they carry no password (hasPass is false for them).
         transport: a.transport || 'smtp',
+        // 'google' marks an smtp account that signs in with OAuth (hasPass is
+        // false for it by design). The token itself never crosses IPC.
+        oauthProvider: a.oauthProvider,
         isDefault: a.id === 'default',
         status: accountStatus.get(a.id) || null,
         // Sent-folder copy: raw tri-state (undefined ⇒ provider default) plus
@@ -1238,6 +1244,60 @@ ipcMain.handle('oauth-login-microsoft', async () => {
         return { ok: true, id, email, identityWarning };
     } catch (e: any) {
         return { ok: false, error: e?.message || 'Microsoft sign-in failed' };
+    }
+});
+
+// Google sign-in for Gmail: XOAUTH2 over the account's normal SMTP/IMAP hosts.
+// Same contract as oauth-login-microsoft (dedupes by address, respects the extra
+// account cap, rebuilds processors). No identity-alignment DNS check: Google
+// sends as the signed-in Gmail address, so the DLV-19 foreign-alias trap cannot
+// occur here.
+ipcMain.handle('oauth-login-google', async () => {
+    try {
+        if (!isGoogleOAuthConfigured()) {
+            return { ok: false, error: 'Google sign-in is not set up in this build (missing GOOGLE_OAUTH_CLIENT_ID).' };
+        }
+        if (!globalConfig) initServices();
+        const basePath = getBasePath();
+
+        const { email, oauthToken } = await loginGoogle();
+        const emailKey = email.trim().toLowerCase();
+
+        // Read AFTER the interactive sign-in: that window can sit open for minutes,
+        // and a concurrent connect for the same mailbox would be invisible to a
+        // snapshot taken before it (see oauth-login-microsoft).
+        const allExtras = readAccounts(basePath);
+        const existing = allExtras.find(a => a.user.toLowerCase() === emailKey);
+        if (!existing && allExtras.length >= MAX_EXTRA_ACCOUNTS) {
+            return { ok: false, error: `Account limit reached (max ${MAX_EXTRA_ACCOUNTS} added accounts). Remove one before adding another.` };
+        }
+        // The .env primary and an extras row for the same mailbox would build two
+        // processors and double the daily cap (audit CSA duplicate-mailbox class).
+        if (String(globalConfig?.smtp?.user || '').trim().toLowerCase() === emailKey) {
+            return { ok: false, error: 'That address is already your primary account. Sign out of it in Settings first, then sign in with Google.' };
+        }
+
+        const account: Account = {
+            id: existing?.id || genAccountId(email),
+            label: existing?.label || email,
+            host: 'smtp.gmail.com',
+            port: 587,
+            user: email,
+            pass: '',
+            enabled: existing?.enabled !== false,
+            transport: 'smtp',
+            oauthProvider: 'google',
+            oauthToken,
+        };
+        upsertAccount(basePath, account);
+
+        globalConfig = loadConfig();
+        rebuildProcessors();
+        recordAccountStatus(account.id, { ok: true, at: Date.now(), kind: 'test' });
+
+        return { ok: true, id: account.id, email };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || 'Google sign-in failed' };
     }
 });
 
@@ -1565,6 +1625,9 @@ ipcMain.handle('get-config', () => {
     // browserPartition to the renderer — credentials by any reading of the
     // redaction contract, and flatly against this handler's own note above that the
     // extras are "only ever needed via get-accounts". Mirrors get-accounts' shape.
+    // Renderer shows the "Sign in with Google" buttons only when a client id is
+    // baked in / provided — an unconfigured build must never render a dead button.
+    googleOAuthAvailable: isGoogleOAuthConfigured(),
     accounts: (globalConfig.accounts || []).map((a: Account) => ({
       id: a.id,
       label: a.label,
@@ -1575,6 +1638,7 @@ ipcMain.handle('get-config', () => {
       pass: '',
       hasPass: !!a.pass,
       transport: a.transport || 'smtp',
+      oauthProvider: a.oauthProvider,
     })),
   };
 });
