@@ -36,8 +36,9 @@ Windows / PowerShell is primary. Chain commands with `;` + `if ($?) { … }`, **
 | `electron/` | Electron **source**: `main.ts` (main process + **all IPC handlers** = the action surface), `preload.ts`, `transport/` (browser OAuth) | LIVE |
 | `dist-electron/` | Build output of `electron/`; `package.json` `"main"` points here | generated |
 | `dist-vite/` | Vite build output of the renderer (`index.html`, assets) | generated |
-| `landing/` | Live marketing site (React 19 + Vite + Tailwind 4 + three/gsap). Deployed to GitHub Pages by `.github/workflows/deploy-landing.yml` | LIVE |
-| `EmailPiolets 2/` | Landing-site snapshot / embedded git tree | **Do NOT edit or delete** |
+| `Old websites/landing/` | Former React landing (has the 2026-08-08 privacy amendment + GoatCounter). **Not deployed anywhere.** | frozen |
+| `Old websites/EmailPiolets 2/` | Read-only snapshot (embedded git tree) of repo `kryshn7777/EmalPilots` — **the repo that actually serves emailpilots.com** (its own `deploy.yml`, `public/CNAME`). Edit that repo, never this snapshot. | **Do NOT edit or delete** |
+| `common-website-gsd-kit/site/` | Astro experience site. `.github/workflows/deploy-site.yml` publishes it to THIS repo's project Pages (`kryshn7777.github.io/emailpilots/`), with `New Website/` mounted at `/flight/`. Not on the custom domain. | LIVE (project pages) |
 ### One UI surface: `index.html` + `src/style.css`
 
 **GUI2 was deleted on 2026-08-05.** `gui2.html`, `src/gui2.css`, `LaunchGUI2.bat`, the
@@ -62,7 +63,7 @@ Consequences worth knowing:
 - **Password-redaction contract.** `get-config` redacts all passwords (exposes a `hasPass` flag, never the value). A **blank** password on save = keep the stored one. Sign-out IPC wipes everything. Never surface a real password to the renderer or logs.
 - **Secrets are never committed.** `.env` + all per-user JSON are gitignored. A plaintext-password leak once forced a git-history reset — rotate credentials, don't rely on git surgery. **Treat these files as off-limits and never read them.** The enforcing deny-list is proposed in `.claude/settings.suggested.json` and only blocks reads once applied (rename to `.claude/settings.json`); until then this is policy, not a hard block.
 - **Multi-account model.** Default account in `.env`; extras in `accounts.json`; per-account limits in `limits.<id>.json`; suppression is shared; accounts send in parallel via `campaignRunner`.
-- **Positioning.** Market as **personal outreach / follow-up**. **Never** write "cold email" copy in `landing/` or product UI — it creates payment-processor-ban risk.
+- **Positioning.** Market as **personal outreach / follow-up**. **Never** write "cold email" copy in the landing repo or product UI — it creates payment-processor-ban risk.
 
 ## State model
 
