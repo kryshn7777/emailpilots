@@ -51,6 +51,13 @@ export function friendlySmtpError(raw?: string): string {
   if (/5\.7\.139|basic auth\w* (?:is )?disabled|sign in with microsoft|retired app passwords/.test(msg)) {
     return 'Microsoft turned off password sign-in for this inbox. Connect it with the “Sign in with Microsoft” button on the Accounts screen — no password needed.';
   }
+  // Google OAuth account whose refresh token is gone (revoked, password changed,
+  // 6 months unused, or a Testing-status client's 7-day expiry). The fix is one
+  // click on "Sign in with Google" — the generic branch below would send this
+  // user hunting for an app password they never had.
+  if (/sign in with google again|google token refresh failed/.test(msg)) {
+    return 'Google sign-in for this inbox has expired. Open Accounts and click “Sign in with Google” again — no password needed.';
+  }
   // Gmail: the user typed their real Google password. Gmail's SMTP answers with
   // 534 5.7.9 "Application-specific password required" — a precise signal the
   // generic branch below flattened into "check your app password", which reads

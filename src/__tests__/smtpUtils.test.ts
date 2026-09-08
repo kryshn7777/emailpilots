@@ -91,6 +91,15 @@ describe('friendlySmtpError', () => {
     expect(m).toMatch(/changed .* password/i);
     expect(m).toMatch(/app password/i);
   });
+  it('steers a dead Google token to "Sign in with Google" instead of an app password', () => {
+    // Both raw messages already contain "sign in with Google", so assert the
+    // friendly copy's own wording ("Open Accounts …") — that is what proves the
+    // branch ran rather than the raw fallthrough.
+    const m = friendlySmtpError('Google token refresh failed for me@gmail.com: Token has been expired or revoked. — sign in with Google again.');
+    expect(m).toMatch(/open accounts and click/i);
+    expect(m).not.toMatch(/app password/i);
+    expect(friendlySmtpError('Account me@gmail.com needs to sign in with Google again.')).toMatch(/open accounts and click/i);
+  });
   it('keeps the Microsoft steer ahead of the Gmail branches', () => {
     expect(friendlySmtpError('535 5.7.139 Authentication unsuccessful, basic authentication is disabled')).toMatch(/sign in with microsoft/i);
   });
