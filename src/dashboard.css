@@ -1,0 +1,413 @@
+/* ============================================================================
+   Email Pilots — Dashboard shell
+   Loaded after style.css, so every rule here is a deliberate override of the
+   Fluent base. Scope: the app chrome (sidebar + content pane) and the
+   Dashboard view only; other views keep the base theme.
+   ========================================================================== */
+
+:root {
+  /* Accent pulled toward the product blue used across the dashboard mock. */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-pressed: #1e40af;
+  --accent-subtle: #eef4ff;
+  --primary-subtle: #eef4ff;
+
+  --success: #16a34a;
+  --success-subtle: #f0fdf4;
+  --success-border: #bbf7d0;
+
+  --background: #f7f8fa;   /* sidebar / window ground */
+  --layer: #ffffff;        /* content pane */
+  --border: #e6e8ec;
+  --border-strong: #d5d9e0;
+
+  --ink: #0f172a;
+  --ink-muted: #64748b;
+
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+}
+
+/* --- SIDEBAR ------------------------------------------------------------ */
+
+.sidebar {
+  background: var(--background);
+  border-right: 1px solid var(--border);
+  padding: 22px 14px 14px;
+}
+
+.logo { margin-bottom: 18px; padding: 0 10px; }
+
+.nav-links { gap: 2px; }
+
+.nav-links li {
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: #334155;
+}
+
+.nav-links li .material-symbols-outlined { color: #64748b; font-size: 21px; }
+
+.nav-links li.nav-section {
+  padding: 18px 12px 6px;
+  font-size: 0.6875rem;
+  letter-spacing: 0.07em;
+  color: #94a3b8;
+}
+/* First group label sits right under the logo — no extra lead-in. */
+.nav-links li.nav-section:first-child { padding-top: 4px; }
+
+/* Hairline above every group except the first, matching the mock's dividers. */
+.nav-links li.nav-section:not(:first-child) {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.nav-links li:hover { background-color: #eef0f4; }
+
+.nav-links li.active {
+  background-color: var(--accent-subtle);
+  color: var(--primary);
+  font-weight: 600;
+}
+/* The base theme's Win11 accent bar — the mock uses a filled pill instead. */
+.nav-links li.active::before { display: none; }
+.nav-links li.active .material-symbols-outlined { color: var(--primary); }
+
+/* Sidebar footer: who's signed in. */
+.user-chip {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.user-chip:hover { background: #eef0f4; }
+.user-avatar {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex-shrink: 0;
+  border-radius: 50%;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 0.9375rem; font-weight: 600;
+  text-transform: uppercase;
+}
+.user-chip-text { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.3; }
+.user-chip-text strong { font-size: 0.875rem; font-weight: 600; color: var(--ink); }
+.user-chip-text span { font-size: 0.75rem; color: var(--ink-muted); }
+.user-chip-caret { color: #94a3b8; font-size: 20px; }
+
+/* --- CONTENT PANE ------------------------------------------------------- */
+
+.content {
+  background-color: var(--layer);
+  border: none;
+  border-radius: 0;
+  padding: 28px 40px 48px;
+}
+
+#dashboard.view { max-width: 1180px; margin: 0; }
+
+/* --- PAGE HEAD ---------------------------------------------------------- */
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+.page-head-text { margin-bottom: 0; }
+.page-head-text h1 { font-size: 1.625rem; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.page-head-text p { color: var(--ink-muted); font-size: 0.9375rem; }
+
+.date-chip {
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+  padding-top: 6px;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.date-chip .material-symbols-outlined { font-size: 19px; color: #94a3b8; }
+
+/* Shared small-caps section label. */
+.eyebrow {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* --- OUTREACH STATUS ---------------------------------------------------- */
+
+.status-hero {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px 26px 0;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-card);
+}
+/* updateStatusUI() flips these two classes on the same element. The base theme
+   colours the whole border from them; here only the left rail carries state,
+   so both sides of the id-level specificity have to be restated. */
+#status-stat-container.status-hero.active-border,
+#status-stat-container.status-hero.inactive-border {
+  border-color: var(--border);
+}
+#status-stat-container.status-hero.active-border { border-left-color: var(--success); }
+#status-stat-container.status-hero.inactive-border { border-left-color: var(--border-strong); }
+
+.status-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.status-hero-lead { min-width: 0; }
+
+.status-line { display: flex; align-items: center; gap: 12px; margin: 10px 0 12px; }
+.status-line #service-status-text {
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink-muted);
+}
+.status-hero.active-border .status-line #service-status-text { color: var(--success); }
+
+.status-dot {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+.status-hero.active-border .status-dot { background: var(--success); }
+
+.next-run { font-size: 0.9375rem; color: var(--ink); line-height: 1.45; }
+.next-run-label { display: block; color: var(--ink-muted); font-size: 0.8125rem; }
+/* Base theme shrinks + greys this id; the hero wants it as the headline detail. */
+.next-run #schedule-display { color: var(--ink); font-size: 0.9375rem; }
+
+.btn.status-hero-btn {
+  height: 44px; padding: 0 22px;
+  font-size: 0.9375rem; font-weight: 600;
+  flex-shrink: 0;
+  color: var(--primary);
+  border-color: #bfd3fb;
+  background: var(--card-bg);
+}
+.btn.status-hero-btn:hover { background: var(--accent-subtle); border-color: var(--primary); }
+.btn.status-hero-btn .material-symbols-outlined { color: var(--primary); }
+/* Paused: the button becomes the primary "Start" action and keeps its fill. */
+.btn.primary.status-hero-btn,
+.btn.primary.status-hero-btn .material-symbols-outlined { color: var(--primary-foreground); }
+.btn.primary.status-hero-btn { background: var(--primary); border-color: var(--primary); }
+.btn.primary.status-hero-btn:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+.status-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 20px;
+  margin-top: 18px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.9375rem;
+  color: var(--ink-muted);
+}
+.status-metrics .sm { display: inline-flex; align-items: center; gap: 8px; }
+.status-metrics .sm + .sm::before {
+  content: "";
+  width: 3px; height: 3px; border-radius: 50%;
+  background: #cbd5e1;
+  margin-right: 20px;
+}
+.status-metrics .sm .material-symbols-outlined { font-size: 20px; color: var(--primary); }
+.status-metrics .sm b { color: var(--ink); font-weight: 700; }
+
+/* --- HEALTH BANNER ------------------------------------------------------ */
+
+.health-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 20px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--success-border);
+  background: var(--success-subtle);
+}
+.health-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--success);
+  color: #fff;
+  font-size: 18px;
+  font-variation-settings: 'wght' 600;
+}
+.health-text strong { display: block; font-size: 0.9375rem; font-weight: 600; color: #15803d; }
+.health-text div { font-size: 0.875rem; color: #3f6b4d; }
+
+.health-banner.warn { border-color: #fde68a; background: #fffbeb; }
+.health-banner.warn .health-icon { background: var(--warning); }
+.health-banner.warn .health-text strong { color: #b45309; }
+.health-banner.warn .health-text div { color: #78561b; }
+
+.health-banner.fail { border-color: #fecaca; background: #fef2f2; }
+.health-banner.fail .health-icon { background: var(--destructive); }
+.health-banner.fail .health-text strong { color: #b91c1c; }
+.health-banner.fail .health-text div { color: #7f2b2b; }
+
+/* --- TODAY -------------------------------------------------------------- */
+
+.today-card { padding: 20px 26px 24px; margin-bottom: 20px; border-radius: var(--radius-lg); }
+
+.today-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.metric { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+.metric-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--accent-subtle);
+}
+.metric-icon .material-symbols-outlined { font-size: 25px; color: var(--primary); }
+.metric-body { min-width: 0; flex: 1; }
+.metric-value {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 1.75rem; font-weight: 700; line-height: 1.1;
+  color: var(--ink);
+}
+.metric-value small { font-size: 1.125rem; font-weight: 500; color: var(--ink-muted); }
+.metric-label { font-size: 0.875rem; color: var(--ink-muted); margin-top: 2px; }
+.metric-bar {
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 3px;
+  background: #e8ebf0;
+  overflow: hidden;
+}
+/* Fills by scaleX, not width — the growth animation stays off the layout path. */
+.metric-bar > div {
+  height: 100%; width: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.3s ease;
+}
+
+/* --- CAMPAIGN + ACTIVITY ------------------------------------------------ */
+
+.dash-split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 20px;
+  margin-bottom: 24px;
+  align-items: start;
+}
+
+.campaign-card, .activity-card { padding: 20px 24px 18px; border-radius: var(--radius-lg); }
+
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.card-head-icon { color: var(--primary); font-size: 24px; }
+
+.campaign-name { font-size: 1.375rem; font-weight: 600; color: var(--ink); margin: 12px 0 0; letter-spacing: -0.01em; }
+
+.chip-row { margin-top: 10px; }
+.chip {
+  display: inline-block;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--success-subtle);
+  border: 1px solid var(--success-border);
+  color: #15803d;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+/* Nothing set up yet is neutral news, not good news. */
+.chip.muted { background: #f4f5f7; border-color: var(--border); color: var(--ink-muted); }
+
+.mini-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 18px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.mini-stat + .mini-stat { border-left: 1px solid var(--border); padding-left: 22px; }
+.mini-value { font-size: 1.5rem; font-weight: 700; color: var(--ink); line-height: 1.15; }
+.mini-label { font-size: 0.875rem; color: var(--ink-muted); margin-top: 2px; }
+
+.link-cta {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 14px;
+  padding: 0;
+  border: none; background: none;
+  font-family: inherit; font-size: 0.875rem; font-weight: 500;
+  color: var(--primary);
+  cursor: pointer;
+}
+.link-cta:hover { text-decoration: underline; }
+.link-cta .material-symbols-outlined { font-size: 19px; }
+
+.activity-list { display: flex; flex-direction: column; margin-top: 12px; }
+.activity-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+.activity-time { font-size: 0.8125rem; color: var(--ink-muted); width: 44px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.activity-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--accent-subtle);
+}
+.activity-icon .material-symbols-outlined { font-size: 19px; color: var(--primary); }
+.activity-body { flex: 1; min-width: 0; }
+.activity-title {
+  font-size: 0.875rem; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.activity-sub { font-size: 0.75rem; color: var(--ink-muted); margin-top: 1px; }
+.activity-badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem; font-weight: 500;
+  background: var(--success-subtle);
+  color: #15803d;
+}
+.activity-badge.practice { background: var(--accent-subtle); color: var(--primary); }
+.activity-badge.rejected { background: #fffbeb; color: #b45309; }
+.activity-badge.failed { background: #fef2f2; color: #b91c1c; }
+.activity-empty { font-size: 0.875rem; color: var(--ink-muted); padding: 14px 0; }
+
+/* --- Cards further down the page inherit the softer geometry ------------- */
+
+#dashboard .card { border-radius: var(--radius-lg); }
+
+@media (max-width: 1100px) {
+  .today-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dash-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-bar > div { transition: none; }
+  .status-hero, .health-banner { transition: none; }
+}

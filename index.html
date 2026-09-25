@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/src/style.css">
     <link rel="stylesheet" href="/src/onboarding.css">
     <link rel="stylesheet" href="/src/preview.css">
+    <link rel="stylesheet" href="/src/dashboard.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
@@ -24,29 +25,30 @@
           <img src="/assets/logo.png" alt="Email Pilots logo" style="max-height: 56px; width: auto; object-fit: contain;">
         </div>
         <ul class="nav-links" role="tablist" aria-label="Main navigation" aria-orientation="vertical">
+          <li class="nav-section" role="presentation">Workspace</li>
           <li class="active" data-view="dashboard">
             <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
             Dashboard
-          </li>
-          <li data-view="recipients">
-            <span class="material-symbols-outlined" aria-hidden="true">group</span>
-            Recipients
-          </li>
-          <li data-view="sequences" title="Automatic timed follow-ups that stop once someone replies.">
-            <span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>
-            Sequences
           </li>
           <li data-view="campaigns" title="Separate outreach efforts that each get their own subject line and template.">
             <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
             Campaigns
           </li>
-          <li data-view="sent" title="Every email the app has sent or tried to send, the moment it happens.">
-            <span class="material-symbols-outlined" aria-hidden="true">send</span>
-            Sent
+          <li data-view="sequences" title="Automatic timed follow-ups that stop once someone replies.">
+            <span class="material-symbols-outlined" aria-hidden="true">forward_to_inbox</span>
+            Sequences
+          </li>
+          <li data-view="recipients">
+            <span class="material-symbols-outlined" aria-hidden="true">group</span>
+            Recipients
           </li>
           <li data-view="replies" title="Everyone who wrote back — and the AI's read on each reply.">
             <span class="material-symbols-outlined" aria-hidden="true">mark_email_unread</span>
             Replies
+          </li>
+          <li data-view="sent" title="Every email the app has sent or tried to send, the moment it happens.">
+            <span class="material-symbols-outlined" aria-hidden="true">send</span>
+            Sent
           </li>
           <li class="nav-section" role="presentation">Tools</li>
           <li data-view="accounts" title="Extra sending inboxes for higher daily limits — most people only need the primary.">
@@ -77,64 +79,73 @@
             Help
           </li>
         </ul>
+
+        <!-- Sidebar footer: who's signed in. Chevron opens Settings (where the
+             name and inbox actually live) — no separate account menu. -->
+        <button type="button" class="user-chip" id="user-chip" title="Open Settings">
+          <span class="user-avatar" id="user-avatar" aria-hidden="true">?</span>
+          <span class="user-chip-text">
+            <strong id="user-chip-name">Signed in</strong>
+            <span id="user-chip-role">Admin</span>
+          </span>
+          <span class="material-symbols-outlined user-chip-caret" aria-hidden="true">expand_more</span>
+        </button>
       </nav>
       
       <main class="content">
         <!-- Dashboard View -->
         <div id="dashboard" class="view active">
-          <div class="hero-banner">
-            <div class="hero-content">
-              <header>
-                <h1 id="welcome-title">Welcome</h1>
-                <p id="welcome-subtitle">Email Pilots is ready. Your outreach is scheduled and standing by.</p>
-              </header>
-              
-              <div class="hero-stats">
-                <div class="stat">
-                  <span class="material-symbols-outlined">schedule</span>
-                  <div class="stat-info">
-                    <strong>Next Run</strong>
-                    <span id="schedule-display">Daily at 09:00</span>
-                  </div>
-                </div>
-                <div class="stat" id="status-stat-container" style="cursor: pointer;" onclick="document.getElementById('toggle-scheduler-btn').click()">
-                  <div class="icon-box">
-                    <label class="toggle-switch">
-                      <input type="checkbox" id="status-toggle-checkbox">
-                      <span class="slider"></span>
-                    </label>
-                  </div>
-                  <div class="stat-info">
-                    <strong>Status</strong>
-                    <span id="service-status-text">Checking…</span>
-                    <span id="status-preflight-chip" style="display: block; font-size: 0.72em; margin-top: 2px;"></span>
-                  </div>
-                </div>
-                <div class="stat">
-                  <span class="material-symbols-outlined">send</span>
-                  <div class="stat-info">
-                    <strong>Total Sent</strong>
-                    <span id="total-sent-display">0</span>
-                  </div>
-                </div>
-                <div class="stat">
-                  <span class="material-symbols-outlined">group</span>
-                  <div class="stat-info">
-                    <strong>Active Recips</strong>
-                    <span id="active-recips-display">0</span>
-                  </div>
-                </div>
-                <div class="stat">
-                  <span class="material-symbols-outlined">mark_email_read</span>
-                  <div class="stat-info">
-                    <strong>Replies</strong>
-                    <span id="reply-rate-display">—</span>
-                  </div>
-                </div>
-              </div>
+          <div class="page-head">
+            <header class="page-head-text">
+              <h1 id="welcome-title">Welcome</h1>
+              <p id="welcome-subtitle">Email Pilots is ready. Your outreach is scheduled and standing by.</p>
+            </header>
+            <div class="date-chip">
+              <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
+              <span id="dash-date"></span>
             </div>
           </div>
-          
+
+          <!-- Outreach status: the one card that answers "is it running, and
+               what happens next". #status-stat-container is the tour anchor. -->
+          <section class="status-hero" id="status-stat-container">
+            <div class="status-hero-top">
+              <div class="status-hero-lead">
+                <span class="eyebrow">Outreach status</span>
+                <div class="status-line">
+                  <span class="status-dot" aria-hidden="true"></span>
+                  <span id="service-status-text">Checking…</span>
+                </div>
+                <div class="next-run">
+                  <span class="next-run-label">Next run</span>
+                  <span id="schedule-display">Daily at 09:00</span>
+                </div>
+              </div>
+              <button id="toggle-scheduler-btn" class="btn outline status-hero-btn">
+                <span class="material-symbols-outlined">pause</span>
+                Pause
+              </button>
+            </div>
+            <div class="status-metrics">
+              <span class="sm"><span class="material-symbols-outlined" aria-hidden="true">mail</span><b id="hm-sent">0</b> emails sent today</span>
+              <span class="sm"><span class="material-symbols-outlined" aria-hidden="true">schedule</span><b id="hm-remaining">0</b> remaining</span>
+              <span class="sm"><span class="material-symbols-outlined" aria-hidden="true">reply</span><b id="hm-replies">0</b> replies</span>
+              <span class="sm"><span class="material-symbols-outlined" aria-hidden="true">verified_user</span><b id="hm-issues">0</b> issues</span>
+            </div>
+            <!-- Kept (hidden) so updateStatusUI's checked-state write still has a
+                 target; the button above is the visible control. -->
+            <input type="checkbox" id="status-toggle-checkbox" hidden>
+          </section>
+
+          <!-- Pre-flight verdict, one line. Tone + copy written by renderPreflight(). -->
+          <div class="health-banner ok" id="health-banner">
+            <span class="material-symbols-outlined health-icon" aria-hidden="true">check</span>
+            <div class="health-text">
+              <strong id="health-title">Everything is running normally</strong>
+              <div id="health-sub">Great! No action is needed right now.</div>
+            </div>
+          </div>
+
           <!-- Fleet rollup mirror (audit follow-up): same content as the Accounts-view
                #fleet-strip, rendered by renderFleetStrip(); hidden with ≤1 account.
                Click-through to Accounts is wired in main.ts. -->
@@ -170,6 +181,69 @@
               <div style="font-size: 0.85em; color: var(--muted-foreground);">Nothing can send until an inbox is connected.</div>
             </div>
             <button type="button" id="setup-banner-btn" class="btn primary">Connect inbox</button>
+          </div>
+
+          <section class="card today-card">
+            <span class="eyebrow">Today</span>
+            <div class="today-grid">
+              <div class="metric">
+                <span class="metric-icon"><span class="material-symbols-outlined" aria-hidden="true">mail</span></span>
+                <div class="metric-body">
+                  <div class="metric-value"><span id="dash-sent">0</span><small id="dash-sent-max">/ 0</small></div>
+                  <div class="metric-label">Emails sent</div>
+                  <div class="metric-bar"><div id="dash-sent-bar"></div></div>
+                </div>
+              </div>
+              <div class="metric">
+                <span class="metric-icon"><span class="material-symbols-outlined" aria-hidden="true">schedule</span></span>
+                <div class="metric-body">
+                  <div class="metric-value"><span id="dash-remaining">0</span></div>
+                  <div class="metric-label">Remaining</div>
+                </div>
+              </div>
+              <div class="metric">
+                <span class="metric-icon"><span class="material-symbols-outlined" aria-hidden="true">reply</span></span>
+                <div class="metric-body">
+                  <div class="metric-value"><span id="dash-replies">0</span></div>
+                  <div class="metric-label">Replies</div>
+                </div>
+              </div>
+              <div class="metric">
+                <span class="metric-icon"><span class="material-symbols-outlined" aria-hidden="true">group</span></span>
+                <div class="metric-body">
+                  <div class="metric-value"><span id="dash-inboxes">0</span></div>
+                  <div class="metric-label">Active inboxes</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="dash-split">
+            <section class="card campaign-card">
+              <div class="card-head">
+                <span class="eyebrow">Current campaign</span>
+                <span class="material-symbols-outlined card-head-icon" aria-hidden="true">send</span>
+              </div>
+              <h2 class="campaign-name" id="dash-campaign-name">—</h2>
+              <div class="chip-row"><span class="chip muted" id="dash-campaign-seq">No sequence yet</span></div>
+              <div class="mini-stats">
+                <div class="mini-stat">
+                  <div class="mini-value" id="dash-campaign-sent">0</div>
+                  <div class="mini-label">Emails sent</div>
+                </div>
+                <div class="mini-stat">
+                  <div class="mini-value" id="dash-campaign-replies">0</div>
+                  <div class="mini-label">Replies</div>
+                </div>
+              </div>
+              <button type="button" class="link-cta" data-goto="campaigns">View campaign <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>
+            </section>
+
+            <section class="card activity-card">
+              <span class="eyebrow">Recent activity</span>
+              <div id="dash-activity" class="activity-list"></div>
+              <button type="button" class="link-cta" data-goto="sent">View all activity <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>
+            </section>
           </div>
 
           <div class="card getting-started" id="getting-started-card" style="display: none; margin-bottom: 24px;">
@@ -1466,6 +1540,14 @@
         </div>
 
         <p id="ai-onboard-hw" class="help-text" style="margin-bottom: 12px;"></p>
+
+        <!-- Populated from the model catalog. Without it the catalog's non-default
+             entries are unreachable: this dialog is the only download affordance. -->
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="ai-onboard-model">Model</label>
+          <select id="ai-onboard-model" style="max-width: 340px;"></select>
+          <p id="ai-onboard-model-note" class="help-text" style="margin: 4px 0 0;"></p>
+        </div>
 
         <p style="font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 4px;">
           Everything stays on this PC. Your email password and sign-in tokens are encrypted using Windows&rsquo; built-in protection.

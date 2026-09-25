@@ -45,6 +45,15 @@ const TONE_GUIDE: Record<string, string> = {
   formal: 'measured and respectful, full sentences, no contractions, no slang',
 };
 
+/**
+ * Generation cap for every assist action. An email needs ~600; the rest is headroom
+ * for a reasoning model's `<think>` block, which is charged to this same cap (the
+ * block is suppressed from the output but not from the token count — see ai/thinking.ts).
+ * It is a ceiling, not a target: a non-reasoning model still stops at end-of-turn
+ * around 600 and is unaffected.
+ */
+const ASSIST_MAX_TOKENS = 1800;
+
 /** Build the model call (system + prompt + sampling) for one assist action. */
 export function buildAssistPrompt(req: AssistRequest): { system: string; prompt: string; temperature: number; maxTokens: number } {
   const text = (req.text || '').slice(0, 6000);
@@ -55,7 +64,7 @@ export function buildAssistPrompt(req: AssistRequest): { system: string; prompt:
 Write the email the user asks for. Aim for three to six sentences unless the request calls for more: open with why you are writing, say the one thing that matters, and end with a single clear, easy ask. One idea per paragraph. Use {{name}} where the recipient's first name belongs. If the request is vague, write the most useful plain version rather than asking a question back.`,
         prompt: `Write an email that does the following:\n${(req.instruction || '').slice(0, 2000) || 'a brief, friendly note introducing yourself and asking to connect'}${text ? `\n\nThe user has already started this draft — keep what works and keep their voice:\n${text}` : ''}`,
         temperature: 0.7,
-        maxTokens: 600,
+        maxTokens: ASSIST_MAX_TOKENS,
       };
     case 'improve':
       return {
@@ -63,7 +72,7 @@ Write the email the user asks for. Aim for three to six sentences unless the req
 Improve this email's clarity, flow and word choice while keeping the author's voice, meaning and roughly the original length. Tighten flabby sentences, cut filler openers ("I hope this email finds you well"), replace vague claims with what the text already says more precisely, and fix any grammar you pass. Do NOT add new facts, new offers, new links, or a call to action that wasn't already there, and do not make it longer.`,
         prompt: `Improve this email:\n\n${text}`,
         temperature: 0.5,
-        maxTokens: 700,
+        maxTokens: ASSIST_MAX_TOKENS,
       };
     case 'rewrite':
       return {
@@ -74,7 +83,7 @@ Improve this email's clarity, flow and word choice while keeping the author's vo
 Rewrite this email from scratch: same meaning, same intent, same facts, genuinely different wording and sentence structure. It should read as if a different person wrote the same message — not as the original with synonyms swapped in. Keep it within roughly the same length, keep the author's level of formality, and do not add or drop any information.`,
         prompt: `Rewrite this email in different words:\n\n${text}`,
         temperature: 0.8,
-        maxTokens: 700,
+        maxTokens: ASSIST_MAX_TOKENS,
       };
     case 'grammar':
       return {
@@ -82,7 +91,7 @@ Rewrite this email from scratch: same meaning, same intent, same facts, genuinel
 Fix ONLY grammar, spelling, punctuation and capitalisation. Do not rephrase, reorder, shorten, lengthen, or "improve" anything — a clumsy but correct sentence stays exactly as it is. Preserve the author's wording, voice, line breaks and paragraph structure. If the text is already correct, return it completely unchanged.`,
         prompt: `Correct this email:\n\n${text}`,
         temperature: 0.2,
-        maxTokens: 700,
+        maxTokens: ASSIST_MAX_TOKENS,
       };
     case 'tone': {
       const tone = String(req.tone || 'professional').toLowerCase();
@@ -92,12 +101,12 @@ Fix ONLY grammar, spelling, punctuation and capitalisation. Do not rephrase, reo
 Rewrite this email so it reads as ${safeTone}: ${TONE_GUIDE[safeTone] || TONE_GUIDE.professional}. Change only how it sounds — every fact, request, name and link stays exactly as it is, and the length stays close to the original.`,
         prompt: `Rewrite this email in a ${safeTone} tone:\n\n${text}`,
         temperature: 0.6,
-        maxTokens: 700,
+        maxTokens: ASSIST_MAX_TOKENS,
       };
     }
     default:
       // AssistAction is exhaustive above; this guards a bad runtime value from IPC.
-      return { system: BASE, prompt: text, temperature: 0.5, maxTokens: 600 };
+      return { system: BASE, prompt: text, temperature: 0.5, maxTokens: ASSIST_MAX_TOKENS };
   }
 }
 

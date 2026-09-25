@@ -61,7 +61,7 @@ export const TOUR_STEPS: TourStepDef[] = [
   {
     id: 'autopilot', view: 'dashboard', target: '#status-stat-container',
     title: "When you're ready: autopilot",
-    body: 'This switch starts scheduled sending. Tip: Practice mode delivers every email to YOUR OWN inbox first — a zero-risk dress rehearsal.',
+    body: 'This card shows whether sending is running, and the button starts or pauses it. Tip: Practice mode delivers every email to YOUR OWN inbox first — a zero-risk dress rehearsal.',
     actionLabel: 'Turn on practice mode',
   },
   {

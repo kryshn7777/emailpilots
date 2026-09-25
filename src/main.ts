@@ -492,7 +492,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const prompt = aiTestPrompt.value.trim();
       if (!prompt) { aiTestOutput.value = 'Enter a prompt first.'; return; }
       aiTestBtn.disabled = true;
-      aiTestOutput.value = 'Generating…';
+      // "Thinking…", not "Generating…": with a reasoning model the provider streams
+      // nothing until the <think> block closes, so this line carries the whole wait.
+      aiTestOutput.value = 'Thinking…';
       let streamed = '';
       const off = window.electronAPI.onAiStream((chunk) => { streamed += chunk; aiTestOutput.value = streamed; });
       try {
@@ -658,7 +660,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         instr.focus();
         return;
       }
-      status.textContent = 'Generating… (first run loads the model)';
+      status.textContent = 'Thinking… (first run loads the model)';
       out.value = '';
       btnApply.disabled = true;
       let streamed = '';
@@ -813,7 +815,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
       panel.style.display = 'block';
-      status.textContent = 'Generating… (first run loads the model)';
+      status.textContent = 'Thinking… (first run loads the model)';
       out.value = '';
       btnApply.disabled = true;
       btnGen.disabled = true;
@@ -1114,6 +1116,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // drives the Campaigns view, the recipients Campaign column/filter, and the
   // wizard/import/bulk-assign selectors.
   let campaignsCache: { id: string; name: string; subject?: string; template?: string }[] = [];
+  // Declared here (not at Initialization) so the dashboard renderers defined
+  // above the init block can read it without tripping the TDZ.
+  let currentUserName = '';
   // Lowercased set of recipients who have replied (from replies.json) — drives
   // the Replied column. Refreshed alongside recipients.
   let repliedSet: Set<string> = new Set();
@@ -1734,15 +1739,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         : `<strong style="color:var(--success);">Ready for takeoff. ✈</strong>`;
 
     // U18: the verdict is the strongest status signal in the app but lived
-    // ~1400px down — mirror a compact copy into the hero Status card.
-    const chip = document.getElementById('status-preflight-chip');
-    if (chip) {
-      chip.textContent = fails > 0
-        ? `Grounded — ${fails} blocker${fails === 1 ? '' : 's'}`
-        : warns > 0
-          ? `Cleared · ${warns} advisor${warns === 1 ? 'y' : 'ies'}`
-          : 'Ready for takeoff ✈';
-      (chip as HTMLElement).style.color = fails > 0 ? 'var(--destructive)' : warns > 0 ? 'var(--warning)' : 'var(--success)';
+    // ~1400px down — mirror it into the dashboard banner directly under the
+    // status card, and into the hero strip's "issues" counter.
+    const issuesEl = document.getElementById('hm-issues');
+    if (issuesEl) issuesEl.textContent = String(fails + warns);
+    const inboxesEl = document.getElementById('dash-inboxes');
+    if (inboxesEl) inboxesEl.textContent = String(accountsCache.filter(a => a.enabled !== false).length);
+
+    const banner = document.getElementById('health-banner');
+    const bTitle = document.getElementById('health-title');
+    const bSub = document.getElementById('health-sub');
+    const bIcon = banner?.querySelector('.health-icon');
+    if (banner && bTitle && bSub && bIcon) {
+      banner.classList.remove('ok', 'warn', 'fail');
+      if (fails > 0) {
+        banner.classList.add('fail');
+        bIcon.textContent = 'priority_high';
+        bTitle.textContent = `Grounded — ${fails} blocker${fails === 1 ? '' : 's'} to fix`;
+        bSub.textContent = 'Nothing will send until these are cleared. See Pre-flight Check below.';
+      } else if (warns > 0) {
+        banner.classList.add('warn');
+        bIcon.textContent = 'priority_high';
+        bTitle.textContent = `Cleared with ${warns} advisor${warns === 1 ? 'y' : 'ies'}`;
+        bSub.textContent = 'Sending works — a few things could be better. See Pre-flight Check below.';
+      } else {
+        banner.classList.add('ok');
+        bIcon.textContent = 'check';
+        bTitle.textContent = 'Everything is running normally';
+        bSub.textContent = 'Great! No action is needed right now.';
+      }
     }
 
     const ICON: Record<Row['status'], string> = { ok: 'check_circle', warn: 'warning', fail: 'error', info: 'info' };
@@ -1934,6 +1959,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     subtitle.textContent = usageSummaryLine ? `${base} ${usageSummaryLine}` : base;
   }
 
+  /** Dashboard greeting: time-of-day + first name. Called from every place that
+   *  learns (or re-learns) the user's name, so all three stay in sync. */
+  function refreshGreeting() {
+    const el = document.getElementById('welcome-title');
+    if (!el) return;
+    const h = new Date().getHours();
+    const part = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+    const name = currentUserName.trim();
+    el.textContent = name
+      ? `Good ${part}, ${name.charAt(0).toUpperCase() + name.slice(1)} \u{1F44B}`
+      : `Good ${part}`;
+
+    // Sidebar footer follows the same name.
+    const chipName = document.getElementById('user-chip-name');
+    const avatar = document.getElementById('user-avatar');
+    if (chipName) chipName.textContent = name ? name.charAt(0).toUpperCase() + name.slice(1) : 'Signed in';
+    if (avatar) avatar.textContent = (name || '?').charAt(0);
+  }
+
   function updateStatusUI(isActive: boolean) {
     const statusCheckbox = document.getElementById('status-toggle-checkbox') as HTMLInputElement;
     const statusContainer = document.getElementById('status-stat-container');
@@ -1941,7 +1985,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshSubtitle();
 
     if (isActive) {
-      statusText.textContent = 'On autopilot';
+      statusText.textContent = 'Running';
       if (statusCheckbox) statusCheckbox.checked = true;
       if (statusContainer) {
         statusContainer.classList.remove('inactive-border');
@@ -1949,7 +1993,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       toggleSchedulerBtn.innerHTML = `
         <span class="material-symbols-outlined">pause</span>
-        Pause Scheduler
+        Pause
       `;
       toggleSchedulerBtn.classList.replace('primary', 'outline');
     } else {
@@ -1961,7 +2005,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       toggleSchedulerBtn.innerHTML = `
         <span class="material-symbols-outlined">play_arrow</span>
-        Start Scheduler
+        Start
       `;
       toggleSchedulerBtn.classList.replace('outline', 'primary');
     }
@@ -1990,6 +2034,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         : `${u.emailsToday} / ${u.maxPerDay}`;
       setText('usage-emails', emailsLabel);
       setBar('usage-emails-bar', u.emailsToday, u.maxPerDay);
+      // Dashboard: hero strip + Today tiles read the same numbers.
+      const remaining = Math.max(0, (u.maxPerDay || 0) - (u.emailsToday || 0));
+      setText('dash-sent', String(u.emailsToday));
+      setText('dash-sent-max', `/ ${u.maxPerDay}`);
+      setText('dash-remaining', String(remaining));
+      setText('hm-sent', String(u.emailsToday));
+      setText('hm-remaining', String(remaining));
+      // scaleX, not width — see .metric-bar in dashboard.css.
+      const dashBar = document.getElementById('dash-sent-bar');
+      if (dashBar) {
+        const frac = u.maxPerDay > 0 ? Math.min(1, u.emailsToday / u.maxPerDay) : 0;
+        dashBar.style.transform = `scaleX(${frac})`;
+        dashBar.style.background = frac >= 1 ? 'var(--destructive)' : frac >= 0.8 ? 'var(--warning)' : 'var(--primary)';
+      }
       // U16: windowsToday is a 1-indexed "which batch am I in" pacing counter
       // seeded to 1 at install (rateLimiter.ts:84) — an always-on "1/5" bar on
       // an idle app reads as phantom activity. Show batch progress only while
@@ -2167,6 +2225,119 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     rebuildSentIndex();
     renderSentLog();
+    renderDashOverview();
+  }
+
+  /** Dashboard: "Current campaign" + "Recent activity". Pure view code over the
+   *  caches already in memory (recipients, campaigns, sequences, sent log,
+   *  replies) — no new IPC. Safe to call before any of them have loaded. */
+  function renderDashOverview() {
+    const nameEl = document.getElementById('dash-campaign-name');
+    const list = document.getElementById('dash-activity');
+    if (!nameEl || !list) return;
+
+    // The campaign with the most active recipients is the one you're running.
+    // '' is the "no campaign assigned" bucket, shown as Unassigned.
+    const counts = new Map<string, number>();
+    for (const r of recipientsData) {
+      if (r.active === false) continue;
+      const key = String(r.campaignId || '');
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    let topId = '';
+    let topN = -1;
+    for (const [id, n] of counts) if (n > topN) { topId = id; topN = n; }
+
+    const campaign = campaignsCache.find(c => c.id === topId);
+    nameEl.textContent = campaign ? campaign.name : counts.size > 0 ? 'Unassigned' : 'No campaign yet';
+
+    const members = new Set(
+      recipientsData
+        .filter(r => String(r.campaignId || '') === topId)
+        .map(r => String(r.email || '').toLowerCase())
+        .filter(Boolean),
+    );
+    const setNum = (id: string, n: number) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(n);
+    };
+    setNum('dash-campaign-sent', sentLogCache.filter(e => e.status === 'sent' && members.has(String(e.email || '').toLowerCase())).length);
+    setNum('dash-campaign-replies', [...members].filter(e => repliedSet.has(e)).length);
+
+    const seqIds = new Set(
+      recipientsData
+        .filter(r => String(r.campaignId || '') === topId && r.sequenceId)
+        .map(r => r.sequenceId),
+    );
+    const seqEl = document.getElementById('dash-campaign-seq');
+    if (seqEl) {
+      seqEl.textContent = seqIds.size > 0
+        ? `${seqIds.size} active sequence${seqIds.size === 1 ? '' : 's'}`
+        : 'No sequence yet';
+      seqEl.classList.toggle('muted', seqIds.size === 0);
+    }
+
+    // --- Recent activity: the newest few send attempts ---
+    list.innerHTML = '';
+    const recent = sentLogCache.slice(0, 4);
+    if (recent.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'activity-empty';
+      empty.textContent = 'Nothing sent yet — activity shows up here the moment it happens.';
+      list.appendChild(empty);
+      return;
+    }
+
+    const campaignNameById = new Map(campaignsCache.map(c => [c.id, c.name]));
+    const campaignByEmail = new Map(
+      recipientsData.map(r => [
+        String(r.email || '').toLowerCase(),
+        campaignNameById.get(String(r.campaignId || '')) || '',
+      ]),
+    );
+
+    for (const e of recent) {
+      const row = document.createElement('div');
+      row.className = 'activity-row';
+
+      const time = document.createElement('span');
+      time.className = 'activity-time';
+      const d = new Date(e.at);
+      time.textContent = isNaN(d.getTime())
+        ? ''
+        : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      const icon = document.createElement('span');
+      icon.className = 'activity-icon';
+      const glyph = document.createElement('span');
+      glyph.className = 'material-symbols-outlined';
+      glyph.setAttribute('aria-hidden', 'true');
+      glyph.textContent = 'mail';
+      icon.appendChild(glyph);
+
+      const body = document.createElement('div');
+      body.className = 'activity-body';
+      const title = document.createElement('div');
+      title.className = 'activity-title';
+      title.textContent = `Email sent to ${e.email}`;
+      title.title = e.subject || '';
+      const sub = document.createElement('div');
+      sub.className = 'activity-sub';
+      const group = campaignByEmail.get(String(e.email || '').toLowerCase()) || accountLabelFor(e.accountId);
+      sub.textContent = `${group} · ${SENT_SOURCE_LABELS[e.source] || e.source}`;
+      body.appendChild(title);
+      body.appendChild(sub);
+
+      const badge = document.createElement('span');
+      badge.className = `activity-badge ${e.status}`;
+      badge.textContent = SENT_STATUS_LABELS[e.status] || e.status;
+
+      row.appendChild(time);
+      row.appendChild(icon);
+      row.appendChild(body);
+      row.appendChild(badge);
+      list.appendChild(row);
+    }
   }
 
   document.getElementById('sent-refresh-btn')?.addEventListener('click', () => { void refreshSentLog(); });
@@ -2347,6 +2518,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     rebuildSentIndex();
     if (document.getElementById('sent')?.classList.contains('active')) renderSentLog();
     renderRecipients();
+    renderDashOverview();
   });
   void refreshSentLog(); // initial load (history from before this window opened)
 
@@ -2615,6 +2787,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const now = new Date();
     dateDisplay.textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+
+    const dashDate = document.getElementById('dash-date');
+    if (dashDate) {
+      dashDate.textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    renderDashOverview();
     
     // scheduledDays are stored as weekday names ("Mon".."Sun") by the recipient
     // form and consumed as names by the scheduler, so match on the name here too.
@@ -2902,6 +3080,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch { campaignsCache = []; }
     populateCampaignSelects();
     renderCampaignsList();
+    renderDashOverview();
   }
 
   // --- Sequences (follow-up drips) ---
@@ -3324,12 +3503,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const stats = await window.electronAPI.getStats();
       animateCount(document.getElementById('total-sent-display'), stats.totalEmailsSent);
-      // U12: "Welcome back" only once they've actually used the thing.
-      if (currentUserName && (stats.totalEmailsSent || 0) > 0) {
-        const t = document.getElementById('welcome-title');
-        const formatted = currentUserName.charAt(0).toUpperCase() + currentUserName.slice(1);
-        if (t) t.textContent = `Welcome back, ${formatted}`;
-      }
+      // Dashboard reply counters (hero strip + Today tile).
+      animateCount(document.getElementById('dash-replies'), stats.totalReplies || 0);
+      const heroReplies = document.getElementById('hm-replies');
+      if (heroReplies) heroReplies.textContent = String(stats.totalReplies || 0);
       const rateEl = document.getElementById('reply-rate-display');
       if (rateEl) {
         const sent = stats.totalEmailsSent || 0;
@@ -4659,19 +4836,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Initialization ---
 
-  let currentUserName = '';
-  
   try {
     const config = await window.electronAPI.getConfig();
     currentUserName = config.userName || '';
-    
-    const welcomeTitle = document.getElementById('welcome-title');
-    if (currentUserName) {
-        const formattedName = currentUserName.charAt(0).toUpperCase() + currentUserName.slice(1);
-        // U12: "back" is earned — refreshStats() upgrades the greeting once
-        // totalSent > 0. A brand-new user isn't "back" 30 seconds in.
-        if (welcomeTitle) welcomeTitle.textContent = `Welcome, ${formattedName}`;
-    } else if (!isExploring()) {
+
+    refreshGreeting();
+    if (!currentUserName && !isExploring()) {
         // The name modal (z2000) was designed to wait *behind* the login gate
         // (z3000). Explore mode hides the gate, so for an exploring user this
         // boot-time show would land frontmost and block every view with an
@@ -4696,8 +4866,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         await window.electronAPI.saveConfig(newConfig);
-        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-        if (welcomeTitle) welcomeTitle.textContent = `Welcome, ${formattedName}`;
+        refreshGreeting();
         document.getElementById('onboarding-modal')!.style.display = 'none';
         refreshSetupState();
         // Queue the tour, then the AI offer, behind this one — never stack dialogs.
@@ -4724,6 +4893,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // exists.
     const aiOnboardModal = document.getElementById('ai-onboard-modal');
     const aiOnboardHw = document.getElementById('ai-onboard-hw');
+    const aiOnboardModelSel = document.getElementById('ai-onboard-model') as HTMLSelectElement | null;
+    const aiOnboardModelNote = document.getElementById('ai-onboard-model-note');
     const aiOnboardDownloadBtn = document.getElementById('ai-onboard-download-btn') as HTMLButtonElement | null;
     const aiOnboardSkipBtn = document.getElementById('ai-onboard-skip-btn') as HTMLButtonElement | null;
     const aiOnboardCancelBtn = document.getElementById('ai-onboard-cancel-btn') as HTMLButtonElement | null;
@@ -4739,6 +4910,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const aiDlPillSub = document.getElementById('ai-dl-pill-sub');
 
     let aiOnboardModel: { id: string; name: string; sizeBytes: number } | null = null;
+    let aiOnboardCatalog: any[] = [];   // last fetched catalog, so the picker can resolve its own value
     let aiOnboardBusy = false;
 
     const fmtBytes = (b: number): string => {
@@ -4815,7 +4987,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (aiOnboardSkipBtn) aiOnboardSkipBtn.disabled = aiOnboardBusy;
       if (aiOnboardCancelBtn) aiOnboardCancelBtn.style.display = aiOnboardBusy ? '' : 'none';
       if (aiOnboardBackgroundBtn) aiOnboardBackgroundBtn.style.display = aiOnboardBusy ? '' : 'none';
+      // Swapping the model mid-transfer would leave the progress bar describing one
+      // file and the button pointed at another.
+      if (aiOnboardModelSel) aiOnboardModelSel.disabled = aiOnboardBusy;
     }
+
+    /** Point the dialog at one catalog entry: the Download button, the blurb, and
+     *  the id that startAiDownload() will actually fetch. */
+    function selectAiOnboardModel(model: any): void {
+      aiOnboardModel = model;
+      if (aiOnboardDownloadBtn) aiOnboardDownloadBtn.textContent = `Download (${fmtBytes(model.sizeBytes)})`;
+      if (aiOnboardModelNote) aiOnboardModelNote.textContent = model.blurb || '';
+    }
+
+    aiOnboardModelSel?.addEventListener('change', () => {
+      const picked = aiOnboardCatalog.find(m => m.id === aiOnboardModelSel.value);
+      if (picked) selectAiOnboardModel(picked);
+    });
 
     /**
      * Run the download. Owns the progress subscription for its entire life rather than
@@ -4910,13 +5098,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         catalog = await window.electronAPI.aiModelCatalog();
       } catch { return; } // no catalog → nothing to offer; stay silent rather than error
+      aiOnboardCatalog = catalog || [];
       const model = catalog?.[0];
       if (!model) return;
       // Already on disk → nothing to sell, unless they came here on purpose.
       if (model.installed && !force) { closeAiOnboard(); return; }
 
-      aiOnboardModel = model;
-      aiOnboardDownloadBtn.textContent = `Download (${fmtBytes(model.sizeBytes)})`;
+      // The picker drives which entry gets downloaded; catalog[0] stays the default,
+      // so the offer a first-time user sees is unchanged.
+      if (aiOnboardModelSel) {
+        aiOnboardModelSel.replaceChildren();
+        for (const m of catalog) {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = `${m.name} — ${fmtBytes(m.sizeBytes)}${m.installed ? ' (installed)' : ''}`;
+          aiOnboardModelSel.appendChild(opt);
+        }
+        aiOnboardModelSel.value = model.id;
+      }
+      selectAiOnboardModel(model);
       if (aiOnboardHw) aiOnboardHw.textContent = 'Checking what this computer can run…';
       aiOnboardModal.style.display = 'flex';
       // Reopened from the pill while a download is running? Nothing else on this path
@@ -4988,6 +5188,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     aiOnboardDownloadBtn?.addEventListener('click', () => { void startAiDownload(); });
 
     // Dashboard fleet rollup → jump to the Accounts view for the detail.
+    // Dashboard "View campaign / View all activity" links, and the sidebar
+    // user chip — all of them just switch to an existing nav tab.
+    document.querySelectorAll<HTMLElement>('.link-cta[data-goto]').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelector<HTMLElement>(`.nav-links li[data-view="${el.dataset.goto}"]`)?.click();
+      });
+    });
+    document.getElementById('user-chip')?.addEventListener('click', () => {
+      document.querySelector<HTMLElement>('.nav-links li[data-view="settings"]')?.click();
+    });
+
     document.getElementById('fleet-strip-dash')?.addEventListener('click', () => {
         (document.querySelector('.nav-links li[data-view="accounts"]') as HTMLElement)?.click();
     });
@@ -6430,9 +6641,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Pick up an edited name (falls back to the stored one if the field is blank).
     if (inputUserName && inputUserName.value.trim()) {
       currentUserName = inputUserName.value.trim();
-      const welcomeTitle = document.getElementById('welcome-title');
-      const formattedName = currentUserName.charAt(0).toUpperCase() + currentUserName.slice(1);
-      if (welcomeTitle) welcomeTitle.textContent = `Welcome, ${formattedName}`;
+      refreshGreeting();
     }
 
     const newConfig = {

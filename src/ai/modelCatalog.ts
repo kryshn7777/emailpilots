@@ -4,12 +4,14 @@
  * Pure data + selection logic — no fs, no network, no node-llama-cpp — so it stays
  * trivially testable and safe to import from the renderer's IPC layer.
  *
- * TWO MODELS, ONE PER TIER (freemium #5). The catalog carries exactly the pair the
- * product sells: "Free thinks. First Class thinks better." — the AI gate is model
- * QUALITY, not AI presence.
+ * ONE MODEL PER TIER, PLUS ONE OPT-IN (freemium #5). The two tier anchors are the
+ * pair the product sells: "Free thinks. First Class thinks better." — the AI gate is
+ * model QUALITY, not AI presence. The third entry is neither anchor: nothing
+ * recommends or defaults to it, and a user has to choose it.
  *
  *  - First Class: Qwen3 4B Instruct (2.3 GB, wants a GPU).
  *  - Free:        LFM2.5 350M (219 MB, runs happily on CPU).
+ *  - Opt-in:      Qwen3 4B Thinking (2.3 GB, reasons before answering).
  *
  * WHY QWEN3-4B, AND WHY FROM `unsloth`. The obvious pick — an official
  * `Qwen/Qwen3-*-GGUF` repo — is wrong here, and the reason is not obvious:
@@ -77,15 +79,27 @@ export interface CatalogModel {
 const GB = 1024 * 1024 * 1024;
 
 /**
- * Instruct-only, by design. See the module docblock — a thinking model breaks the
- * classifier's 96-token JSON contract. Do not add a hybrid or Thinking model here
- * without first raising every cap in src/ai/* and stripping `<think>` from both
- * JSON.parse sites and both streaming paths.
+ * A Thinking model is allowed here now — the debt this comment used to forbid was
+ * paid on 2026-09-06. Two mechanisms carry it, and both must survive:
+ *
+ *  - JSON features (reply classifier, spam advisor) are safe WITHOUT any change,
+ *    because a llama.cpp grammar is applied to every sampled token and `<` is not a
+ *    legal JSON start — a grammar-constrained generation cannot open a `<think>`
+ *    block at all. Their 96/400-token caps are therefore untouched.
+ *  - Free-text features strip and gate the block in ai/thinking.ts, wired at the one
+ *    provider chokepoint (ai/providers/localLlama.ts `doGenerate`), and their caps
+ *    were raised to 1800 to pay for the reasoning tokens.
+ *
+ * What is still NOT allowed: making a thinking model a tier anchor or the
+ * recommendation. Reasoning latency on every reply sweep is a cost no one asked for.
+ * The guard test in __tests__/modelCatalog.test.ts pins that.
  */
 /** Stable per-tier anchors. #7's tier gating and the onboarding picker key off
  *  these ids — never positional catalog order. */
 export const FIRST_CLASS_MODEL_ID = 'qwen3-4b-instruct-2507-q4km';
 export const FREE_MODEL_ID = 'lfm25-350m-q4km';
+/** Opt-in only — deliberately NOT a tier anchor and never recommended. */
+export const THINKING_MODEL_ID = 'qwen3-4b-thinking-2507-q4km';
 
 export const MODEL_CATALOG: readonly CatalogModel[] = Object.freeze([
   Object.freeze({
@@ -109,6 +123,21 @@ export const MODEL_CATALOG: readonly CatalogModel[] = Object.freeze([
     minVramBytes: 1 * GB,
     license: 'lfm1.0',
     blurb: 'Light and quick. Runs on any machine — no graphics card needed. Good for sorting replies and short drafts.',
+  }),
+  // APPENDED, never prepended: the onboarding offer reads MODEL_CATALOG[0]
+  // positionally (src/main.ts). sizeBytes/sha256 read 2026-09-06 from the live HF
+  // API (/api/models/<repo>/tree/main, raw JSON `lfs.oid`) — re-verify the same way
+  // before changing either; a hash from memory is a guess and fails every download.
+  Object.freeze({
+    id: THINKING_MODEL_ID,
+    name: 'Qwen3 4B Thinking',
+    repo: 'unsloth/Qwen3-4B-Thinking-2507-GGUF',
+    file: 'Qwen3-4B-Thinking-2507-Q4_K_M.gguf',
+    sizeBytes: 2497281152,
+    sha256: 'ddd52e18200baab281c5c46f70d544ce4d4fe4846eab1608f2fff48a64554212',
+    minVramBytes: 4 * GB,
+    license: 'apache-2.0',
+    blurb: 'Reasons through the message before it answers. Slower to start, better on tricky replies and longer drafts.',
   }),
 ]);
 

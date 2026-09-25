@@ -156,7 +156,10 @@ You are shown past messages from this user that earned positive replies. Learn w
     parts.push(`Past messages that got positive replies:\n${ex}`);
   }
 
-  return { system, prompt: parts.join('\n\n'), temperature: 0.7, maxTokens: 600 };
+  // 1800, not 600: a reasoning model's `<think>` block is charged to this same cap
+  // even though it never reaches the draft (see ai/thinking.ts). A ceiling, not a
+  // target — a non-reasoning model still stops at end-of-turn around 600.
+  return { system, prompt: parts.join('\n\n'), temperature: 0.7, maxTokens: 1800 };
 }
 
 /**

@@ -48,22 +48,41 @@ describe('MODEL_CATALOG shape', () => {
     }
   });
 
-  it('offers ONLY Instruct models — a thinking model breaks the 96-token classifier', () => {
-    // The guard rail for this whole feature. ai/replyClassifier.ts allows 96 tokens
-    // and demands JSON; a <think> block alone overruns that, so every sweep would
-    // return nothing parseable. Filenames alone can't prove instruction-tuning
-    // (LFM2.5-350M is pure-instruct but its filename carries no "Instruct"), so
-    // each entry must be HAND-VERIFIED against its model card and then added to
-    // this list. If this fails, read modelCatalog.ts's docblock before touching
-    // either the list or the assertion.
-    const INSTRUCT_VERIFIED = [
-      'qwen3-4b-instruct-2507-q4km', // Qwen3 Instruct-2507: the non-thinking split
-      'lfm25-350m-q4km',             // LFM2.5: instruction-tuned, no thinking blocks (model card + live load test 2026-07-18)
+  it('carries only hand-verified entries, and declares which of them reason', () => {
+    // Filenames can't prove instruction-tuning (LFM2.5-350M is pure-instruct but its
+    // filename carries no "Instruct"), so every entry is HAND-VERIFIED against its
+    // model card before it lands here. A reasoning build must ALSO be declared in
+    // THINKING — that second list is what makes adding one a deliberate two-place
+    // edit instead of an accident. Read modelCatalog.ts's docblock before touching
+    // either list; ai/thinking.ts is what makes a reasoning model safe at all.
+    const VERIFIED = [
+      'qwen3-4b-instruct-2507-q4km',  // Qwen3 Instruct-2507: the non-thinking split
+      'lfm25-350m-q4km',              // LFM2.5: instruction-tuned, no thinking blocks (model card + live load test 2026-07-18)
+      'qwen3-4b-thinking-2507-q4km',  // Qwen3 Thinking-2507: reasons; opt-in only (model card + HF API 2026-09-06)
     ];
+    const THINKING = ['qwen3-4b-thinking-2507-q4km'];
     for (const m of MODEL_CATALOG) {
-      expect(m.file, `${m.id} looks like a Thinking model`).not.toMatch(/thinking/i);
-      expect(m.name, `${m.id} looks like a Thinking model`).not.toMatch(/thinking/i);
-      expect(INSTRUCT_VERIFIED, `${m.id} must be hand-verified as an Instruct build`).toContain(m.id);
+      expect(VERIFIED, `${m.id} must be hand-verified against its model card`).toContain(m.id);
+      if (/thinking|reasoning|[-_]r1[-_.]|qwq/i.test(`${m.file} ${m.name}`)) {
+        expect(THINKING, `${m.id} reasons — declare it in THINKING and check ai/thinking.ts covers it`).toContain(m.id);
+      }
+    }
+  });
+
+  it('never lets a reasoning model become an anchor, the default offer, or the recommendation', () => {
+    // The real invariant the old Instruct-only ban was protecting: reasoning latency
+    // must never land on someone who did not choose it. A reply sweep runs the
+    // classifier on every unread message.
+    const THINKING = ['qwen3-4b-thinking-2507-q4km'];
+    expect(THINKING).not.toContain(FIRST_CLASS_MODEL_ID);
+    expect(THINKING).not.toContain(FREE_MODEL_ID);
+    // Nothing else guards this: the onboarding offer picks MODEL_CATALOG[0] positionally.
+    expect(MODEL_CATALOG[0].id).toBe(FIRST_CLASS_MODEL_ID);
+    for (const tier of ['free', 'first-class'] as const) {
+      for (const hasGpu of [true, false]) {
+        const rec = recommendModel({ hasGpu, vramBytes: hasGpu ? 8 * 1024 ** 3 : 0 }, tier);
+        expect(THINKING, `${tier}/${hasGpu ? 'gpu' : 'cpu'} recommended a reasoning model`).not.toContain(rec.model.id);
+      }
     }
   });
 });
