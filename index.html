@@ -881,20 +881,6 @@
               </button>
               <p id="ms-oauth-status" style="display: none; font-size: 0.85em; margin-bottom: 12px;"></p>
             </div>
-            <!-- ===== LOW-FRICTION TRANSPORTS (Accounts view) — browser-session connect, hidden via
-                     SHOW_NO_PASSWORD_TRANSPORTS flag in src/main.ts. Safe to delete this whole
-                     block (and the matching handlers/flag) to remove the feature entirely. ===== -->
-            <div id="acct-nopw-block" style="display:none;">
-              <button type="button" class="btn" id="connect-gmail-btn" style="width: 100%; justify-content: center; margin-bottom: 8px;">
-                <span class="material-symbols-outlined">mail</span>
-                Connect Gmail &mdash; no password (browser)
-              </button>
-              <button type="button" class="btn" id="connect-outlook-btn" style="width: 100%; justify-content: center; margin-bottom: 12px;">
-                <span class="material-symbols-outlined">mail</span>
-                Connect Outlook &mdash; no password (browser)
-              </button>
-            </div>
-            <!-- ===== END LOW-FRICTION TRANSPORTS (Accounts view) ===== -->
             <!-- Gmail: real OAuth when this build carries a Google client id
                  (get-config.googleOAuthAvailable); the app-password walkthrough is
                  the permanent fallback — Google can disable an OAuth client. -->
@@ -1472,15 +1458,6 @@
           <button type="button" class="login-submit" id="login-ms-btn" style="background:#2563eb; border-color:#2563eb;">Sign in with Microsoft</button>
           <p id="login-nopw-status" style="display:none; font-size:0.85em; margin-top:10px; text-align:center;"></p>
         </div>
-        <!-- ===== LOW-FRICTION TRANSPORTS (login gate) — browser-session connect, hidden via
-                 SHOW_NO_PASSWORD_TRANSPORTS flag in src/main.ts. Safe to delete this whole
-                 block (and the matching handlers/flag) to remove the feature entirely. ===== -->
-        <div id="login-nopw-block" style="display:none;">
-          <div style="text-align:center; color:var(--muted-foreground); font-size:0.8em; margin:14px 0 10px;">— or use a browser session (no password) —</div>
-          <button type="button" class="login-submit" id="login-gmail-btn" style="margin-top:8px;">Connect Gmail (browser)</button>
-          <button type="button" class="login-submit" id="login-outlook-btn" style="margin-top:8px;">Connect Outlook (browser)</button>
-        </div>
-        <!-- ===== END LOW-FRICTION TRANSPORTS (login gate) ===== -->
 
         <!-- Explore-first (freemium #3): the gate is dismissible. Sending stays
              separately locked on credentials (F4), so this only moves WHEN we ask
