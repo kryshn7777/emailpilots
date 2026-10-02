@@ -194,7 +194,7 @@ declare global {
       getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'browser' | 'graph'; oauthProvider?: 'microsoft' | 'google'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean; identityWarning?: string }[]>;
       saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean; copyToSent?: boolean }) => Promise<{ ok: boolean; error?: string; id?: string }>;
       deleteAccount: (id: string) => Promise<{ ok: boolean; error?: string }>;
-      oauthLoginMicrosoft: () => Promise<{ ok: boolean; error?: string; id?: string; email?: string; identityWarning?: string }>;
+      oauthLoginMicrosoft: () => Promise<{ ok: boolean; error?: string; id?: string; email?: string; identityWarning?: string; adoptionWarning?: string }>;
       oauthLoginGoogle: () => Promise<{ ok: boolean; error?: string; id?: string; email?: string }>;
       connectBrowserAccount: (provider: 'gmail' | 'outlook') => Promise<{ ok: boolean; error?: string; id?: string; email?: string }>;
       getCampaigns: () => Promise<{ id: string; name: string; subject?: string; template?: string }[]>;
@@ -1109,6 +1109,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const previewFrame = document.getElementById('preview-frame') as HTMLIFrameElement;
 
   let recipientsData: any[] = [];
+  /** Saves in flight. refreshAccounts reloads recipientsData from disk, and runs
+   *  un-awaited from background events (onSendFailure) — reloading mid-save could
+   *  swap in the pre-save copy, and the next edit would undo this one. */
+  let recipientSavesPending = 0;
   /** Plan tier from the last license status (renderLicenseCard). Free pauses drips
    *  (SequenceRunner's one gate), which pre-flight and Next 7 days must say. */
   let licenseTier: 'free' | 'first-class' | undefined;
@@ -2619,7 +2623,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function saveRecipientsData() {
-    await window.electronAPI.saveRecipients(recipientsData);
+    recipientSavesPending++;
+    try { await window.electronAPI.saveRecipients(recipientsData); } finally { recipientSavesPending--; }
   }
 
   function openRecipientModal(index = -1) {
@@ -4258,7 +4263,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Account changes re-tag recipients on disk (remove → primary, Microsoft
     // sign-in adopting a dead password primary). Every edit re-sends this whole
     // array, so a stale copy here would write the old ownership straight back.
-    try { recipientsData = await window.electronAPI.getRecipients(); } catch { /* keep the old copy */ }
+    if (recipientSavesPending === 0) {
+      try {
+        const fresh = await window.electronAPI.getRecipients();
+        // A save that began while this read was out wins: its copy is newer.
+        if (recipientSavesPending === 0) {
+          // Row indices key the selection; a changed count means they may not match.
+          if (fresh.length !== recipientsData.length) selectedRecipientIdx.clear();
+          recipientsData = fresh;
+        }
+      } catch { /* keep the old copy */ }
+    }
     renderAccountsList();
     populateRecipientAccountSelect();
     renderRecipients();
@@ -4834,8 +4849,9 @@ document.addEventListener('DOMContentLoaded', async () => {
    *  whose alias lives on a foreign domain — e.g. @protonmail.com — sends mail
    *  that fails SPF/DMARC at receivers). Surfaced loudly at every connect
    *  surface; the main process already put the same line in System Logs. */
-  function showIdentityWarningIfAny(res: { identityWarning?: string }): void {
+  function showIdentityWarningIfAny(res: { identityWarning?: string; adoptionWarning?: string }): void {
     if (res.identityWarning) toast(res.identityWarning, 'error', 'Delivery warning');
+    if (res.adoptionWarning) toast(res.adoptionWarning, 'error', 'Check your recipients');
   }
 
   document.getElementById('ms-oauth-btn')?.addEventListener('click', async () => {
@@ -5932,7 +5948,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const wireNoPwLogin = (
       btnId: string,
       waiting: string,
-      run: () => Promise<{ ok: boolean; error?: string; email?: string; identityWarning?: string }>,
+      run: () => Promise<{ ok: boolean; error?: string; email?: string; identityWarning?: string; adoptionWarning?: string }>,
       fallbackName: string,
     ) => {
       const btn = document.getElementById(btnId) as HTMLButtonElement | null;

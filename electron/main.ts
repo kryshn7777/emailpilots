@@ -1179,9 +1179,14 @@ ipcMain.handle('save-account', async (_event, acc) => {
  *  content ledger that keeps them from being re-sent, A3) move to `id`; then its
  *  credentials are cleared. Left in place, every pre-existing recipient stayed
  *  owned by an identity whose every send was a failing password AUTH. */
-function adoptDeadMicrosoftPrimary(id: string): void {
+function adoptDeadMicrosoftPrimary(id: string): string | undefined {
     const basePath = getBasePath();
     const jsonPath = globalConfig.paths.recipientsJson;
+    // Pause background sends, as sign-out does: a cron slot or drip tick must not
+    // read-modify-write recipients.json or the primary's limits under this move.
+    // The caller's rebuildProcessors() re-arms them if the schedule was on.
+    globalScheduler?.stop();
+    globalSequenceRunner?.stop();
     // Recipients first: clearing the primary with them still on it would orphan
     // them, so a failed move leaves both identities and says so.
     try {
@@ -1196,8 +1201,9 @@ function adoptDeadMicrosoftPrimary(id: string): void {
             }
         }
     } catch {
-        sendLog('Could not move recipients to your Microsoft sign-in, so the old password connection was kept. Assign them in Recipients, then sign out of the old one in Settings.', 'error');
-        return;
+        const warning = 'Could not move your recipients to the Microsoft sign-in, so the old password connection was kept. Assign them in Recipients, then sign out of the old one in Settings.';
+        sendLog(warning, 'error');
+        return warning;
     }
     // Same mailbox, so the same day: carry the delivered-content ledger (A3) and
     // today's counters (the daily and per-recipient caps), as sign-out refuses to
@@ -1205,11 +1211,18 @@ function adoptDeadMicrosoftPrimary(id: string): void {
     for (const prefix of ['sent-ledger', 'limits']) {
         const from = path.join(basePath, accountStateFileName(prefix));
         const to = path.join(basePath, accountStateFileName(prefix, id));
-        try { if (fs.existsSync(from) && !fs.existsSync(to)) fs.copyFileSync(from, to); } catch { /* best effort */ }
+        try {
+            if (fs.existsSync(from) && !fs.existsSync(to)) fs.copyFileSync(from, to);
+        } catch (e: any) {
+            sendLog(`Could not carry ${prefix} over to your Microsoft sign-in (${e?.message || e}) — today's count for this mailbox starts again.`, 'error');
+        }
     }
     if (!saveConfigToEnv({ user: '', pass: '' })) {
-        sendLog('Could not clear the retired password connection — sign out of it in Settings.', 'error');
+        const warning = 'Could not clear the retired password connection — sign out of it in Settings.';
+        sendLog(warning, 'error');
+        return warning;
     }
+    return undefined;
 }
 
 ipcMain.handle('oauth-login-microsoft', async () => {
@@ -1288,13 +1301,13 @@ ipcMain.handle('oauth-login-microsoft', async () => {
             ...(identityWarning ? { identityWarning } : {}),
         };
         upsertAccount(basePath, account);
-        if (adoptPrimary) adoptDeadMicrosoftPrimary(id);
+        const adoptionWarning = adoptPrimary ? adoptDeadMicrosoftPrimary(id) : undefined;
 
         globalConfig = loadConfig();
         rebuildProcessors();
         recordAccountStatus(id, { ok: true, at: Date.now(), kind: 'test' });
 
-        return { ok: true, id, email, identityWarning };
+        return { ok: true, id, email, identityWarning, adoptionWarning };
     } catch (e: any) {
         return { ok: false, error: e?.message || 'Microsoft sign-in failed' };
     }
@@ -2164,7 +2177,7 @@ ipcMain.handle('save-recipients', (event, recipients) => {
         const raw = Array.isArray(recipients) ? recipients : [];
         const incoming = dropDeadAccountIds(raw, liveIds);
         const dropped = raw.filter((r: any) => r?.accountId && !liveIds.has(r.accountId)).length;
-        if (dropped > 0) sendLog(`${dropped} recipient(s) named a removed account — moved to the primary account.`, 'system');
+        if (dropped > 0) sendLog(`${dropped} recipient(s) named a removed account — now assigned to the primary; check them in Recipients.`, 'system');
         const merged = mergeSequenceState(disk, incoming);
         atomicWriteFileSync(jsonPath, JSON.stringify(merged, null, 2));
         sendLog('Recipients saved successfully', 'success');
