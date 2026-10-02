@@ -12,7 +12,6 @@ root `CLAUDE.md`; the pieces below make them enforceable.
 | `hooks/typecheck-on-stop.ps1` | Hook script | fired by Stop hook | Core `tsc --noEmit` when TS changed this session |
 | `skills/typecheck/` | Skill | `/typecheck` or auto | Full 3-project type check |
 | `skills/test-send/` | Skill | `/test-send` (user-only) | Safe send-engine dry run (forces `TEST_MODE`) |
-| `skills/mirror-landing/` | Skill | `/mirror-landing` (user-only) | Publish `landing/` to the Emailpilots3 mirror |
 | `agents/send-path-reviewer.md` | Subagent | auto on send-path edits | Audits diffs against the deliverability/safety invariants |
 | `settings.local.json` | Permissions | personal (existing) | Your machine-specific / one-off allows |
 

@@ -24,15 +24,17 @@
       "Read(sequences.json)",
       "Read(recipients.json)",
       "Read(recipients.csv)",
-      "Read(EmailPiolets 2/**)",
-      "Edit(EmailPiolets 2/**)",
-      "Write(EmailPiolets 2/**)",
-      "Edit(website/**)",
-      "Write(website/**)"
+      "Read(sent-ledger*)",
+      "Read(sent-log*)",
+      "Read(license.json)",
+      "Read(Old websites/EmailPiolets 2/**)",
+      "Edit(Old websites/EmailPiolets 2/**)",
+      "Write(Old websites/EmailPiolets 2/**)"
     ],
     "allow": [
       "Bash(npm test)",
       "Bash(npm run test:watch)",
+      "Bash(npm run typecheck)",
       "Bash(npm run build)",
       "Bash(npm run dev)",
       "Bash(npm ci)",
@@ -57,7 +59,8 @@
       "PowerShell(git status*)",
       "PowerShell(git diff*)",
       "PowerShell(git log*)",
-      "PowerShell(git add *)"
+      "PowerShell(git add *)",
+      "PowerShell(npm run typecheck)"
     ]
   },
   "hooks": {
