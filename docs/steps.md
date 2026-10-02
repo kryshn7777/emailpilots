@@ -19,9 +19,11 @@
    ```
 
 3. **CLI Testing**
-   Run an immediate test send from the terminal using `ts-node` (bypasses Electron GUI).
+   Run an immediate practice send from the terminal using `ts-node` (bypasses Electron GUI).
+   It refuses to run without `TEST_MODE=true` (every send reroutes to your own inbox) and
+   exits after the one run. Credentials come from env vars or a hand-written `.env`.
    ```bash
-   npm run test-send
+   TEST_MODE=true npm run test-send
    ```
 
 ## Build & Release

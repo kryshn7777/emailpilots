@@ -1,5 +1,11 @@
 # Email Pilots — Feature Verification Plan
 
+> **Stale-scope note (2026-10-03):** never executed (no box ticked). Sections on GUI2, the setup
+> wizard, `oauth-smtp` and a root `landing/` describe things that no longer exist; the CLI now
+> refuses `--test` without `TEST_MODE`. Not covered yet: Google sign-in (build-gated), the
+> Free/First Class drip gate and founder grant, Graph sends + replies + AI labels, the Sent
+> screen / Sent Items copy, DLV-1..19. Update before using it as a release gate.
+
 A runnable checklist to confirm every feature works. Each check names the **action**, the **steps**, and the **observable proof** (a JSON file under the data dir, a log line, or an email in an inbox) so a pass/fail is objective, not a guess.
 
 **Acceptance bar — the 3 product goals** every scenario ladders up to:

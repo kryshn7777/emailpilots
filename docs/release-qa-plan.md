@@ -1,5 +1,11 @@
 # Release QA — Complete Manual Verification Plan
 
+> **Stale-scope note (2026-10-03):** never executed (no box ticked). Sections on GUI2, the setup
+> wizard, `oauth-smtp` and a root `landing/` describe things that no longer exist; the CLI now
+> refuses `--test` without `TEST_MODE`. Not covered yet: Google sign-in (build-gated), the
+> Free/First Class drip gate and founder grant, Graph sends + replies + AI labels, the Sent
+> screen / Sent Items copy, DLV-1..19. The release gate (§1 + §3 + §7 + §12) is unmet.
+
 Goal: find any broken feature before release. Covers every user-facing capability, both GUIs, the packaged build, the CLI, and the landing site.
 
 **How to use**
