@@ -66,10 +66,15 @@ export function accountHasCredentials(a?: ConnectedAccount): boolean {
  */
 export function isInboxConnected(i: ConnectedInput): boolean {
   if (i.smtpUser && i.smtpHasPass) return true;
+  // A password extra always counts: the backend builds it a processor, and the
+  // one GUI left can add one (Accounts view). Gating it on allowBrowser — a GUI2
+  // leftover — told a user whose only inbox was an extra that nothing was
+  // connected, steering them to re-type that address as the primary (CSA-2 dup).
   return (i.accounts || []).some(a =>
     a?.enabled !== false && (
+      !!a?.hasPass ||
       (!!i.allowOauth && (a?.transport === 'graph' || a?.oauthProvider === 'google')) ||
-      (!!i.allowBrowser && (!!a?.hasPass || a?.transport === 'browser'))
+      (!!i.allowBrowser && a?.transport === 'browser')
     )
   );
 }

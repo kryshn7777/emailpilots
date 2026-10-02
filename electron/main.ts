@@ -20,7 +20,7 @@ import type { StrategyDeps } from '../src/transport/sendStrategy';
 import { loginMicrosoft, getGraphAccessToken as msGetGraphAccessToken, isMicrosoftOAuthConfigured } from './transport/oauthMicrosoft';
 import { loginGoogle, getGoogleAccessToken, isGoogleOAuthConfigured } from './transport/oauthGoogle';
 import { connectBrowser, createBrowserStrategy } from './transport/browserSession';
-import { readAccounts, upsertAccount, removeAccount, accountsFilePath, MAX_EXTRA_ACCOUNTS } from '../src/accountStore';
+import { readAccounts, upsertAccount, removeAccount, accountsFilePath, primaryAddressClash, MAX_EXTRA_ACCOUNTS } from '../src/accountStore';
 import { accountStateFileName, DEFAULT_ACCOUNT_STATE_FILES } from '../src/accountFiles';
 import { SentLog, type SentLogEntry } from '../src/sentLog';
 import { upcomingSends } from '../src/nextRun';
@@ -1660,6 +1660,13 @@ function saveConfigToEnv(newConfig: any): boolean {
     // The address being replaced — read BEFORE the rewrite below blanks it. Seeds
     // the sent-ledger owner check for installs that predate the marker (S1).
     const prevUser = String(globalConfig.smtp.user ?? '').trim();
+    // save-account's CSA-2 guard checks the primary; this is its mirror. Without
+    // it Settings or the login gate could make an extra's address the primary too.
+    const clash = primaryAddressClash(basePath, newUser, prevUser);
+    if (clash) {
+      sendLog(`${newUser} is already connected as an added account (${clash.label || clash.user}) — not saved as the primary too.`, 'error');
+      return false;
+    }
     const newPass = normalizeAppPassword(newConfig.pass);
     // Blank password keeps the stored one (same rule as save-account) — unless
     // the user is also cleared (sign-out), which wipes both.

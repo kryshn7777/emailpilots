@@ -173,12 +173,13 @@ describe('isInboxConnected — accounts.json', () => {
     expect(isInboxConnected({ accounts: [{ transport: 'graph' }], allowOauth: true })).toBe(true);
   });
 
-  it('counts an extra password account only under the browser flag', () => {
-    // Preserves today's exact per-GUI behaviour: the default GUI ignores
-    // accounts.json at the gate entirely. Widening this is a behaviour change
-    // to the default path, so it is deliberately NOT done here.
+  it('counts an extra password account whatever the transport flags', () => {
+    // Was gated on allowBrowser (a GUI2-era split). With GUI2 gone that told a
+    // user whose only inbox was an extra that nothing was connected — and the
+    // backend builds it a processor (2026-10-02 sweep, S1).
     expect(isInboxConnected({ accounts: [extraPw], allowBrowser: true })).toBe(true);
-    expect(isInboxConnected({ accounts: [extraPw], allowBrowser: false })).toBe(false);
+    expect(isInboxConnected({ accounts: [extraPw], allowBrowser: false })).toBe(true);
+    expect(isInboxConnected({ accounts: [{ ...extraPw, enabled: false }] })).toBe(false);
   });
 
   it('finds a usable account among unusable ones', () => {

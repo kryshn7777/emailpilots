@@ -94,6 +94,18 @@ export function upsertAccount(basePath: string, acc: Account): Account[] {
 }
 
 /**
+ * CSA-2 for the .env primary: the extra account that already sends from `next`,
+ * if any. Making that address the primary too gives one inbox two processors and
+ * two daily caps. An unchanged address never clashes, so a duplicate an older
+ * build let through stays editable. Case-blind, like every address compare here.
+ */
+export function primaryAddressClash(basePath: string, next: string, prev: string): Account | undefined {
+  const key = next.trim().toLowerCase();
+  if (!key || key === prev.trim().toLowerCase()) return undefined;
+  return readAccounts(basePath).find(a => a.user.trim().toLowerCase() === key);
+}
+
+/**
  * Persist a refreshed OAuth token cache onto one account — and nothing else.
  * Token getters run inside sends that hold an account snapshot for minutes (paced
  * waits, manual batches), so writing that whole snapshot back (upsertAccount)

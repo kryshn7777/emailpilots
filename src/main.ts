@@ -1112,6 +1112,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // All sending accounts (default + extras), refreshed from the main process.
   // Drives the Accounts view + the per-recipient "send from" selector.
   let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'browser' | 'graph'; oauthProvider?: 'microsoft' | 'google'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean; identityWarning?: string }[] = [];
+  /** Renderer twin of save-config's primaryAddressClash (CSA-2): does an added
+   *  account already send from `next`? An unchanged primary address never counts. */
+  function isAddedAccountAddress(next: string, prev: string): boolean {
+    const key = next.trim().toLowerCase();
+    if (!key || key === prev.trim().toLowerCase()) return false;
+    return accountsCache.some(a => !a.isDefault && a.user.trim().toLowerCase() === key);
+  }
   // Bulk-selection of extra accounts in the Accounts view (ids; default excluded).
   const selectedAccountIds = new Set<string>();
 
@@ -5972,6 +5979,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         toast(steer, 'error', 'Microsoft sign-in changed');
         return;
       }
+      // CSA-2: same backstop as Settings — save-config refuses it with a bare `false`.
+      if (isAddedAccountAddress(email, loadedSmtpUser)) {
+        showLoginError('That address is already connected as an added account — it can send already.');
+        return;
+      }
 
       loginSubmitBtn.disabled = true;
       const originalLabel = loginSubmitBtn.innerHTML;
@@ -6692,6 +6704,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         && isMsBasicAuthDeadHost(inputHost.value)) {
       toast('Microsoft retired app passwords — connect this inbox with "Sign in with Microsoft" on the Accounts page instead. No password needed.',
         'error', 'Microsoft sign-in changed');
+      return;
+    }
+    // CSA-2: an address already connected as an added account must not become the
+    // primary too (one inbox, two daily caps). save-config refuses it with a bare
+    // `false`; this gives the reason.
+    if (isAddedAccountAddress(inputUser.value, loadedSmtpUser)) {
+      toast('That address is already connected as an added account on the Accounts page — it can send already.',
+        'error', 'Already connected');
       return;
     }
     const btn = settingsForm.querySelector('button[type="submit"]') as HTMLButtonElement;
