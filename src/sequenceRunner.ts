@@ -5,6 +5,7 @@ import { MailProcessor } from './mailProcessor';
 import { ReplyStore } from './replyStore';
 import { atomicWriteFileSync } from './atomicWrite';
 import { SEQ_STATE_FIELDS, recipientKey } from './recipientMerge';
+import { readRecipientsReporting } from './jsonState';
 
 /** Injected side-effects so the step state machine is unit-testable. */
 export interface SeqDeps {
@@ -189,13 +190,8 @@ export class SequenceRunner {
     try {
       const { recipientsJson } = this.config.paths;
       if (!fs.existsSync(recipientsJson)) return;
-      let records: any[];
-      try {
-        records = JSON.parse(fs.readFileSync(recipientsJson, 'utf-8'));
-      } catch {
-        return;
-      }
-      if (!Array.isArray(records)) return;
+      const records = readRecipientsReporting(recipientsJson, 'run follow-ups');
+      if (!records) return;
 
       const sequences = this.config.sequences || [];
       if (sequences.length === 0) return;

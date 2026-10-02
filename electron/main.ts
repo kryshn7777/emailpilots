@@ -473,6 +473,7 @@ const TRAY_TOOLTIP_OK = 'Email Pilots — running in background';
 const STATE_FILE_LABEL: Record<StateFileKind, string> = {
   suppression: 'unsubscribe & bounce list',
   replies: 'reply history',
+  recipients: 'recipient list',
 };
 
 /** Renderer-facing shape. NOT the StateFileError itself: IPC structured-clone does not

@@ -55,7 +55,7 @@ export function readJsonState<T = unknown>(filePath: string): JsonStateResult<T>
 
 /** Which state file a StateFileError is about. Widen only when a new store adopts
  *  the fail-closed pattern — the renderer maps this to human-readable copy. */
-export type StateFileKind = 'suppression' | 'replies';
+export type StateFileKind = 'suppression' | 'replies' | 'recipients';
 
 /**
  * A state file EXISTS but could not be read (audit S2), raised at the point where
@@ -164,4 +164,27 @@ export function clearStateFileError(filePath: string): void {
   for (const fn of recoveredListeners) {
     try { fn(filePath); } catch { /* deliberately swallowed — as above */ }
   }
+}
+
+
+/**
+ * K3 for recipients.json. The batch, the scheduler and the drip tick each read it
+ * and, when it could not be parsed, stopped with one console line — invisible in a
+ * packaged build, so a corrupt list looked like an app that simply never sends.
+ * Returns the records, [] when the file is absent, or null when it EXISTS but is
+ * unreadable or not a list — and then raises the same toast/tray/banner signal as
+ * suppression and replies (once per file; a clean read clears it). Never throws.
+ */
+export function readRecipientsReporting(filePath: string, action: string): any[] | null {
+  const res = readJsonState<unknown>(filePath);
+  if (res.ok && (res.data === null || Array.isArray(res.data))) {
+    clearStateFileError(filePath);
+    return (res.data as any[] | null) ?? [];
+  }
+  const reason = res.ok ? 'it is not a list of recipients' : res.error;
+  reportStateFileError(new StateFileError(
+    `Your recipient list (${filePath}) could not be read — ${reason}. Nothing can ${action} until it is repaired.`,
+    filePath, reason, 'recipients', action,
+  ));
+  return null;
 }

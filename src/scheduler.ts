@@ -2,6 +2,7 @@ import cron, { ScheduledTask } from 'node-cron';
 import { MailProcessor, recordBelongsToAccount } from './mailProcessor';
 import fs from 'fs';
 import { Config } from './config';
+import { readRecipientsReporting } from './jsonState';
 
 export class Scheduler {
   public tasks: ScheduledTask[] = [];
@@ -48,13 +49,12 @@ export class Scheduler {
       return;
     }
 
-    let records: any[];
-    try {
-      records = JSON.parse(fs.readFileSync(recipientsJson, 'utf-8'));
-    } catch (e) {
+    const read = readRecipientsReporting(recipientsJson, 'be scheduled');
+    if (!read) {
       console.error('Failed to parse recipients.json');
       return;
     }
+    const records: any[] = read;
 
     // Working set: per-account processors when available, else the single legacy
     // processor handling every active record (id 'default' owns untagged ones).

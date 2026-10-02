@@ -10,6 +10,7 @@ import { SentLedger, contentHash } from './sentLedger';
 import { SentLog, SentLogEntry, SentLogStatus, SendSource } from './sentLog';
 import { SentFolderCopier, shouldCopyToSent } from './sentCopy';
 import { isNonAddressStatus } from './bounceParser';
+import { readRecipientsReporting } from './jsonState';
 
 /**
  * Whether a recipient record belongs to a given account. The default account
@@ -289,13 +290,12 @@ export class MailProcessor {
     // No template.html check: renderEmail() falls back to the per-recipient
     // message when there is no wrapper template.
 
-    let records: any[];
-    try {
-      records = JSON.parse(fs.readFileSync(recipientsJson, 'utf-8'));
-    } catch (e) {
+    const read = readRecipientsReporting(recipientsJson, 'send');
+    if (!read) {
       console.error('Failed to parse recipients.json');
       return { total: 0, sent: 0, skipped: 0, failed: 0 };
     }
+    const records: any[] = read;
 
     // A10 fix: exclude sequence-enrolled recipients from the batch path — they are
     // driven step-by-step by the SequenceRunner, so a "Send to All" would deliver an
