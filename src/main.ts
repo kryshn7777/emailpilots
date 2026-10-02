@@ -498,7 +498,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       let streamed = '';
       const off = window.electronAPI.onAiStream((chunk) => { streamed += chunk; aiTestOutput.value = streamed; });
       try {
-        const r = await window.electronAPI.aiGenerate({ prompt });
+        // The assistant's budget: the 512-token default ends a reasoning model mid-thought.
+        const r = await window.electronAPI.aiGenerate({ prompt, maxTokens: 1800 });
         aiTestOutput.value = r.ok ? (r.text || '(empty)') : ('Error: ' + (r.error || 'failed'));
       } catch (e: any) {
         aiTestOutput.value = 'Error: ' + (e?.message || 'failed');

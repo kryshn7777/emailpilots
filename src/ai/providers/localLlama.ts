@@ -6,7 +6,7 @@ import type { AiStatus, AiGenerateRequest, AiGenerateResult } from '../types';
 // when the hardware probe needed the same import without loading a model — see that
 // module's docblock before touching it; it is load-bearing for the packaged app.
 import { loadAiRuntime } from '../runtime';
-import { createThinkingGate, looksLikeThinkingModel, stripThinking, type ThinkingGate } from '../thinking';
+import { createThinkingGate, finalAnswer, looksLikeThinkingModel, stripThinking, type ThinkingGate } from '../thinking';
 
 /** Generation cap when a request omits `maxTokens` (kept modest for latency). */
 const DEFAULT_MAX_TOKENS = 512;
@@ -207,24 +207,32 @@ export class LocalLlamaProvider implements AiProvider {
       ...(req.system ? { systemPrompt: req.system } : {}),
     });
     let gate: ThinkingGate | undefined;
+    // Free text from a reasoning build. Tracked so a generation that never got past
+    // its reasoning is reported as such rather than returned as the answer.
+    const thinkingModel = !req.json && looksLikeThinkingModel(this.config.ai?.modelPath);
+    let segmentsHandled = false;
     try {
       const opts: any = { maxTokens: req.maxTokens ?? DEFAULT_MAX_TOKENS };
       if (typeof req.temperature === 'number') opts.temperature = req.temperature;
+      // A reasoning model's `<think>` block is filtered out for us ONLY when the
+      // chat wrapper sees the opening tag and turns it into a segment. Qwen3
+      // Thinking's own template supplies that tag, so the model never emits it, no
+      // segment opens, and the reasoning arrives as ordinary text. `onResponseChunk`
+      // is only an observer: a real thought segment means node-llama-cpp is already
+      // filtering, so the gate stands down and untagged text is a real answer.
+      if (thinkingModel) {
+        opts.onResponseChunk = (c: any) => {
+          if (c?.segmentType === 'thought') { segmentsHandled = true; gate?.segmentsHandled(); }
+        };
+      }
       // Stream free-text output as it's produced. Skipped for JSON generations —
-      // streaming raw JSON tokens to the UI would be noise.
+      // streaming raw JSON tokens to the UI would be noise. A reasoning model's
+      // stream is held back until its block closes. See ../thinking.ts.
       if (onChunk && !req.json) {
-        // A reasoning model's `<think>` block is filtered out for us ONLY when the
-        // chat wrapper sees the opening tag and turns it into a segment. Qwen3
-        // Thinking's own template supplies that tag, so the model never emits it,
-        // no segment opens, and the reasoning arrives here as ordinary text — hold
-        // it back until the block closes. `onResponseChunk` is only an observer: if
-        // a real thought segment does turn up, node-llama-cpp is already filtering
-        // and the gate stands down so streaming stays live. See ../thinking.ts.
-        if (looksLikeThinkingModel(this.config.ai?.modelPath)) {
+        if (thinkingModel) {
           const g = createThinkingGate(onChunk);
           gate = g;
           opts.onTextChunk = (t: string) => g.chunk(t);
-          opts.onResponseChunk = (c: any) => { if (c?.segmentType === 'thought') g.segmentsHandled(); };
         } else {
           opts.onTextChunk = onChunk;
         }
@@ -236,17 +244,19 @@ export class LocalLlamaProvider implements AiProvider {
         opts.maxTokens = req.maxTokens ?? this.context.contextSize;
       }
       const raw: string = await session.prompt(req.prompt, opts);
-      // Unconditional, and safe to be: stripThinking only touches text that actually
-      // contains a closing think tag, so an Instruct model's answer comes through
-      // byte-identical. A grammar-constrained (json) generation can't emit one at all.
-      const text = stripThinking(raw);
+      // An Instruct model's answer comes through byte-identical; a grammar-constrained
+      // (json) generation can't emit a think tag at all.
+      const text = req.json ? stripThinking(raw) : finalAnswer(raw, { thinkingModel, segmentsHandled });
+      if (text === null) {
+        throw new Error('The model ran out of room while thinking and gave no answer. Try again, or switch to a non-thinking model.');
+      }
       let json: unknown;
       if (req.json) { try { json = JSON.parse(text); } catch { json = undefined; } }
       return { text, json, ms: Date.now() - started };
     } finally {
       // Anything the gate is still holding was never closed by a `</think>` — drop
       // it rather than flushing reasoning into the composer. Callers set the final
-      // text from the resolved promise, which is stripped above.
+      // text from the resolved promise, which finalAnswer settled above.
       gate?.flush();
       // Dispose the session only — NOT the sequence (dispose() defaults to
       // leaving it alone). The held sequence's state is wiped by clearHistory()

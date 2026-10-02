@@ -45,9 +45,23 @@ export function stripThinking(text: string): string {
 }
 
 /**
- * Does this model path look like a reasoning build? Used only to decide whether to
- * gate the LIVE STREAM — getting it wrong costs streaming smoothness, never
- * correctness, because the final text is stripped either way.
+ * The answer a free-text generation produced, or null when it produced none.
+ *
+ * stripThinking alone is not enough for a reasoning model: when it runs out of tokens
+ * before `</think>`, the raw text is pure reasoning with no tag to cut at, and it used
+ * to come back as the suggestion. Untagged text from a reasoning model is only an
+ * answer when node-llama-cpp itself recognised and removed the thought segment.
+ * Not for JSON generations — a grammar keeps those from reasoning at all.
+ */
+export function finalAnswer(raw: string, opts: { thinkingModel: boolean; segmentsHandled: boolean }): string | null {
+  if (CLOSE_TAG.test(raw)) return stripThinking(raw);
+  return opts.thinkingModel && !opts.segmentsHandled ? null : raw;
+}
+
+/**
+ * Does this model path look like a reasoning build? Used to gate the live stream and
+ * to tell an unfinished reasoning block from an answer (finalAnswer). A miss costs
+ * the old behaviour: streaming is ungated and truncated reasoning can leak through.
  */
 export function looksLikeThinkingModel(modelPath: string | undefined): boolean {
   if (!modelPath) return false;

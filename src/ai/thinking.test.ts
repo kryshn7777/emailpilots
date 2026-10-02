@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripThinking, looksLikeThinkingModel, createThinkingGate } from './thinking';
+import { stripThinking, looksLikeThinkingModel, createThinkingGate, finalAnswer } from './thinking';
 
 describe('stripThinking', () => {
   it('drops a leaked reasoning block up to the closing tag', () => {
@@ -60,5 +60,27 @@ describe('createThinkingGate', () => {
     gate.chunk('still reasoning about the pitch');
     gate.flush();
     expect(out).toEqual([]);
+  });
+});
+
+// The resolved text, not just the stream: a reasoning model that runs out of tokens
+// before `</think>` used to hand its raw monologue back as the suggestion, Apply on.
+describe('finalAnswer', () => {
+  const thinking = { thinkingModel: true, segmentsHandled: false };
+
+  it('returns the answer after the closing tag', () => {
+    expect(finalAnswer('weighing the tone…</think>\n\nHi Bob,', thinking)).toBe('Hi Bob,');
+  });
+
+  it('returns null when a reasoning model never closed its reasoning', () => {
+    expect(finalAnswer('The user wants a follow-up. Let me think about the pitch', thinking)).toBeNull();
+  });
+
+  it('trusts untagged text once node-llama-cpp filtered a real thought segment', () => {
+    expect(finalAnswer('Hi Bob,', { thinkingModel: true, segmentsHandled: true })).toBe('Hi Bob,');
+  });
+
+  it('leaves an Instruct model untouched', () => {
+    expect(finalAnswer('Hi Bob,', { thinkingModel: false, segmentsHandled: false })).toBe('Hi Bob,');
   });
 });
