@@ -29,7 +29,7 @@ describe('S23 — stats conservation and the two-instance clobber', () => {
     rmDir(dir);
   });
 
-  it('a) one shared StatsManager: totalEmailsSent === emailsToday === ledger size after 100 sends', { timeout: 30_000 }, async () => {
+  it('a) one shared StatsManager: totalEmailsSent === emailsToday === ledger size after 100 sends', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir);
     seedRecipients(dir, 100);
     const stats = new StatsManager(dir);
@@ -48,7 +48,7 @@ describe('S23 — stats conservation and the two-instance clobber', () => {
     expect(statsFile.perAccount.default).toBe(100);
   });
 
-  it('b) FIXED (SIM-2): two live instances alternating 50 increments each conserve all 100, both perAccount buckets intact', { timeout: 30_000 }, () => {
+  it('b) FIXED (SIM-2): two live instances alternating 50 increments each conserve all 100, both perAccount buckets intact', { timeout: 120_000 }, () => {
     const a = new StatsManager(dir);
     const b = new StatsManager(dir);
 

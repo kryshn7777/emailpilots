@@ -22,7 +22,7 @@ describe('S21 — spamCheck / bounceParser under oversized input', () => {
   beforeEach(() => { unquiet = silenceConsole(); });
   afterEach(() => { unquiet(); });
 
-  it('checkSpam is bounded (SIM-4): a 5MB body costs no more than a 256KB one; batch stays fast', { timeout: 30_000 }, () => {
+  it('checkSpam is bounded (SIM-4): a 5MB body costs no more than a 256KB one; batch stays fast', { timeout: 120_000 }, () => {
     const timings: string[] = [];
     const run = (bytes: number): number => {
       const body = benignBody(bytes);
@@ -60,7 +60,7 @@ describe('S21 — spamCheck / bounceParser under oversized input', () => {
     process.stdout.write(`[S21] checkSpam ${timings.join(' ')} batch100x64KB=${batchMs}ms\n`);
   });
 
-  it('parseBounce stays flat on a 5MB body (64KB slice) — and still extracts from within the slice', { timeout: 30_000 }, () => {
+  it('parseBounce stays flat on a 5MB body (64KB slice) — and still extracts from within the slice', { timeout: 120_000 }, () => {
     const huge = 'x'.repeat(5 * MB);
 
     let t0 = Date.now();
@@ -80,7 +80,7 @@ describe('S21 — spamCheck / bounceParser under oversized input', () => {
     process.stdout.write(`[S21] parseBounce 5MB: miss=${msNothing}ms hit=${msFound}ms\n`);
   });
 
-  it('100-fixture extraction matrix: 4 structural paths × 20 exact hits, 20 subject-only forgeries all rejected', { timeout: 30_000 }, () => {
+  it('100-fixture extraction matrix: 4 structural paths × 20 exact hits, 20 subject-only forgeries all rejected', { timeout: 120_000 }, () => {
     for (let i = 0; i < 20; i++) {
       const target = `victim${i}@x.test`;
 

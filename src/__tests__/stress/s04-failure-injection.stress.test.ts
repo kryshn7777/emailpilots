@@ -39,7 +39,7 @@ describe('S04 — 20/20/20/20/20 failure injection over 100 recipients', () => {
     rmDir(dir);
   });
 
-  it('run 1 triages all five cohorts exactly; run 2 retries only the transient cohorts', { timeout: 30_000 }, async () => {
+  it('run 1 triages all five cohorts exactly; run 2 retries only the transient cohorts', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir);
     const { emails } = seedRecipients(dir, 100);
     const failures: any[] = [];

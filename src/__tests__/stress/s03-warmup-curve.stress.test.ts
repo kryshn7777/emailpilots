@@ -47,7 +47,7 @@ describe('S03 — warmup curve day sweep at 100 recipients', () => {
     [4, 15],
     [9, 30],
     [20, 30],
-  ])('account age %i days → exactly %i of 100 sent', { timeout: 30_000 }, async (daysAgo, expectedSent) => {
+  ])('account age %i days → exactly %i of 100 sent', { timeout: 120_000 }, async (daysAgo, expectedSent) => {
     const cfg = makeStressConfig(dir, {
       limits: { maxPerDay: 30, warmupEnabled: true, warmupCurve: [...CURVE] },
     });
@@ -67,7 +67,7 @@ describe('S03 — warmup curve day sweep at 100 recipients', () => {
     expect(limits.warmupStartDate).toBe(localDateStr(daysAgo)); // anchor untouched by the run
   });
 
-  it('a pre-existing limits.json without warmupStartDate is treated as a mature account (no re-throttle)', { timeout: 30_000 }, async () => {
+  it('a pre-existing limits.json without warmupStartDate is treated as a mature account (no re-throttle)', { timeout: 120_000 }, async () => {
     // Legacy file: field absent → load() anchors it to 2000-01-01 (mature).
     fs.writeFileSync(statePaths(dir).limits, JSON.stringify({
       date: localDateStr(0), emailsToday: 0, windowsToday: 1, currentWindowCount: 0,

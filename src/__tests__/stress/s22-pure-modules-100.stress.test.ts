@@ -21,7 +21,7 @@ describe('S22 — pure modules at 100-scale', () => {
     rmDir(dir);
   });
 
-  it('CSV: 100 rows → 60 added, 30 duplicate-skipped, 10 invalid-skipped; accountId column stripped; merge vars kept', { timeout: 30_000 }, () => {
+  it('CSV: 100 rows → 60 added, 30 duplicate-skipped, 10 invalid-skipped; accountId column stripped; merge vars kept', { timeout: 120_000 }, () => {
     const mapping = detectMapping(['E-Mail Address', 'Full Name', 'Subject Line', 'Message Body', 'company', 'accountId']);
     expect(mapping.email).toBe('E-Mail Address');
     expect(mapping.name).toBe('Full Name');
@@ -61,7 +61,7 @@ describe('S22 — pure modules at 100-scale', () => {
     expect(classifyMxRecords([...Array.from({ length: 99 }, () => ({ exchange: '.' })), { exchange: 'mx.x.test' }])).toBe('accepts');
   });
 
-  it('accountStore: 100 upserts cycling 5 ids stay 5 accounts; removes work; hostile ids cannot escape basePath', { timeout: 30_000 }, () => {
+  it('accountStore: 100 upserts cycling 5 ids stay 5 accounts; removes work; hostile ids cannot escape basePath', { timeout: 120_000 }, () => {
     for (let i = 0; i < 100; i++) {
       const id = `acct${(i % 5) + 1}`;
       const acc: Account = {

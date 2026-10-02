@@ -23,7 +23,7 @@ describe('S02 — cap exhaustion bulk-skip at 100 recipients', () => {
     rmDir(dir);
   });
 
-  it('daily cap 37: exactly 37 sent, remaining 63 bulk-skipped, conservation holds', { timeout: 30_000 }, async () => {
+  it('daily cap 37: exactly 37 sent, remaining 63 bulk-skipped, conservation holds', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir, { limits: { maxPerDay: 37 } });
     seedRecipients(dir, 100);
     const { service, calls } = scriptedService(acceptAll);
@@ -42,7 +42,7 @@ describe('S02 — cap exhaustion bulk-skip at 100 recipients', () => {
     verifyStateIntegrity(dir);
   });
 
-  it('window budget 3×10 (daily cap open): exactly 30 sent, window counters exact', { timeout: 30_000 }, async () => {
+  it('window budget 3×10 (daily cap open): exactly 30 sent, window counters exact', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir, {
       limits: { maxPerDay: 1000, maxPerWindow: 10, maxWindowsPerDay: 3 },
     });

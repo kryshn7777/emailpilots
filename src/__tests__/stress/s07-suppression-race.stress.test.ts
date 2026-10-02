@@ -43,7 +43,7 @@ describe('S07 — parallel shared-suppression bounce storm (lost-update detector
     rmDir(dir);
   });
 
-  it('all 100 hard-bounced addresses land in suppression.json; every slot refunded', { timeout: 30_000 }, async () => {
+  it('all 100 hard-bounced addresses land in suppression.json; every slot refunded', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir, { accounts: browserAccounts(N) });
     const { emails } = seedRecipients(dir, 100, { extra: (i) => ({ accountId: acctOf(i) }) });
 

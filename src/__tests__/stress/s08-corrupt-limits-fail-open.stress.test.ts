@@ -41,7 +41,7 @@ describe('S08 — corrupt state files: limits fails open (cap overrun), suppress
     rmDir(dir);
   });
 
-  it('FIXED (SIM-1): garbage limits.json stops the batch cold, never clobbers the file, and repair resumes exactly at the real cap', { timeout: 30_000 }, async () => {
+  it('FIXED (SIM-1): garbage limits.json stops the batch cold, never clobbers the file, and repair resumes exactly at the real cap', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir, { limits: { maxPerDay: 50 } });
     seedRecipients(dir, 100);
 
@@ -87,7 +87,7 @@ describe('S08 — corrupt state files: limits fails open (cap overrun), suppress
     expect(sink.errors).toHaveLength(0);
   });
 
-  it('contrast: garbage suppression.json makes the same batch REFUSE to run (fail-closed) and fires the K3 sink once', { timeout: 30_000 }, async () => {
+  it('contrast: garbage suppression.json makes the same batch REFUSE to run (fail-closed) and fires the K3 sink once', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir);
     seedRecipients(dir, 100);
     fs.writeFileSync(statePaths(dir).suppression, 'not json {{{');
@@ -101,7 +101,7 @@ describe('S08 — corrupt state files: limits fails open (cap overrun), suppress
     expect(sink.errors[0].filePath).toBe(statePaths(dir).suppression);
   });
 
-  it('resetWarmupAnchor reports persistence: true on a healthy file, false on a corrupt one (never clobbers it)', { timeout: 30_000 }, () => {
+  it('resetWarmupAnchor reports persistence: true on a healthy file, false on a corrupt one (never clobbers it)', { timeout: 120_000 }, () => {
     // Healthy: seed a mature anchor, reset moves it to today, returns true.
     fs.writeFileSync(statePaths(dir).limits, JSON.stringify({
       date: localDateStr(0), emailsToday: 30, windowsToday: 1, currentWindowCount: 30,

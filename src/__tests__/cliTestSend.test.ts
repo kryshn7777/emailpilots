@@ -30,7 +30,7 @@ function runCli(extraEnv: Record<string, string>) {
           SMTP_USER: 'cli@example.test', SMTP_PASS: 'not-a-real-secret', ...extraEnv,
         },
         encoding: 'utf8',
-        timeout: 20_000,
+        timeout: 60_000, // ts-node startup under full-suite load; a resident CLI still hits it
       },
     );
   } finally {
@@ -44,12 +44,12 @@ describe('CLI --test', () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/TEST_MODE=true/);
     expect(r.stdout).not.toMatch(/Running immediate test send/);
-  }, 60_000);
+  }, 120_000);
 
   it('exits after the practice run instead of staying resident', () => {
     const r = runCli({ TEST_MODE: 'true' });
     expect(r.error).toBeUndefined(); // a spawnSync timeout lands here
     expect(r.stdout).toMatch(/Running immediate test send/);
     expect(r.stdout).not.toMatch(/Scheduler is running/);
-  }, 60_000);
+  }, 120_000);
 });

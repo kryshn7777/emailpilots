@@ -33,7 +33,7 @@ describe('S19 — sent-ledger ownership over 20 sign-in cycles', () => {
     rmDir(dir);
   });
 
-  it('adopt → keep (same) → drop (different) across 20 alternating cycles; sign-out never touches either file', { timeout: 30_000 }, () => {
+  it('adopt → keep (same) → drop (different) across 20 alternating cycles; sign-out never touches either file', { timeout: 120_000 }, () => {
     // Upgrade path: a 100-entry ledger exists with no marker and no previousUser
     // → ADOPT, never clear (clearing would re-send to 100 people).
     buildLedger(dir, N);
@@ -75,7 +75,7 @@ describe('S19 — sent-ledger ownership over 20 sign-in cycles', () => {
     }
   });
 
-  it('a corrupt owner marker falls back to previousUser: different → clears, same → keeps', { timeout: 30_000 }, () => {
+  it('a corrupt owner marker falls back to previousUser: different → clears, same → keeps', { timeout: 120_000 }, () => {
     buildLedger(dir, N);
     syncLedgerOwner(dir, 'alice@x.test');
 

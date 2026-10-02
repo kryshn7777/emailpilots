@@ -50,7 +50,7 @@ describe('S20 — render/hash stability across 100 recipients × 3 campaign mode
     ],
   });
 
-  it('deterministic rendering, 100 unique hashes, correct template + subject precedence per cohort', { timeout: 30_000 }, () => {
+  it('deterministic rendering, 100 unique hashes, correct template + subject precedence per cohort', { timeout: 120_000 }, () => {
     const cfg = cfgWith('Quick follow-up');
     const records = makeRecords();
     const hashes = new Set<string>();
@@ -93,7 +93,7 @@ describe('S20 — render/hash stability across 100 recipients × 3 campaign mode
     expect(hashes.size).toBe(N); // unique bodies → unique identities
   });
 
-  it('editing the GLOBAL subject re-hashes exactly the global-subject cohort — campaign/custom subjects are immune', { timeout: 30_000 }, () => {
+  it('editing the GLOBAL subject re-hashes exactly the global-subject cohort — campaign/custom subjects are immune', { timeout: 120_000 }, () => {
     const before = cfgWith('Quick follow-up');
     const after = cfgWith('Quick follow-up!'); // one-char edit
     const records = makeRecords();

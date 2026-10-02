@@ -36,7 +36,7 @@ describe('S01 — baseline 100 accepted + rerun idempotency', () => {
     rmDir(dir);
   });
 
-  it('run 1: all 100 delivered with exact cross-file conservation', { timeout: 30_000 }, async () => {
+  it('run 1: all 100 delivered with exact cross-file conservation', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir);
     const { records, emails } = seedRecipients(dir, 100);
     const stats = new StatsManager(dir);
@@ -91,7 +91,7 @@ describe('S01 — baseline 100 accepted + rerun idempotency', () => {
     verifyStateIntegrity(dir);
   });
 
-  it('run 2 (unchanged content) skips all 100 via the ledger; run 3 (edited subject) re-sends all 100 — R10 documented boundary', { timeout: 30_000 }, async () => {
+  it('run 2 (unchanged content) skips all 100 via the ledger; run 3 (edited subject) re-sends all 100 — R10 documented boundary', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir);
     seedRecipients(dir, 100);
 

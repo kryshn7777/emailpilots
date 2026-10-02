@@ -28,7 +28,7 @@ describe('S05 — per-recipient cap vs content ledger on 100 records / 20 addres
     rmDir(dir);
   });
 
-  it('unique bodies: rate cap binds — 3 per address (60 sent), loop continues past denials', { timeout: 30_000 }, async () => {
+  it('unique bodies: rate cap binds — 3 per address (60 sent), loop continues past denials', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir, { limits: { maxPerRecipientPerDay: 3 } });
     seedRecipients(dir, 100, {
       email: addr,
@@ -57,7 +57,7 @@ describe('S05 — per-recipient cap vs content ledger on 100 records / 20 addres
     verifyStateIntegrity(dir);
   });
 
-  it('identical bodies: the ledger binds first — exactly 1 per address (20 sent), no rate slots wasted on dupes', { timeout: 30_000 }, async () => {
+  it('identical bodies: the ledger binds first — exactly 1 per address (20 sent), no rate slots wasted on dupes', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir, { limits: { maxPerRecipientPerDay: 3 } });
     seedRecipients(dir, 100, { email: addr }); // default body varies only by index…
     // …so force byte-identical content per address instead:

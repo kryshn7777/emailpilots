@@ -51,7 +51,7 @@ describe('S09 — rollover + refund exactness (direct RateLimiter)', () => {
     expect(readJsonFile(path.join(dir, 'limits.json')).emailsToday).toBe(0);
   });
 
-  it('100 consumes then 100 reverse refunds return the file to exact baseline (window rolls undone)', { timeout: 30_000 }, () => {
+  it('100 consumes then 100 reverse refunds return the file to exact baseline (window rolls undone)', { timeout: 120_000 }, () => {
     const limiter = new RateLimiter(dir, LIMITS);
     const consumed: Array<{ email: string; rolled: boolean }> = [];
 
@@ -83,7 +83,7 @@ describe('S09 — rollover + refund exactness (direct RateLimiter)', () => {
     }
   });
 
-  it('100 refunds against a fresh file never underflow any counter', { timeout: 30_000 }, () => {
+  it('100 refunds against a fresh file never underflow any counter', { timeout: 120_000 }, () => {
     const limiter = new RateLimiter(dir, LIMITS);
     for (let i = 0; i < 100; i++) limiter.refund(`ghost${i}@stress.test`, i % 2 === 0);
 

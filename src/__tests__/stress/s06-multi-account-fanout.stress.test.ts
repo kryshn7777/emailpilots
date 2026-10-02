@@ -33,7 +33,7 @@ describe('S06 — 5 accounts × 20 recipients through runAllAccounts', () => {
     rmDir(dir);
   });
 
-  it('parallel fan-out partitions 100 recipients exactly; per-account state never crosses', { timeout: 30_000 }, async () => {
+  it('parallel fan-out partitions 100 recipients exactly; per-account state never crosses', { timeout: 120_000 }, async () => {
     const cfg = makeStressConfig(dir, { accounts: browserAccounts(N_ACCOUNTS) });
     const { records } = seedRecipients(dir, 100, { extra: (i) => ({ accountId: acctOf(i) }) });
     const stats = new StatsManager(dir);
@@ -76,7 +76,7 @@ describe('S06 — 5 accounts × 20 recipients through runAllAccounts', () => {
     verifyStateIntegrity(dir);
   });
 
-  it('a disabled account sends nothing and its recipients are untouched (A4 ownership)', { timeout: 30_000 }, async () => {
+  it('a disabled account sends nothing and its recipients are untouched (A4 ownership)', { timeout: 120_000 }, async () => {
     const accounts = browserAccounts(N_ACCOUNTS);
     accounts[4] = { ...accounts[4], enabled: false }; // acct5 off
     const cfg = makeStressConfig(dir, { accounts });

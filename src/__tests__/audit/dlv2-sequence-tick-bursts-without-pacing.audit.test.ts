@@ -62,12 +62,17 @@ describe('DLV-2 (fixed) — the sequence tick paces consecutive sends', () => {
     const cfg = makeStressConfig(dir, { sequences: [SEQ], limits: { minDelayMs: 400, maxDelayMs: 400, maxPerDay: 1 } });
     seedRecipients(dir, 3, { extra: () => ({ sequenceId: 'seq1' }) });
     const { service, at } = timedService();
+    const proc = new MailProcessor(cfg, service);
+    // Count the waits rather than timing the tick: a wall-clock bound failed under
+    // full-suite load with no wait paid at all (537-769 ms of plain file I/O).
+    const waits: number[] = [];
+    const realDelay = (proc as any).delay.bind(proc);
+    (proc as any).delay = (ms: number) => { waits.push(ms); return realDelay(ms); };
 
-    const t0 = Date.now();
-    await new SequenceRunner(cfg, new MailProcessor(cfg, service)).tick();
+    await new SequenceRunner(cfg, proc).tick();
 
     expect(at).toHaveLength(1);
-    expect(Date.now() - t0).toBeLessThan(300);
+    expect(waits).toEqual([]);
   });
 
   it('stop() during the tick ends it at the next send boundary — nothing trickles out afterwards', async () => {
