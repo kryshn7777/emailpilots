@@ -6173,7 +6173,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   addRecipientBtn.addEventListener('click', () => {
     openRecipientModal(-1);
   });
-  
+  // Empty-state CTA. It used an inline onclick, which the page CSP silently blocks.
+  document.getElementById('empty-add-recipient-btn')?.addEventListener('click', () => openRecipientModal(-1));
+
   // Wizard Navigation
   document.getElementById('wizard-next-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
