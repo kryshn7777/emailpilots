@@ -14,6 +14,7 @@ import { deriveDomain, isDomainAuthClean, type DomainAuthReport, type RecordChec
 import { detectProviderFromDomain, detectProviderFromEmail, isMsBasicAuthDeadHost, type DetectedProvider } from './providerDetect';
 import { findNextRun, nextRunDayLabel, upcomingSends } from './nextRun';
 import { computeAwayDigest, digestLine, type DigestBaseline } from './digest';
+import { fleetUsage, countToday } from './dashboardStats';
 import { TOUR_STEPS, VIEW_HINTS, runTour, showHint } from './tour';
 
 const GS_DISMISS_KEY = 'eptGettingStartedDismissed';
@@ -1678,13 +1679,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const summary = document.getElementById('preflight-summary');
     if (!list || !summary) return;
 
-    let cfg: any = {}, recips: any[] = [], sup: any[] = [], usage: any = {};
+    let cfg: any = {}, recips: any[] = [], sup: any[] = [], usage: any = {}, usages: any[] = [];
     try {
       cfg = await window.electronAPI.getConfig();
       recips = await window.electronAPI.getRecipients();
       sup = await window.electronAPI.getSuppressions();
-      usage = await window.electronAPI.getUsage();
+      usages = await sendableUsages();
+      usage = usages.find(Boolean) ?? await window.electronAPI.getUsage();
     } catch { /* render what we have */ }
+    const dailyLimit = usages.length ? fleetUsage(usages).cap : usage?.maxPerDay;
 
     const active = (recips || []).filter(r => r.active !== false);
     const unscheduled = active.filter(r => !((r.scheduledDays || []).length && (r.scheduledTimes || []).length));
@@ -1727,7 +1730,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (active.length > 0) {
       rows.push({ status: unscheduled.length === 0 ? 'ok' : 'warn', label: unscheduled.length === 0 ? 'All active recipients have a schedule' : `${unscheduled.length} active recipient${unscheduled.length === 1 ? '' : 's'} have no schedule (won't auto-send)` });
     }
-    rows.push({ status: 'info', label: usage?.warmupActive ? `Today's limit: ${usage.maxPerDay} (warming up toward ${usage.hardMaxPerDay})` : `Today's limit: ${usage?.maxPerDay ?? '—'} emails` });
+    rows.push({ status: 'info', label: usage?.warmupActive ? `Today's limit: ${dailyLimit} (warming up toward ${usage.hardMaxPerDay})` : `Today's limit: ${dailyLimit ?? '—'} emails` });
     if ((sup || []).length > 0) {
       rows.push({ status: 'info', label: `${sup.length} address${sup.length === 1 ? '' : 'es'} suppressed` });
     }
@@ -1745,8 +1748,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // status card, and into the hero strip's "issues" counter.
     const issuesEl = document.getElementById('hm-issues');
     if (issuesEl) issuesEl.textContent = String(fails + warns);
+    // Inboxes that can actually send — the fleet strip's count, not every row
+    // (the .env default exists even when it has no credentials).
     const inboxesEl = document.getElementById('dash-inboxes');
-    if (inboxesEl) inboxesEl.textContent = String(accountsCache.filter(a => a.enabled !== false).length);
+    if (inboxesEl) inboxesEl.textContent = String(accountsCache.filter(a => accountHasCredentials(a) && a.enabled !== false).length);
 
     const banner = document.getElementById('health-banner');
     const bTitle = document.getElementById('health-title');
@@ -2016,9 +2021,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderGettingStarted();
   }
 
+  /** Usage for every inbox that can send, not just the .env default: a
+   *  Microsoft-only user's sends are counted on their accounts.json row. */
+  async function sendableUsages() {
+    const sendable = accountsCache.filter(a => accountHasCredentials(a) && a.enabled !== false);
+    return Promise.all(sendable.map(a => window.electronAPI.getUsage(a.id).catch(() => null)));
+  }
+
   async function updateUsage() {
     try {
-      const u = await window.electronAPI.getUsage();
+      const usages = await sendableUsages();
+      // The first sending inbox carries the per-account detail (batches, warm-up);
+      // the counts are the whole fleet's.
+      const u = usages.find(Boolean) ?? await window.electronAPI.getUsage();
+      const { sent, cap, remaining } = fleetUsage(usages.length ? usages : [u]);
       const setText = (id: string, val: string) => {
         const el = document.getElementById(id);
         if (el) el.textContent = val;
@@ -2031,22 +2047,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         el.style.background = pct >= 100 ? 'var(--destructive)' : pct >= 80 ? 'var(--warning)' : 'var(--primary)';
       };
       setText('usage-date-display', u.date);
-      const emailsLabel = u.warmupActive
-        ? `${u.emailsToday} / ${u.maxPerDay} (warming up)`
-        : `${u.emailsToday} / ${u.maxPerDay}`;
+      const emailsLabel = u.warmupActive ? `${sent} / ${cap} (warming up)` : `${sent} / ${cap}`;
       setText('usage-emails', emailsLabel);
-      setBar('usage-emails-bar', u.emailsToday, u.maxPerDay);
+      setBar('usage-emails-bar', sent, cap);
       // Dashboard: hero strip + Today tiles read the same numbers.
-      const remaining = Math.max(0, (u.maxPerDay || 0) - (u.emailsToday || 0));
-      setText('dash-sent', String(u.emailsToday));
-      setText('dash-sent-max', `/ ${u.maxPerDay}`);
+      setText('dash-sent', String(sent));
+      setText('dash-sent-max', `/ ${cap}`);
       setText('dash-remaining', String(remaining));
-      setText('hm-sent', String(u.emailsToday));
+      setText('hm-sent', String(sent));
       setText('hm-remaining', String(remaining));
       // scaleX, not width — see .metric-bar in dashboard.css.
       const dashBar = document.getElementById('dash-sent-bar');
       if (dashBar) {
-        const frac = u.maxPerDay > 0 ? Math.min(1, u.emailsToday / u.maxPerDay) : 0;
+        const frac = cap > 0 ? Math.min(1, sent / cap) : 0;
         dashBar.style.transform = `scaleX(${frac})`;
         dashBar.style.background = frac >= 1 ? 'var(--destructive)' : frac >= 0.8 ? 'var(--warning)' : 'var(--primary)';
       }
@@ -2076,7 +2089,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? ` New-account warm-up is on: today's limit is ${u.maxPerDay} and grows daily toward ${u.hardMaxPerDay}.`
         : '';
       setText('usage-note', `Resets at midnight. Max ${u.maxPerRecipientPerDay} emails per recipient per day. Sends go out in short batches with pauses, so your account looks human.${warmupNote}`);
-      usageSummaryLine = `${u.emailsToday} of ${u.maxPerDay} emails sent today.`;
+      usageSummaryLine = `${sent} of ${cap} emails sent today.`;
       refreshSubtitle();
     } catch (e) {
       console.error('Failed to load usage', e);
@@ -3505,10 +3518,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const stats = await window.electronAPI.getStats();
       animateCount(document.getElementById('total-sent-display'), stats.totalEmailsSent);
-      // Dashboard reply counters (hero strip + Today tile).
-      animateCount(document.getElementById('dash-replies'), stats.totalReplies || 0);
+      // Dashboard reply counters (hero strip + Today tile) count TODAY's replies,
+      // beside "sent today" — the lifetime total under "Today" read as a day's haul.
+      const repliesToday = countToday(repliesCache.map(r => r.repliedAt));
+      animateCount(document.getElementById('dash-replies'), repliesToday);
       const heroReplies = document.getElementById('hm-replies');
-      if (heroReplies) heroReplies.textContent = String(stats.totalReplies || 0);
+      if (heroReplies) heroReplies.textContent = String(repliesToday);
       const rateEl = document.getElementById('reply-rate-display');
       if (rateEl) {
         const sent = stats.totalEmailsSent || 0;
@@ -4182,11 +4197,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // A newer refresh landed while we were reading usage. It owns these nodes now —
     // bail rather than let a slower earlier call overwrite fresher numbers.
     if (accountsCache !== snapshot) return;
-    let sent = 0, cap = 0;
-    for (const u of usages) { if (u) { sent += u.emailsToday; cap += u.maxPerDay; } }
+    const { sent, cap, remaining } = fleetUsage(usages);
     const disabled = snapshot.filter(a => !a.isDefault && a.enabled === false).length;
     const attention = snapshot.filter(a => a.status && a.status.ok === false).length;
-    const remaining = Math.max(0, cap - sent);
 
     const item = (label: string, value: string, color?: string) =>
       `<div style="display:flex;flex-direction:column;gap:2px;">` +
