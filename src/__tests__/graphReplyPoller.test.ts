@@ -47,6 +47,33 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('ReplyPoller — graph branch AI classification', () => {
+  it('labels a Graph reply from its MIME body when reply classification is on', async () => {
+    fs.writeFileSync(path.join(dir, 'recipients.json'), JSON.stringify([{ email: 'r1@x.com', active: true }]));
+    const replyIso = new Date(Date.now() - 3600_000).toISOString();
+    const mime = 'From: r1@x.com\r\nSubject: Re: Quick follow-up\r\nContent-Type: text/plain\r\n\r\nYes, let us talk next week.\r\n';
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes('/$value')) return new Response(mime, { status: 200 });
+      return new Response(JSON.stringify({ value: [
+        { id: 'm1', from: { emailAddress: { address: 'r1@x.com' } }, subject: 'Re: Quick follow-up', receivedDateTime: replyIso },
+      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+    const prompts: string[] = [];
+    const ai = {
+      isEnabled: () => true,
+      generate: async (req: { prompt: string }) => { prompts.push(req.prompt); return { text: '', json: { category: 'Interested', confidence: 0.9 }, ms: 1 }; },
+    };
+    const config = { ...makeConfig(dir), ai: { enabled: true, actions: { classifyReplies: true } } } as unknown as Config;
+    const stats = { incrementReplies: () => {} } as unknown as StatsManager;
+    const poller = new ReplyPoller(config, stats, async () => 'tok', ai as any);
+
+    await poller.pollNow();
+
+    expect(new ReplyStore(dir).list().find(r => r.email === 'r1@x.com')?.classification).toBe('Interested');
+    expect(prompts[0]).toContain('let us talk next week'); // classified on the body, not the subject alone
+  });
+});
+
 describe('ReplyPoller — graph branch (Mail.Read)', () => {
   it('records a recipient reply and auto-suppresses a DSN over Graph', async () => {
     fs.writeFileSync(path.join(dir, 'recipients.json'), JSON.stringify([{ email: 'r1@x.com', active: true }, { email: 'bounced@x.com', active: true }]));

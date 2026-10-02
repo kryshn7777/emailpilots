@@ -346,7 +346,7 @@ export class ReplyPoller {
         // drained (so a per-message source fetch doesn't nest inside it) and after
         // the cursor advance. Each call is fully guarded + time-bounded.
         for (const item of toClassify) {
-          await this.classifyAndAct(client, item, store);
+          await this.classifyAndAct(() => client.fetchOne(String(item.uid), { source: true }, { uid: true }).then((m: any) => m?.source), item, store);
         }
       } finally {
         lock.release();
@@ -362,10 +362,10 @@ export class ReplyPoller {
    * message" instead of hanging the sweep (which would freeze all polling). Runs
    * after the batch stream is drained and after the cursor has advanced.
    */
-  private async classifyAndAct(client: ImapFlow, item: { uid: number; key: string; subject?: string }, store: ReplyStore): Promise<void> {
+  private async classifyAndAct(fetchSource: () => Promise<string | Buffer | undefined>, item: { key: string; subject?: string }, store: ReplyStore): Promise<void> {
     if (!this.ai) return;
     try {
-      const result = await withTimeout(this.classifyOne(client, item), CLASSIFY_TIMEOUT_MS);
+      const result = await withTimeout(this.classifyOne(fetchSource, item), CLASSIFY_TIMEOUT_MS);
       if (!result) return; // timed out or skipped — leave the reply unclassified
       store.setClassification(item.key, result.category);
       if (result.category === 'Unsubscribe' && this.config.ai?.actions?.autoSuppressUnsubscribe) {
@@ -488,6 +488,8 @@ export class ReplyPoller {
     const { messages, newestIso } = await listInboxSince(token, sinceIso);
 
     const bounceCandidates: Array<{ id: string; subject?: string }> = [];
+    const doClassify = !!(this.ai?.isEnabled() && this.config.ai?.actions?.classifyReplies);
+    const toClassify: Array<{ id: string; key: string; subject?: string }> = [];
     for (const m of messages) {
       // A DSN's From is mailer-daemon/postmaster — never a recipient — so gate on
       // NOT-a-recipient, mirroring the IMAP path.
@@ -503,6 +505,7 @@ export class ReplyPoller {
       }
       console.log(`Reply detected from ${m.from} (account ${account.id}).`);
       if (isUnsubscribeSubject(m.subject)) this.honorUnsubscribe(m.from, account.id, m.subject);
+      if (doClassify) toClassify.push({ id: m.id, key: m.from, subject: m.subject });
     }
 
     // Advance the cursor unless a stop() (sign-out) disowned this sweep — the same
@@ -519,20 +522,23 @@ export class ReplyPoller {
         console.error('Graph bounce auto-suppress failed:', (e as any)?.message || e);
       }
     }
-    // ponytail: AI reply classification (classifyAndAct) is not wired for graph —
-    // gated feature #2; add a getMimeSource→classifyReply branch here when needed.
+    // Classification last, like the IMAP path: best-effort, time-bounded, and after
+    // the cursor advance so it can never block or revert it.
+    for (const item of toClassify) {
+      await this.classifyAndAct(() => getMimeSource(token, item.id), item, store);
+    }
   }
 
   /** Fetch one message's body (best-effort) and classify it. Body-fetch/parse
    *  failures fall back to classifying on the subject alone. */
-  private async classifyOne(client: ImapFlow, item: { uid: number; key: string; subject?: string }): Promise<ReplyClassification> {
+  private async classifyOne(fetchSource: () => Promise<string | Buffer | undefined>, item: { key: string; subject?: string }): Promise<ReplyClassification> {
     let body = '';
     try {
-      const msg: any = await client.fetchOne(String(item.uid), { source: true }, { uid: true });
-      if (msg && msg.source) {
+      const source = await fetchSource();
+      if (source) {
         // Lazy-load mailparser so the off path never pays its cost.
         const { simpleParser } = await import('mailparser');
-        const parsed = await simpleParser(msg.source as Buffer);
+        const parsed = await simpleParser(source);
         body = String(parsed.text || parsed.html || '');
       }
     } catch { /* source fetch/parse failed → classify on the subject alone */ }
