@@ -334,7 +334,7 @@ import { StatsManager } from '../src/statsManager';
 import { ReplyPoller } from '../src/replyPoller';
 import { ReplyStore } from '../src/replyStore';
 import { SequenceRunner } from '../src/sequenceRunner';
-import { mergeSequenceState, dropDeadAccountIds } from '../src/recipientMerge';
+import { mergeSequenceState, dropDeadAccountIds, adoptPrimaryRecipients } from '../src/recipientMerge';
 import { AiService } from '../src/ai/aiService';
 import type { AiGenerateRequest } from '../src/ai/types';
 import { assist, type AssistRequest } from '../src/ai/writingAssistant';
@@ -1173,6 +1173,34 @@ ipcMain.handle('save-account', async (_event, acc) => {
  * stores a password-less 'graph' account. No app password is ever typed — the
  * survival path for Microsoft 365 once basic-auth SMTP is rejected.
  */
+/** S4: retire a .env primary on Microsoft's dead password SMTP in favour of the
+ *  Graph account `id` for the same mailbox. Its recipients (and the delivered-
+ *  content ledger that keeps them from being re-sent, A3) move to `id`; then its
+ *  credentials are cleared. Left in place, every pre-existing recipient stayed
+ *  owned by an identity whose every send was a failing password AUTH. */
+function adoptDeadMicrosoftPrimary(id: string): void {
+    const basePath = getBasePath();
+    const jsonPath = globalConfig.paths.recipientsJson;
+    try {
+        if (fs.existsSync(jsonPath)) {
+            const recipients = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+            if (Array.isArray(recipients)) {
+                const moved = adoptPrimaryRecipients(recipients, id);
+                if (moved > 0) {
+                    atomicWriteFileSync(jsonPath, JSON.stringify(recipients, null, 2));
+                    sendLog(`${moved} recipient(s) moved from the retired password connection to your Microsoft sign-in.`, 'system');
+                }
+            }
+        }
+    } catch {
+        sendLog('Could not move recipients to your Microsoft sign-in — assign them in Recipients.', 'error');
+    }
+    const fromLedger = path.join(basePath, accountStateFileName('sent-ledger'));
+    const toLedger = path.join(basePath, accountStateFileName('sent-ledger', id));
+    try { if (fs.existsSync(fromLedger) && !fs.existsSync(toLedger)) fs.copyFileSync(fromLedger, toLedger); } catch { /* best effort */ }
+    saveConfigToEnv({ user: '', pass: '' });
+}
+
 ipcMain.handle('oauth-login-microsoft', async () => {
     try {
         if (!isMicrosoftOAuthConfigured()) {
@@ -1193,6 +1221,14 @@ ipcMain.handle('oauth-login-microsoft', async () => {
         const existing = allExtras.find(a => a.user.toLowerCase() === email.toLowerCase());
         if (!existing && allExtras.length >= MAX_EXTRA_ACCOUNTS) {
             return { ok: false, error: `Account limit reached (max ${MAX_EXTRA_ACCOUNTS} added accounts). Remove one before adding another.` };
+        }
+        // S4: the .env primary is this same mailbox. On Microsoft's retired password
+        // SMTP (connected back when that worked) it can only EAUTH, so it is adopted
+        // below; any other primary for this address is refused, as Google's sign-in
+        // does — one mailbox, one sending identity (CSA-2).
+        const adoptPrimary = String(globalConfig?.smtp?.user || '').trim().toLowerCase() === email.trim().toLowerCase();
+        if (adoptPrimary && !isMsBasicAuthDeadHost(String(globalConfig?.smtp?.host || ''))) {
+            return { ok: false, error: 'That address is already your primary account. Sign out of it in Settings first, then sign in with Microsoft.' };
         }
         const id = existing?.id || genAccountId(email);
 
@@ -1236,6 +1272,7 @@ ipcMain.handle('oauth-login-microsoft', async () => {
             ...(identityWarning ? { identityWarning } : {}),
         };
         upsertAccount(basePath, account);
+        if (adoptPrimary) adoptDeadMicrosoftPrimary(id);
 
         globalConfig = loadConfig();
         rebuildProcessors();

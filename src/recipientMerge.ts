@@ -41,6 +41,21 @@ export function dropDeadAccountIds(incoming: any[], liveIds: Set<string>): any[]
 }
 
 /**
+ * Hand the primary's recipients (untagged or 'default') to account `id`, in place.
+ * Used when "Sign in with Microsoft" replaces a primary on Microsoft's retired
+ * password SMTP: left alone, every pre-existing recipient stays owned by an
+ * identity that can only fail AUTH. Drip progress lives on the record, so it moves
+ * with it. Returns how many moved.
+ */
+export function adoptPrimaryRecipients(recipients: any[], id: string): number {
+  let moved = 0;
+  for (const r of recipients) {
+    if (r && (!r.accountId || r.accountId === 'default')) { r.accountId = id; moved++; }
+  }
+  return moved;
+}
+
+/**
  * Overlay the runner-owned `seq*` fields from `disk` onto `incoming` (by lowercased
  * email) for records still enrolled in a sequence. Deletions and edits to every
  * other field in `incoming` are preserved as-is; an unenrolled/re-assigned record
