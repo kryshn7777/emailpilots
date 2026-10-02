@@ -346,6 +346,9 @@ export class ReplyPoller {
         // drained (so a per-message source fetch doesn't nest inside it) and after
         // the cursor advance. Each call is fully guarded + time-bounded.
         for (const item of toClassify) {
+          // A sign-out mid-sweep disowns it (CSA-3): no label or AI suppression
+          // write may land after sign-out wiped that state.
+          if (gen !== this.generation) break;
           await this.classifyAndAct(() => client.fetchOne(String(item.uid), { source: true }, { uid: true }).then((m: any) => m?.source), item, store);
         }
       } finally {
@@ -525,6 +528,7 @@ export class ReplyPoller {
     // Classification last, like the IMAP path: best-effort, time-bounded, and after
     // the cursor advance so it can never block or revert it.
     for (const item of toClassify) {
+      if (gen !== this.generation) break; // disowned by a sign-out — see the IMAP loop
       await this.classifyAndAct(() => getMimeSource(token, item.id), item, store);
     }
   }

@@ -181,7 +181,9 @@ export function readRecipientsReporting(filePath: string, action: string): any[]
     clearStateFileError(filePath);
     return (res.data as any[] | null) ?? [];
   }
-  const reason = res.ok ? 'it is not a list of recipients' : res.error;
+  // Not res.error for a parse failure: JSON.parse quotes the offending text, which
+  // here can be someone's address, and this reason is shown in a toast and banner.
+  const reason = res.ok ? 'it is not a list of recipients' : /JSON|Unexpected token|position/i.test(res.error) ? 'it is not valid JSON' : res.error;
   reportStateFileError(new StateFileError(
     `Your recipient list (${filePath}) could not be read — ${reason}. Nothing can ${action} until it is repaired.`,
     filePath, reason, 'recipients', action,
