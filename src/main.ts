@@ -4246,6 +4246,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {
       accountsCache = [];
     }
+    // Account changes re-tag recipients on disk (remove → primary, Microsoft
+    // sign-in adopting a dead password primary). Every edit re-sends this whole
+    // array, so a stale copy here would write the old ownership straight back.
+    try { recipientsData = await window.electronAPI.getRecipients(); } catch { /* keep the old copy */ }
     renderAccountsList();
     populateRecipientAccountSelect();
     renderRecipients();

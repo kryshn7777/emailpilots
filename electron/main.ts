@@ -1181,6 +1181,8 @@ ipcMain.handle('save-account', async (_event, acc) => {
 function adoptDeadMicrosoftPrimary(id: string): void {
     const basePath = getBasePath();
     const jsonPath = globalConfig.paths.recipientsJson;
+    // Recipients first: clearing the primary with them still on it would orphan
+    // them, so a failed move leaves both identities and says so.
     try {
         if (fs.existsSync(jsonPath)) {
             const recipients = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
@@ -1193,12 +1195,20 @@ function adoptDeadMicrosoftPrimary(id: string): void {
             }
         }
     } catch {
-        sendLog('Could not move recipients to your Microsoft sign-in — assign them in Recipients.', 'error');
+        sendLog('Could not move recipients to your Microsoft sign-in, so the old password connection was kept. Assign them in Recipients, then sign out of the old one in Settings.', 'error');
+        return;
     }
-    const fromLedger = path.join(basePath, accountStateFileName('sent-ledger'));
-    const toLedger = path.join(basePath, accountStateFileName('sent-ledger', id));
-    try { if (fs.existsSync(fromLedger) && !fs.existsSync(toLedger)) fs.copyFileSync(fromLedger, toLedger); } catch { /* best effort */ }
-    saveConfigToEnv({ user: '', pass: '' });
+    // Same mailbox, so the same day: carry the delivered-content ledger (A3) and
+    // today's counters (the daily and per-recipient caps), as sign-out refuses to
+    // mint a second daily cap. Only into a fresh account.
+    for (const prefix of ['sent-ledger', 'limits']) {
+        const from = path.join(basePath, accountStateFileName(prefix));
+        const to = path.join(basePath, accountStateFileName(prefix, id));
+        try { if (fs.existsSync(from) && !fs.existsSync(to)) fs.copyFileSync(from, to); } catch { /* best effort */ }
+    }
+    if (!saveConfigToEnv({ user: '', pass: '' })) {
+        sendLog('Could not clear the retired password connection — sign out of it in Settings.', 'error');
+    }
 }
 
 ipcMain.handle('oauth-login-microsoft', async () => {
@@ -1229,6 +1239,11 @@ ipcMain.handle('oauth-login-microsoft', async () => {
         const adoptPrimary = String(globalConfig?.smtp?.user || '').trim().toLowerCase() === email.trim().toLowerCase();
         if (adoptPrimary && !isMsBasicAuthDeadHost(String(globalConfig?.smtp?.host || ''))) {
             return { ok: false, error: 'That address is already your primary account. Sign out of it in Settings first, then sign in with Microsoft.' };
+        }
+        // Adoption rewrites recipients and the primary's state, like sign-out — not
+        // underneath a manual run.
+        if (adoptPrimary && testRunInProgress) {
+            return { ok: false, error: 'Finish the current send run, then sign in with Microsoft again.' };
         }
         const id = existing?.id || genAccountId(email);
 
@@ -2145,7 +2160,10 @@ ipcMain.handle('save-recipients', (event, recipients) => {
         // A4 at write time: a stale renderer snapshot must not re-tag recipients with
         // an account that was removed after it loaded (src/recipientMerge.ts).
         const liveIds = new Set<string>((globalConfig.accounts || []).map((a: any) => a.id));
-        const incoming = dropDeadAccountIds(Array.isArray(recipients) ? recipients : [], liveIds);
+        const raw = Array.isArray(recipients) ? recipients : [];
+        const incoming = dropDeadAccountIds(raw, liveIds);
+        const dropped = raw.filter((r: any) => r?.accountId && !liveIds.has(r.accountId)).length;
+        if (dropped > 0) sendLog(`${dropped} recipient(s) named a removed account — moved to the primary account.`, 'system');
         const merged = mergeSequenceState(disk, incoming);
         atomicWriteFileSync(jsonPath, JSON.stringify(merged, null, 2));
         sendLog('Recipients saved successfully', 'success');
