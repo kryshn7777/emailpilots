@@ -2158,6 +2158,12 @@ ipcMain.handle('get-recipients', () => {
 
 ipcMain.handle('save-recipients', (event, recipients) => {
     if (!globalConfig) initServices();
+    // A21: a non-array payload used to be coerced to [] and written — wiping the
+    // whole list while logging "saved successfully". Refuse it instead.
+    if (!Array.isArray(recipients)) {
+        sendLog('Refused to save recipients: the list was malformed. Nothing was changed.', 'error');
+        return false;
+    }
     const jsonPath = globalConfig.paths.recipientsJson;
     try {
         // A1 fix: preserve runner-owned seq* drip progress from the current disk
@@ -2174,7 +2180,7 @@ ipcMain.handle('save-recipients', (event, recipients) => {
         // A4 at write time: a stale renderer snapshot must not re-tag recipients with
         // an account that was removed after it loaded (src/recipientMerge.ts).
         const liveIds = new Set<string>((globalConfig.accounts || []).map((a: any) => a.id));
-        const raw = Array.isArray(recipients) ? recipients : [];
+        const raw: any[] = recipients;
         const incoming = dropDeadAccountIds(raw, liveIds);
         const dropped = raw.filter((r: any) => r?.accountId && !liveIds.has(r.accountId)).length;
         if (dropped > 0) sendLog(`${dropped} recipient(s) named a removed account — now assigned to the primary; check them in Recipients.`, 'system');

@@ -1,5 +1,8 @@
 # Email Pilots — Feature List
 
+> **Status note 2026-10-03:** corrected Appendix A (tier gating, Microsoft AI labels now
+> work) and §13 (Google sign-in). Pricing/plan wording (§12, Appendix B) is still unresolved.
+
 > Landing-page source of truth, produced from a full codebase audit (2026-08-08).
 > Every claim below is implemented and verified in the current build. Anything half-built
 > or risky to advertise is quarantined in **Appendix A**; wording rules live in **Appendix B**.
@@ -223,8 +226,9 @@ Honest limits — several double as privacy selling points:
   you paste them at your registrar yourself.
 - **No drag-and-drop email builder.** Templates are HTML you write or export from a design
   tool.
-- **No "Sign in with Google".** Google connects via an app password (guided in-app);
-  one-click sign-in exists for Microsoft accounts only.
+- **No "Sign in with Google" yet.** It is built but hidden until Google approves the app;
+  Google connects via an app password (guided in-app) until then. One-click sign-in exists
+  for Microsoft accounts.
 
 ---
 
@@ -234,9 +238,8 @@ Real code that exists in the build but must **not** appear in marketing until fi
 
 | What | State | Rule for copy |
 |---|---|---|
-| **License activation & Free / First Class tiers** | Activation UI, validation, and entitlement logic ship, but the store product IDs are placeholders (every key is refused) and **no feature is gated by tier** — Free currently equals First Class. A 219 MB free-tier AI model exists in the catalog but the UI never offers it (the tier-aware recommendation is unwired; the download button always fetches the 2.3 GB model). | Don't mention tiers, keys, or "upgrade" anywhere until the store is configured and at least one gate is wired. |
+| **License activation & Free / First Class tiers** | Activation UI, validation, and entitlement logic ship, and **follow-up sequences are gated**: on Free they pause (pre-flight and Next 7 days say so). Every install gets First Class free for 30 days if first run is before 2026-11-22, 7 days after. But the store product IDs are placeholders, so every key is refused and no buy button renders: when the free period ends, follow-ups stop with no way to pay. The model picker lists the whole catalog (incl. the 219 MB model); the tier-aware recommendation is still unwired. | Don't mention tiers, keys, or "upgrade" until the store is configured. |
 | **Browser-session webmail connect** (credential-less Gmail/Outlook) | Backend intact but has zero UI — no user can create such an account. Never verified live; automating webmail also carries provider-ToS risk. | Never mention. |
-| **AI reply labels on Microsoft accounts** | Reply classification runs only on app-password (IMAP) accounts. Microsoft-connected accounts get replies and bounce handling, but no AI labels — so auto-unsubscribe filing and out-of-office tolerance don't apply there. | Don't promise "AI reads every reply on every account". Keep AI reply claims generic or Gmail-flavored. |
 | **Automatic pre-send AI rewrite** | The current landing line "AI … rewrites the risky parts before a single message leaves" overstates it: the deliverability review is advisory and the rewrite is a button the user clicks. | Say "reviews each draft and suggests fixes" — never "rewrites before it leaves". |
 | **One-click unsubscribe on every email** | The footer and List-Unsubscribe header exist only in **Bulk** mode. The default Personal mode deliberately sends without them. | Only claim unsubscribe machinery when describing Bulk mode. |
 | **Dark mode** | None. Light theme only. | Don't show or imply dark UI in screenshots or copy. |

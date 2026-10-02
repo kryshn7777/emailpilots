@@ -1,5 +1,14 @@
 # Email Pilots — Bug Audit Report
 
+> **Status 2026-10-03 (re-verified against the code; the report below is unchanged).**
+> Fixed: A1, A2, A3, A7, A8, A9, A10, A12, A13's setTimeout wrapping (S4), A16, A17, A19 (DLV-7),
+> A20 (DLV-10), A21 (save-recipients now refuses a non-array instead of writing `[]`).
+> SEED-S3 is not a bug (nothing mutates `limits`). A4's orphaning, and the renderer re-writing
+> it, closed by the 2026-10-02 sweep (S3: `dropDeadAccountIds`; recipients reload on account
+> changes). Still open: A11 (Promise.all drops other accounts' totals), A14 (skip reasons are
+> terminal-only), A22 (`attachments[].path` unvalidated); A13/A18 hygiene deferred by decision.
+> The "do not run unattended" verdict in the summary no longer applies.
+
 *Scope: static analysis + Vitest unit/repro only, against `C:/AntigravityProjects/MailAutomation`. Nine lenses, two independent verifier votes per finding, six findings reproduced with passing audit tests (inverted-assertion contract: a passing test proves the bug present, and the full suite stayed green with each added).*
 
 ---
