@@ -190,10 +190,11 @@ declare global {
       addSuppression: (email: string) => Promise<{ ok: boolean; error?: string }>;
       sendTestEmail: (accountId?: string) => Promise<{ ok: boolean; error?: string; to?: string }>;
       verifyConnection: (candidate: { host?: string; port?: number; user?: string; pass?: string }) => Promise<{ ok: boolean; error?: string }>;
-      getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'browser' | 'graph'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean; identityWarning?: string }[]>;
+      getAccounts: () => Promise<{ id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'browser' | 'graph'; oauthProvider?: 'microsoft' | 'google'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean; identityWarning?: string }[]>;
       saveAccount: (account: { id?: string; label?: string; host?: string; port?: number; user?: string; pass?: string; enabled?: boolean; copyToSent?: boolean }) => Promise<{ ok: boolean; error?: string; id?: string }>;
       deleteAccount: (id: string) => Promise<{ ok: boolean; error?: string }>;
       oauthLoginMicrosoft: () => Promise<{ ok: boolean; error?: string; id?: string; email?: string; identityWarning?: string }>;
+      oauthLoginGoogle: () => Promise<{ ok: boolean; error?: string; id?: string; email?: string }>;
       connectBrowserAccount: (provider: 'gmail' | 'outlook') => Promise<{ ok: boolean; error?: string; id?: string; email?: string }>;
       getCampaigns: () => Promise<{ id: string; name: string; subject?: string; template?: string }[]>;
       saveCampaign: (campaign: { id?: string; name?: string; subject?: string; template?: string }) => Promise<{ ok: boolean; error?: string; id?: string }>;
@@ -1109,7 +1110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let recipientsData: any[] = [];
   // All sending accounts (default + extras), refreshed from the main process.
   // Drives the Accounts view + the per-recipient "send from" selector.
-  let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'browser' | 'graph'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean; identityWarning?: string }[] = [];
+  let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'browser' | 'graph'; oauthProvider?: 'microsoft' | 'google'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean; identityWarning?: string }[] = [];
   // Bulk-selection of extra accounts in the Accounts view (ids; default excluded).
   const selectedAccountIds = new Set<string>();
 
@@ -4834,12 +4835,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  document.getElementById('google-oauth-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('google-oauth-btn') as HTMLButtonElement;
+    const statusEl = document.getElementById('google-oauth-status') as HTMLElement;
+    const setStatus = (m: string, color = 'var(--muted-foreground)') => {
+      if (statusEl) { statusEl.textContent = m; statusEl.style.color = color; statusEl.style.display = 'block'; }
+    };
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Waiting for sign-in…';
+    setStatus('A browser window opened — finish signing in with Google there.');
+    try {
+      const res = await window.electronAPI.oauthLoginGoogle();
+      if (!res.ok) {
+        setStatus(res.error || 'Google sign-in failed.', 'var(--destructive)');
+        toast(res.error || 'Google sign-in failed.', 'error', 'Sign-in failed');
+        return;
+      }
+      setStatus(`${res.email} connected.`, '#16a34a');
+      toast(`${res.email} connected.`, 'success', 'Account added');
+      fireConfetti();
+      await refreshAccounts();
+    } catch {
+      setStatus('Hit some turbulence — give it another go.', 'var(--destructive)');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  });
+
 
   // --- Initialization ---
 
   try {
     const config = await window.electronAPI.getConfig();
     currentUserName = config.userName || '';
+    // Google OAuth buttons exist only when this build carries a client id
+    // (verification-gated); the app-password path is always there.
+    if (config.googleOAuthAvailable) {
+      for (const id of ['google-oauth-btn', 'login-google-btn']) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = '';
+      }
+    }
 
     refreshGreeting();
     if (!currentUserName && !isExploring()) {
@@ -5511,7 +5549,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         host: 'smtp.gmail.com', port: 587,
         help: 'https://myaccount.google.com/apppasswords', placeholder: 'you@gmail.com',
         steps: [
-          'Turn on 2-Step Verification (required for app passwords).',
+          'Turn on <a href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noopener">2-Step Verification ↗</a> — Google hides the app-password page until it\'s on.',
           'On the app passwords page, name it "Mail" and click Create.',
           'Copy the 16-character code — paste it next. Spaces are fine.',
         ],
@@ -5603,6 +5641,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const gOutlook = document.getElementById('guide-outlook');
       if (gGoogle) gGoogle.style.display = p === 'gmail' ? 'flex' : 'none';
       if (gOutlook) gOutlook.style.display = p === 'outlook' ? 'flex' : 'none';
+      const twoSv = document.getElementById('app-pw-2sv');
+      if (twoSv) twoSv.style.display = p === 'gmail' ? 'flex' : 'none';
       const pwTitle = document.getElementById('app-pw-title');
       if (pwTitle) {
         pwTitle.textContent = p === 'outlook'
@@ -5753,14 +5793,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.target === appPwModal) closePwModal();
     });
 
-    // Accounts view "Sign in with Google": reuses the same walkthrough modal, but
-    // the login gate's setLoginProvider() never runs here, so force Google mode
-    // (replica + title + the "open the real page" link) before showing it.
+    // Accounts view "Connect Gmail — app password": reuses the same walkthrough
+    // modal, but the login gate's setLoginProvider() never runs here, so force
+    // Google mode (replica + 2SV note + title + the "open the real page" link).
     document.getElementById('google-apppw-btn')?.addEventListener('click', () => {
       const gGoogle = document.getElementById('guide-google');
       const gOutlook = document.getElementById('guide-outlook');
       if (gGoogle) gGoogle.style.display = 'flex';
       if (gOutlook) gOutlook.style.display = 'none';
+      const twoSv = document.getElementById('app-pw-2sv');
+      if (twoSv) twoSv.style.display = 'flex';
       const pwTitle = document.getElementById('app-pw-title');
       if (pwTitle) pwTitle.textContent = 'How to get a Google app password';
       const pwOpen = document.getElementById('app-pw-open-link') as HTMLAnchorElement | null;
@@ -5893,6 +5935,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // a Microsoft mailbox, so it can never sit behind a flag.
     wireNoPwLogin('login-ms-btn', 'A browser window opened — finish signing in with Microsoft there.',
       () => window.electronAPI.oauthLoginMicrosoft(), 'Microsoft account');
+    // Google OAuth — hidden unless the build carries a client id (see init).
+    wireNoPwLogin('login-google-btn', 'A browser window opened — finish signing in with Google there.',
+      () => window.electronAPI.oauthLoginGoogle(), 'Google account');
 
 
     loginForm.addEventListener('submit', async (e) => {

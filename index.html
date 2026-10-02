@@ -895,13 +895,20 @@
               </button>
             </div>
             <!-- ===== END LOW-FRICTION TRANSPORTS (Accounts view) ===== -->
-            <!-- Gmail has no OAuth route here (SMTP + app password only), so this
-                 opens the animated app-password walkthrough forced into Google mode
-                 and preselects the Gmail provider on the form below. -->
-            <button type="button" class="btn" id="google-apppw-btn" style="width: 100%; justify-content: center; margin-bottom: 12px;">
-              <span class="material-symbols-outlined">key</span>
-              Sign in with Google &mdash; app password
-            </button>
+            <!-- Gmail: real OAuth when this build carries a Google client id
+                 (get-config.googleOAuthAvailable); the app-password walkthrough is
+                 the permanent fallback — Google can disable an OAuth client. -->
+            <div id="acct-google-block">
+              <button type="button" class="btn" id="google-oauth-btn" style="width: 100%; justify-content: center; margin-bottom: 8px; display: none;">
+                <span class="material-symbols-outlined">login</span>
+                Sign in with Google &mdash; no password
+              </button>
+              <p id="google-oauth-status" style="display: none; font-size: 0.85em; margin-bottom: 12px;"></p>
+              <button type="button" class="btn" id="google-apppw-btn" style="width: 100%; justify-content: center; margin-bottom: 12px;">
+                <span class="material-symbols-outlined">key</span>
+                Connect Gmail &mdash; app password
+              </button>
+            </div>
             <div style="text-align: center; color: var(--muted-foreground); font-size: 0.8em; margin-bottom: 16px;">&mdash; or add manually with an app password &mdash;</div>
             <form id="add-account-form">
               <div class="form-group">
@@ -1461,6 +1468,7 @@
             <span id="login-ms-echo" style="display:none; font-weight:600;"></span>
             Microsoft retired app passwords, so there's nothing to type here. Signing in opens Microsoft's own page in your browser — Email Pilots never sees your password, and you can revoke access anytime from your Microsoft account.
           </p>
+          <button type="button" class="login-submit" id="login-google-btn" style="display:none; margin-bottom:8px;">Sign in with Google</button>
           <button type="button" class="login-submit" id="login-ms-btn" style="background:#2563eb; border-color:#2563eb;">Sign in with Microsoft</button>
           <p id="login-nopw-status" style="display:none; font-size:0.85em; margin-top:10px; text-align:center;"></p>
         </div>
@@ -1889,6 +1897,11 @@
         </div>
         <div class="app-pw-slides">
         <section id="app-pw-slide-1" class="app-pw-slide" aria-label="How to create the app password">
+        <p id="app-pw-2sv" style="display:none; gap:10px; align-items:flex-start; margin:0 0 14px; font-size:0.9em; line-height:1.4;">
+          <span class="material-symbols-outlined" aria-hidden="true" style="color:var(--muted-foreground);">lock_person</span>
+          <span><strong>First:</strong> Google only shows the app-password page when 2-Step Verification is on.
+            <a href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noopener">Check or turn it on ↗</a>, then come back here.</span>
+        </p>
         <div id="login-micro-guide" class="login-micro-guide" aria-hidden="true" style="margin-bottom: 16px;">
 
           <!-- Google replica: myaccount.google.com/apppasswords (2026) -->
