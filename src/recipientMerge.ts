@@ -26,6 +26,21 @@ export function recipientKey(r: any): string {
 }
 
 /**
+ * Drop an accountId that names no account any more. delete-account strips the
+ * removed id from recipients.json (A4), but the renderer re-sends its startup
+ * snapshot on every edit, so its next save wrote the dead id back: a recipient
+ * owned by no processor, keyed email|deadId so A1 could no longer protect its drip
+ * progress. Disabled accounts still exist and keep their recipients.
+ */
+export function dropDeadAccountIds(incoming: any[], liveIds: Set<string>): any[] {
+  return incoming.map(r => {
+    if (!r?.accountId || liveIds.has(r.accountId)) return r;
+    const { accountId: _dead, ...rest } = r;
+    return rest;
+  });
+}
+
+/**
  * Overlay the runner-owned `seq*` fields from `disk` onto `incoming` (by lowercased
  * email) for records still enrolled in a sequence. Deletions and edits to every
  * other field in `incoming` are preserved as-is; an unenrolled/re-assigned record

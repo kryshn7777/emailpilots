@@ -334,7 +334,7 @@ import { StatsManager } from '../src/statsManager';
 import { ReplyPoller } from '../src/replyPoller';
 import { ReplyStore } from '../src/replyStore';
 import { SequenceRunner } from '../src/sequenceRunner';
-import { mergeSequenceState } from '../src/recipientMerge';
+import { mergeSequenceState, dropDeadAccountIds } from '../src/recipientMerge';
 import { AiService } from '../src/ai/aiService';
 import type { AiGenerateRequest } from '../src/ai/types';
 import { assist, type AssistRequest } from '../src/ai/writingAssistant';
@@ -2105,7 +2105,11 @@ ipcMain.handle('save-recipients', (event, recipients) => {
                 if (Array.isArray(d)) disk = d;
             }
         } catch { /* unreadable/corrupt disk → nothing to preserve */ }
-        const merged = mergeSequenceState(disk, Array.isArray(recipients) ? recipients : []);
+        // A4 at write time: a stale renderer snapshot must not re-tag recipients with
+        // an account that was removed after it loaded (src/recipientMerge.ts).
+        const liveIds = new Set<string>((globalConfig.accounts || []).map((a: any) => a.id));
+        const incoming = dropDeadAccountIds(Array.isArray(recipients) ? recipients : [], liveIds);
+        const merged = mergeSequenceState(disk, incoming);
         atomicWriteFileSync(jsonPath, JSON.stringify(merged, null, 2));
         sendLog('Recipients saved successfully', 'success');
         // Re-arm a running scheduler so deletions/deactivations take effect
