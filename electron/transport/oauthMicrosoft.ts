@@ -27,8 +27,11 @@ const DEFAULT_CLIENT_ID = '98e5ce29-bb3b-4da9-9065-d89d87c9f517';
 const CLIENT_ID = process.env.MS_OAUTH_CLIENT_ID || DEFAULT_CLIENT_ID;
 const AUTHORITY = 'https://login.microsoftonline.com/common';
 
-// Graph resource scopes for the 'graph' transport (Mail.Send now; Mail.ReadWrite
-// consented ahead of a future Graph reply reader so it needs no second re-consent).
+// Graph resource scopes for the 'graph' transport. Mail.ReadWrite was consented
+// before the reply reader (src/graphMailReader.ts) existed; the reader only GETs, so
+// Mail.Read would do — but narrowing means a scope no connected account has
+// consented to, so every silent refresh would need a fresh interactive sign-in.
+// Narrow it together with a deliberate re-consent, not on its own.
 // Personal Microsoft accounts support delegated Mail.Send (verified in Graph docs).
 const GRAPH_SCOPES = [
   'https://graph.microsoft.com/Mail.Send',
