@@ -1109,6 +1109,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const previewFrame = document.getElementById('preview-frame') as HTMLIFrameElement;
 
   let recipientsData: any[] = [];
+  /** Plan tier from the last license status (renderLicenseCard). Free pauses drips
+   *  (SequenceRunner's one gate), which pre-flight and Next 7 days must say. */
+  let licenseTier: 'free' | 'first-class' | undefined;
   // All sending accounts (default + extras), refreshed from the main process.
   // Drives the Accounts view + the per-recipient "send from" selector.
   let accountsCache: { id: string; label: string; host: string; port: number; user: string; enabled: boolean; hasPass: boolean; transport: 'smtp' | 'browser' | 'graph'; oauthProvider?: 'microsoft' | 'google'; isDefault: boolean; status?: { ok: boolean; error?: string; at: number; kind: 'test' | 'send' } | null; copyToSent?: boolean; copyToSentEffective?: boolean; identityWarning?: string }[] = [];
@@ -1734,6 +1737,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       rows.push({ status: 'info', label: 'Personal sending style: unsubscribe link & address footer are hidden so mail reads 1:1. Switch to Bulk style in Settings to add them for high-volume sending.', action: { label: 'Review', view: 'settings' } });
     }
     rows.push({ status: active.length > 0 ? 'ok' : 'warn', label: `${active.length} active recipient${active.length === 1 ? '' : 's'}` });
+    // Free pauses every drip (the one tier gate); the backend says so only in
+    // System Logs, so an enrolled list otherwise looks like it is flying.
+    const dripping = active.filter(r => r.sequenceId && !r.seqDone).length;
+    if (licenseTier === 'free' && dripping > 0) {
+      rows.push({ status: 'warn', label: `Follow-ups are paused on the Free plan — ${dripping} recipient${dripping === 1 ? '' : 's'} in a sequence won't get their next step`, action: { label: 'See plans', view: 'settings' } });
+    }
     if (active.length > 0) {
       rows.push({ status: unscheduled.length === 0 ? 'ok' : 'warn', label: unscheduled.length === 0 ? 'All active recipients have a schedule' : `${unscheduled.length} active recipient${unscheduled.length === 1 ? '' : 's'} have no schedule (won't auto-send)` });
     }
@@ -2947,7 +2956,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         left.textContent = `${e.time}${e.detail ? ` (${e.detail})` : ''}`;
         left.style.whiteSpace = 'nowrap';
         const right = document.createElement('span');
-        right.textContent = e.name + (e.kind === 'sequence' ? ' · follow-up' : '');
+        right.textContent = e.name + (e.kind === 'sequence' ? (licenseTier === 'free' ? ' · follow-up (paused on Free)' : ' · follow-up') : '');
         right.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
         row.appendChild(left);
         row.appendChild(right);
@@ -6539,6 +6548,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const licensePlansButtons = document.getElementById('license-plans-buttons');
 
   function renderLicenseCard(s: LicenseStatusView) {
+    if (licenseTier !== s.tier) {
+      licenseTier = s.tier;
+      renderPreflight();
+      renderUpcomingWeek();
+    }
     if (!licenseStatusLine) return;
     const until = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString() : '';
     // "Weekly plan, $2.90/week" — falls back to the plan-blind wording when the
