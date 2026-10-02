@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell, ipcMain, dialog, Tray, Menu, nativeImage, se
 import path from 'path';
 import fs from 'fs';
 import dns from 'dns';
+import { autoUpdater } from 'electron-updater';
 import { loadConfig, getBasePath, loadEnvInto, Account } from '../src/config';
 import { EmailService } from '../src/emailService';
 import { MailProcessor } from '../src/mailProcessor';
@@ -545,6 +546,33 @@ function notifyNewReply(email: string, _accountId: string, repliedAt: string, is
  *  silently vanishes from future sends. System-Log line + live push + OS ping
  *  (unthrottled: bounces are rare and each one matters). Never throws back into
  *  the sweep (the poller contains it anyway — belt and braces). */
+/**
+ * Update channel: GitHub Releases on kryshn7777/Email-Pilots (package.json
+ * build.publish — the repo the site's download button already points at). Checks at
+ * launch and every 6 h, downloads in the background, installs when the app quits,
+ * and says so once. Installed (NSIS) builds only: dev runs and the portable exe have
+ * nothing to update in place. The check is a plain HTTPS read of the release feed —
+ * no identifier is sent (see the privacy policy).
+ */
+function setupAutoUpdate(): void {
+  if (!app.isPackaged || process.env.PORTABLE_EXECUTABLE_DIR) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-downloaded', (info) => {
+    sendLog(`Email Pilots ${info.version} is downloaded — it installs the next time you quit.`, 'success');
+    if (Notification.isSupported()) {
+      const n = new Notification({ title: 'Update ready ✈', body: `Email Pilots ${info.version} installs the next time you quit.` });
+      n.on('click', () => showWindow());
+      n.show();
+    }
+  });
+  // Offline, GitHub down, no release yet: a failed check is routine, not an alarm.
+  autoUpdater.on('error', (e) => console.error('Update check failed:', e?.message || e));
+  const check = () => { autoUpdater.checkForUpdates().catch(() => { /* reported by 'error' */ }); };
+  check();
+  setInterval(check, 6 * 60 * 60 * 1000);
+}
+
 function notifyBounce(email: string, accountId: string, detail: string) {
   try {
     const tag = accountId && accountId !== 'default' ? ` [${accountId}]` : '';
@@ -2610,6 +2638,7 @@ if (!gotTheLock) {
     createTray();
     initServices();
     setupAutoLaunch();
+    setupAutoUpdate();
 
     // Resume the scheduler if it was enabled when the app last exited, so a
     // background / boot autostart actually sends on schedule instead of sitting

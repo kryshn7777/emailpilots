@@ -17,7 +17,9 @@ export default defineConfig({
               // mailparser is external too: it's lazy-imported in replyPoller for reply
               // classification — leaving it external avoids code-splitting the main entry
               // (it resolves via require() from node_modules; pure JS, no asarUnpack needed).
-              external: ['node-llama-cpp', /^@node-llama-cpp\//, 'mailparser'],
+              // electron-updater is CJS that requires its own files at runtime; it
+              // resolves from node_modules like mailparser.
+              external: ['node-llama-cpp', /^@node-llama-cpp\//, 'mailparser', 'electron-updater'],
             },
           },
         },

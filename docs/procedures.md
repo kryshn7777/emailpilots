@@ -46,6 +46,8 @@ Runs once per enabled account, fanned out in parallel by `campaignRunner.runAllA
   - Mechanics: electron-builder reads a `.pfx` via `CSC_LINK` + `CSC_KEY_PASSWORD` env vars, or signs via the vendor's cloud-signing tooling in CI. No code changes are needed beyond config + secrets.
   - Until signing lands, the public explainer for the warning is the landing site's `install.html` ("Windows protected your PC", condition-first) — keep it in step with reality, not the other way around.
 - **False positives**: report a wrongly-flagged build at <https://www.microsoft.com/wdsi/filesubmission> ("Software developer") to clear it faster.
+- **Auto-update (electron-updater, since 1.1.0)**: installed (NSIS) copies check GitHub Releases on **kryshn7777/Email-Pilots** (`build.publish` in `package.json` — the repo the site's download button points at) at launch and every 6 h, download in the background, and install on quit. Dev runs and the portable exe never update in place. Users on **1.0.0 have no updater** — they must download 1.1.0 once by hand.
+- **Releasing a version**: bump `version` in `package.json` (updates compare it), run `npm run build`, then create a GitHub release on kryshn7777/Email-Pilots tagged `v<version>` and upload **`Email Pilots Setup <version>.exe`, its `.blockmap`, and `latest.yml`** from `release/` (without `latest.yml` no installed copy sees the release). Or let electron-builder do it: `$env:GH_TOKEN = '<token with repo scope>'; npx electron-builder --publish always`. Keep the portable exe as an extra asset for the site's download link.
 
 ### 7. Configuration Management
 - Configuration is loaded via `dotenv` and merged into a strongly-typed `Config` object.
