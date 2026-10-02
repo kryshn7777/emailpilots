@@ -4,7 +4,7 @@ import { AddressInfo } from 'net';
 import { PublicClientApplication, CryptoProvider, LogLevel } from '@azure/msal-node';
 import type { Account } from '../../src/config';
 import { getBasePath } from '../../src/config';
-import { upsertAccount } from '../../src/accountStore';
+import { updateAccountToken } from '../../src/accountStore';
 import { makeSecretBox } from '../../src/crypto/factory';
 
 /**
@@ -166,11 +166,16 @@ export async function getGraphAccessToken(account: Account): Promise<string> {
     throw new Error(`Microsoft token refresh failed for ${account.user}: ${e?.message || e}`);
   });
 
-  // Persist the refreshed cache (MSAL may rotate the refresh token).
+  // Persist the refreshed cache (MSAL may rotate the refresh token). Compare
+  // plaintext: safeStorage ciphertext is randomized per call on Windows, so the
+  // old ciphertext comparison rewrote accounts.json on every Graph send. Token
+  // only, never the snapshot — `account` may be minutes stale (updateAccountToken).
   try {
-    const updated = encryptSecret(cca.getTokenCache().serialize());
-    if (updated && updated !== account.oauthToken) {
-      upsertAccount(getBasePath(), { ...account, oauthToken: updated });
+    const now = cca.getTokenCache().serialize();
+    if (now && now !== serialized) {
+      const stored = encryptSecret(now);
+      account.oauthToken = stored;
+      updateAccountToken(getBasePath(), account.id, stored);
     }
   } catch (e) {
     console.error('Failed to persist refreshed OAuth cache:', e);

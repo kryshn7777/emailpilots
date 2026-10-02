@@ -3,7 +3,7 @@ import http from 'http';
 import { AddressInfo } from 'net';
 import type { Account } from '../../src/config';
 import { getBasePath } from '../../src/config';
-import { upsertAccount } from '../../src/accountStore';
+import { updateAccountToken } from '../../src/accountStore';
 import { makeSecretBox } from '../../src/crypto/factory';
 import {
   makePkce, buildAuthUrl, exchangeCode, refreshCache, isFresh, parseCache, type GoogleTokenCache,
@@ -121,8 +121,13 @@ export async function getGoogleAccessToken(account: Account): Promise<string> {
   } catch (e: any) {
     throw new Error(`Google token refresh failed for ${account.user}: ${e?.message || e} — sign in with Google again.`);
   }
+  // Token only, never the snapshot: `account` may be minutes stale (see
+  // updateAccountToken). Kept in memory too, so this processor stops refreshing
+  // on every send once its first access token expires.
+  const stored = encryptSecret(JSON.stringify(next));
+  account.oauthToken = stored;
   try {
-    upsertAccount(getBasePath(), { ...account, oauthToken: encryptSecret(JSON.stringify(next)) });
+    updateAccountToken(getBasePath(), account.id, stored);
   } catch (e) {
     console.error('Failed to persist refreshed Google OAuth cache:', e);
   }

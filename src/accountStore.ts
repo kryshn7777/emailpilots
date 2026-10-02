@@ -93,6 +93,22 @@ export function upsertAccount(basePath: string, acc: Account): Account[] {
   return all;
 }
 
+/**
+ * Persist a refreshed OAuth token cache onto one account — and nothing else.
+ * Token getters run inside sends that hold an account snapshot for minutes (paced
+ * waits, manual batches), so writing that whole snapshot back (upsertAccount)
+ * reverted a Disable made meanwhile and re-created a removed account with its
+ * refresh token. Reads fresh; a row that is gone stays gone. Returns whether it wrote.
+ */
+export function updateAccountToken(basePath: string, id: string, oauthToken: string): boolean {
+  const all = readAccounts(basePath);
+  const row = all.find(a => a.id === id);
+  if (!row) return false;
+  row.oauthToken = oauthToken;
+  writeAccounts(basePath, all);
+  return true;
+}
+
 /** Remove one extra account by id. Returns the remaining list. */
 export function removeAccount(basePath: string, id: string): Account[] {
   const all = readAccounts(basePath).filter(a => a.id !== id);
