@@ -45,7 +45,7 @@ export interface TrialGrant {
  * "before November 22" means the same moment everywhere.
  *
  * There is no signup to hang this on — the product is accountless, so FIRST RUN
- * *is* the signup, and "download before Nov 22" is the promise the site makes.
+ * *is* the signup, and "install and run before Nov 22" is the promise the site must make (first run, not download, starts the clock — F-s7).
  */
 export const FOUNDER_CUTOFF_ISO = '2026-11-22T00:00:00.000Z';
 /** One month, rolling from each install's first run. */

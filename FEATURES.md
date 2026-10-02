@@ -1,7 +1,7 @@
 # Email Pilots — Feature List
 
 > **Status note 2026-10-03:** corrected Appendix A (tier gating, Microsoft AI labels now
-> work) and §13 (Google sign-in). Pricing/plan wording (§12, Appendix B) is still unresolved.
+> work) and §13 (Google sign-in). Pricing set 2026-10-03 (§12, Appendix B); the Buy button still waits on the store ids.
 
 > Landing-page source of truth, produced from a full codebase audit (2026-08-08).
 > Every claim below is implemented and verified in the current build. Anything half-built
@@ -209,8 +209,10 @@ entirely on your PC. No cloud account, no servers, no per-contact fees.
 
 ## 12. One simple plan
 
-- **$2.9/week, 7-day free trial, no credit card to start, cancel anytime.** One
-  subscription, your own mailbox, no per-seat or per-contact fees.
+- **Free forever; First Class $2.90/week or $10/month.** Free does everything except
+  automatic follow-up sequences, which First Class runs. First run before 22 Nov 2026 gets
+  First Class free for 30 days ("install and run before" — not "download before"); later
+  installs get 7 days. No credit card to start, cancel anytime, no per-seat or per-contact fees.
   *(Do not publish a Buy button yet: the license store isn't configured — activation
   currently refuses every key — and plan naming must be unified first. See Appendices
   A and B.)*
@@ -251,13 +253,11 @@ Real code that exists in the build but must **not** appear in marketing until fi
   **personal outreach and follow-up** — one person writing to people they want to reach.
 - **The word "spam"** is allowed only when talking about the spam *folder* or spam-filter
   checks — never to describe what the user sends.
-- **Plan naming is currently three-way inconsistent** and must be unified before pricing
-  goes live: landing sells **"Solo" at $2.9/week**, the app's Settings card says **"Free" /
-  "First Class"**, and the payment-store runbook defines **Weekly $2.90 + Monthly $10.00**.
-  Pick one vocabulary end to end.
+- **Plan naming (decided 2026-10-03):** **Free** and **First Class**, First Class at
+  **$2.90/week or $10/month** — the app's Plan card, the Lemon Squeezy runbook and the Terms
+  all use this. Never "Solo", never €.
 - **Numbers safe to quote:** your mailbox + up to 5 more; ~50 emails/day default cap per
   mailbox; warm-up ramp ~5 → ~50; replies checked every 15 minutes; 8 reply labels; 5
-  writing tones; curated on-device AI model at 2.3 GB (a 219 MB free-tier model exists but
-  isn't offered yet — see Appendix A); 7-day trial.
+  writing tones; curated on-device AI models from 219 MB to 2.3 GB; 30-day founder period / 7-day trial.
 - **Honest superlatives only:** "100% local" and "zero cloud servers" are true and
   verifiable — lead with privacy, it's the differentiator.
