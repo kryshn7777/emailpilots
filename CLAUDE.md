@@ -7,14 +7,15 @@ Electron + Vite + TypeScript desktop app for sending **personal outreach / follo
 | Task | Command | Notes |
 |------|---------|-------|
 | Dev | `npm run dev` | Vite dev server; `vite-plugin-electron` launches the Electron main + preload |
-| Build | `npm run build` | `vite build` → `dist-vite`, then `electron-builder` (win-only: nsis + portable) |
+| Typecheck | `npm run typecheck` | `tsc --noEmit` over core, electron and renderer projects |
+| Build | `npm run build` | `npm run typecheck`, `vite build` → `dist-vite`, then `electron-builder` (win-only: nsis + portable) |
 | Test | `npm test` | Vitest, pure-Node specs in `src/__tests__/` (incl. `src/__tests__/audit/` regression repros) + `src/transport/factory.test.ts` |
 | Test (watch) | `npm run test:watch` | |
 | CLI test-send | `npm run test-send` | `ts-node src/index.ts --test` — see `/test-send` skill. **Refuses unless `TEST_MODE=true`** (practice mode: every send reroutes to the sender's own inbox) and exits after the one run. It drives the default account's `processEmails`, not `runAllAccounts`. Requires credentials **you** supply (env vars or a hand-written `.env`): it no longer self-configures, and it cannot read a GUI-written password (that's `ENC:` — only Electron's safeStorage can open it). A GUI-configured install has no manual send-all (`#test-run-btn` has been hidden since 2026-07-13): use Practice mode (Dashboard → Quick Actions) and let a scheduled run fire. The Accounts view's Send test only checks one account's connection. |
 
 ### Typecheck is MANUAL — Vite/esbuild do NOT type-check
 
-The build path runs through Vite + esbuild, which transpile without checking types, so **type errors land silently**. There is no `tsc` npm script. Before considering any TypeScript change done, run all three projects (or invoke the `/typecheck` skill):
+The build path runs through Vite + esbuild, which transpile without checking types, so **type errors land silently** in `npm run dev`. `npm run typecheck` runs all three projects; `npm run build` and CI (`ci.yml`, pushes to `main`/`feat/**` and PRs) run it first. Before considering any TypeScript change done, run it (or invoke the `/typecheck` skill) — the three projects are:
 
 ```
 npx tsc -p tsconfig.json --noEmit          # core (src/**)

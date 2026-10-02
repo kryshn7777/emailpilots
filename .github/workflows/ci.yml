@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/**']
   pull_request:
 
 jobs:
@@ -19,4 +19,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Vite/esbuild transpile without type-checking, so this is the only gate
+      # that catches a type error before it ships.
+      - run: npm run typecheck
       - run: npm test
