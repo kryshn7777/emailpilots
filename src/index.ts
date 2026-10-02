@@ -44,13 +44,26 @@ async function main() {
     }
 
     const config = loadConfig();
+    const testRun = process.argv.includes('--test');
+    // A "test" that mails every active recipient for real is a live blast with a
+    // misleading name. Practice mode reroutes each send to the sender's own inbox;
+    // without it, refuse — real sends belong to the desktop app.
+    if (testRun && !config.testMode) {
+      console.error('Refusing --test without TEST_MODE=true: it would email every active recipient for real.');
+      console.error('Set TEST_MODE=true to reroute every send to your own inbox (practice mode).');
+      process.exit(1);
+    }
+
     const emailService = new EmailService(config);
     const mailProcessor = new MailProcessor(config, emailService);
     const scheduler = new Scheduler(config, mailProcessor);
 
-    if (process.argv.includes('--test')) {
+    if (testRun) {
       console.log('Running immediate test send...');
-      await mailProcessor.processEmails();
+      const res = await mailProcessor.processEmails();
+      // One-shot. Staying resident started a second cron scheduler on the shared
+      // data dir, spending the real daily cap on practice sends beside the app.
+      process.exit(res.failed > 0 ? 1 : 0);
     }
 
     scheduler.start();

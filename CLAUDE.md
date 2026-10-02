@@ -10,7 +10,7 @@ Electron + Vite + TypeScript desktop app for sending **personal outreach / follo
 | Build | `npm run build` | `vite build` → `dist-vite`, then `electron-builder` (win-only: nsis + portable) |
 | Test | `npm test` | Vitest, pure-Node specs in `src/__tests__/` (incl. `src/__tests__/audit/` regression repros) + `src/transport/factory.test.ts` |
 | Test (watch) | `npm run test:watch` | |
-| CLI test-send | `npm run test-send` | `ts-node src/index.ts --test` — see `/test-send` skill; **needs `TEST_MODE=true`** to be safe. Requires credentials **you** supply (env vars or a hand-written `.env`): it no longer self-configures, and it cannot read a GUI-written password (that's `ENC:` — only Electron's safeStorage can open it). For a GUI-configured install, use the app's own Send-test button, which runs the same `runAllAccounts` path. |
+| CLI test-send | `npm run test-send` | `ts-node src/index.ts --test` — see `/test-send` skill. **Refuses unless `TEST_MODE=true`** (practice mode: every send reroutes to the sender's own inbox) and exits after the one run. It drives the default account's `processEmails`, not `runAllAccounts`. Requires credentials **you** supply (env vars or a hand-written `.env`): it no longer self-configures, and it cannot read a GUI-written password (that's `ENC:` — only Electron's safeStorage can open it). A GUI-configured install has no manual send-all (`#test-run-btn` has been hidden since 2026-07-13): use Practice mode (Dashboard → Quick Actions) and let a scheduled run fire. The Accounts view's Send test only checks one account's connection. |
 
 ### Typecheck is MANUAL — Vite/esbuild do NOT type-check
 

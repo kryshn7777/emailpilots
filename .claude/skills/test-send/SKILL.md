@@ -13,11 +13,11 @@ the configured sender's inbox.
 ## ⚠️ Safety — TEST_MODE is mandatory
 
 `npm run test-send` runs `ts-node src/index.ts --test`, which calls
-`mailProcessor.processEmails()` **immediately against active recipients**. On its own that sends
-to **real** recipients. `TEST_MODE=true` (via `config.testMode`) reroutes every send to the
-sender's own inbox (subject prefixed with the intended address), keeping rendering / limits /
-scheduling identical. **Never run the test-send path without `TEST_MODE=true`** unless the user
-explicitly wants a live send.
+`mailProcessor.processEmails()` **immediately against active recipients**. `TEST_MODE=true`
+(via `config.testMode`) reroutes every send to the sender's own inbox (subject prefixed with
+the intended address), keeping rendering / limits / scheduling identical. Since 2026-10-02 the
+CLI **refuses `--test` without `TEST_MODE=true`** (exit 1, nothing sent) — a live send is the
+desktop app's job, not this script's.
 
 ## Prerequisites
 
@@ -36,8 +36,9 @@ explicitly wants a live send.
 >
 > It also **cannot** read a password saved by the desktop app: that's stored as `ENC:…`, and
 > only Electron's keystore can open it, so outside Electron it resolves to an empty password
-> and auth fails. To test a GUI-configured install, use the app's own **Send test** button —
-> it runs the same `runAllAccounts` path this CLI does.
+> and auth fails. A GUI-configured install has no manual send-all button (hidden since
+> 2026-07-13): turn on **Practice mode** (Dashboard → Quick Actions) and let a scheduled run
+> fire. The Accounts view's **Send test** only checks one account's connection.
 
 ## Run
 
@@ -50,8 +51,8 @@ Bash:
 TEST_MODE=true npm run test-send
 ```
 
-Run it in the background. After the immediate run, `scheduler.start()` keeps the process alive —
-you only need the immediate-send output, so stop the process once it appears.
+It exits after the immediate run (exit 1 if any send failed). It no longer starts the cron
+scheduler — that stayed resident beside the app and spent the real daily cap on practice sends.
 
 ## What to confirm
 
@@ -59,4 +60,4 @@ you only need the immediate-send output, so stop the process once it appears.
 - Sends land in the **sender's** inbox (rerouted), subject prefixed with the intended address.
 - Rate-limit reservations and pacing delays fire (no burst).
 - No permission/auth error, no `.env` contents printed, no real recipient addressed.
-- Report a concise PASS/FAIL with the key log lines. Then terminate the background process.
+- Report a concise PASS/FAIL with the key log lines.
