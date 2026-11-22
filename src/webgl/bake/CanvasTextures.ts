@@ -1,0 +1,935 @@
+import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
+import { detectQuality } from '../quality';
+import { createLaptopScreen } from '../actors/LaptopScreen';
+import { BANNER, PREFLIGHT_BOARD } from '../../story/copy';
+
+/**
+ * Runtime "texture baking": every map the world needs is drawn once into a
+ * canvas at boot (all < 16ms), replacing authored bitmap assets.
+ */
+
+// bake scale: the desk chapter parks the lens close enough to magnify a 512
+// canvas ~2.5x, which read as smeared low-res. All makeCanvas callers draw in
+// their original coordinate space; the backing store is 2x on HIGH and 1.5x on
+// phones (a phone's screen is as dense as a desktop's, so 1x read as soft there
+// too; 1.5x keeps the bake memory about half of HIGH's).
+const BAKE_SCALE = detectQuality('').tier === 'high' ? 2 : 1.5;
+
+function makeCanvas(size: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = Math.round(size * BAKE_SCALE);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.scale(BAKE_SCALE, BAKE_SCALE);
+  return [canvas, ctx];
+}
+
+/**
+ * The dart's sheet, UV-mapped to the flat crease pattern: paper grain, the
+ * email's ruled handwriting, and the fold diagonals radiating from the nose
+ * (u 0.5, v 1). Creases must match PaperPlane's panel layout: keel crease at
+ * u 0.5±0.098, wing crease at u 0.5±0.415.
+ */
+export function paperSheetTexture(): CanvasTexture {
+  const S = 512;
+  const [canvas, ctx] = makeCanvas(S);
+  ctx.fillStyle = '#f7f3ec';
+  ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 2600; i++) {
+    const shade = 236 + Math.floor(Math.random() * 16);
+    ctx.fillStyle = `rgba(${shade}, ${shade - 3}, ${shade - 8}, 0.5)`;
+    ctx.fillRect(Math.random() * S, Math.random() * S, 1 + Math.random() * 2, 1);
+  }
+
+  // the email itself, written across the sheet
+  ctx.strokeStyle = 'rgba(40, 48, 70, 0.34)';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  for (const ly of [0.2, 0.28, 0.36, 0.44, 0.52, 0.6, 0.72]) {
+    const y = ly * S;
+    const width = (ly === 0.72 ? 0.3 : 0.5 + Math.random() * 0.26) * S;
+    ctx.beginPath();
+    let x = S * 0.14;
+    ctx.moveTo(x, y);
+    while (x < S * 0.14 + width) {
+      x += 7 + Math.random() * 12;
+      ctx.lineTo(x, y + (Math.random() - 0.5) * 4);
+    }
+    ctx.stroke();
+  }
+
+  // fold creases: shadow + highlight pairs radiating from the nose
+  const nose: [number, number] = [S * 0.5, S];
+  const crease = (uTail: number): void => {
+    ctx.strokeStyle = 'rgba(70, 66, 58, 0.28)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(...nose);
+    ctx.lineTo(uTail * S, 0);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(nose[0] + 2, nose[1]);
+    ctx.lineTo(uTail * S + 2, 0);
+    ctx.stroke();
+  };
+  crease(0.5 - 0.098);
+  crease(0.5 + 0.098);
+  crease(0.5 - 0.415);
+  crease(0.5 + 0.415);
+  // center spine
+  ctx.strokeStyle = 'rgba(70, 66, 58, 0.35)';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(S * 0.5, 0);
+  ctx.lineTo(S * 0.5, S);
+  ctx.stroke();
+
+  // worn sheet edge
+  ctx.strokeStyle = 'rgba(120, 112, 96, 0.35)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(1, 1, S - 2, S - 2);
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** The tow banner: EMAIL PILOTS on weathered cloth, edge stripes, stitching. */
+export function bannerTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.fillStyle = '#efe5cf';
+  ctx.fillRect(0, 0, 1024, 256);
+  // cloth weave
+  for (let i = 0; i < 2400; i++) {
+    const v = 214 + Math.floor(Math.random() * 24);
+    ctx.fillStyle = `rgba(${v}, ${v - 6}, ${v - 22}, 0.4)`;
+    ctx.fillRect(Math.random() * 1024, Math.random() * 256, 2, 1);
+  }
+  // stripes + stitching at the tow edge
+  ctx.fillStyle = '#a5352f';
+  ctx.fillRect(0, 10, 1024, 12);
+  ctx.fillRect(0, 234, 1024, 12);
+  ctx.strokeStyle = 'rgba(90, 60, 40, 0.6)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  ctx.moveTo(14, 24);
+  ctx.lineTo(14, 232);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#8c2f28';
+  ctx.font = '900 128px Georgia, "Times New Roman", serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // the storm's lesson, towed across it: one by one (story/copy.ts BANNER)
+  ctx.fillText(BANNER, 512, 136, 940);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** Modern area rug: charcoal field, one thin accent border, flat weave. */
+export function rugTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  ctx.fillStyle = '#232833';
+  ctx.fillRect(0, 0, 512, 512);
+  // subtle two-tone weave bands
+  for (let y = 0; y < 512; y += 16) {
+    if ((y / 16) % 2 === 0) continue;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+    ctx.fillRect(0, y, 512, 16);
+  }
+  ctx.strokeStyle = 'rgba(154, 161, 176, 0.8)';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(30, 30, 452, 452);
+  // pile noise
+  for (let i = 0; i < 2600; i++) {
+    ctx.fillStyle = `rgba(255, 245, 225, ${0.015 + Math.random() * 0.02})`;
+    ctx.fillRect(Math.random() * 512, Math.random() * 512, 1.5, 1.5);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  // floor maps live at grazing angles — without anisotropy they mip to mush
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Subtle paper fiber grain — used by the plane and the letter. */
+export function paperTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(256);
+  ctx.fillStyle = '#f7f3ec';
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2200; i++) {
+    const shade = 238 + Math.floor(Math.random() * 14);
+    ctx.fillStyle = `rgba(${shade}, ${shade - 3}, ${shade - 8}, 0.5)`;
+    ctx.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  return texture;
+}
+
+/** The letter: ruled handwriting strokes on paper — readable as "an email". */
+export function letterTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  ctx.fillStyle = '#f7f3ec';
+  ctx.fillRect(0, 0, 512, 512);
+  ctx.strokeStyle = 'rgba(40, 48, 70, 0.55)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  const lines = [0.18, 0.26, 0.34, 0.42, 0.5, 0.58, 0.66, 0.8];
+  for (const ly of lines) {
+    const y = ly * 512;
+    const width = (ly === 0.8 ? 0.3 : 0.55 + Math.random() * 0.3) * 512;
+    ctx.beginPath();
+    let x = 64;
+    ctx.moveTo(x, y);
+    while (x < 64 + width) {
+      x += 8 + Math.random() * 14;
+      ctx.lineTo(x, y + (Math.random() - 0.5) * 5);
+    }
+    ctx.stroke();
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** the pre-flight departures board's canvas, in layout px (Panel.ts sizes the board to its aspect) */
+export const BOARD_W = 1024;
+export const BOARD_H = 590;
+const BOARD_M = 40;
+/** the split-flap rows: label cells, a gap, status cells, a gap, the tick */
+const ROW_Y0 = 96;
+const ROW_PITCH = 68;
+const CELL_H = 56;
+/** the verdict strip, under the checks: the conclusion they lead to */
+const VERDICT_Y = 452;
+const VERDICT_H = 96;
+const LABEL_CELLS = 16;
+const STATUS_CELLS = 7;
+const CELL_PITCH = (BOARD_W - 2 * BOARD_M) / (LABEL_CELLS + 1 + STATUS_CELLS + 1 + 1);
+
+export interface BoardFace {
+  texture: CanvasTexture;
+  /**
+   * Draws state `s` (0..rows+1): 0 every row still CHECKing under a red GROUNDED; k rows cleared; rows+1 the
+   * verdict flipped to READY FOR TAKEOFF. The first row's value cycles through the mailboxes it works with.
+   */
+  draw(s: number): void;
+  /** the status cells of row `i`, in layout px: where Panel lays its falling flap */
+  statusRect(i: number): [number, number, number, number];
+  /** the verdict strip, in layout px */
+  verdictRect(): [number, number, number, number];
+}
+
+/**
+ * The pre-flight board's face (Panel.ts): an airport departures board. Split-flap cells, white characters on
+ * black: five checks that flip from CHECK to cleared one by one, and under them the verdict strip with the
+ * app's real two verdicts, red GROUNDED and green READY FOR TAKEOFF (FEATURES.md §7; story/copy.ts
+ * PREFLIGHT_BOARD). The verdict sits at the foot so it stays in frame as the camera leaves the window.
+ * A live canvas: Panel redraws it once per state (seven states in all), never per frame.
+ */
+export function preflightBoard(): BoardFace {
+  const res = detectQuality('').tier === 'high' ? 1.5 : 1;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(BOARD_W * res);
+  canvas.height = Math.round(BOARD_H * res);
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(res, res);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 8;
+  const flap = "600 44px Oswald, 'Arial Narrow', sans-serif";
+  const big = "700 70px Oswald, 'Arial Narrow', sans-serif";
+
+  /** one split-flap cell with its character */
+  const cell = (x: number, y: number, w: number, h: number, ch: string, color: string, font: string, lit = 0): void => {
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, '#30343e');
+    g.addColorStop(0.5, '#23262e');
+    g.addColorStop(0.5, '#191b21');
+    g.addColorStop(1, '#262a33');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 4);
+    ctx.fill();
+    if (lit > 0) {
+      ctx.fillStyle = color.replace('rgb(', 'rgba(').replace(')', `, ${0.12 * lit})`);
+      ctx.fill();
+    }
+    if (ch.trim()) {
+      ctx.save();
+      ctx.font = font;
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = lit > 0 ? 10 : 0;
+      ctx.fillText(ch, x + w / 2, y + h / 2 + 2, w * 0.96);
+      ctx.restore();
+    }
+    // the split
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(x, y + h / 2 - 1, w, 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(x - 1, y + h / 2 - 3, 3, 6);
+    ctx.fillRect(x + w - 2, y + h / 2 - 3, 3, 6);
+  };
+
+  const text = (x: number, y: number, s: string, n: number, color: string, font: string, h: number, lit = 0): void => {
+    const padded = s.padEnd(n, ' ').slice(0, n);
+    for (let k = 0; k < n; k++) cell(x + k * CELL_PITCH, y, CELL_PITCH - 4, h, padded[k]!, color, font, lit);
+  };
+
+  const WHITE = 'rgb(240, 240, 232)';
+  const AMBER = 'rgb(255, 196, 61)';
+  const GREEN = 'rgb(93, 255, 176)';
+  const RED = 'rgb(255, 77, 77)';
+  const rows = PREFLIGHT_BOARD.rows;
+  const verdictCells = PREFLIGHT_BOARD.ready.length;
+  const vPitch = 55;
+  const vx = (BOARD_W - verdictCells * vPitch) / 2;
+
+  const draw = (s: number): void => {
+    ctx.clearRect(0, 0, BOARD_W, BOARD_H);
+    const bg = ctx.createLinearGradient(0, 0, 0, BOARD_H);
+    bg.addColorStop(0, '#0d0f14');
+    bg.addColorStop(1, '#07080b');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, BOARD_W - 6, BOARD_H - 6);
+
+    // the header: what the board is, and which flight
+    ctx.font = "600 34px Oswald, 'Arial Narrow', sans-serif";
+    ctx.fillStyle = AMBER;
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    ctx.fillText(PREFLIGHT_BOARD.title.split('').join(String.fromCharCode(8202)), BOARD_M, 64);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(240, 240, 232, 0.75)';
+    ctx.fillText(PREFLIGHT_BOARD.flight, BOARD_W - BOARD_M, 64);
+    ctx.textAlign = 'left';
+
+    // the verdict
+    const ready = s > rows.length;
+    const verdict = ready ? PREFLIGHT_BOARD.ready : PREFLIGHT_BOARD.grounded;
+    const pad = Math.floor((verdictCells - verdict.length) / 2);
+    const padded = ' '.repeat(pad) + verdict;
+    for (let k = 0; k < verdictCells; k++) {
+      cell(vx + k * vPitch, VERDICT_Y, vPitch - 5, VERDICT_H, padded[k] ?? ' ', ready ? GREEN : RED, big, 1);
+    }
+
+    // the checks
+    rows.forEach((row, i) => {
+      const y = ROW_Y0 + i * ROW_PITCH;
+      const done = s > i;
+      text(BOARD_M, y, row.label, LABEL_CELLS, done ? WHITE : 'rgba(240, 240, 232, 0.55)', flap, CELL_H);
+      // the first row's value cycles: GMAIL, OUTLOOK, SMTP, …
+      const values = row.values as readonly string[];
+      const value = done ? values[(s - 1 - i) % values.length]! : PREFLIGHT_BOARD.pending;
+      text(BOARD_M + (LABEL_CELLS + 1) * CELL_PITCH, y, value, STATUS_CELLS, done ? GREEN : AMBER, flap, CELL_H, done ? 1 : 0);
+      cell(BOARD_M + (LABEL_CELLS + 1 + STATUS_CELLS + 1) * CELL_PITCH, y, CELL_PITCH - 4, CELL_H, done ? '✓' : '·', done ? GREEN : AMBER, flap, done ? 1 : 0);
+    });
+    texture.needsUpdate = true;
+  };
+  draw(0);
+  return {
+    texture,
+    draw,
+    statusRect: (i) => [BOARD_M + (LABEL_CELLS + 1) * CELL_PITCH, ROW_Y0 + i * ROW_PITCH, (STATUS_CELLS + 2) * CELL_PITCH, CELL_H],
+    verdictRect: () => [vx, VERDICT_Y, verdictCells * vPitch, VERDICT_H],
+  };
+}
+
+/**
+ * Runway asphalt, full markings: threshold piano keys both ends, "27"
+ * designator, touchdown-zone bars, centerline dashes, edge stripes, tire
+ * scuff near the touchdown zone, asphalt noise. Long axis = V (texture Y).
+ */
+export function runwayTexture(): CanvasTexture {
+  const S = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+
+  ctx.fillStyle = '#23262e';
+  ctx.fillRect(0, 0, S, S);
+  // asphalt noise
+  for (let i = 0; i < 9000; i++) {
+    const v = 26 + Math.random() * 24;
+    ctx.fillStyle = `rgba(${v}, ${v + 2}, ${v + 8}, 0.35)`;
+    ctx.fillRect(Math.random() * S, Math.random() * S, 2, 2);
+  }
+  // tire scuff bands near the near-end touchdown zone
+  for (let i = 0; i < 260; i++) {
+    ctx.fillStyle = `rgba(12, 12, 14, ${0.05 + Math.random() * 0.1})`;
+    const y = S * 0.6 + Math.random() * S * 0.25;
+    ctx.fillRect(S * 0.3 + Math.random() * S * 0.4, y, 3 + Math.random() * 5, 26 + Math.random() * 60);
+  }
+
+  const paint = 'rgba(240, 236, 226, 0.92)';
+  ctx.fillStyle = paint;
+  // edge stripes
+  ctx.fillRect(S * 0.045, 0, 10, S);
+  ctx.fillRect(S * 0.955 - 10, 0, 10, S);
+  // threshold piano keys, both ends
+  const KEYS = 8;
+  for (let i = 0; i < KEYS; i++) {
+    const x = S * 0.09 + i * ((S * 0.82) / KEYS) + 8;
+    const w = (S * 0.82) / KEYS - 16;
+    ctx.fillRect(x, S - 78, w, 62);
+    ctx.fillRect(x, 16, w, 62);
+  }
+  // touchdown-zone bars (two groups per side)
+  for (const ty of [S * 0.78, S * 0.7]) {
+    for (const tx of [S * 0.16, S * 0.72]) {
+      ctx.fillRect(tx, ty, S * 0.12, 20);
+    }
+  }
+  // centerline dashes
+  for (let y = S * 0.12; y < S * 0.66; y += 84) {
+    ctx.fillRect(S / 2 - 9, y, 18, 52);
+  }
+  // designator
+  ctx.font = `700 ${S * 0.11}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText('27', S / 2, S * 0.905);
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  // the landing camera skims the deck — markings smear without anisotropy
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** The payoff sheet: "Re:" reply sliding out from under the landed letter. */
+export function replyTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  ctx.fillStyle = '#fdfbf7';
+  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillStyle = 'rgba(30, 40, 66, 0.9)';
+  ctx.font = '700 64px monospace';
+  ctx.fillText('Re:', 56, 110);
+  ctx.strokeStyle = 'rgba(40, 48, 70, 0.5)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  for (const ly of [0.42, 0.52, 0.62]) {
+    const y = ly * 512;
+    ctx.beginPath();
+    let x = 56;
+    ctx.moveTo(x, y);
+    const width = (ly === 0.62 ? 0.35 : 0.68) * 512;
+    while (x < 56 + width) {
+      x += 9 + Math.random() * 13;
+      ctx.lineTo(x, y + (Math.random() - 0.5) * 5);
+    }
+    ctx.stroke();
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Laptop display: the batch window the flight launches from. It is live (the three queued mails
+ * leave it one by one), so it is drawn by actors/LaptopScreen, which the Engine drives.
+ */
+export function laptopScreenTexture(): CanvasTexture {
+  return createLaptopScreen().texture;
+}
+
+/**
+ * Pre-dawn apartment facade: floor rows of windows — a few warm-lit, some
+ * dim, most dark — with mullions, a parapet band, and grime streaks. Shared
+ * by every instanced rooftop building (stretch across heights reads fine in
+ * fog at night).
+ */
+export function facadeTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  // the wall has to READ as mass: at #151b29 the far impostors went black
+  // against the night sky and the district looked like floating windows
+  ctx.fillStyle = '#3c4763';
+  ctx.fillRect(0, 0, 256, 512);
+  // parapet band
+  ctx.fillStyle = '#2b344a';
+  ctx.fillRect(0, 0, 256, 26);
+  // window grid: 8 floors × 6 bays
+  const COLS = 6;
+  const ROWS = 8;
+  const cw = 256 / COLS;
+  const rh = (512 - 40) / ROWS;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const roll = Math.random();
+      let fill = '#1b2233'; // dark glass, still lighter than the night sky
+      if (roll < 0.22) fill = `rgba(255, 201, 138, ${0.55 + Math.random() * 0.4})`; // lamp on
+      else if (roll < 0.38) fill = 'rgba(148, 168, 204, 0.16)'; // tv glow
+      ctx.fillStyle = fill;
+      ctx.fillRect(c * cw + 7, 40 + r * rh + 9, cw - 14, rh - 18);
+    }
+  }
+  // grime streaks
+  for (let i = 0; i < 60; i++) {
+    ctx.fillStyle = `rgba(6, 8, 14, ${0.05 + Math.random() * 0.1})`;
+    ctx.fillRect(Math.random() * 256, 26, 1 + Math.random() * 3, 60 + Math.random() * 300);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** Lighthouse hull: classic red/white bands with weather streaks. */
+/** how many spine variants per side of the book atlas */
+export const BOOK_SPINE_CELLS = 4;
+
+/**
+ * Sixteen book spines in a 4×4 atlas: cloth grain, head and tail bands, gilt
+ * rules and a lettering panel each, with the left-lit/right-shadowed gradient
+ * that makes a flat box read as a rounded spine.
+ *
+ * One texture and ONE material for the whole wall — each book's box UVs are
+ * remapped into its own cell, so the shelf still collapses to a single draw
+ * call in Desk.mergeStatics(). Per-book materials would cost ~60 calls, which
+ * is exactly why the wall was flat-coloured before.
+ *
+ * Titles are abstract bars rather than lettering: the camera passes this wall
+ * at a distance where real words would be unreadable mush anyway.
+ */
+export function bookSpineTexture(): CanvasTexture {
+  const S = 1024;
+  const C = S / BOOK_SPINE_CELLS;
+  const [canvas, ctx] = makeCanvas(S);
+  // seeded, so the wall is the same wall on every reload
+  let seed = 20260810;
+  const rand = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  // a bright, varied shelf: jewel cloth and painted spines, so it reads as colour even in lamplight
+  const cloth = [
+    '#c8382c', '#2f74d8', '#1fa064', '#e5a823', '#e8762b', '#17aaa2', '#7d4cc4', '#c93a8e',
+    '#4aa6e0', '#90c23c', '#ea6a5c', '#26408f', '#9a2142', '#2f8a4c', '#f3c534', '#5d72d6',
+  ];
+  for (let cell = 0; cell < BOOK_SPINE_CELLS * BOOK_SPINE_CELLS; cell++) {
+    ctx.save();
+    ctx.translate((cell % BOOK_SPINE_CELLS) * C, Math.floor(cell / BOOK_SPINE_CELLS) * C);
+    ctx.beginPath();
+    ctx.rect(0, 0, C, C);
+    ctx.clip();
+
+    ctx.fillStyle = cloth[cell]!;
+    ctx.fillRect(0, 0, C, C);
+    for (let i = 0; i < 70; i++) {
+      ctx.fillStyle = `rgba(0,0,0,${(0.03 + rand() * 0.05).toFixed(3)})`;
+      ctx.fillRect(rand() * C, 0, 1 + rand() * 2, C); // cloth grain runs with the spine
+    }
+
+    // a second colour on about half of them: a painted band across the foot of the spine
+    if (rand() < 0.55) {
+      ctx.fillStyle = cloth[(cell * 5 + 3) % cloth.length]!;
+      ctx.fillRect(0, C * 0.62, C, C * 0.26);
+    }
+
+    // rounded-spine shading
+    const round = ctx.createLinearGradient(0, 0, C, 0);
+    round.addColorStop(0, 'rgba(255,255,255,0.2)');
+    round.addColorStop(0.3, 'rgba(255,255,255,0.05)');
+    round.addColorStop(1, 'rgba(0,0,0,0.26)');
+    ctx.fillStyle = round;
+    ctx.fillRect(0, 0, C, C);
+
+    // head and tail bands, then the gilt rules that frame the panel
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.fillRect(0, C * 0.07, C, C * 0.035);
+    ctx.fillRect(0, C * 0.895, C, C * 0.035);
+    const gilt = rand() < 0.5 ? '#f1cf6a' : '#f4efe2';
+    ctx.fillStyle = gilt;
+    ctx.fillRect(0, C * 0.118, C, 2);
+    ctx.fillRect(0, C * 0.872, C, 2);
+
+    // lettering panel
+    const ly = C * (0.22 + rand() * 0.1);
+    const lh = C * (0.2 + rand() * 0.1);
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(C * 0.1, ly, C * 0.8, lh);
+    ctx.strokeStyle = gilt;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(C * 0.1, ly, C * 0.8, lh);
+    ctx.fillStyle = gilt;
+    const bars = 2 + Math.floor(rand() * 2);
+    for (let b = 0; b < bars; b++) {
+      const bw = C * (0.28 + rand() * 0.34);
+      ctx.fillRect(C * 0.5 - bw / 2, ly + lh * (0.24 + b * 0.27), bw, 3);
+    }
+    ctx.restore();
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** A small desk globe: blue seas, green and ochre land, a graticule. Equirectangular. */
+export function globeTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  ctx.fillStyle = '#2d78c9';
+  ctx.fillRect(0, 0, 512, 512);
+  let seed = 4242;
+  const rand = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 16; i++) {
+    const x = rand() * 512;
+    const y = 90 + rand() * 300;
+    ctx.fillStyle = rand() < 0.5 ? '#4fa84a' : '#d3b35a';
+    for (let k = 0; k < 7; k++) {
+      ctx.beginPath();
+      ctx.ellipse(x + (rand() - 0.5) * 60, y + (rand() - 0.5) * 40, 20 + rand() * 38, 14 + rand() * 26, rand() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.fillStyle = '#f4f7fb';
+  ctx.fillRect(0, 0, 512, 30);
+  ctx.fillRect(0, 484, 512, 28);
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= 512; x += 43) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke(); }
+  for (let y = 0; y <= 512; y += 43) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke(); }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+export function lighthouseTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.fillStyle = '#e8e2d6';
+  ctx.fillRect(0, 0, 256, 512);
+  ctx.fillStyle = '#a5352f';
+  const BANDS = 4;
+  for (let i = 0; i < BANDS; i++) {
+    ctx.fillRect(0, (i * 2 + 0.5) * (512 / (BANDS * 2 + 1)), 256, 512 / (BANDS * 2 + 1));
+  }
+  // weather streaks running down
+  for (let i = 0; i < 90; i++) {
+    ctx.fillStyle = `rgba(40, 44, 52, ${0.04 + Math.random() * 0.08})`;
+    const x = Math.random() * 256;
+    ctx.fillRect(x, Math.random() * 380, 1 + Math.random() * 2, 40 + Math.random() * 120);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  return texture;
+}
+
+/** Abstract neon storefront sign — bright bars/rings on black, no words. */
+export function neonSignTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.fillStyle = '#05060a';
+  ctx.fillRect(0, 0, 128, 64);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  // abstract glyphs: bars + a ring + a tick — reads as signage at distance
+  ctx.beginPath();
+  ctx.moveTo(14, 16);
+  ctx.lineTo(14, 48);
+  ctx.moveTo(30, 16);
+  ctx.lineTo(30, 48);
+  ctx.moveTo(22, 32);
+  ctx.lineTo(38, 32);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(62, 32, 14, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(88, 46);
+  ctx.lineTo(100, 18);
+  ctx.lineTo(112, 46);
+  ctx.stroke();
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** City road strip: asphalt, center dashes, edge lines. Dashes run along U. */
+export function roadTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  ctx.fillStyle = '#191c24';
+  ctx.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 1600; i++) {
+    const v = 20 + Math.random() * 18;
+    ctx.fillStyle = `rgba(${v}, ${v + 2}, ${v + 7}, 0.4)`;
+    ctx.fillRect(Math.random() * 512, Math.random() * 256, 2, 2);
+  }
+  ctx.fillStyle = 'rgba(214, 208, 190, 0.5)';
+  ctx.fillRect(0, 10, 512, 5);
+  ctx.fillRect(0, 241, 512, 5);
+  ctx.fillStyle = 'rgba(226, 220, 200, 0.55)';
+  for (let x = 0; x < 512; x += 86) ctx.fillRect(x, 125, 40, 6);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Home wall: paneled wainscot grooves, plaster tone, subtle shading. */
+export function wallPanelTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, '#232c42');
+  g.addColorStop(0.65, '#1c2436');
+  g.addColorStop(1, '#161d2c');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 512, 512);
+  // plaster noise
+  for (let i = 0; i < 2600; i++) {
+    const v = 26 + Math.random() * 22;
+    ctx.fillStyle = `rgba(${v}, ${v + 4}, ${v + 14}, 0.25)`;
+    ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+  }
+  // panel grooves
+  for (let x = 0; x <= 512; x += 128) {
+    ctx.fillStyle = 'rgba(8, 10, 18, 0.5)';
+    ctx.fillRect(x - 2, 0, 3, 512);
+    ctx.fillStyle = 'rgba(120, 140, 190, 0.10)';
+    ctx.fillRect(x + 1, 0, 2, 512);
+  }
+  // picture rail line
+  ctx.fillStyle = 'rgba(8, 10, 18, 0.55)';
+  ctx.fillRect(0, 96, 512, 4);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Wooden plank floor: warm boards, grain streaks, board gaps. */
+export function floorPlankTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(512);
+  const PLANK = 64;
+  for (let row = 0; row < 512 / PLANK; row++) {
+    const warm = 0.85 + Math.random() * 0.3;
+    ctx.fillStyle = `rgb(${Math.floor(74 * warm)}, ${Math.floor(56 * warm)}, ${Math.floor(38 * warm)})`;
+    ctx.fillRect(0, row * PLANK, 512, PLANK);
+    // grain
+    for (let i = 0; i < 46; i++) {
+      ctx.fillStyle = `rgba(30, 20, 12, ${0.08 + Math.random() * 0.12})`;
+      ctx.fillRect(Math.random() * 512, row * PLANK + Math.random() * PLANK, 30 + Math.random() * 90, 1.5);
+    }
+    // board gap + end joints
+    ctx.fillStyle = 'rgba(10, 7, 4, 0.8)';
+    ctx.fillRect(0, row * PLANK, 512, 3);
+    ctx.fillRect(((row * 197) % 512), row * PLANK, 3, PLANK);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Small abstract wall art: dusk gradient + a tiny dart silhouette. */
+export function frameArtTexture(variant: number): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(128);
+  const g = ctx.createLinearGradient(0, 0, 0, 128);
+  if (variant === 0) {
+    g.addColorStop(0, '#3a4a78');
+    g.addColorStop(1, '#c98f68');
+  } else {
+    g.addColorStop(0, '#22304f');
+    g.addColorStop(1, '#7fe8d8');
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillStyle = 'rgba(250, 246, 238, 0.9)';
+  ctx.beginPath();
+  if (variant === 0) {
+    ctx.moveTo(34, 78);
+    ctx.lineTo(96, 58);
+    ctx.lineTo(50, 92);
+    ctx.closePath();
+  } else {
+    ctx.arc(64, 52, 18, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** Laptop deck: key grid + trackpad. */
+export function laptopKeysTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(256);
+  ctx.fillStyle = '#1a2030';
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = '#232b40';
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col < 13; col++) {
+      ctx.fillRect(10 + col * 18.2, 14 + row * 21, 15, 16);
+    }
+  }
+  // spacebar + trackpad
+  ctx.fillRect(70, 119, 116, 16);
+  ctx.fillStyle = '#151b2a';
+  ctx.fillRect(78, 152, 100, 84);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  // the deck is seen nearly edge-on from the desk camera
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/**
+ * Overcast deck seen from above: soft billowed cloud tops, drawn as stacked
+ * radial blobs so the layer reads as weather rather than a painted plane.
+ * Alpha falls off inside each blob, so two offset copies parallax into a
+ * convincing depth without a single raymarch step.
+ */
+export function cloudDeckTexture(): CanvasTexture {
+  const S = 512;
+  const [canvas, ctx] = makeCanvas(S);
+  ctx.clearRect(0, 0, S, S);
+  let seed = 20260810;
+  const rand = (): number => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const blob = (x: number, y: number, r: number, a: number, tint: string): void => {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(${tint}, ${a})`);
+    g.addColorStop(0.55, `rgba(${tint}, ${a * 0.55})`);
+    g.addColorStop(1, `rgba(${tint}, 0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  // thin base haze: the deck has to have real holes in it now that there is
+  // a lit city floor worth seeing between the clouds
+  blob(S / 2, S / 2, S * 0.85, 0.16, '206, 218, 236');
+  for (let i = 0; i < 130; i++) {
+    const x = rand() * S;
+    const y = rand() * S;
+    const r = S * (0.05 + rand() * 0.13);
+    // shaded underside first, lit crown offset up-left toward the dawn sun
+    blob(x, y + r * 0.22, r, 0.32, '120, 136, 166');
+    blob(x - r * 0.16, y - r * 0.2, r * 0.82, 0.5, '236, 242, 252');
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Soft radial spot — dust motes, rain caps, glows. */
+export function glowTexture(): CanvasTexture {
+  // Smooth, not three stops: a puff or halo is drawn hundreds of pixels wide, and a 64 px gradient with a
+  // kink at 0.4 showed as concentric rings (each texel's edge, magnified) in the steam and the lamp haze.
+  // The falloff (1 - r)^1.6 reaches zero with zero slope at the rim, and many stops keep the 8-bit steps
+  // fine enough that the filter blends them away.
+  const [canvas, ctx] = makeCanvas(128);
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  for (let i = 0; i <= 32; i++) {
+    const r = i / 32;
+    g.addColorStop(r, `rgba(255,255,255,${Math.pow(1 - r, 1.6).toFixed(4)})`);
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  const texture = new CanvasTexture(canvas);
+  texture.generateMipmaps = true;
+  texture.anisotropy = 1;
+  return texture;
+}
+
+/** Soft round blob, black in the middle and clear at the edge: a contact shadow decal. */
+export function softShadowTexture(): CanvasTexture {
+  const [canvas, ctx] = makeCanvas(128);
+  const g = ctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+  g.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
+  g.addColorStop(0.55, 'rgba(0, 0, 0, 0.45)');
+  g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  return new CanvasTexture(canvas);
+}
+
+/**
+ * Meadow and field for the country past the town: greens and straw, mown stripes, a
+ * few plough-brown patches. Tileable (everything is drawn with wrap-around), meant to
+ * be repeated many times and seen from altitude through fog.
+ */
+export function meadowTexture(): CanvasTexture {
+  const S = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = S;
+  canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2d context unavailable');
+  let seed = 7771;
+  const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  ctx.fillStyle = '#4f7a36';
+  ctx.fillRect(0, 0, S, S);
+  const blob = (x: number, y: number, r: number, color: string): void => {
+    for (const ox of [-S, 0, S]) {
+      for (const oy of [-S, 0, S]) {
+        const g = ctx.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+        g.addColorStop(0, color);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x + ox - r, y + oy - r, r * 2, r * 2);
+      }
+    }
+  };
+  const colours = ['rgba(120,150,60,0.5)', 'rgba(70,105,48,0.55)', 'rgba(150,150,70,0.4)', 'rgba(96,74,48,0.3)', 'rgba(90,130,70,0.5)'];
+  for (let i = 0; i < 70; i++) blob(rnd() * S, rnd() * S, 30 + rnd() * 90, colours[Math.floor(rnd() * colours.length)]!);
+  // fields: mown bands and furrows in a few rectangles
+  for (let i = 0; i < 9; i++) {
+    const x = rnd() * S, y = rnd() * S, w = 70 + rnd() * 140, h = 50 + rnd() * 110;
+    const stripe = 6 + Math.floor(rnd() * 8);
+    const vertical = rnd() < 0.5;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    for (let k = 0; k < 40; k++) {
+      ctx.fillStyle = k % 2 ? 'rgba(255,240,170,0.08)' : 'rgba(30,50,20,0.1)';
+      if (vertical) ctx.fillRect(x + k * stripe, y, stripe, h);
+      else ctx.fillRect(x, y + k * stripe, w, stripe);
+    }
+    ctx.restore();
+  }
+  for (let i = 0; i < 5000; i++) {
+    ctx.fillStyle = `rgba(${40 + rnd() * 60},${70 + rnd() * 70},${30 + rnd() * 30},0.18)`;
+    ctx.fillRect(rnd() * S, rnd() * S, 1 + rnd() * 2, 1 + rnd() * 2);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}

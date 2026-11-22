@@ -1,0 +1,58 @@
+---
+/**
+ * The flight, as one self-contained piece of a page.
+ *
+ * The scroll stage: ten chapters stacked in a column whose total height is the flight's
+ * timeline. The WebGL canvas itself lives in the layout (Base.astro), outside the Swup
+ * container, so it survives navigation; this component is what drives it. The master
+ * ScrollTrigger measures from the top of the page to the bottom of `#experience` (see
+ * ScrollDirector), so anything placed AFTER this component (the landing content) does not
+ * stretch the flight: the experience finishes when its last chapter has scrolled through, and
+ * the content that follows scrolls up over the canvas.
+ *
+ * Its copy is hidden by default (canvas-only; `?copy=1` shows it) with `visibility`, never
+ * `display`: the stage's height is the timeline. Each chapter carries only its kicker, title and sub,
+ * generated from the same constants as the titles pinned into the flight (story/copy.ts PINNED_TITLES).
+ *
+ * Office detour: one more stretch of scroll (`[data-detour]`, 120vh) after the copilot chapter.
+ * Story-t holds still while it scrolls by and the detour's own clock runs instead (the Engine maps
+ * the scroll to both, rig/detour.ts, from this spacer's share of the timeline). No copy of its own.
+ *
+ * The ending's own scroll: one more spacer (`[data-ending]`, 240vh) after the last chapter. The ending's line (the
+ * runway, the tower, the house) is long, and the pace warp gives it this stretch of scroll on top of its share, so
+ * it neither rushes nor takes its pixels from the chapters before it (the Engine measures the spacer's share of the
+ * timeline; rig/pace.ts HOME_STAGE, setEndingShare). No copy of its own. It is inside `#experience`, so the
+ * timeline ends with it and the landing content after the flight follows straight on.
+ */
+import { HOME_CHAPTERS } from '../story/copy';
+---
+
+<div id="experience" class="experience" data-experience>
+  {
+    HOME_CHAPTERS.map((c, i) => (
+      <section
+        class="chapter"
+        id={c.id}
+        data-chapter={i}
+        data-side={i > 0 && i % 2 === 1 ? 'right' : 'left'}
+      >
+        <span class="chapter__index">{String(i + 1).padStart(2, '0')}</span>
+        <div class="chapter__copy" data-reveal>
+          <p class="chapter__kicker">{c.kicker}</p>
+          {i === 0 ? <h1>{c.title}</h1> : <h2>{c.title}</h2>}
+          <p class="chapter__body">{c.sub}</p>
+        </div>
+      </section>
+    )).flatMap((section, i) =>
+      HOME_CHAPTERS[i]!.id === 'copilot' ? [section, <div class="detour" data-detour aria-hidden="true" />]
+      : i === HOME_CHAPTERS.length - 1 ? [section, <div class="ending" data-ending aria-hidden="true" />]
+      : [section])
+  }
+</div>
+
+<style>
+  /* office detour: a chapter's height of scroll with nothing in it */
+  .detour { height: 120vh; }
+  /* the ending's own scroll (rig/pace.ts HOME_STAGE.endingVh): nothing in it either */
+  .ending { height: 240vh; }
+</style>

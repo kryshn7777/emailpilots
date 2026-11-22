@@ -1,0 +1,517 @@
+{
+ "types": [
+  {
+   "id": "sedan",
+   "file": "sedan.glb",
+   "mid": "sedan-mid.glb",
+   "hi": "sedan-hi.glb",
+   "maps": {
+    "paint": "sedan-paint.webp",
+    "normal": "sedan-paint-n.webp"
+   },
+   "tris": 1472,
+   "midTris": 10916,
+   "hiTris": 22532,
+   "hpTris": 72018,
+   "length": 1.551,
+   "width": 0.601,
+   "height": 0.482,
+   "wheelbase": 0.908,
+   "nose": 0.776,
+   "tail": -0.776,
+   "exotic": false,
+   "lamp": {
+    "head": [
+     0.785,
+     0.21,
+     0.222
+    ],
+    "tail": [
+     -0.785,
+     0.222,
+     0.265
+    ]
+   },
+   "wheelRadius": 0.1089,
+   "wheelWidth": 0.0709,
+   "wheelOffsets": [
+    [
+     0.4538,
+     0.1089,
+     -0.2376
+    ],
+    [
+     0.4538,
+     0.1089,
+     0.2376
+    ],
+    [
+     -0.4538,
+     0.1089,
+     -0.2376
+    ],
+    [
+     -0.4538,
+     0.1089,
+     0.2376
+    ]
+   ]
+  },
+  {
+   "id": "hatch",
+   "file": "hatch.glb",
+   "mid": "hatch-mid.glb",
+   "hi": "hatch-hi.glb",
+   "maps": {
+    "paint": "hatch-paint.webp",
+    "normal": "hatch-paint-n.webp"
+   },
+   "tris": 1424,
+   "midTris": 10668,
+   "hiTris": 20844,
+   "hpTris": 63170,
+   "length": 1.304,
+   "width": 0.574,
+   "height": 0.488,
+   "wheelbase": 0.809,
+   "nose": 0.652,
+   "tail": -0.652,
+   "exotic": false,
+   "lamp": {
+    "head": [
+     0.662,
+     0.201,
+     0.216
+    ],
+    "tail": [
+     -0.662,
+     0.212,
+     0.264
+    ]
+   },
+   "wheelRadius": 0.1023,
+   "wheelWidth": 0.0644,
+   "wheelOffsets": [
+    [
+     0.4043,
+     0.1023,
+     -0.2244
+    ],
+    [
+     0.4043,
+     0.1023,
+     0.2244
+    ],
+    [
+     -0.4043,
+     0.1023,
+     -0.2244
+    ],
+    [
+     -0.4043,
+     0.1023,
+     0.2244
+    ]
+   ]
+  },
+  {
+   "id": "suv",
+   "file": "suv.glb",
+   "mid": "suv-mid.glb",
+   "hi": "suv-hi.glb",
+   "maps": {
+    "paint": "suv-paint.webp",
+    "normal": "suv-paint-n.webp"
+   },
+   "tris": 1424,
+   "midTris": 11964,
+   "hiTris": 24380,
+   "hpTris": 75186,
+   "length": 1.584,
+   "width": 0.634,
+   "height": 0.568,
+   "wheelbase": 0.941,
+   "nose": 0.792,
+   "tail": -0.792,
+   "exotic": false,
+   "lamp": {
+    "head": [
+     0.802,
+     0.222,
+     0.273
+    ],
+    "tail": [
+     -0.802,
+     0.234,
+     0.432
+    ]
+   },
+   "wheelRadius": 0.1221,
+   "wheelWidth": 0.0775,
+   "wheelOffsets": [
+    [
+     0.4703,
+     0.1221,
+     -0.2541
+    ],
+    [
+     0.4703,
+     0.1221,
+     0.2541
+    ],
+    [
+     -0.4703,
+     0.1221,
+     -0.2541
+    ],
+    [
+     -0.4703,
+     0.1221,
+     0.2541
+    ]
+   ]
+  },
+  {
+   "id": "pickup",
+   "file": "pickup.glb",
+   "mid": "pickup-mid.glb",
+   "hi": "pickup-hi.glb",
+   "maps": {
+    "paint": "pickup-paint.webp",
+    "normal": "pickup-paint-n.webp"
+   },
+   "tris": 1472,
+   "midTris": 10692,
+   "hiTris": 23224,
+   "hpTris": 78082,
+   "length": 1.749,
+   "width": 0.647,
+   "height": 0.574,
+   "wheelbase": 1.073,
+   "nose": 0.875,
+   "tail": -0.875,
+   "exotic": false,
+   "lamp": {
+    "head": [
+     0.884,
+     0.226,
+     0.283
+    ],
+    "tail": [
+     -0.884,
+     0.239,
+     0.267
+    ]
+   },
+   "wheelRadius": 0.1287,
+   "wheelWidth": 0.0875,
+   "wheelOffsets": [
+    [
+     0.5363,
+     0.1287,
+     -0.2607
+    ],
+    [
+     0.5363,
+     0.1287,
+     0.2607
+    ],
+    [
+     -0.5363,
+     0.1287,
+     -0.2607
+    ],
+    [
+     -0.5363,
+     0.1287,
+     0.2607
+    ]
+   ]
+  },
+  {
+   "id": "van",
+   "file": "van.glb",
+   "mid": "van-mid.glb",
+   "hi": "van-hi.glb",
+   "maps": {
+    "paint": "van-paint.webp",
+    "normal": "van-paint-n.webp"
+   },
+   "tris": 1400,
+   "midTris": 10278,
+   "hiTris": 22862,
+   "hpTris": 77524,
+   "length": 1.766,
+   "width": 0.667,
+   "height": 0.706,
+   "wheelbase": 1.089,
+   "nose": 0.883,
+   "tail": -0.883,
+   "exotic": false,
+   "lamp": {
+    "head": [
+     0.893,
+     0.233,
+     0.282
+    ],
+    "tail": [
+     -0.893,
+     0.247,
+     0.327
+    ]
+   },
+   "wheelRadius": 0.1155,
+   "wheelWidth": 0.0709,
+   "wheelOffsets": [
+    [
+     0.5445,
+     0.1155,
+     -0.2706
+    ],
+    [
+     0.5445,
+     0.1155,
+     0.2706
+    ],
+    [
+     -0.5445,
+     0.1155,
+     -0.2706
+    ],
+    [
+     -0.5445,
+     0.1155,
+     0.2706
+    ]
+   ]
+  },
+  {
+   "id": "taxi",
+   "file": "taxi.glb",
+   "mid": "taxi-mid.glb",
+   "hi": "taxi-hi.glb",
+   "maps": {
+    "paint": "taxi-paint.webp",
+    "normal": "taxi-paint-n.webp"
+   },
+   "tris": 1484,
+   "midTris": 10000,
+   "hiTris": 21232,
+   "hpTris": 70438,
+   "length": 1.551,
+   "width": 0.601,
+   "height": 0.482,
+   "wheelbase": 0.908,
+   "nose": 0.776,
+   "tail": -0.776,
+   "exotic": false,
+   "lamp": {
+    "head": [
+     0.785,
+     0.21,
+     0.222
+    ],
+    "tail": [
+     -0.785,
+     0.222,
+     0.265
+    ]
+   },
+   "wheelRadius": 0.1089,
+   "wheelWidth": 0.0709,
+   "wheelOffsets": [
+    [
+     0.4538,
+     0.1089,
+     -0.2376
+    ],
+    [
+     0.4538,
+     0.1089,
+     0.2376
+    ],
+    [
+     -0.4538,
+     0.1089,
+     -0.2376
+    ],
+    [
+     -0.4538,
+     0.1089,
+     0.2376
+    ]
+   ]
+  },
+  {
+   "id": "supercar",
+   "file": "supercar.glb",
+   "mid": "supercar-mid.glb",
+   "hi": "supercar-hi.glb",
+   "maps": {
+    "paint": "supercar-paint.webp",
+    "normal": "supercar-paint-n.webp"
+   },
+   "tris": 1532,
+   "midTris": 12812,
+   "hiTris": 23944,
+   "hpTris": 70746,
+   "length": 1.492,
+   "width": 0.653,
+   "height": 0.383,
+   "wheelbase": 0.865,
+   "nose": 0.746,
+   "tail": -0.746,
+   "exotic": true,
+   "lamp": {
+    "head": [
+     0.706,
+     0.242,
+     0.185
+    ],
+    "tail": [
+     -0.756,
+     0.229,
+     0.276
+    ]
+   },
+   "wheelRadius": 0.1122,
+   "wheelWidth": 0.0908,
+   "wheelOffsets": [
+    [
+     0.4323,
+     0.1122,
+     -0.2722
+    ],
+    [
+     0.4323,
+     0.1122,
+     0.2722
+    ],
+    [
+     -0.4323,
+     0.1122,
+     -0.2722
+    ],
+    [
+     -0.4323,
+     0.1122,
+     0.2722
+    ]
+   ]
+  },
+  {
+   "id": "gt",
+   "file": "gt.glb",
+   "mid": "gt-mid.glb",
+   "hi": "gt-hi.glb",
+   "maps": {
+    "paint": "gt-paint.webp",
+    "normal": "gt-paint-n.webp"
+   },
+   "tris": 1568,
+   "midTris": 12630,
+   "hiTris": 24666,
+   "hpTris": 74856,
+   "length": 1.551,
+   "width": 0.65,
+   "height": 0.422,
+   "wheelbase": 0.898,
+   "nose": 0.776,
+   "tail": -0.776,
+   "exotic": true,
+   "lamp": {
+    "head": [
+     0.729,
+     0.241,
+     0.205
+    ],
+    "tail": [
+     -0.785,
+     0.25,
+     0.269
+    ]
+   },
+   "wheelRadius": 0.1172,
+   "wheelWidth": 0.0875,
+   "wheelOffsets": [
+    [
+     0.4488,
+     0.1172,
+     -0.269
+    ],
+    [
+     0.4488,
+     0.1172,
+     0.269
+    ],
+    [
+     -0.4488,
+     0.1172,
+     -0.269
+    ],
+    [
+     -0.4488,
+     0.1172,
+     0.269
+    ]
+   ]
+  },
+  {
+   "id": "hyper",
+   "file": "hyper.glb",
+   "mid": "hyper-mid.glb",
+   "hi": "hyper-hi.glb",
+   "maps": {
+    "paint": "hyper-paint.webp",
+    "normal": "hyper-paint-n.webp"
+   },
+   "tris": 1616,
+   "midTris": 12144,
+   "hiTris": 22360,
+   "hpTris": 69374,
+   "length": 1.518,
+   "width": 0.647,
+   "height": 0.393,
+   "wheelbase": 0.881,
+   "nose": 0.759,
+   "tail": -0.759,
+   "exotic": true,
+   "lamp": {
+    "head": [
+     0.719,
+     0.246,
+     0.172
+    ],
+    "tail": [
+     -0.769,
+     0.259,
+     0.281
+    ]
+   },
+   "wheelRadius": 0.1155,
+   "wheelWidth": 0.0924,
+   "wheelOffsets": [
+    [
+     0.4405,
+     0.1155,
+     -0.269
+    ],
+    [
+     0.4405,
+     0.1155,
+     0.269
+    ],
+    [
+     -0.4405,
+     0.1155,
+     -0.269
+    ],
+    [
+     -0.4405,
+     0.1155,
+     0.269
+    ]
+   ]
+  }
+ ]
+}

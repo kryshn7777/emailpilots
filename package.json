@@ -1,82 +1,46 @@
 {
-  "name": "email-pilots",
-  "version": "1.1.0",
-  "description": "Email Pilots Tool",
-  "author": {
-    "name": "Email Pilots",
-    "email": "kittuhacks@gmail.com"
+  "name": "new-website",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
   },
-  "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.vite.json --noEmit",
-    "build": "npm run typecheck && vite build && electron-builder",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test-send": "ts-node src/index.ts --test"
-  },
-  "build": {
-    "appId": "com.mailauto.app",
-    "productName": "Email Pilots",
-    "compression": "maximum",
-    "files": [
-      "dist-electron/**",
-      "dist-vite/**",
-      "package.json",
-      "!node_modules/@node-llama-cpp/win-arm64/**",
-      "!node_modules/@node-llama-cpp/**/*.{lib,exp,pdb}",
-      "!node_modules/@node-llama-cpp/win-x64-cuda-ext/**",
-      "!node_modules/node-llama-cpp/llama/gitRelease.bundle"
-    ],
-    "electronLanguages": [
-      "en-US"
-    ],
-    "asarUnpack": [
-      "node_modules/node-llama-cpp/bins/**",
-      "node_modules/node-llama-cpp/llama/localBuilds/**",
-      "node_modules/@node-llama-cpp/**"
-    ],
-    "directories": {
-      "output": "release/"
-    },
-    "win": {
-      "icon": "build/icon.ico",
-      "target": [
-        "nsis",
-        "portable"
-      ]
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "kryshn7777",
-        "repo": "Email-Pilots"
-      }
-    ]
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "typecheck": "astro check",
+    "setup:assets": "node scripts/fetch-hdri.mjs",
+    "bake:city": "node scripts/bake-city.mjs",
+    "bake:rings": "node scripts/bake-city-rings.mjs",
+    "build:buildings": "python blender/make_buildings.py --set city && python blender/make_buildings.py --set homes && node scripts/compress-models.mjs",
+    "build:ground": "python blender/make_ground.py",
+    "build:clouds": "python blender/make_cloud_env.py",
+    "compress:models": "node scripts/compress-models.mjs"
   },
   "dependencies": {
-    "@azure/msal-node": "^5.3.0",
-    "csv-parse": "^6.1.0",
-    "electron-updater": "^6.8.9",
-    "imapflow": "^1.4.1",
-    "mailparser": "^3.9.14",
-    "mustache": "^4.2.0",
-    "node-cron": "^4.2.1",
-    "node-llama-cpp": "^3.19.0",
-    "nodemailer": "^8.0.2"
+    "@astrojs/react": "^6.0.2",
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/oswald": "^5.3.0",
+    "@swup/astro": "^1.8.0",
+    "astro": "^7.2.0",
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.26",
+    "postprocessing": "^6.39.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "three": "^0.185.1"
   },
   "devDependencies": {
-    "@types/mailparser": "^3.4.6",
-    "@types/mustache": "^4.2.6",
-    "@types/node": "^25.4.0",
-    "@types/node-cron": "^3.0.11",
-    "@types/nodemailer": "^7.0.11",
-    "electron": "^41.0.0",
-    "electron-builder": "^26.8.1",
-    "ts-node": "^10.9.2",
+    "@astrojs/check": "^0.9.10",
+    "@gltf-transform/core": "^4.4.2",
+    "@gltf-transform/functions": "^4.4.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/three": "^0.185.4",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1",
-    "vite-plugin-electron": "^0.29.0",
-    "vitest": "^4.1.8"
+    "vite-plugin-glsl": "^1.6.1"
   }
 }

@@ -1,0 +1,22 @@
+---
+import Base from '../layouts/Base.astro';
+import { DOWNLOAD } from '../story/copy';
+---
+
+<Base
+  title="Download — Email Pilots for Windows"
+  description="Download Email Pilots for Windows. Runs entirely on your PC — your mailbox, your data, no cloud account. Explore with sample data before connecting anything."
+>
+  <div class="page">
+    <p class="page__kicker">{DOWNLOAD.kicker}</p>
+    <h1>{DOWNLOAD.title}</h1>
+    <p class="page__lede">{DOWNLOAD.body}</p>
+
+    <div class="btn-row" data-reveal>
+      <a class="btn btn--brand" data-magnetic href={DOWNLOAD.cta.href}>{DOWNLOAD.cta.label}</a>
+    </div>
+    <p class="page__note">{DOWNLOAD.requirements}</p>
+
+    <p class="download-note">{DOWNLOAD.smartScreenNote}</p>
+  </div>
+</Base>

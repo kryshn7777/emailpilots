@@ -1,0 +1,112 @@
+---
+import '@fontsource-variable/bricolage-grotesque';
+import '@fontsource-variable/inter';
+import '@fontsource/oswald/400.css';
+import '@fontsource/oswald/700.css';
+import '../styles/global.css';
+import Nav from '../components/islands/Nav.tsx';
+import { href } from '../lib/href';
+import { CHAPTER_NAMES, SITE } from '../story/copy';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href={href("/favicon.svg")} />
+    <!-- the sky the scene is lit by: fetched alongside the engine chunk instead of after it -->
+    <link rel="preload" href={href("/hdri/sky_1k.hdr")} as="fetch" crossorigin="anonymous" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <!-- Persistent WebGL canvas: lives OUTSIDE #swup so page transitions never recreate it. -->
+    <canvas id="webgl" aria-hidden="true"></canvas>
+
+    <!-- branded preloader: covers boot + first engine frame -->
+    <div id="preloader" aria-hidden="true">
+      <div class="preloader__mark">
+        <svg viewBox="0 0 48 48" width="46" height="46" fill="none" aria-hidden="true">
+          <path d="M4 26 L44 10 L24 40 L21 29 Z" fill="var(--paper)" opacity="0.95"></path>
+          <path d="M21 29 L44 10 L26 33 Z" fill="var(--horizon)" opacity="0.8"></path>
+        </svg>
+        <span>Email Pilots</span>
+      </div>
+      <div class="preloader__hint">Boarding…</div>
+    </div>
+
+    <header class="site-header">
+      <a class="brand" href={href("/")} aria-label="Email Pilots home">
+        <svg viewBox="0 0 48 48" width="22" height="22" fill="none" aria-hidden="true">
+          <path d="M4 26 L44 10 L24 40 L21 29 Z" fill="currentColor" opacity="0.95"></path>
+        </svg>
+        <span>Email&nbsp;Pilots</span>
+      </a>
+      <Nav client:idle />
+    </header>
+
+    <!-- flight-data HUD, home only (page.ts hides it elsewhere) -->
+    <div id="hud" aria-hidden="true">
+      <span id="hud-chapter">CH 01 / {CHAPTER_NAMES.length} · {CHAPTER_NAMES[0]}</span>
+      <span id="hud-alt">ALT 0000</span>
+    </div>
+    <!-- the progress rail; page.ts adds a tick per chapter (jump to it), named from story/copy.ts -->
+    <div id="scroll-progress" data-names={JSON.stringify(CHAPTER_NAMES)}><i aria-hidden="true"></i><nav class="rail" aria-label="Chapters"></nav></div>
+    <!-- scroll feel: the first-load cue, the loading cue and the sound toggle (page.ts, webgl/audio/Wind.ts) -->
+    <div class="scroll-cue" id="scroll-cue" aria-hidden="true"><span>Scroll</span><i></i></div>
+    <div class="load-cue" id="load-cue" role="status" aria-live="polite"></div>
+    <button class="sound-toggle" id="sound-toggle" type="button" aria-pressed="false" aria-label="Wind sound">
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M3 8h3l4-3v10l-4-3H3z" fill="currentColor" stroke="none"></path>
+        <path class="wave" d="M13 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10" stroke-linecap="round"></path>
+      </svg>
+      <span data-label>Sound off</span>
+    </button>
+
+    <div id="cursor" aria-hidden="true"></div>
+
+    <main id="swup">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <a class="brand" href={href("/")} aria-label="Email Pilots home">
+          <svg viewBox="0 0 48 48" width="20" height="20" fill="none" aria-hidden="true">
+            <path d="M4 26 L44 10 L24 40 L21 29 Z" fill="currentColor" opacity="0.95"></path>
+          </svg>
+          <span>Email&nbsp;Pilots</span>
+        </a>
+        <p class="site-footer__tag">
+          Personal outreach and follow-up from your own mailbox — human-paced,
+          reply-aware, and 100% on your PC.
+        </p>
+      </div>
+      <nav aria-label="Site">
+        <a href={href("/download")}>Download</a>
+        <a href={href("/features")}>Flight manual</a>
+        <a href={SITE.terms}>Terms of Service</a>
+        <a href={SITE.privacy}>Privacy Policy</a>
+      </nav>
+      <div class="site-footer__fine">
+        <span>© 2026 EMAIL PILOTS · WINDOWS DESKTOP APP</span>
+        <span class="site-footer__legal">Outlook and the Outlook logo are trademarks of the Microsoft group of companies. Email Pilots is not affiliated with or endorsed by Microsoft.</span>
+      </div>
+    </footer>
+
+    <script>
+      import { boot } from '../webgl/index';
+      import { bindPage } from '../page';
+      boot();
+      bindPage();
+    </script>
+  </body>
+</html>

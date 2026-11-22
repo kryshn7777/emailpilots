@@ -1,8 +1,5 @@
 # Email Pilots — Feature List
 
-> **Status note 2026-10-03:** corrected Appendix A (tier gating, Microsoft AI labels now
-> work) and §13 (Google sign-in). Pricing set 2026-10-03 (§12, Appendix B); the Buy button still waits on the store ids.
-
 > Landing-page source of truth, produced from a full codebase audit (2026-08-08).
 > Every claim below is implemented and verified in the current build. Anything half-built
 > or risky to advertise is quarantined in **Appendix A**; wording rules live in **Appendix B**.
@@ -29,7 +26,7 @@ entirely on your PC. No cloud account, no servers, no per-contact fees.
   server settings automatically, checking the domain's mail records when it isn't obvious.
 - **Verified before saved.** Every account is test-authenticated before it's added, and a
   one-click "Send test email to myself" proves the whole pipeline end to end.
-- **Your mailbox plus up to 5 more.** Extra accounts send in parallel, each with its own
+- **Up to 5 mailboxes** (confirmed 2026-10-25). Extra accounts send in parallel, each with its own
   daily allowance and health indicator, with bulk enable / disable / test / remove and a
   fleet overview strip.
 
@@ -209,10 +206,8 @@ entirely on your PC. No cloud account, no servers, no per-contact fees.
 
 ## 12. One simple plan
 
-- **Free forever; First Class $2.90/week or $10/month.** Free does everything except
-  automatic follow-up sequences, which First Class runs. First run before 22 Nov 2026 gets
-  First Class free for 30 days ("install and run before" — not "download before"); later
-  installs get 7 days. No credit card to start, cancel anytime, no per-seat or per-contact fees.
+- **$2.9/week, 7-day free trial, no credit card to start, cancel anytime.** One
+  subscription, your own mailbox, no per-seat or per-contact fees.
   *(Do not publish a Buy button yet: the license store isn't configured — activation
   currently refuses every key — and plan naming must be unified first. See Appendices
   A and B.)*
@@ -228,9 +223,8 @@ Honest limits — several double as privacy selling points:
   you paste them at your registrar yourself.
 - **No drag-and-drop email builder.** Templates are HTML you write or export from a design
   tool.
-- **No "Sign in with Google" yet.** It is built but hidden until Google approves the app;
-  Google connects via an app password (guided in-app) until then. One-click sign-in exists
-  for Microsoft accounts.
+- **No "Sign in with Google".** Google connects via an app password (guided in-app);
+  one-click sign-in exists for Microsoft accounts only.
 
 ---
 
@@ -240,8 +234,9 @@ Real code that exists in the build but must **not** appear in marketing until fi
 
 | What | State | Rule for copy |
 |---|---|---|
-| **License activation & Free / First Class tiers** | Activation UI, validation, and entitlement logic ship, and **follow-up sequences are gated**: on Free they pause (pre-flight and Next 7 days say so). Every install gets First Class free for 30 days if first run is before 2026-11-22, 7 days after. But the store product IDs are placeholders, so every key is refused and no buy button renders: when the free period ends, follow-ups stop with no way to pay. The model picker lists the whole catalog (incl. the 219 MB model); the tier-aware recommendation is still unwired. | Don't mention tiers, keys, or "upgrade" until the store is configured. |
+| **License activation & Free / First Class tiers** | Activation UI, validation, and entitlement logic ship, but the store product IDs are placeholders (every key is refused) and **no feature is gated by tier** — Free currently equals First Class. A 219 MB free-tier AI model exists in the catalog but the UI never offers it (the tier-aware recommendation is unwired; the download button always fetches the 2.3 GB model). | Don't mention tiers, keys, or "upgrade" anywhere until the store is configured and at least one gate is wired. |
 | **Browser-session webmail connect** (credential-less Gmail/Outlook) | Backend intact but has zero UI — no user can create such an account. Never verified live; automating webmail also carries provider-ToS risk. | Never mention. |
+| **AI reply labels on Microsoft accounts** | Reply classification runs only on app-password (IMAP) accounts. Microsoft-connected accounts get replies and bounce handling, but no AI labels — so auto-unsubscribe filing and out-of-office tolerance don't apply there. | Don't promise "AI reads every reply on every account". Keep AI reply claims generic or Gmail-flavored. |
 | **Automatic pre-send AI rewrite** | The current landing line "AI … rewrites the risky parts before a single message leaves" overstates it: the deliverability review is advisory and the rewrite is a button the user clicks. | Say "reviews each draft and suggests fixes" — never "rewrites before it leaves". |
 | **One-click unsubscribe on every email** | The footer and List-Unsubscribe header exist only in **Bulk** mode. The default Personal mode deliberately sends without them. | Only claim unsubscribe machinery when describing Bulk mode. |
 | **Dark mode** | None. Light theme only. | Don't show or imply dark UI in screenshots or copy. |
@@ -253,11 +248,13 @@ Real code that exists in the build but must **not** appear in marketing until fi
   **personal outreach and follow-up** — one person writing to people they want to reach.
 - **The word "spam"** is allowed only when talking about the spam *folder* or spam-filter
   checks — never to describe what the user sends.
-- **Plan naming (decided 2026-10-03):** **Free** and **First Class**, First Class at
-  **$2.90/week or $10/month** — the app's Plan card, the Lemon Squeezy runbook and the Terms
-  all use this. Never "Solo", never €.
-- **Numbers safe to quote:** your mailbox + up to 5 more; ~50 emails/day default cap per
+- **Plan naming is currently three-way inconsistent** and must be unified before pricing
+  goes live: landing sells **"Solo" at $2.9/week**, the app's Settings card says **"Free" /
+  "First Class"**, and the payment-store runbook defines **Weekly $2.90 + Monthly $10.00**.
+  Pick one vocabulary end to end.
+- **Numbers safe to quote:** up to 5 mailboxes; ~50 emails/day default cap per
   mailbox; warm-up ramp ~5 → ~50; replies checked every 15 minutes; 8 reply labels; 5
-  writing tones; curated on-device AI models from 219 MB to 2.3 GB; 30-day founder period / 7-day trial.
+  writing tones; curated on-device AI model at 2.3 GB (a 219 MB free-tier model exists but
+  isn't offered yet — see Appendix A); 7-day trial.
 - **Honest superlatives only:** "100% local" and "zero cloud servers" are true and
   verifiable — lead with privacy, it's the differentiator.
